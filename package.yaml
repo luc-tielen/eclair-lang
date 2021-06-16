@@ -1,0 +1,35 @@
+name:                eclair-lang
+version:             0.1.0.0
+#synopsis:
+#description:
+homepage:            https://github.com/luc-tielen/eclair-lang
+license:             BSD3
+author:              Luc Tielen
+maintainer:          luc.tielen@gmail.com
+copyright:           Luc Tielen, 2021
+category:            Web
+extra-source-files:
+- README.md
+
+dependencies:
+  - base >= 4.7 && < 5
+  - souffle-haskell == 3.0.0
+
+cxx-options:
+  - -std=c++20
+  - -D__EMBEDDED_SOUFFLE__
+cxx-sources:
+  - cbits/*.cpp
+
+when:
+  - condition: os(darwin)
+    extra-libraries: c++
+
+library:
+  source-dirs: lib
+  cxx-sources: cbits/*.cpp
+  cxx-options:
+    - -Wall
+  when:
+    - condition: os(linux)
+      extra-libraries: stdc++
