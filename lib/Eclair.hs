@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings, OverloadedLists #-}
 
-module Eclair ( AST(..), parseFile ) where
+module Eclair ( AST(..), Value, Clause, Decl, parseFile ) where
 
 import Data.Char
 import Data.Text (Text)
@@ -24,12 +24,16 @@ type Number = Int
 newtype Id = Id Text
   deriving (Eq, Show)
 
+type Value = AST
+type Clause = AST
+type Decl = AST
+
 data AST
   = Lit Number
   | Var Id
-  | Atom Id [AST]
-  | Rule Id [AST] [AST]
-  | Module [AST]
+  | Atom Id [Value]
+  | Rule Id [Value] [Clause]
+  | Module [Decl]
   deriving (Eq, Show)
 
 
