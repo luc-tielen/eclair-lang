@@ -15,6 +15,20 @@ packages:
   original:
     git: https://github.com/luc-tielen/souffle-haskell
     commit: fbc57c51e94e41577774fae3632a99064e79525e
+- completed:
+    hackage: protolude-0.3.0@sha256:8361b811b420585b122a7ba715aa5923834db6e8c36309bf267df2dbf66b95ef,2693
+    pantry-tree:
+      size: 1644
+      sha256: babf32b414f25f790b7a4ce6bae5c960bc51a11a289e7c47335b222e6762560c
+  original:
+    hackage: protolude-0.3.0@sha256:8361b811b420585b122a7ba715aa5923834db6e8c36309bf267df2dbf66b95ef,2693
+- completed:
+    hackage: megaparsec-9.0.1@sha256:2244ab77521a52a0083966c5405b3151f149e1db50b1a5b104cd9b1e56617203,3248
+    pantry-tree:
+      size: 1447
+      sha256: 0e2df0d318e48e352b3d766c46cdabc3abb5dcc3dfcb062bdd0a8d44f34a975c
+  original:
+    hackage: megaparsec-9.0.1@sha256:2244ab77521a52a0083966c5405b3151f149e1db50b1a5b104cd9b1e56617203,3248
 snapshots:
 - completed:
     size: 532832

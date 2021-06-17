@@ -13,7 +13,11 @@ extra-source-files:
 
 dependencies:
   - base >= 4.7 && < 5
+  - protolude == 0.3.0
   - souffle-haskell == 3.0.0
+  - megaparsec == 9.*
+  - text == 1.*
+  - vector == 0.12.*
 
 cxx-options:
   - -std=c++20
