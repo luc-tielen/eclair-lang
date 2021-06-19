@@ -18,6 +18,12 @@ dependencies:
   - megaparsec == 9.*
   - text == 1.*
   - vector == 0.12.*
+  - containers == 0.*
+
+default-extensions:
+  - NoImplicitPrelude
+  - OverloadedStrings
+  - LambdaCase
 
 cxx-options:
   - -std=c++20
