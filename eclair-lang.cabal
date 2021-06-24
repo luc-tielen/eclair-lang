@@ -33,6 +33,7 @@ library
   build-depends:
       base >=4.7 && <5
     , containers ==0.*
+    , lens ==4.*
     , megaparsec ==9.*
     , protolude ==0.3.0
     , souffle-haskell ==3.0.0

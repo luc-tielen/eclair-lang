@@ -1,7 +1,12 @@
-{-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE TemplateHaskell, OverloadedLists #-}
 
 module Eclair.Parser
   ( AST(..)
+  , _Lit
+  , _Var
+  , _Atom
+  , _Rule
+  , _Module
   , Value
   , Clause
   , Decl
@@ -14,6 +19,7 @@ module Eclair.Parser
   , ParseErr
   ) where
 
+import Control.Lens
 import Control.Monad.Fail
 import Data.Char
 import Data.Text (Text)
@@ -46,9 +52,10 @@ data AST
   | Var Id
   | Atom Id [Value]
   | Rule Id [Value] [Clause]
-  | Module [[Decl]]
+  | Module [Decl]
   deriving (Eq, Show)
 
+makePrisms ''AST
 
 parseFile :: FilePath -> IO (Either ParseError AST)
 parseFile path = do
@@ -63,7 +70,7 @@ astParser = do
   whitespace
   decls <- declParser `P.endBy` whitespace
   P.eof
-  pure $ Module [decls]
+  pure $ Module decls
 
 data DeclType = AtomType | RuleType
 

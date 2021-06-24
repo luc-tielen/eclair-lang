@@ -19,6 +19,7 @@ dependencies:
   - text == 1.*
   - vector == 0.12.*
   - containers == 0.*
+  - lens == 4.*
 
 default-extensions:
   - NoImplicitPrelude
