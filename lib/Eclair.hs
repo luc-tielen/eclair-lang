@@ -64,8 +64,9 @@ compileRA ast = RAModule $ map processDecls sortedDecls where
   processSingleRule name args clauses =
     -- TODO handle recursive rules..
     let eqs = constraintsForRule name args clauses
-        (Atom cName values : rest) = reverse clauses  -- TODO handle other cases (no atom at front)
-        seed = Project name $ map (valueToRA eqs) args
+        (c@(Atom cName values) : rest) = reverse clauses  -- TODO handle other cases (no atom at front)
+        seed = Search cName (clauseConstraints c) $
+          Project name $ map (valueToRA eqs) args
         -- TODO: support other things than clauses... (gets rid of partial functions!)
         clauseName (Atom name _) = name
         clauseName _ = panic "clauseName called in unsupported context"
