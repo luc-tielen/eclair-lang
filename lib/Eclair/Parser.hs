@@ -1,18 +1,7 @@
 {-# LANGUAGE OverloadedLists #-}
 
 module Eclair.Parser
-  ( AST(..)
-  , _Lit
-  , _Var
-  , _Atom
-  , _Rule
-  , _Module
-  , Value
-  , Clause
-  , Decl
-  , Number
-  , Id(..)
-  , parseFile
+  ( parseFile
   , printParseError
   , Parser
   , ParseError

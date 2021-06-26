@@ -2,51 +2,12 @@ module Eclair ( run ) where
 
 import Protolude
 import Protolude.Unsafe (unsafeFromJust)
+import Eclair.Syntax
 import Eclair.Parser
+import Eclair.RA.IR
 import Control.Lens hiding (Equality, Index)
-import qualified Data.Graph as G
 import qualified Data.Map as M
 import qualified Data.Text as T
-
-
-type Relation = Id
-type RAClause = RA
-type Action = RA
-type ColumnIndex = Int
-
--- NOTE: removed Insert, couldn't find a use?
-data RA
-  = Search Relation [RAClause] Action
-  | Project Relation [RA]
-  | Merge Relation Relation
-  | Swap Relation Relation
-  | Purge Relation
-  | Seq RA RA
-  -- | Par [RA]
-  | Loop RA
-  | Exit RAClause
-
-  | RAModule [RA]
-  | RALit Number
-  | ColumnIndex Relation ColumnIndex
-  | RAConstraint RA RA  -- TODO simplify names
-  deriving (Eq, Show)
-
-scc :: AST -> [[AST]]
-scc = \case
-  Module decls -> map G.flattenSCC sortedDecls where
-    -- TODO: fix issue when loose atom does not appear
-    sortedDecls = G.stronglyConnComp $ zipWith (\i d -> (d, i, refersTo d)) [0..] decls
-    declLineMapping = M.fromListWith (++) $ zipWith (\i d -> (nameFor d, [i])) [0..] decls
-    refersTo = \case
-      Rule _ _ clauses -> concatMap (unsafeFromJust . flip M.lookup declLineMapping . nameFor) clauses
-      _ -> []
-    -- TODO use traversals?
-    nameFor = \case
-      Atom name _ -> name
-      Rule name _ _ -> name
-      _ -> Id ""  -- TODO how to handle?
-  _ -> panic "Unreachable code in 'scc'"
 
 
 compileRA :: AST -> RA
