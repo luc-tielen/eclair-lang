@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell, OverloadedLists #-}
+{-# LANGUAGE OverloadedLists #-}
 
 module Eclair.Parser
   ( AST(..)
@@ -19,12 +19,12 @@ module Eclair.Parser
   , ParseErr
   ) where
 
-import Control.Lens
 import Control.Monad.Fail
 import Data.Char
 import Data.Text (Text)
 import Data.Vector as V
 import Data.Void
+import Eclair.Syntax
 import Protolude
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
@@ -36,26 +36,6 @@ import qualified Text.Megaparsec.Char.Lexer as L
 type ParseErr = Void
 type ParseError = P.ParseErrorBundle Text ParseErr
 type Parser = P.Parsec ParseErr Text
-
-
-type Number = Int
-
-newtype Id = Id Text
-  deriving (Eq, Ord, Show)
-
-type Value = AST
-type Clause = AST
-type Decl = AST
-
-data AST
-  = Lit Number
-  | Var Id
-  | Atom Id [Value]
-  | Rule Id [Value] [Clause]
-  | Module [Decl]
-  deriving (Eq, Show)
-
-makePrisms ''AST
 
 parseFile :: FilePath -> IO (Either ParseError AST)
 parseFile path = do
