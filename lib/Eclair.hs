@@ -59,49 +59,54 @@ compileRA ast = RAModule $ map processDecls sortedDecls where
       Project name (RALit <$> values ^.. folded . _Lit)
     [Rule name args clauses] ->
       processSingleRule name args clauses
-  -- TODO: which other cases?
+    -- TODO: which other cases?
     rules -> RAModule []
+    -- TODO finish other cases
   processSingleRule name args clauses =
-    -- TODO handle recursive rules..
+    -- TODO handle recursive rules that are not mutually recursive..
     let eqs = constraintsForRule name args clauses
         (c@(Atom cName values) : rest) = reverse clauses  -- TODO handle other cases (no atom at front)
-        seed = Search cName (clauseConstraints c) $
+        seed = Search cName (clauseConstraints eqs c) $
           Project name $ map (valueToRA eqs) args
-        -- TODO: support other things than clauses... (gets rid of partial functions!)
-        clauseName (Atom name _) = name
-        clauseName _ = panic "clauseName called in unsupported context"
-        clauseConstraints (Atom name values) =
-          concat $ zipWith (constraintToRA name (excludeGoals eqs)) [0..] values
-        clauseConstraints _ = panic "clauseConstraints called in unsupported context"
-     in foldl' (\raCode clause -> Search (clauseName clause) (clauseConstraints clause) raCode) seed rest
-  constraintToRA name eqs i =
-    let lhs = ColumnIndex name i
-     in \case
-        Lit x -> [RAConstraint lhs $ RALit x]
-        Var v ->
-          let eqs' = f v
-              f var =
-                sortOn ascendingClauseIdx $
-                  filter (\eq -> sameVar eq && differentRelation eq) eqs
-                where ascendingClauseIdx (Equality ty _ _ _) = ty
-                      sameVar (Equality _ _ _ v) = VarTerm var == v
-                      differentRelation (Equality _ name' _ _) = name /= name'
-              g (Equality _ name idx term) =
-                case term of
-                  LitTerm lit -> RAConstraint lhs (RALit lit)
-                  VarTerm _ -> RAConstraint lhs (ColumnIndex name idx)
-          in map g eqs' --  [ColumnIndex name idx]
-        _ -> panic "Unexpected case in constraintToRA"
-  isLit = \case
-    LitTerm _ -> True
-    _ -> False
-  valueToRA eqs = \case
-    Lit x -> RALit x
-    Var v ->
-      let (Equality _ name idx _) = unsafeFromJust $ findBestMatchingEquality (excludeGoals eqs) v
-       in ColumnIndex name idx
-    _ -> panic "Unexpected case in argToRA"
-  -- TODO finish other cases
+     in foldl' (\raCode clause -> Search (clauseName clause) (clauseConstraints eqs clause) raCode) seed rest
+
+-- TODO: support other things than clauses... (gets rid of partial function)
+clauseName :: AST -> Id
+clauseName (Atom name _) = name
+clauseName _ = panic "clauseName called in unsupported context"
+
+-- TODO: support other things than clauses... (gets rid of partial function)
+clauseConstraints :: [Equality] -> AST -> [RA]
+clauseConstraints eqs (Atom name values) =
+  concat $ zipWith (constraintToRA name (excludeGoals eqs)) [0..] values
+clauseConstraints _ _ = panic "clauseConstraints called in unsupported context"
+
+constraintToRA :: Id -> [Equality] -> Int -> AST -> [RA]
+constraintToRA name eqs i = \case
+  Lit x -> [RAConstraint lhs $ RALit x]
+  Var v ->
+    let eqs' = sortOn ascendingClauseIdx $
+          filter (\eq -> sameVar v eq && differentRelation eq) eqs
+    in map g eqs'
+  _ -> panic "Unexpected case in constraintToRA"
+  where lhs = ColumnIndex name i
+        sameVar var (Equality _ _ _ v) = VarTerm var == v
+        differentRelation (Equality _ name' _ _) = name /= name'
+        g (Equality _ name idx term) =
+          case term of
+            LitTerm lit -> RAConstraint lhs (RALit lit)
+            VarTerm _ -> RAConstraint lhs (ColumnIndex name idx)
+
+valueToRA :: [Equality] -> AST -> RA
+valueToRA eqs = \case
+  Lit x -> RALit x
+  Var v ->
+    let (Equality _ name idx _) = unsafeFromJust $ findBestMatchingEquality (excludeGoals eqs) v
+      in ColumnIndex name idx
+  _ -> panic "Unexpected case in argToRA"
+
+ascendingClauseIdx :: Equality -> EqType
+ascendingClauseIdx (Equality ty _ _ _) = ty
 
 type Index = Int
 
@@ -123,17 +128,14 @@ type Equalities = [Equality]
 resolve :: Equalities -> Int -> Relation -> Index -> [Equality]
 resolve eqs c r i
   | Just (Equality ty _ _ resolved) <- find matchingEquality eqs
-  = if isLit resolved
-      then [Equality ty r i resolved]
-      else filter (sameVar resolved) eqs
+  = case resolved of
+      LitTerm _ -> [Equality ty r i resolved]
+      VarTerm _ -> filter (sameVar resolved) eqs
   | otherwise = []
   where
     matchingEquality (Equality ty r' i' _) =
       ty == Clause c && r == r' && i == i'
     sameVar resolved (Equality _ _ _ v) = resolved == v
-    isLit = \case
-      LitTerm _ -> True
-      _ -> False
 
 excludeGoals :: [Equality] -> [Equality]
 excludeGoals =
@@ -142,8 +144,9 @@ excludeGoals =
 findBestMatchingEquality :: [Equality] -> Id -> Maybe Equality
 findBestMatchingEquality eqs var =
   headMay $ sortOn ascendingClauseIdx $ filter sameVar eqs
-  where ascendingClauseIdx (Equality ty _ _ _) = ty
-        sameVar (Equality _ _ _ v) = VarTerm var == v
+  where
+    ascendingClauseIdx (Equality ty _ _ _) = ty
+    sameVar (Equality _ _ _ v) = VarTerm var == v
 
 constraintsForRule :: Relation -> [Value] -> [Clause] -> Equalities
 constraintsForRule ruleName values clauses =
@@ -164,12 +167,7 @@ toEquality ty name i v = Equality ty name i (toTerm v) where
 
 compile :: FilePath -> IO (Either ParseError RA)
 compile path = do
-  result <- parseFile path
-  case result of
-    Left err -> pure $ Left err
-    Right ast -> do
-      let ra = compileRA ast
-      pure $ Right ra
+  map compileRA <$> parseFile path
 
 run :: FilePath -> IO ()
 run path = compile path >>= \case
