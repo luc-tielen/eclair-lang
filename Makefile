@@ -1,10 +1,13 @@
 build:
-	stack build
+	stack build --fast
 
 clean:
 	stack clean
 
 test:
-	stack test
+	stack test --fast
 
-.PHONY: build clean test
+repl:
+	stack ghci
+
+.PHONY: build clean test repl
