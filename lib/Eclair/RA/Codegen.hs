@@ -1,4 +1,4 @@
-{-# LANGUAGE ViewPatterns, DerivingVia #-}
+{-# LANGUAGE DerivingVia #-}
 
 module Eclair.RA.Codegen
   ( CodegenM
@@ -32,42 +32,33 @@ type Column = Int
 newtype Row = Row Int
   deriving (Eq, Ord, Show)
 
-data Constraint = Constraint Relation Row Column Term
+type Variable = Id
+
+data Constraint = Constraint Relation Row Column Variable
   deriving (Eq, Show)
 
 -- TODO: keep track of clause nr inside codegen monad? not needed anymore?
 data Constraints
   = Constraints [Constraint] (Map Id [Constraint])
 
-instance Semigroup Constraints where
-  (Constraints cs1 varAssocs1) <> (Constraints cs2 varAssocs2) =
-    Constraints cs varAssocs
-    where cs = cs1 <> cs2
-          varAssocs = M.unionWith (<>) varAssocs1 varAssocs2
-
-instance Monoid Constraints where
-  mempty = Constraints mempty mempty
-
 -- TODO: rename to Stmt/Statement?
-newtype RADecl = RADecl { unRADecl :: RA }
+newtype Stmt = Stmt { unStmt :: RA }
 
 newtype CodegenM a
-  = CodeGenM (StateT [RADecl] (Reader Constraints) a)
+  = CodeGenM (StateT [Stmt] (Reader Constraints) a)
   deriving ( Functor, Applicative, Monad
-           , MonadReader Constraints, MonadState [RADecl])
-  via (StateT [RADecl] (Reader Constraints))
+           , MonadReader Constraints, MonadState [Stmt])
+  via (StateT [Stmt] (Reader Constraints))
 
 runCodegen :: CodegenM a -> [RA]
 runCodegen (CodeGenM m) =
-  -- TODO: mempty is not correct; need constraints for rule args?
-  -- TODO: how to process mutually recursive rules?
-  -- idea: add helper function for scope/starting constraints?
-  reverse $ map unRADecl $ runReader (execStateT m []) mempty
+  let cs = Constraints mempty mempty
+   in reverse $ map unStmt $ runReader (execStateT m []) cs
 
 emit :: CodegenM RA -> CodegenM ()
 emit m = do
   ra <- m
-  modify (RADecl ra :)
+  modify (Stmt ra :)
 
 data Term = VarTerm Id | LitTerm Number
   deriving (Eq, Show)
@@ -93,7 +84,7 @@ project r ts =
 
 search :: Relation -> [Term] -> CodegenM RA -> CodegenM RA
 search r ts inner = do
-  let depth = 0  -- TODO: increase clause index depth; not needed anymore?
+  let depth = Row 0  -- TODO: increase clause index depth; not needed anymore?
   clauses <- traverse (uncurry (resolveClause r)) $ zip [0..] ts
   action <- local (addConstraints r depth $ zip [0..] ts) inner
   pure $ Search r (catMaybes clauses) action
@@ -113,46 +104,45 @@ purge r = pure $ Purge r
 exit :: [Relation] -> CodegenM RA
 exit rs = pure $ Exit rs
 
-addConstraints :: Relation -> Int -> [(Int, Term)] -> Constraints -> Constraints
-addConstraints r (Row -> row) ts cs = foldl' addConstraint cs ts where
-  addConstraint :: Constraints -> (Int, Term) -> Constraints
-  addConstraint (Constraints cs cMap) (i, t) = case t of
-    VarTerm v ->
-      let c = Constraint r row i t
-       in Constraints (c:cs) (M.insertWith (<>) v [c] cMap)
-    LitTerm _ ->
-      let c = Constraint r row i t
-       in Constraints (c:cs) cMap  -- TODO bug? cant update in map?? use just a list?
+addConstraints :: Relation -> Row -> [(Column, Term)] -> Constraints -> Constraints
+addConstraints r row ts cs = foldl' addConstraint cs ts
+  where
+    addConstraint :: Constraints -> (Column, Term) -> Constraints
+    addConstraint cs@(Constraints cList cMap) (col, t) = case t of
+      VarTerm v ->
+        let c = Constraint r row col v
+        in Constraints (c:cList) (M.insertWith (<>) v [c] cMap)
+      LitTerm _ -> cs
 
 resolveTerm :: Term -> CodegenM RA
 resolveTerm = \case
   LitTerm x -> pure $ RALit x
   VarTerm v -> do
     cs <- ask
-    let (Constraint name _ idx _) = unsafeFromJust $ findBestMatchingConstraint cs v
-     in pure $ ColumnIndex name idx
+    let (Constraint name _ col _) = unsafeFromJust $ findBestMatchingConstraint cs v
+     in pure $ ColumnIndex name col
 
 -- TODO: take Clause -> c into account
 resolveClause :: Relation -> Column -> Term -> CodegenM (Maybe RA)
-resolveClause r idx = \case
+resolveClause r col = \case
   LitTerm x -> pure $ Just $ RAConstraint lhs (RALit x)
   VarTerm v -> asks (lookupVar v) >>= \case
     Nothing -> pure Nothing
     Just cs -> do
-      let relevantCs = sortOn descendingClauseIdx $ filter differentRelation cs
+      let relevantCs = sortOn descendingClauseRow $ filter differentRelation cs
       case relevantCs of
         [] -> pure Nothing
-        ((Constraint r' _ idx' _):_) ->
-          pure $ Just $ RAConstraint lhs (ColumnIndex r' idx')
-  where lhs = ColumnIndex r idx
+        ((Constraint r' _ col' _):_) ->
+          pure $ Just $ RAConstraint lhs (ColumnIndex r' col')
+  where lhs = ColumnIndex r col
         lookupVar v (Constraints _ cMap) = M.lookup v cMap
-        descendingClauseIdx (Constraint ty _ _ _) = Down ty
+        descendingClauseRow (Constraint _ row _ _) = Down row
         -- TODO: take clause idx into account here?:
         differentRelation (Constraint r' _ _ _) = r /= r'
 
 findBestMatchingConstraint :: Constraints -> Id -> Maybe Constraint
 findBestMatchingConstraint (Constraints x cs) var =
-  traceShow x $ headMay . sortOn ascendingClauseIdx =<< M.lookup var cs
+  headMay . sortOn ascendingClauseRow =<< M.lookup var cs
   where
-    ascendingClauseIdx (Constraint ty _ _ _) = ty
+    ascendingClauseRow (Constraint _ row _ _) = row
 

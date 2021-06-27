@@ -43,7 +43,18 @@ spec = describe "RA Code Generation" $ parallel $ do
                ]
 
   it "generates nested searches correctly" $ do
-    pending
+    output <- cg "multiple_rule_clauses"
+    output `shouldBe`
+      RAModule
+        [ Project (Id "second") [RALit 2, RALit 3]
+        , Project (Id "first") [RALit 1]
+        , Search (Id "first") []
+            (Search (Id "second") [RAConstraint
+                                    (ColumnIndex (Id "second") 1)
+                                    (ColumnIndex (Id "first") 0)]
+              (Project (Id "third") [ ColumnIndex (Id "second") 0
+                                    , ColumnIndex (Id "second") 1]))
+                                    ]
 
   it "generates code for a rule with 2 clauses of same name" $ do
     -- TODO chain example
@@ -58,3 +69,5 @@ spec = describe "RA Code Generation" $ parallel $ do
 
   it "generates code for multiple dependent rules" $ do
     pending
+
+  -- TODO tests for lits

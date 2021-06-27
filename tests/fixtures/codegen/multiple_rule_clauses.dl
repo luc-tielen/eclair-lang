@@ -1,0 +1,6 @@
+first(1).
+second(2, 3).
+
+third(x, y) :-
+  first(y),
+  second(x, y).
