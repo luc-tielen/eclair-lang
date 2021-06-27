@@ -22,15 +22,14 @@ compileRA ast = RAModule $ concatMap processDecls sortedDecls where
     [Rule name args clauses] ->
       let terms = map toTerm args
           clauses' = map toClause clauses
-      in runCodegen $
-           processSingleRule name terms $ clauses'
+      in runCodegen $ processSingleRule name terms clauses'
     rules ->  -- TODO: other cases!
       []
   processSingleRule name terms clauses = do
     -- TODO handle recursive rules..
     -- TODO: handle case where last isn't an atom (not possible yet, but it will be later)
     let (AtomClause cName terms : rest) = reverse clauses
-    emit $ forRule name terms $ do
+    emit $ do
       flip (foldl' processRuleClause) rest $
         search cName terms $
           project name terms

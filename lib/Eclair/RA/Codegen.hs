@@ -9,7 +9,6 @@ module Eclair.RA.Codegen
   , Clause(..)
   , toClause
   , project
-  , forRule
   , search
   , loop
   , merge
@@ -27,13 +26,13 @@ import Protolude.Unsafe (unsafeFromJust, unsafeHead)
 import qualified Data.Map as M
 
 
-type Index = Int
+-- TODO newtype?
+type Column = Int
 
--- TODO: can this be removed now?
-data ConstraintType = Goal | Clause Int
+newtype Row = Row Int
   deriving (Eq, Ord, Show)
 
-data Constraint = Constraint ConstraintType Relation Index Term
+data Constraint = Constraint Relation Row Column Term
   deriving (Eq, Show)
 
 -- TODO: keep track of clause nr inside codegen monad? not needed anymore?
@@ -90,19 +89,7 @@ toClause = \case
 
 project :: Relation -> [Term] -> CodegenM RA
 project r ts =
-  Project r <$> traverse resolveGoalTerm ts
-
-forRule :: Relation -> [Term] -> CodegenM a -> CodegenM a
-forRule r ts = local addGoalConstraints
-  where
-    addGoalConstraints (Constraints cs cMap) =
-      let newCs = zipWith (Constraint Goal r) [0..] ts
-          allCs = newCs <> cs
-          cMap' = M.fromListWith (<>) $ mapMaybe asKV newCs
-       in Constraints allCs (M.unionWith (<>) cMap' cMap)
-    asKV c@(Constraint _ _ _ t) = case t of
-      VarTerm v -> Just (v, [c])
-      _ -> Nothing  -- TODO: how to handle this?
+  Project r <$> traverse resolveTerm ts
 
 search :: Relation -> [Term] -> CodegenM RA -> CodegenM RA
 search r ts inner = do
@@ -127,34 +114,26 @@ exit :: [Relation] -> CodegenM RA
 exit rs = pure $ Exit rs
 
 addConstraints :: Relation -> Int -> [(Int, Term)] -> Constraints -> Constraints
-addConstraints r (Clause -> ty) ts cs = foldl' addConstraint cs ts where
+addConstraints r (Row -> row) ts cs = foldl' addConstraint cs ts where
   addConstraint :: Constraints -> (Int, Term) -> Constraints
   addConstraint (Constraints cs cMap) (i, t) = case t of
     VarTerm v ->
-      let c = Constraint ty r i t
+      let c = Constraint r row i t
        in Constraints (c:cs) (M.insertWith (<>) v [c] cMap)
     LitTerm _ ->
-      let c = Constraint ty r i t
+      let c = Constraint r row i t
        in Constraints (c:cs) cMap  -- TODO bug? cant update in map?? use just a list?
-
-resolveGoalTerm :: Term -> CodegenM RA
-resolveGoalTerm = \case
-  LitTerm x -> pure $ RALit x
-  VarTerm v -> do
-    cs <- asks excludeGoals
-    let (Constraint _ name idx _) = unsafeFromJust $ findBestMatchingConstraint cs v
-     in pure $ ColumnIndex name idx
 
 resolveTerm :: Term -> CodegenM RA
 resolveTerm = \case
   LitTerm x -> pure $ RALit x
   VarTerm v -> do
-    cs <- asks excludeGoals
-    let (Constraint _ name idx _) = unsafeFromJust $ findBestMatchingConstraint cs v
+    cs <- ask
+    let (Constraint name _ idx _) = unsafeFromJust $ findBestMatchingConstraint cs v
      in pure $ ColumnIndex name idx
 
 -- TODO: take Clause -> c into account
-resolveClause :: Relation -> Index -> Term -> CodegenM (Maybe RA)
+resolveClause :: Relation -> Column -> Term -> CodegenM (Maybe RA)
 resolveClause r idx = \case
   LitTerm x -> pure $ Just $ RAConstraint lhs (RALit x)
   VarTerm v -> asks (lookupVar v) >>= \case
@@ -163,25 +142,13 @@ resolveClause r idx = \case
       let relevantCs = sortOn descendingClauseIdx $ filter differentRelation cs
       case relevantCs of
         [] -> pure Nothing
-        ((Constraint _ r' idx' _):_) ->
+        ((Constraint r' _ idx' _):_) ->
           pure $ Just $ RAConstraint lhs (ColumnIndex r' idx')
   where lhs = ColumnIndex r idx
-        lookupVar v (Constraints _ cMap) =
-          filter (\(Constraint ty _ _ _) -> ty /= Goal) <$> M.lookup v cMap
+        lookupVar v (Constraints _ cMap) = M.lookup v cMap
         descendingClauseIdx (Constraint ty _ _ _) = Down ty
         -- TODO: take clause idx into account here?:
-        differentRelation (Constraint _ r' _ _) = r /= r'
-
--- TODO: can be removed? only need Clause Int, no Goal?
-excludeGoals :: Constraints -> Constraints
-excludeGoals (Constraints cs cMap) = Constraints cs' cMap'
-  where
-    excludeGoal (Constraint ty _ _ _) = ty /= Goal
-    excludeGoal' (filter excludeGoal -> cs')
-      | null cs' = Nothing
-      | otherwise = Just cs'
-    cs' = filter excludeGoal cs
-    cMap' = M.mapMaybe excludeGoal' cMap
+        differentRelation (Constraint r' _ _ _) = r /= r'
 
 findBestMatchingConstraint :: Constraints -> Id -> Maybe Constraint
 findBestMatchingConstraint (Constraints x cs) var =
