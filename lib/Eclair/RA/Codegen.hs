@@ -6,7 +6,10 @@ module Eclair.RA.Codegen
   , emit
   , Term(..)
   , toTerm
+  , Clause(..)
+  , toClause
   , project
+  , forRule
   , search
   , loop
   , merge
@@ -76,9 +79,30 @@ toTerm (Var x) = VarTerm x
 -- TODO fix, no catch-all
 toTerm _ = panic "Unknown pattern in 'toTerm'"
 
+data Clause
+  = AtomClause Id [Term]
+  -- TODO add other variants later
+
+toClause :: AST -> Clause
+toClause = \case
+  Atom name values -> AtomClause name (map toTerm values)
+  _ -> panic "toClause: unsupported case"
+
 project :: Relation -> [Term] -> CodegenM RA
 project r ts =
   Project r <$> traverse resolveGoalTerm ts
+
+forRule :: Relation -> [Term] -> CodegenM a -> CodegenM a
+forRule r ts = local addGoalConstraints
+  where
+    addGoalConstraints (Constraints cs cMap) =
+      let newCs = zipWith (Constraint Goal r) [0..] ts
+          allCs = newCs <> cs
+          cMap' = M.fromListWith (<>) $ mapMaybe asKV newCs
+       in Constraints allCs (M.unionWith (<>) cMap' cMap)
+    asKV c@(Constraint _ _ _ t) = case t of
+      VarTerm v -> Just (v, [c])
+      _ -> Nothing  -- TODO: how to handle this?
 
 search :: Relation -> [Term] -> CodegenM RA -> CodegenM RA
 search r ts inner = do
@@ -117,7 +141,7 @@ resolveGoalTerm :: Term -> CodegenM RA
 resolveGoalTerm = \case
   LitTerm x -> pure $ RALit x
   VarTerm v -> do
-    cs <- ask
+    cs <- asks excludeGoals
     let (Constraint _ name idx _) = unsafeFromJust $ findBestMatchingConstraint cs v
      in pure $ ColumnIndex name idx
 
@@ -142,11 +166,13 @@ resolveClause r idx = \case
         ((Constraint _ r' idx' _):_) ->
           pure $ Just $ RAConstraint lhs (ColumnIndex r' idx')
   where lhs = ColumnIndex r idx
-        lookupVar v (Constraints _ cMap) = M.lookup v cMap
+        lookupVar v (Constraints _ cMap) =
+          filter (\(Constraint ty _ _ _) -> ty /= Goal) <$> M.lookup v cMap
         descendingClauseIdx (Constraint ty _ _ _) = Down ty
         -- TODO: take clause idx into account here?:
         differentRelation (Constraint _ r' _ _) = r /= r'
 
+-- TODO: can be removed? only need Clause Int, no Goal?
 excludeGoals :: Constraints -> Constraints
 excludeGoals (Constraints cs cMap) = Constraints cs' cMap'
   where
@@ -158,31 +184,8 @@ excludeGoals (Constraints cs cMap) = Constraints cs' cMap'
     cMap' = M.mapMaybe excludeGoal' cMap
 
 findBestMatchingConstraint :: Constraints -> Id -> Maybe Constraint
-findBestMatchingConstraint (Constraints _ cs) var =
-  headMay . sortOn ascendingClauseIdx =<< M.lookup var cs
+findBestMatchingConstraint (Constraints x cs) var =
+  traceShow x $ headMay . sortOn ascendingClauseIdx =<< M.lookup var cs
   where
     ascendingClauseIdx (Constraint ty _ _ _) = ty
-
-{-
--- TODO: support other things than clauses... (gets rid of partial function)
-clauseName :: AST -> Id
-clauseName (Atom name _) = name
-clauseName _ = panic "clauseName called in unsupported context"
-
--- TODO: support other things than clauses... (gets rid of partial function)
-clauseConstraints :: [Constraint] -> AST -> [RA]
-clauseConstraints eqs (Atom name values) =
-  concat $ zipWith (constraintToRA name (excludeGoals eqs)) [0..] values
-clauseConstraints _ _ = panic "clauseConstraints called in unsupported context"
-
-constraintsForRule :: Relation -> [Value] -> [Clause] -> Constraints
-constraintsForRule ruleName values clauses =
-  let valueEqs = mkConstraints Goal ruleName values
-      clauseEqs = concatMap (uncurry clauseToEqs) $ zip (Clause <$> [0..]) clauses
-      mkConstraints ty name vals = zipWith (toConstraint ty name) [0..] vals
-      clauseToEqs i = \case
-        Atom name vals -> mkConstraints i name vals
-        _ -> []  -- TODO fix/handle this
-   in valueEqs <> clauseEqs
--}
 

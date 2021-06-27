@@ -1,4 +1,4 @@
-module Eclair ( run ) where
+module Eclair ( compile, run ) where
 
 import Protolude
 import Protolude.Unsafe (unsafeFromJust)
@@ -18,24 +18,25 @@ compileRA ast = RAModule $ concatMap processDecls sortedDecls where
   processDecls :: [AST] -> [RA]
   processDecls = \case
     [Atom name values] -> runCodegen $
-      project name (LitTerm <$> values ^.. folded . _Lit)
-    rules ->
-      -- TODO!
-      []
-{-
+      emit $ project name (LitTerm <$> values ^.. folded . _Lit)
     [Rule name args clauses] ->
-      processSingleRule name args clauses
-    -- TODO: which other cases?
-    rules -> RAModule []
-    -- TODO finish other cases
-  processSingleRule name args clauses =
-    -- TODO handle recursive rules that are not mutually recursive..
-    let eqs = constraintsForRule name args clauses
-        (c@(Atom cName values) : rest) = reverse clauses  -- TODO handle other cases (no atom at front)
-        seed = Search cName (clauseConstraints eqs c) $
-          Project name $ map (valueToRA eqs) args
-     in foldl' (\raCode clause -> Search (clauseName clause) (clauseConstraints eqs clause) raCode) seed rest
--}
+      let terms = map toTerm args
+          clauses' = map toClause clauses
+      in runCodegen $
+           processSingleRule name terms $ clauses'
+    rules ->  -- TODO: other cases!
+      []
+  processSingleRule name terms clauses = do
+    -- TODO handle recursive rules..
+    -- TODO: handle case where last isn't an atom (not possible yet, but it will be later)
+    let (AtomClause cName terms : rest) = reverse clauses
+    emit $ forRule name terms $ do
+      flip (foldl' processRuleClause) rest $
+        search cName terms $
+          project name terms
+  processRuleClause inner = \case
+    AtomClause name terms -> search name terms inner
+
 compile :: FilePath -> IO (Either ParseError RA)
 compile path = do
   map compileRA <$> parseFile path

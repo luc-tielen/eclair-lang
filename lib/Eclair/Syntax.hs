@@ -8,7 +8,7 @@ module Eclair.Syntax
   , _Rule
   , _Module
   , Value
-  , Clause
+  , SearchClause
   , Decl
   , Number
   , Id(..)
@@ -28,14 +28,14 @@ newtype Id = Id Text
   deriving (Eq, Ord, Show)
 
 type Value = AST
-type Clause = AST
+type SearchClause = AST
 type Decl = AST
 
 data AST
   = Lit Number
   | Var Id
   | Atom Id [Value]
-  | Rule Id [Value] [Clause]
+  | Rule Id [Value] [SearchClause]
   | Module [Decl]
   deriving (Eq, Show)
 

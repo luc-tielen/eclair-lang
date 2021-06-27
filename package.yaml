@@ -49,3 +49,14 @@ library:
   when:
     - condition: os(linux)
       extra-libraries: stdc++
+
+tests:
+  eclair-test:
+    main: test.hs
+    source-dirs: tests
+    dependencies:
+      - hspec >= 2.6.1 && < 3.0.0
+      - hspec-hedgehog == 0.*
+      - hedgehog == 1.*
+      - filepath == 1.*
+      - eclair-lang
