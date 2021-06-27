@@ -22,11 +22,11 @@ data RA
   | Merge Relation Relation
   | Swap Relation Relation
   | Purge Relation
-  | Seq RA RA
+  | Seq [RA]
   -- | Par [RA]
   | Loop RA
-  | Exit RAClause
-
+  | Exit [Relation] -- NOTE: counttuples check is 'builtin' atm
+                    -- Later this needs to be changed to RAClause to deal with 'X<100' etc as well.
   | RAModule [RA]
   | RALit Number
   | ColumnIndex Relation ColumnIndex

@@ -20,12 +20,17 @@ dependencies:
   - vector == 0.12.*
   - containers == 0.*
   - lens == 4.*
+  - mtl == 2.*
 
 default-extensions:
   - NoImplicitPrelude
   - OverloadedStrings
   - LambdaCase
 
+ghc-options:
+  - -fhide-source-paths
+  - -fno-show-valid-hole-fits
+  - -fno-sort-valid-hole-fits
 cxx-options:
   - -std=c++20
   - -D__EMBEDDED_SOUFFLE__
