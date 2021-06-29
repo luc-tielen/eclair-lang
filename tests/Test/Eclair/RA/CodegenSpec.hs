@@ -71,9 +71,30 @@ spec = describe "RA Code Generation" $ parallel $ do
                                     , ColumnIndex (Id "link1") 1]))
                                     ]
 
-  it "generates code for a single recursive rule" $ do
-    pending
+  fit "generates code for a single recursive rule" $ do
+    output <- cg "single_recursive_rule"
+    output `shouldBe`
+      RAModule
+        [ Project (Id "edge") [RALit 1,RALit 2]
 
+        , Merge (Id "path") (Id "delta_path")
+        , Loop (Seq
+          [ Purge (Id "new_path")
+          , Search (Id "edge") (Id "edge0") []
+              (Search (Id "delta_path") (Id "delta_path1")
+                [RAConstraint (ColumnIndex (Id "delta_path1") 0)
+                              (ColumnIndex (Id "edge0") 1)
+                -- TODO: check that tuple isn't in 'path' yet
+                ]
+                (Project (Id "new_path") [ ColumnIndex (Id "edge0") 0
+                                         , ColumnIndex (Id "delta_path1") 1]))
+          , Exit [Id "new_path"]
+          , Merge (Id "new_path") (Id "path")
+          , Swap (Id "new_path") (Id "delta_path")
+          ])
+        ]
+
+  -- TODO variant where one is recursive
   it "generates code for mutually recursive rules" $ do
     pending
 

@@ -12,7 +12,9 @@ module Eclair.Syntax
   , Decl
   , Number
   , Id(..)
+  , prependToId
   , appendToId
+  , startsWithId
   , scc
   ) where
 
@@ -20,6 +22,7 @@ import Control.Lens
 import Protolude
 import qualified Data.Graph as G
 import qualified Data.Map as M
+import qualified Data.Text as T
 import Protolude.Unsafe (unsafeFromJust)
 
 
@@ -30,6 +33,13 @@ newtype Id = Id Text
 
 appendToId :: Id -> Text -> Id
 appendToId (Id x) y = Id (x <> y)
+
+prependToId :: Text -> Id -> Id
+prependToId x (Id y) = Id (x <> y)
+
+startsWithId :: Id -> Id -> Bool
+startsWithId (Id x) (Id start) =
+  start `T.isPrefixOf` x
 
 type Value = AST
 type SearchClause = AST

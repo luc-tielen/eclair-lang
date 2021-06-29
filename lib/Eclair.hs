@@ -1,6 +1,6 @@
 module Eclair ( compile, run ) where
 
-import Protolude
+import Protolude hiding (swap)
 import Protolude.Unsafe (unsafeFromJust)
 import Eclair.Syntax
 import Eclair.Parser
@@ -25,16 +25,39 @@ compileRA ast = RAModule $ concatMap processDecls sortedDecls where
       in runCodegen $ processSingleRule name terms clauses'
     rules ->  -- TODO: other cases!
       []
-  processSingleRule name terms clauses = do
-    -- TODO handle recursive rules..
-    -- TODO: handle case where last isn't an atom (not possible yet, but it will be later)
-    let (AtomClause cName cTerms : rest) = reverse clauses
-    emit $ do
-      flip (foldl' processRuleClause) rest $
-        search cName cTerms $
-          project name terms
-  processRuleClause inner = \case
-    AtomClause name terms -> search name terms inner
+  processSingleRule relation terms clauses
+    | isRecursive relation clauses =
+      -- TODO: handle case where last isn't an atom (not possible yet, but it will be later)
+      let (clause@(AtomClause cName cTerms) : rest) = reverse clauses
+          deltaRelation = prependToId "delta_" relation
+          newRelation = prependToId "new_" relation
+          stmts =
+            [ merge relation deltaRelation
+            , loop
+              [ purge newRelation
+              , flip (foldl' (processRuleClause relation)) (clause:rest) $
+                  project newRelation terms
+              , exit [newRelation]
+              , merge newRelation relation
+              , swap newRelation deltaRelation
+              ]
+            ]
+       in traverse_ emit stmts
+    | otherwise = do
+      -- TODO: handle case where last isn't an atom (not possible yet, but it will be later)
+      let (clause@(AtomClause cName cTerms) : rest) = reverse clauses
+      emit $ do
+        flip (foldl' (processRuleClause relation)) (clause:rest) $
+          project relation terms
+  processRuleClause relation inner = \case
+    AtomClause name terms ->
+      let relation' =
+            if name `startsWithId` relation
+              then prependToId "delta_" name
+              else name
+       in search relation' terms inner
+  isRecursive _name _clauses =
+    True -- TODO
 
 compile :: FilePath -> IO (Either ParseError RA)
 compile path = do
