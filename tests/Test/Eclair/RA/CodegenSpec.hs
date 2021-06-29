@@ -71,7 +71,7 @@ spec = describe "RA Code Generation" $ parallel $ do
                                     , ColumnIndex (Id "link1") 1]))
                                     ]
 
-  fit "generates code for a single recursive rule" $ do
+  it "generates code for a single recursive rule" $ do
     output <- cg "single_recursive_rule"
     output `shouldBe`
       RAModule

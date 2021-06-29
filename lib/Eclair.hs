@@ -49,15 +49,15 @@ compileRA ast = RAModule $ concatMap processDecls sortedDecls where
       emit $ do
         flip (foldl' (processRuleClause relation)) (clause:rest) $
           project relation terms
-  processRuleClause relation inner = \case
-    AtomClause name terms ->
+  processRuleClause ruleName inner = \case
+    AtomClause clauseName terms ->
       let relation' =
-            if name `startsWithId` relation
-              then prependToId "delta_" name
-              else name
+            if clauseName `startsWithId` ruleName
+              then prependToId "delta_" clauseName
+              else clauseName
        in search relation' terms inner
-  isRecursive _name _clauses =
-    True -- TODO
+  isRecursive ruleName clauses =
+    ruleName `elem` map (\(AtomClause name _) -> name) clauses
 
 compile :: FilePath -> IO (Either ParseError RA)
 compile path = do
