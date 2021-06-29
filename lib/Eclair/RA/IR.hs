@@ -1,6 +1,7 @@
 module Eclair.RA.IR
   ( Relation
   , RA(..)
+  , Alias
   , RAClause
   , Action
   , ColumnIndex
@@ -11,13 +12,14 @@ import Protolude
 
 
 type Relation = Id
+type Alias = Id
 type RAClause = RA
 type Action = RA
 type ColumnIndex = Int
 
 -- NOTE: removed Insert, couldn't find a use?
 data RA
-  = Search Relation [RAClause] Action
+  = Search Relation Alias [RAClause] Action
   | Project Relation [RA]
   | Merge Relation Relation
   | Swap Relation Relation

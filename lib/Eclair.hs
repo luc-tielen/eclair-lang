@@ -28,10 +28,10 @@ compileRA ast = RAModule $ concatMap processDecls sortedDecls where
   processSingleRule name terms clauses = do
     -- TODO handle recursive rules..
     -- TODO: handle case where last isn't an atom (not possible yet, but it will be later)
-    let (AtomClause cName terms : rest) = reverse clauses
+    let (AtomClause cName cTerms : rest) = reverse clauses
     emit $ do
       flip (foldl' processRuleClause) rest $
-        search cName terms $
+        search cName cTerms $
           project name terms
   processRuleClause inner = \case
     AtomClause name terms -> search name terms inner

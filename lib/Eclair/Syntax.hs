@@ -12,6 +12,7 @@ module Eclair.Syntax
   , Decl
   , Number
   , Id(..)
+  , appendToId
   , scc
   ) where
 
@@ -26,6 +27,9 @@ type Number = Int
 
 newtype Id = Id Text
   deriving (Eq, Ord, Show)
+
+appendToId :: Id -> Text -> Id
+appendToId (Id x) y = Id (x <> y)
 
 type Value = AST
 type SearchClause = AST

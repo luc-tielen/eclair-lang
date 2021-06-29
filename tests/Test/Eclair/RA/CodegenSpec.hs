@@ -35,10 +35,10 @@ spec = describe "RA Code Generation" $ parallel $ do
     output <- cg "single_nonrecursive_rule"
     output `shouldBe`
       RAModule [ Project (Id "edge") [RALit 1, RALit 2]
-               , Search (Id "edge") []
+               , Search (Id "edge") (Id "edge0") []
                     (Project (Id "path")
-                      [ ColumnIndex (Id "edge") 0
-                      , ColumnIndex (Id "edge") 1
+                      [ ColumnIndex (Id "edge0") 0
+                      , ColumnIndex (Id "edge0") 1
                       ])
                ]
 
@@ -48,18 +48,28 @@ spec = describe "RA Code Generation" $ parallel $ do
       RAModule
         [ Project (Id "second") [RALit 2, RALit 3]
         , Project (Id "first") [RALit 1]
-        , Search (Id "first") []
-            (Search (Id "second") [RAConstraint
-                                    (ColumnIndex (Id "second") 1)
-                                    (ColumnIndex (Id "first") 0)]
-              (Project (Id "third") [ ColumnIndex (Id "second") 0
-                                    , ColumnIndex (Id "second") 1]))
+        , Search (Id "first") (Id "first0") []
+            (Search (Id "second") (Id "second1")
+              [RAConstraint
+                (ColumnIndex (Id "second1") 1)
+                (ColumnIndex (Id "first0") 0)]
+              (Project (Id "third") [ ColumnIndex (Id "second1") 0
+                                    , ColumnIndex (Id "first0") 0]))
                                     ]
 
   it "generates code for a rule with 2 clauses of same name" $ do
-    -- TODO chain example
-    pending
-
+    output <- cg "multiple_clauses_same_name"
+    output `shouldBe`
+      RAModule
+        [ Project (Id "link") [RALit 1, RALit 2]
+        , Search (Id "link") (Id "link0") []
+            (Search (Id "link") (Id "link1") [RAConstraint
+                                  (ColumnIndex (Id "link1") 0)
+                                  (ColumnIndex (Id "link0") 1)]
+              (Project (Id "chain") [ ColumnIndex (Id "link0") 0
+                                    , ColumnIndex (Id "link0") 1
+                                    , ColumnIndex (Id "link1") 1]))
+                                    ]
 
   it "generates code for a single recursive rule" $ do
     pending
@@ -70,4 +80,4 @@ spec = describe "RA Code Generation" $ parallel $ do
   it "generates code for multiple dependent rules" $ do
     pending
 
-  -- TODO tests for lits
+  -- TODO tests for lits, rules with >2 clauses, ...
