@@ -5,14 +5,14 @@ import Protolude.Unsafe (unsafeFromJust)
 import Eclair.Syntax
 import Eclair.Parser
 import Eclair.RA.Codegen
-import Eclair.RA.IR
+import Eclair.RA.IR as RA
 import Control.Lens hiding (Equality, Index)
 import qualified Data.Map as M
 import qualified Data.Text as T
 
 
 compileRA :: AST -> RA
-compileRA ast = RAModule $ concatMap processDecls sortedDecls where
+compileRA ast = RA.Module $ concatMap processDecls sortedDecls where
   sortedDecls = scc ast
 
   processDecls :: [AST] -> [RA]
@@ -27,15 +27,13 @@ compileRA ast = RAModule $ concatMap processDecls sortedDecls where
       []
   processSingleRule relation terms clauses
     | isRecursive relation clauses =
-      -- TODO: handle case where last isn't an atom (not possible yet, but it will be later)
-      let (clause@(AtomClause cName cTerms) : rest) = reverse clauses
-          deltaRelation = prependToId "delta_" relation
+      let deltaRelation = prependToId "delta_" relation
           newRelation = prependToId "new_" relation
           stmts =
             [ merge relation deltaRelation
             , loop
               [ purge newRelation
-              , flip (foldl' (processRuleClause relation)) (clause:rest) $
+              , flip (foldr (processRuleClause relation)) clauses $
                   project newRelation terms
               , exit [newRelation]
               , merge newRelation relation
@@ -44,12 +42,10 @@ compileRA ast = RAModule $ concatMap processDecls sortedDecls where
             ]
        in traverse_ emit stmts
     | otherwise = do
-      -- TODO: handle case where last isn't an atom (not possible yet, but it will be later)
-      let (clause@(AtomClause cName cTerms) : rest) = reverse clauses
       emit $ do
-        flip (foldl' (processRuleClause relation)) (clause:rest) $
+        flip (foldr (processRuleClause relation)) clauses $
           project relation terms
-  processRuleClause ruleName inner = \case
+  processRuleClause ruleName clause inner = case clause of
     AtomClause clauseName terms ->
       let relation' =
             if clauseName `startsWithId` ruleName

@@ -8,7 +8,7 @@ module Eclair.Syntax
   , _Rule
   , _Module
   , Value
-  , SearchClause
+  , Clause
   , Decl
   , Number
   , Id(..)
@@ -42,14 +42,14 @@ startsWithId (Id x) (Id start) =
   start `T.isPrefixOf` x
 
 type Value = AST
-type SearchClause = AST
+type Clause = AST
 type Decl = AST
 
 data AST
   = Lit Number
   | Var Id
   | Atom Id [Value]
-  | Rule Id [Value] [SearchClause]
+  | Rule Id [Value] [Clause]
   | Module [Decl]
   deriving (Eq, Show)
 
