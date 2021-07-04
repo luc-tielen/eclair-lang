@@ -25,7 +25,7 @@ data RA
   | Swap Relation Relation
   | Purge Relation
   | Seq [RA]
-  -- | Par [RA]
+  | Par [RA]
   | Loop RA
   | Exit [Relation] -- NOTE: counttuples check is 'builtin' atm
                     -- Later this needs to be changed to Clause to deal with 'X<100' etc as well.

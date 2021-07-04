@@ -12,6 +12,7 @@ module Eclair.RA.Codegen
   , project
   , search
   , loop
+  , parallel
   , merge
   , swap
   , purge
@@ -45,7 +46,6 @@ data Constraint = Constraint Relation Row Column Variable
 
 data Constraints
   = Constraints [Constraint] (Map Id [Constraint])
-  deriving Show
 
 type ExtraConstraints = [ConstraintExpr]
 
@@ -83,7 +83,6 @@ toTerm = \case
 -- or keep explicitly separate?
 data ConstraintExpr
   = NotElem Id [Term]
-  deriving Show
 
 noElemOf :: Relation -> [Term] -> CodegenM a -> CodegenM a
 noElemOf r ts = constrain (NotElem r ts)
@@ -96,7 +95,6 @@ constrain c m = do
 data Clause
   = AtomClause Id [Term]
   | ConstrainClause ConstraintExpr
-  deriving Show
 
 toClause :: AST.AST -> Clause
 toClause = \case
@@ -128,6 +126,9 @@ relationToAlias r row =
 
 loop :: [CodegenM RA] -> CodegenM RA
 loop ms = RA.Loop . RA.Seq <$> sequence ms
+
+parallel :: [CodegenM RA] -> CodegenM RA
+parallel ms = RA.Par <$> sequence ms
 
 merge :: Relation -> Relation -> CodegenM RA
 merge from to = pure $ RA.Merge from to
