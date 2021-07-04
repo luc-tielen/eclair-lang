@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell, OverloadedStrings #-}
 
 module Eclair.Syntax
   ( AST(..)
@@ -15,6 +15,9 @@ module Eclair.Syntax
   , prependToId
   , appendToId
   , startsWithId
+  , stripIdPrefixes
+  , deltaPrefix
+  , newPrefix
   , scc
   ) where
 
@@ -40,6 +43,16 @@ prependToId x (Id y) = Id (x <> y)
 startsWithId :: Id -> Id -> Bool
 startsWithId (Id x) (Id start) =
   start `T.isPrefixOf` x
+
+stripIdPrefixes :: Id -> Id
+stripIdPrefixes (Id x) = Id $ stripPrefixes x where
+  stripPrefixes t = foldl' stripPrefix t [deltaPrefix, newPrefix]
+  stripPrefix acc pre = fromMaybe acc (T.stripPrefix pre acc)
+
+-- TODO: make all prefixes starts with special symbol, invalid in syntax
+deltaPrefix, newPrefix :: Text
+deltaPrefix = "delta_"
+newPrefix = "new_"
 
 type Value = AST
 type Clause = AST

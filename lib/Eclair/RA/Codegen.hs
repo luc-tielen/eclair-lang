@@ -1,4 +1,4 @@
-{-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE TupleSections, DerivingVia #-}
 
 module Eclair.RA.Codegen
   ( CodegenM
@@ -6,6 +6,7 @@ module Eclair.RA.Codegen
   , emit
   , Term(..)
   , toTerm
+  , ConstraintExpr(..)
   , Clause(..)
   , toClause
   , project
@@ -15,15 +16,17 @@ module Eclair.RA.Codegen
   , swap
   , purge
   , exit
+  , noElemOf
   ) where
 
-import Control.Monad.RWS
-import qualified Eclair.RA.IR as RA
-import qualified Eclair.Syntax as AST
+import Control.Monad.RWS.Strict
+import Data.List (partition)
 import Protolude hiding (Constraint, swap)
 import Protolude.Unsafe (unsafeFromJust, unsafeHead)
 import qualified Data.Map as M
 import qualified Data.Text as T
+import qualified Eclair.RA.IR as RA
+import qualified Eclair.Syntax as AST
 
 
 type Id = AST.Id
@@ -42,22 +45,29 @@ data Constraint = Constraint Relation Row Column Variable
 
 data Constraints
   = Constraints [Constraint] (Map Id [Constraint])
+  deriving Show
 
+type ExtraConstraints = [ConstraintExpr]
+
+-- TODO: use CPSed RWS monad to avoid space leak
 newtype CodegenM a
-  = CodeGenM (RWS (Row, Constraints) () [RA] a)
+  = CodeGenM (RWS (Row, Constraints) [RA] ExtraConstraints a)
   deriving ( Functor, Applicative, Monad
-           , MonadReader (Row, Constraints), MonadState [RA])
-  via (RWS (Row, Constraints) () [RA])
+           , MonadReader (Row, Constraints)
+           , MonadState ExtraConstraints
+           , MonadWriter [RA]
+           )
+  via (RWS (Row, Constraints) [RA] ExtraConstraints)
 
 runCodegen :: CodegenM a -> [RA]
 runCodegen (CodeGenM m) =
   let cs = Constraints mempty mempty
-   in reverse . fst $ execRWS m (Row 0, cs) []
+   in snd $ execRWS m (Row 0, cs) []
 
 emit :: CodegenM RA -> CodegenM ()
 emit m = do
   ra <- m
-  modify (ra :)
+  tell [ra]
 
 data Term = VarTerm Id | LitTerm AST.Number
   deriving (Eq, Show)
@@ -69,9 +79,24 @@ toTerm = \case
   -- TODO fix, no catch-all
   _ -> panic "Unknown pattern in 'toTerm'"
 
+-- TODO: can be unified with other constraints?
+-- or keep explicitly separate?
+data ConstraintExpr
+  = NotElem Id [Term]
+  deriving Show
+
+noElemOf :: Relation -> [Term] -> CodegenM a -> CodegenM a
+noElemOf r ts = constrain (NotElem r ts)
+
+constrain :: ConstraintExpr -> CodegenM a -> CodegenM a
+constrain c m = do
+  modify (c:)
+  m
+
 data Clause
   = AtomClause Id [Term]
-  -- TODO add other variants later
+  | ConstrainClause ConstraintExpr
+  deriving Show
 
 toClause :: AST.AST -> Clause
 toClause = \case
@@ -83,11 +108,14 @@ project r ts =
   RA.Project r <$> traverse resolveTerm ts
 
 search :: Relation -> [Term] -> CodegenM RA -> CodegenM RA
-search r ts inner = do
-  clauses <- traverse (uncurry (resolveClause r)) $ zip [0..] ts
-  action <- local updateState inner
+search r@(AST.Id rname) ts inner = do
   row <- asks fst
-  pure $ RA.Search r (relationToAlias r row) (catMaybes clauses) action
+  clauses <- traverse (uncurry (resolveClause r)) $ zip [0..] ts
+  (action, extraClauses) <- local updateState $ do
+    action <- inner
+    (action,) <$> resolveExtraClauses r ts
+  let allClauses = catMaybes clauses ++ extraClauses
+  pure $ RA.Search r (relationToAlias r row) allClauses action
   where
     updateState (row, cs) =
       let alias = relationToAlias r row
@@ -149,6 +177,21 @@ resolveClause r col t = do
   where lookupVar v (Constraints _ cMap) = M.lookup v cMap
         descendingClauseRow (Constraint _ row _ _) = Down row
         differentRelation (Constraint r' _ _ _) = r /= r'
+
+resolveExtraClauses :: Relation -> [Term] -> CodegenM [RA]
+resolveExtraClauses r ts = do
+  let vars = mapMaybe toVar ts
+  (relevantCs, remainingCs) <- gets (partition (isRelevant r vars))
+  put remainingCs
+  traverse toRA relevantCs
+  where
+    isRelevant r _vars (NotElem r' _) =
+      AST.stripIdPrefixes r `AST.startsWithId` r'
+    toVar = \case
+      VarTerm v -> Just v
+      _ -> Nothing
+    toRA (NotElem r ts) =
+      RA.NotElem r <$> traverse resolveTerm ts
 
 findBestMatchingConstraint :: Constraints -> Id -> Maybe Constraint
 findBestMatchingConstraint (Constraints x cs) var =

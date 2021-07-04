@@ -84,7 +84,8 @@ spec = describe "RA Code Generation" $ parallel $ do
               (RA.Search (Id "delta_path") (Id "delta_path1")
                 [RA.Constrain (RA.ColumnIndex (Id "delta_path1") 0)
                               (RA.ColumnIndex (Id "edge0") 1)
-                -- TODO: check that tuple isn't in 'path' yet
+                , RA.NotElem (Id "path") [ RA.ColumnIndex (Id "edge0") 0
+                                         , RA.ColumnIndex (Id "delta_path1") 1]
                 ]
                 (RA.Project (Id "new_path") [ RA.ColumnIndex (Id "edge0") 0
                                          , RA.ColumnIndex (Id "delta_path1") 1]))

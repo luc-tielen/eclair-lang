@@ -32,5 +32,6 @@ data RA
   | Module [RA]
   | Lit Number
   | ColumnIndex Relation ColumnIndex
-  | Constrain RA RA
+  | Constrain RA RA  -- equality constraint
+  | NotElem Relation [RA]
   deriving (Eq, Show)
