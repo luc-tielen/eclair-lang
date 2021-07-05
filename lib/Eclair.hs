@@ -60,13 +60,11 @@ processSingleRule relation terms clauses
   | isRecursive relation clauses =
     let deltaRelation = deltaRelationOf relation
         newRelation = newRelationOf relation
-        extraClauses = [ConstrainClause (NotElem relation terms)]
-        allClauses = clauses ++ extraClauses
         stmts =
           [ merge relation deltaRelation
           , loop
             [ purge newRelation
-            , ruleToStmt relation terms allClauses
+            , ruleToStmt relation terms clauses
             , exit [newRelation]
             , merge newRelation relation
             , swap newRelation deltaRelation
