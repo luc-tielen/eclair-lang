@@ -97,9 +97,37 @@ spec = describe "RA Code Generation" $ parallel $ do
 
   -- TODO variant where one is recursive
   it "generates code for mutually recursive rules" $ do
-    pending
+    output <- cg "mutually_recursive_rules"
+    output `shouldBe`
+      RA.Module
+        [ RA.Project (Id "d") [RA.Lit 3]
+        , RA.Project (Id "c") [RA.Lit 2]
+        , RA.Project (Id "b") [RA.Lit 1]
+        , RA.Merge (Id "c") (Id "delta_c")
+        , RA.Merge (Id "b") (Id "delta_b")
 
-  it "generates code for multiple dependent rules" $ do
-    pending
+        , RA.Loop (RA.Seq
+          [ RA.Purge (Id "new_c")
+          , RA.Purge (Id "new_b")
+          , RA.Par
+            [ RA.Search (Id "b") (Id "b0") [RA.NotElem (Id "c") [RA.ColumnIndex (Id "b0") 0]]
+              (RA.Search (Id "d") (Id "d1") [RA.Constrain (RA.ColumnIndex (Id "d1") 0)
+                                                          (RA.ColumnIndex (Id "b0") 0)]
+                (RA.Project (Id "new_c") [RA.ColumnIndex (Id "b0") 0]))
+            , RA.Search (Id "c") (Id "c0") [RA.NotElem (Id "b") [RA.ColumnIndex (Id "c0") 0]]
+              (RA.Search (Id "d") (Id "d1") [RA.Constrain (RA.ColumnIndex (Id "d1") 0)
+                                                          (RA.ColumnIndex (Id "c0") 0)]
+                (RA.Project (Id "new_b") [RA.ColumnIndex (Id "c0") 0]))
+            ]
+          , RA.Exit [Id "new_c",Id "new_b"]
+          , RA.Merge (Id "new_c") (Id "c")
+          , RA.Swap (Id "new_c") (Id "delta_c")
+          , RA.Merge (Id "new_b") (Id "b")
+          , RA.Swap (Id "new_b") (Id "delta_b")])
+        , RA.Search (Id "b") (Id "b0") []
+          (RA.Search (Id "c") (Id "c1") [RA.Constrain (RA.ColumnIndex (Id "c1") 0)
+                                                      (RA.ColumnIndex (Id "b0") 0)]
+            (RA.Project (Id "a") [RA.ColumnIndex (Id "b0") 0]))
+        ]
 
-  -- TODO tests for lits, rules with >2 clauses, ...
+  -- TODO tests for rules with >2 clauses, ...

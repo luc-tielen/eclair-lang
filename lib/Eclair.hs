@@ -47,13 +47,7 @@ processMultipleRules rules = traverse_ emit stmts where
   relations = map (view _1) rulesInfo
   -- TODO: better func name
   f (r, map toTerm -> ts, map toClause -> clauses) =
-    ruleToStmt r ts clauses
-    -- TODO: check if notelem is always needed? dont think so?
-    --where
-      --deltaRelation = deltaRelationOf r
-      --newRelation = newRelationOf r
-      --extraClauses = [ConstrainClause (NotElem r ts)]
-      --allClauses = clauses ++ extraClauses
+    recursiveRuleToStmt r ts clauses
 
 processSingleRule :: Relation -> [Term] -> [Clause] -> CodegenM ()
 processSingleRule relation terms clauses
@@ -76,15 +70,21 @@ processSingleRule relation terms clauses
 ruleToStmt :: Relation -> [Term] -> [Clause] -> CodegenM RA
 ruleToStmt relation terms clauses
   | isRecursive relation clauses =
-    let newRelation = newRelationOf relation
-        extraClauses = [ConstrainClause (NotElem relation terms)]
-        allClauses = clauses ++ extraClauses
-      in transform relation newRelation terms allClauses
-  | otherwise = transform relation relation terms clauses
+    recursiveRuleToStmt relation terms clauses
+  | otherwise = nestedSearchAndProject relation relation terms clauses
+
+recursiveRuleToStmt :: Relation -> [Term] -> [Clause] -> CodegenM RA
+recursiveRuleToStmt relation terms clauses =
+  let newRelation = newRelationOf relation
+      extraClauses = [ConstrainClause (NotElem relation terms)]
+      allClauses = clauses ++ extraClauses
+    in nestedSearchAndProject relation newRelation terms allClauses
+
+nestedSearchAndProject :: Relation -> Relation -> [Term] -> [Clause] -> CodegenM RA
+nestedSearchAndProject relation intoRelation terms clauses =
+  flip (foldr (processRuleClause relation)) clauses $
+    project intoRelation terms
   where
-    transform relation intoRelation terms clauses =
-      flip (foldr (processRuleClause relation)) clauses $
-        project intoRelation terms
     processRuleClause ruleName clause inner = case clause of
       AtomClause clauseName terms ->
         let relation' =
