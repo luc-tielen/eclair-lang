@@ -125,7 +125,7 @@ relationToAlias r row =
   AST.appendToId r (T.pack . show $ unRow row)
 
 loop :: [CodegenM RA] -> CodegenM RA
-loop ms = RA.Loop . RA.Seq <$> sequence ms
+loop ms = RA.Loop <$> sequence ms
 
 parallel :: [CodegenM RA] -> CodegenM RA
 parallel ms = RA.Par <$> sequence ms

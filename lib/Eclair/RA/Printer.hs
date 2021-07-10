@@ -38,9 +38,8 @@ instance Pretty RA where
     Merge r1 r2 -> "merge" <+> pretty r1 <+> pretty r2
     Swap r1 r2 -> "swap" <+> pretty r1 <+> pretty r2
     Purge r -> "purge" <+> pretty r
-    Seq stmts -> vsep $ map pretty stmts
     Par stmts -> "parallel do" <> prettyBlock stmts
-    Loop stmt -> "loop do" <> prettyBlock [stmt]
+    Loop stmts -> "loop do" <> prettyBlock stmts
     Exit rs ->
       let texts = map formatExitCondition rs
       in "exit if" <+> withAnds texts
