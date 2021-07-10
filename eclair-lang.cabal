@@ -79,6 +79,7 @@ test-suite eclair-test
     , lens ==4.*
     , megaparsec ==9.*
     , mtl ==2.*
+    , neat-interpolation ==0.*
     , prettyprinter ==1.*
     , protolude ==0.3.0
     , souffle-haskell ==3.0.0

@@ -26,8 +26,12 @@ instance Pretty Id where
 instance Pretty RA where
   pretty = \case
     Search r alias clauses inner ->
-      "search" <+> pretty r <+> "as" <+> pretty alias <+> "do" <>
-        prettyBlock [inner]
+      let clausesText =
+            if null clauses
+              then ""
+              else "where" <+> parens (withAnds $ map pretty clauses) <> space
+       in "search" <+> pretty r <+> "as" <+> pretty alias <+> clausesText <> "do" <>
+            prettyBlock [inner]
     Project r terms ->
       "project" <+> prettyValues terms <+>
       "into" <+> pretty r
@@ -39,17 +43,17 @@ instance Pretty RA where
     Loop stmt -> "loop do" <> prettyBlock [stmt]
     Exit rs ->
       let texts = map formatExitCondition rs
-      in "exit if" <+> parens (withAnds texts)
+      in "exit if" <+> withAnds texts
     Module stmts ->
       vsep $ map pretty stmts
     Lit x -> pretty x
     ColumnIndex r idx -> pretty r <> brackets (pretty idx)
     Constrain lhs rhs -> pretty lhs <+> "=" <+> pretty rhs
-    NotElem r terms -> pretty r <+> " " <+> prettyValues terms
+    NotElem r terms -> prettyValues terms <+> "∉" <+> pretty r
     where
       interleaveWith d = hsep . punctuate d
       withCommas = interleaveWith comma
-      withAnds = interleaveWith "&&"
+      withAnds = interleaveWith (space <> "and")
       prettyValues terms = parens (withCommas $ map pretty terms)
       formatExitCondition r =
         "counttuples" <> parens (pretty r) <+> "=" <+> "0"

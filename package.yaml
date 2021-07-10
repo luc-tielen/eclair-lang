@@ -61,4 +61,5 @@ tests:
       - hspec-hedgehog == 0.*
       - hedgehog == 1.*
       - filepath == 1.*
+      - neat-interpolation == 0.*
       - eclair-lang
