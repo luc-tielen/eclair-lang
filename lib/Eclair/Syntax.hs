@@ -31,7 +31,7 @@ import Protolude.Unsafe (unsafeFromJust)
 
 type Number = Int
 
-newtype Id = Id Text
+newtype Id = Id { unId :: Text }
   deriving (Eq, Ord, Show)
 
 appendToId :: Id -> Text -> Id

@@ -23,6 +23,7 @@ library
       Eclair.Parser
       Eclair.RA.Codegen
       Eclair.RA.IR
+      Eclair.RA.Printer
       Eclair.Syntax
   other-modules:
       Paths_eclair_lang
@@ -40,6 +41,7 @@ library
     , lens ==4.*
     , megaparsec ==9.*
     , mtl ==2.*
+    , prettyprinter ==1.*
     , protolude ==0.3.0
     , souffle-haskell ==3.0.0
     , text ==1.*
@@ -77,6 +79,7 @@ test-suite eclair-test
     , lens ==4.*
     , megaparsec ==9.*
     , mtl ==2.*
+    , prettyprinter ==1.*
     , protolude ==0.3.0
     , souffle-haskell ==3.0.0
     , text ==1.*

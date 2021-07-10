@@ -21,6 +21,8 @@ dependencies:
   - containers == 0.*
   - lens == 4.*
   - mtl == 2.*
+  - prettyprinter == 1.*
+
 
 default-extensions:
   - NoImplicitPrelude
