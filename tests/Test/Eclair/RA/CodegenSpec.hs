@@ -88,11 +88,11 @@ spec = describe "RA Code Generation" $ parallel $ do
         purge new_c
         purge new_b
         parallel do
-          search b as b0 where ((b0[0]) ∉ c) do
-            search d as d1 where (d1[0] = b0[0]) do
+          search b as b0 do
+            search d as d1 where (d1[0] = b0[0] and (b0[0]) ∉ c) do
               project (b0[0]) into new_c
-          search c as c0 where ((c0[0]) ∉ b) do
-            search d as d1 where (d1[0] = c0[0]) do
+          search c as c0 do
+            search d as d1 where (d1[0] = c0[0] and (c0[0]) ∉ b) do
               project (c0[0]) into new_b
         exit if counttuples(new_c) = 0 and counttuples(new_b) = 0
         merge new_c c

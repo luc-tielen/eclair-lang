@@ -83,6 +83,7 @@ toTerm = \case
 -- or keep explicitly separate?
 data ConstraintExpr
   = NotElem Id [Term]
+  deriving Show
 
 noElemOf :: Relation -> [Term] -> CodegenM a -> CodegenM a
 noElemOf r ts = constrain (NotElem r ts)
@@ -106,12 +107,12 @@ project r ts =
   RA.Project r <$> traverse resolveTerm ts
 
 search :: Relation -> [Term] -> CodegenM RA -> CodegenM RA
-search r@(AST.Id rname) ts inner = do
+search r ts inner = do
   row <- asks fst
   clauses <- traverse (uncurry (resolveClause r)) $ zip [0..] ts
   (action, extraClauses) <- local updateState $ do
     action <- inner
-    (action,) <$> resolveExtraClauses r ts
+    (action,) <$> resolveExtraClauses
   let allClauses = catMaybes clauses ++ extraClauses
   pure $ RA.Search r (relationToAlias r row) allClauses action
   where
@@ -179,20 +180,14 @@ resolveClause r col t = do
         descendingClauseRow (Constraint _ row _ _) = Down row
         differentRelation (Constraint r' _ _ _) = r /= r'
 
-resolveExtraClauses :: Relation -> [Term] -> CodegenM [RA]
-resolveExtraClauses r ts = do
-  let vars = mapMaybe toVar ts
-  (relevantCs, remainingCs) <- gets (partition (isRelevant r vars))
-  put remainingCs
-  traverse toRA relevantCs
+resolveExtraClauses :: CodegenM [RA]
+resolveExtraClauses = do
+  -- TODO: make algorithm smarter to take vars in use into account?
+  extraClauses <- get
+  modify (const [])
+  traverse toRA extraClauses
   where
-    isRelevant r _vars (NotElem r' _) =
-      AST.stripIdPrefixes r `AST.startsWithId` r'
-    toVar = \case
-      VarTerm v -> Just v
-      _ -> Nothing
-    toRA (NotElem r ts) =
-      RA.NotElem r <$> traverse resolveTerm ts
+    toRA (NotElem r ts) = RA.NotElem r <$> traverse resolveTerm ts
 
 findBestMatchingConstraint :: Constraints -> Id -> Maybe Constraint
 findBestMatchingConstraint (Constraints x cs) var =
