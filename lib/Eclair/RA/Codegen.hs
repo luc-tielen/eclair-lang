@@ -37,19 +37,18 @@ type RA = RA.RA
 type Column = Int
 
 newtype Row = Row { unRow :: Int }
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord)
 
 type Variable = Id
 
 data Constraint = Constraint Relation Row Column Variable
-  deriving (Eq, Show)
+  deriving (Eq)
 
 data Constraints
   = Constraints [Constraint] (Map Id [Constraint])
 
 type ExtraConstraints = [ConstraintExpr]
 
--- TODO: use CPSed RWS monad to avoid space leak
 newtype CodegenM a
   = CodeGenM (RWS (Row, Constraints) [RA] ExtraConstraints a)
   deriving ( Functor, Applicative, Monad
@@ -70,7 +69,7 @@ emit m = do
   tell [ra]
 
 data Term = VarTerm Id | LitTerm AST.Number
-  deriving (Eq, Show)
+  deriving (Eq)
 
 toTerm :: AST.AST -> Term
 toTerm = \case
@@ -83,7 +82,6 @@ toTerm = \case
 -- or keep explicitly separate?
 data ConstraintExpr
   = NotElem Id [Term]
-  deriving Show
 
 noElemOf :: Relation -> [Term] -> CodegenM a -> CodegenM a
 noElemOf r ts = constrain (NotElem r ts)
