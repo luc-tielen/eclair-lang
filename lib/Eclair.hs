@@ -1,5 +1,3 @@
-{-# LANGUAGE ViewPatterns #-}
-
 module Eclair ( compile, run ) where
 
 import Protolude hiding (swap)

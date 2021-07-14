@@ -22,6 +22,7 @@ library
       Eclair
       Eclair.Parser
       Eclair.RA.Codegen
+      Eclair.RA.Interpreter
       Eclair.RA.IR
       Eclair.RA.Printer
       Eclair.Syntax
@@ -33,11 +34,14 @@ library
       NoImplicitPrelude
       OverloadedStrings
       LambdaCase
+      ViewPatterns
   ghc-options: -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__ -Wall
   build-depends:
       base >=4.7 && <5
     , containers ==0.*
+    , exceptions ==0.10.*
+    , extra ==1.*
     , lens ==4.*
     , megaparsec ==9.*
     , mtl ==2.*
@@ -66,12 +70,15 @@ test-suite eclair-test
       NoImplicitPrelude
       OverloadedStrings
       LambdaCase
+      ViewPatterns
   ghc-options: -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__
   build-depends:
       base >=4.7 && <5
     , containers ==0.*
     , eclair-lang
+    , exceptions ==0.10.*
+    , extra ==1.*
     , filepath ==1.*
     , hedgehog ==1.*
     , hspec >=2.6.1 && <3.0.0

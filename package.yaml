@@ -22,12 +22,14 @@ dependencies:
   - lens == 4.*
   - mtl == 2.*
   - prettyprinter == 1.*
-
+  - exceptions == 0.10.*
+  - extra == 1.*
 
 default-extensions:
   - NoImplicitPrelude
   - OverloadedStrings
   - LambdaCase
+  - ViewPatterns
 
 ghc-options:
   - -fhide-source-paths
