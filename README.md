@@ -18,8 +18,9 @@ yet).
 
 ## Roadmap
 
-- [ ] Prettyprinter for relational algebra (RA) IR
-- [ ] Interpreter for RA IR
+- [x] Compile Datalog to relation algebra (RA)
+- [x] Prettyprinter for RA IR
+- [x] Interpreter for RA IR
 - [ ] Compile to LLVM
 - [ ] Add indices to relations
 - [ ] Support other data types than integers (strings, ...)
