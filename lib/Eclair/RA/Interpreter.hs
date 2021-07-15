@@ -121,7 +121,7 @@ basedOn r clauses record = allM toPredicate clauses
       NotElem r values -> do
         records <- gets (lookupOrInit r . db)
         values' <- traverse resolveValueInClause values
-        pure $ values' `elem` records
+        pure $ values' `notElem` records
       _ -> panic "Unexpected variant in 'toPredicate'"
     resolveValueInClause = \case
       Lit x ->
