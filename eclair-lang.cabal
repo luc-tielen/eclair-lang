@@ -63,6 +63,7 @@ test-suite eclair-test
   main-is: test.hs
   other-modules:
       Test.Eclair.RA.CodegenSpec
+      Test.Eclair.RA.InterpreterSpec
       Paths_eclair_lang
   hs-source-dirs:
       tests

@@ -7,11 +7,12 @@ module Eclair.RA.Interpreter
 
 import Protolude hiding (handle, swap)
 import Protolude.Unsafe (unsafeFromJust)
+import Data.IORef
 import Data.List ((!!))
 import Control.Monad.Catch
 import Control.Monad.Extra
 import Eclair.RA.IR
-import Eclair.Syntax (Id, Number)
+import Eclair.Syntax (Id(..), Number, startsWithId)
 import qualified Data.Map as M
 import Data.Map (Map)
 
@@ -28,15 +29,15 @@ data InterpretError
 
 instance Exception InterpretError where
 
-type InterpreterM = StateT InterpreterState IO
+type InterpreterM = ReaderT (IORef InterpreterState) IO
 
 interpretRA :: RA -> IO DB
-interpretRA ra = runInterpreter (interpret ra) where
+interpretRA ra = removeInternals <$> runInterpreter (interpret ra) where
   interpret = \case
     Module stmts ->
       traverse_ interpret stmts
     Search r alias clauses action -> do
-      records <- filterM (r `basedOn` clauses) =<< gets (lookupOrInit r . db)
+      records <- filterM (alias `basedOn` clauses) . lookupOrInit r . db =<< readRef
       for_ records $ \record -> do
         updateAlias alias record
         interpret action
@@ -56,8 +57,8 @@ interpretRA ra = runInterpreter (interpret ra) where
       handle loopExitError $
         traverse_ interpret (cycle stmts)
     Exit rs -> do
-      database <- gets db
-      let values = map (flip lookupOrInit database) rs
+      database <- db <$> readRef
+      let values = map (`lookupOrInit` database) rs
       if all null values
         then throwM ExitLoop
         else pure ()
@@ -65,10 +66,17 @@ interpretRA ra = runInterpreter (interpret ra) where
       panic "Unexpected case in 'interpret'!"
   loopExitError :: InterpretError -> InterpreterM ()
   loopExitError = const $ pure ()
+  removeInternals =
+    M.mapMaybeWithKey (\k v -> if isInternalKey k then Nothing else Just v)
+  isInternalKey k =
+    k `startsWithId` Id "delta_" ||
+    k `startsWithId` Id "new_"
 
 runInterpreter :: InterpreterM a -> IO DB
-runInterpreter m =
-  db <$> execStateT m (InterpreterState mempty mempty)
+runInterpreter m = do
+  state <- newIORef (InterpreterState mempty mempty)
+  void $ runReaderT m state
+  db <$> readIORef state
 
 merge :: Relation -> Relation -> DB -> DB
 merge fromR toR db =
@@ -94,42 +102,51 @@ resolveValue = \case
 
 currentValueInSearch :: Alias -> InterpreterM Record
 currentValueInSearch r =
-  gets (unsafeFromJust . M.lookup r . aliases)
+  unsafeFromJust . M.lookup r . aliases <$> readRef
 
 project :: Relation -> Record -> DB -> DB
-project r values db =
-  M.insertWith (<>) r [values] db
+project r values =
+  M.insertWith (<>) r [values]
 
 modifyDB :: (DB -> DB) -> InterpreterM ()
 modifyDB f =
-  modify $ \s -> s { db = f (db s) }
+  modifyRef $ \s -> s { db = f (db s) }
 
 lookupOrInit :: Relation -> DB -> [Record]
-lookupOrInit key =
-  M.findWithDefault mempty key
+lookupOrInit = M.findWithDefault mempty
 
 updateAlias :: Alias -> Record -> InterpreterM ()
 updateAlias a r =
-  modify $ \s -> s { aliases = M.insert a r (aliases s) }
+  modifyRef $ \s -> s { aliases = M.insert a r (aliases s) }
 
-basedOn :: Relation -> [RA] -> Record -> InterpreterM Bool
-basedOn r clauses record = allM toPredicate clauses
+basedOn :: Alias -> [RA] -> Record -> InterpreterM Bool
+basedOn a clauses record = allM toPredicate clauses
   where
     toPredicate = \case
       Constrain lhs rhs ->
         (==) <$> resolveValueInClause lhs <*> resolveValueInClause rhs
       NotElem r values -> do
-        records <- gets (lookupOrInit r . db)
+        records <- lookupOrInit r . db <$> readRef
         values' <- traverse resolveValueInClause values
         pure $ values' `notElem` records
       _ -> panic "Unexpected variant in 'toPredicate'"
     resolveValueInClause = \case
       Lit x ->
         pure x
-      ColumnIndex r' idx
-        | r == r' -> pure $ record !! idx
+      ColumnIndex a' idx
+        | a == a' -> pure $ record !! idx
         | otherwise -> do
-          value <- currentValueInSearch r
+          value <- currentValueInSearch a'
           pure $ value !! idx
       _ -> panic "Unexpected variant in 'resolveValueInClause'"
+
+readRef :: InterpreterM InterpreterState
+readRef = do
+  ref <- ask
+  liftIO $ readIORef ref
+
+modifyRef :: (InterpreterState -> InterpreterState) -> InterpreterM ()
+modifyRef f = do
+  ref <- ask
+  liftIO $ modifyIORef ref f
 

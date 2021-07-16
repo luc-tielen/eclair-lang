@@ -5,6 +5,8 @@ import Protolude.Unsafe (unsafeFromJust)
 import Eclair.Syntax hiding (Clause)
 import Eclair.Parser
 import Eclair.RA.Codegen
+import Eclair.RA.Interpreter
+import Eclair.RA.Printer
 import Control.Lens hiding (Equality, Index)
 import qualified Data.Map as M
 import qualified Data.Text as T
@@ -110,7 +112,12 @@ compile :: FilePath -> IO (Either ParseError RA)
 compile path = do
   map compileRA <$> parseFile path
 
-run :: FilePath -> IO ()
+run :: FilePath -> IO (M.Map Relation [[Number]])
 run path = compile path >>= \case
-  Left err -> printParseError err
-  Right ast -> print ast
+  Left err -> do
+    printParseError err
+    panic "Failed to interpret path."
+  Right ast -> do
+    putStrLn $ printRA ast
+    interpretRA ast
+
