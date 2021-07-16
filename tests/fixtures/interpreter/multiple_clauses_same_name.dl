@@ -1,0 +1,8 @@
+
+link(1,2).
+link(2,3).
+link(3,4).
+
+chain(x, y, z) :-
+  link(x, y),
+  link(y, z).

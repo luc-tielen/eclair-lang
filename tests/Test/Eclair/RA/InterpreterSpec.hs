@@ -39,6 +39,24 @@ spec = describe "RA interpreter" $ parallel $ do
       , (Id "f", [[4]])
       ]
 
+  it "can interpret rules with multiple clauses" $ do
+    result <- interpret "multiple_clauses_in_rule"
+    result `shouldBe`
+      M.fromList
+      [ (Id "fact", [[1], [2], [3]])
+      , (Id "product", [ [3,3], [3,2], [3,1]
+                       , [2,3], [2,2], [2,1]
+                       , [1,3], [1,2], [1,1]])
+      ]
+
+  it "can interpret rules with multiple clauses of same name" $ do
+    result <- interpret "multiple_clauses_same_name"
+    result `shouldBe`
+      M.fromList
+      [ (Id "link", [[1,2], [2,3], [3, 4]])
+      , (Id "chain", [[2,3,4], [1,2,3]])
+      ]
+
   it "can interpret a single recursive rule" $ do
     result <- interpret "single_recursive_rule"
     result `shouldBe` M.fromList
@@ -47,4 +65,10 @@ spec = describe "RA interpreter" $ parallel $ do
       ]
 
   it "can interpret mutually recursive rules" $ do
-    pending
+    result <- interpret "mutually_recursive_rule"
+    result `shouldBe` M.fromList
+      [ (Id "a", [[1], [2]])
+      , (Id "b", [[2], [1]])
+      , (Id "c", [[1], [2]])
+      , (Id "d", [[1], [2], [3]])
+      ]

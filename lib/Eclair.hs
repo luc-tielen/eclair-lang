@@ -6,7 +6,6 @@ import Eclair.Syntax hiding (Clause)
 import Eclair.Parser
 import Eclair.RA.Codegen
 import Eclair.RA.Interpreter
-import Eclair.RA.Printer
 import Control.Lens hiding (Equality, Index)
 import qualified Data.Map as M
 import qualified Data.Text as T
@@ -118,6 +117,5 @@ run path = compile path >>= \case
     printParseError err
     panic "Failed to interpret path."
   Right ast -> do
-    putStrLn $ printRA ast
     interpretRA ast
 
