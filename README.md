@@ -12,7 +12,7 @@ Eclair is a very minimal Datalog (for now). It only supports the following featu
 - Rules can be non-recursive, recursive or mutually recursive.
 
 It's **extremely alpha** software, not ready for real use. Right now it only
-compiles down to an intermediate representation (and can't even be executed yet).
+compiles down to an intermediate representation.
 Many edgecases are not checked yet (there is no semantic analysis / typesystem
 yet).
 
