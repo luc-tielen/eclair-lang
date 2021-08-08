@@ -1,6 +1,9 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module Eclair.RA.IR
   ( Relation
   , RA(..)
+  , RAF(..)
   , Alias
   , Clause
   , Action
@@ -9,6 +12,7 @@ module Eclair.RA.IR
 
 import Eclair.Syntax ( Id, Number )
 import Protolude
+import Data.Functor.Foldable.TH
 
 
 type Relation = Id
@@ -34,3 +38,5 @@ data RA
   | Constrain RA RA  -- equality constraint
   | NotElem Relation [RA]
   deriving (Eq, Show)
+
+makeBaseFunctor ''RA

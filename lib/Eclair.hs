@@ -108,7 +108,13 @@ newRelationOf = prependToId newPrefix
 
 compile :: FilePath -> IO (Either ParseError RA)
 compile path = do
-  map compileRA <$> parseFile path
+  parseResult <- parseFile path
+  case map compileRA parseResult of
+    Left err -> pure $ Left err
+    Right ra -> do
+      let getIndexForSearch = getIndexForSearchInProgram ra
+      -- TODO: use helper function in btree impl
+      pure $ Right ra
 
 run :: FilePath -> IO (M.Map Relation [[Number]])
 run path = compile path >>= \case
