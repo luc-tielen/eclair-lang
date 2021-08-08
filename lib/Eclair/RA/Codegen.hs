@@ -21,9 +21,8 @@ module Eclair.RA.Codegen
   ) where
 
 import Control.Monad.RWS.Strict
-import Data.List (partition)
-import Protolude hiding (Constraint, swap)
-import Protolude.Unsafe (unsafeFromJust, unsafeHead)
+import Protolude hiding (Constraint, swap, from, to)
+import Protolude.Unsafe (unsafeFromJust)
 import qualified Data.Map as M
 import qualified Data.Text as T
 import qualified Eclair.RA.IR as RA
@@ -145,11 +144,11 @@ addConstraints :: Relation -> Row -> [(Column, Term)] -> Constraints -> Constrai
 addConstraints r row ts cs = foldl' addConstraint cs ts
   where
     addConstraint :: Constraints -> (Column, Term) -> Constraints
-    addConstraint cs@(Constraints cList cMap) (col, t) = case t of
+    addConstraint cs'@(Constraints cList cMap) (col, t) = case t of
       VarTerm v ->
         let c = Constraint r row col v
         in Constraints (c:cList) (M.insertWith (<>) v [c] cMap)
-      LitTerm _ -> cs
+      LitTerm _ -> cs'
 
 resolveTerm :: Term -> CodegenM RA
 resolveTerm = \case
@@ -188,7 +187,7 @@ resolveExtraClauses = do
     toRA (NotElem r ts) = RA.NotElem r <$> traverse resolveTerm ts
 
 findBestMatchingConstraint :: Constraints -> Id -> Maybe Constraint
-findBestMatchingConstraint (Constraints x cs) var =
+findBestMatchingConstraint (Constraints _ cs) var =
   headMay . sortOn ascendingClauseRow =<< M.lookup var cs
   where ascendingClauseRow (Constraint _ row _ _) = row
 

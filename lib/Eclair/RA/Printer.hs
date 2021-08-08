@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-orphans #-}
+
 module Eclair.RA.Printer ( Pretty, printRA ) where
 
 import Data.Text.Prettyprint.Doc
@@ -19,9 +21,6 @@ prettyBlock = indentBlock . vsep . map pretty
 
 indentBlock :: Doc ann -> Doc ann
 indentBlock block = nest indentation (hardline <> block)
-
-instance Pretty Id where
-  pretty = pretty . unId
 
 instance Pretty RA where
   pretty = \case
@@ -57,3 +56,5 @@ instance Pretty RA where
       formatExitCondition r =
         "counttuples" <> parens (pretty r) <+> "=" <+> "0"
 
+instance Pretty Id where
+  pretty = pretty . unId
