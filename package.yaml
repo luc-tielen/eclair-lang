@@ -24,6 +24,10 @@ dependencies:
   - prettyprinter == 1.*
   - exceptions == 0.10.*
   - extra == 1.*
+  - llvm-hs == 9.*
+  - llvm-hs-pure == 9.*
+  - llvm-hs-pretty == 0.9.0.0
+  - recursion-schemes == 5.*
 
 default-extensions:
   - NoImplicitPrelude
@@ -53,6 +57,16 @@ library:
   when:
     - condition: os(linux)
       extra-libraries: stdc++
+
+executables:
+  eclairc:
+    main: Main.hs
+    source-dirs: src
+    dependencies:
+      - eclair-lang
+      - base >= 4.7 && < 5
+      - protolude == 0.3.0
+      - directory == 1.*
 
 tests:
   eclair-test:

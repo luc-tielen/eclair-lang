@@ -1,40 +1,22 @@
-{-# LANGUAGE DeriveGeneric, DeriveAnyClass, DataKinds, TypeFamilies, LambdaCase #-}
+module Main ( main ) where
 
-module Main where
-
-import qualified Language.Souffle.Compiled as Souffle
-import GHC.Generics
-import Control.Monad.IO.Class
-
-
-data Path = Path
-
-data Edge = Edge String String
-  deriving (Generic, Souffle.Marshal)
-
-data Reachable = Reachable String String
-  deriving (Show, Generic, Souffle.Marshal)
-
-instance Souffle.Program Path where
-  type ProgramFacts Path = [Edge, Reachable]
-  programName = const "path"
-
-instance Souffle.Fact Edge where
-  type FactDirection Edge = 'Souffle.Input
-  factName = const "edge"
-
-instance Souffle.Fact Reachable where
-  type FactDirection Reachable = 'Souffle.Output
-  factName = const "reachable"
+import Protolude hiding ( Meta )
+import qualified Data.Text.Lazy.IO as T
+import qualified Data.Set as Set
+import LLVM.Pretty
+import LLVM.IRBuilder.Module
+import Eclair.Data.BTree
 
 
 main :: IO ()
-main = Souffle.runSouffle Path $ \case
-  Nothing -> liftIO $ print "Failed to load Souffle program!"
-  Just prog -> do
-    Souffle.addFact prog $ Edge "a" "b"
-    Souffle.addFacts prog $ [Edge "b" "c", Edge "a" "d", Edge "d" "e"]
-    Souffle.run prog
-    reachables <- Souffle.getFacts prog
-    liftIO $ print (reachables :: [Reachable])
+main = do
+  let meta = Meta { arch = X64
+                  , numColumns = 4
+                  , blockSize = 256
+                  , index = Set.fromList [1, 3]
+                  , searchType = Linear
+                  }
+  let moduleIR = buildModule "btree" (codegen meta)
+      output = ppllvm moduleIR
+  T.putStrLn output
 
