@@ -8,7 +8,7 @@ module Eclair.Data.BTree
   , codegen
   ) where
 
-import Protolude hiding ( Type, Meta )
+import Protolude hiding ( Type, Meta, void, bit )
 import Protolude.Unsafe ( unsafeFromJust )
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -37,7 +37,15 @@ import Data.Functor.Foldable
 codegen :: Meta -> ModuleBuilder ()
 codegen meta = do
   tys <- generateTypes meta
-  runReaderT generateFunctions $ CGState meta tys
+  exts <- mkExternals
+  runReaderT generateFunctions $ CGState meta tys exts
+
+mkExternals :: ModuleBuilder Externals
+mkExternals = do
+  malloc <- extern "malloc" [i32] (ptr i8)
+  free <- extern "free" [ptr i8] void
+  memset <- extern "llvm.memset.p0i8.i64" [ptr i8, i8, i64, i1] void
+  pure $ Externals malloc free memset
 
 generateTypes :: Meta -> ModuleBuilder Types
 generateTypes meta = mdo
@@ -45,7 +53,7 @@ generateTypes meta = mdo
   valueTy <- mkType "value_t" $ ArrayType (fromIntegral $ numColumns meta) columnTy
   positionTy <- mkType "position_t" i16
   nodeSizeTy <- mkType "node_size_t" i16  -- Note: used to be size_t/i64
-  nodeTypeTy <- mkType "node_type_t" i8
+  nodeTypeTy <- mkType "node_type_t" i1
   nodeDataTy <- mkType "node_data_t" $
     struct [ ptr nodeTy  -- parent
            , positionTy  -- position_in_parent
@@ -54,12 +62,12 @@ generateTypes meta = mdo
            ]
   nodeTy <- mkType "node_t" $
     struct [ nodeDataTy                 -- meta
-           , ArrayType numKeys valueTy  -- values
+           , ArrayType (numKeys meta) valueTy  -- values
            ]
   leafNodeTy <- mkType "leaf_node_t" nodeTy
   innerNodeTy <- mkType "inner_node_t" $
     struct [ nodeTy                                -- base
-           , ArrayType (numKeys + 1) (ptr nodeTy)  -- children
+           , ArrayType (numKeys meta + 1) (ptr nodeTy)  -- children
            ]
   btreeIteratorTy <- mkType "btree_iterator_t" $
     struct [ ptr nodeTy  -- current
@@ -72,6 +80,8 @@ generateTypes meta = mdo
   pure $ Types
     { btreeTy = btreeTy
     , iteratorTy = btreeIteratorTy
+    , nodeTypeTy = nodeTypeTy
+    , nodeTy = nodeTy
     , leafNodeTy = leafNodeTy
     , innerNodeTy = innerNodeTy
     , valueTy = valueTy
@@ -80,20 +90,23 @@ generateTypes meta = mdo
   where
     mkType name ty = typedef name (Just ty)
     struct = StructureType False
-    numKeys = fromIntegral $ max 3 desiredNumberOfKeys
-      where
-        blockByteSize = blockSize meta
-        nodeMetaSize = if arch meta == X86 then 12 else 16
-        valueByteSize = numColumns meta * 4
-        valuesByteSize =
-          if blockByteSize > nodeMetaSize
-          then blockByteSize - nodeMetaSize
-          else 0
-        desiredNumberOfKeys = valuesByteSize `div` valueByteSize
+
+numKeys :: Meta -> Word64
+numKeys meta = fromIntegral $ max 3 desiredNumberOfKeys
+  where
+    blockByteSize = blockSize meta
+    nodeMetaSize = if arch meta == X86 then 12 else 16
+    valueByteSize = numColumns meta * 4
+    valuesByteSize =
+      if blockByteSize > nodeMetaSize
+      then blockByteSize - nodeMetaSize
+      else 0
+    desiredNumberOfKeys = valuesByteSize `div` valueByteSize
 
 generateFunctions :: ModuleCodegen ()
 generateFunctions = do
   mkCompare
+  mkNodeNew
 
 mkCompare :: ModuleCodegen ()
 mkCompare = do
@@ -132,143 +145,93 @@ mkCompare = do
             pure ()
     end <- block `named` "end"
     ret =<< phi (Map.toList results)
-
   pure ()
   where
     endCheck = \case
       Nil -> End
       _ -> Continue
 
-data AtEnd = Continue | End
-  deriving Eq
+data ControlFlow = Continue | End
 
-  {-
-  function "compare_values" [(ptr value, "lhs"), (ptr value, "rhs")] i8 $ \[lhs, rhs] -> mdo
-    let columns = map fromIntegral $ Set.toList $ index meta
-    results <- flip execStateT mempty $ flip (zygo endCheck) columns $ \case
-      Cons col (atEnd, asm) -> mdo
-        blk <- block `named` "comparison"
-        let indices = [int32 0, int32 col]
-        lhsPtr <- gep lhs indices
-        rhsPtr <- gep rhs indices
-        lhsValue <- load lhsPtr 0
-        rhsValue <- load rhsPtr 0
-        compareResult <- call compare [(lhsValue, []), (rhsValue, [])]
-        modify $ Map.insert compareResult blk
-        case atEnd of
-          End -> br end
-          Continue -> mdo
-            isEqual <- icmp IP.EQ compareResult (int8 0)
-            condBr isEqual continue end
-            continue <- asm
-            pure ()
+mkNodeNew :: ModuleCodegen ()
+mkNodeNew = mdo
+  md <- asks meta
+  -- TODO refactor
+  (nodeType, (node, innerNode)) <- asks ((nodeTypeTy &&& nodeTy &&& innerNodeTy) . types)
+  (malloc, memset) <- asks ((extMalloc &&& extMemset) . externals)
+  function "node_new" [(nodeType, "type")] (ptr node) $ \[ty] -> mdo
+    structSize <- select ty leafNodeSize innerNodeSize
+    memory <- call malloc [(structSize, [])]
+    n <- memory `bitcast` ptr node
 
-        pure blk
-      Nil -> panic "Unreachable!"
+    metaPtr <- gep n [int32 0, int32 0]
+    parentPtr <- gep metaPtr [int32 0, int32 0]
+    posInParentPtr <- gep metaPtr [int32 0, int32 1]
+    numElementsPtr <- gep metaPtr [int32 0, int32 2]
+    nodeTypePtr <- gep metaPtr [int32 0, int32 3]
+    store parentPtr 0 (nullPtr node)
+    store posInParentPtr 0 (int16 0)
+    store numElementsPtr 0 (int16 0)
+    store nodeTypePtr 0 ty
+
+    valuesPtr <- gep n [int32 0, int32 1]
+    valuesPtr' <- valuesPtr `bitcast` ptr i8
+    let valuesByteCount = toInteger (numKeys md) * valueSize
+    call memset [(valuesPtr', []), (int8 0, []), (int64 valuesByteCount, []), (bit 0, [])]
+
+    isInner <- icmp IP.EQ ty innerNodeTypeVal
+    condBr isInner initInner end
+
+    initInner <- block `named` "init_inner"
+    inner <- n `bitcast` ptr innerNode
+    childrenPtr <- gep inner [int32 0, int32 1]
+    childrenPtr' <- childrenPtr `bitcast` ptr i8
+    let childrenByteCount = toInteger (numKeys md + 1) * nodePtrSize md
+    call memset [(childrenPtr', []), (int8 0, []), (int64 childrenByteCount, []), (bit 0, [])]
+    br end
+
     end <- block `named` "end"
-    ret =<< phi (Map.toList results)
+    ret n
 
   pure ()
   where
-    endCheck = \case
-      Nil -> End
-      _ -> Continue
+    nodePtrSize md = case arch md of X86 -> 4; X64 -> 8
+    leafNodeSize = int32 1000 -- TODO
+    innerNodeSize = int32 1000  -- TODO
+    valueSize = 1000  -- TODO
+    -- TODO: refactor next 2 lines outside of function
+    leafNodeTypeVal = bit 0
+    innerNodeTypeVal = bit 1
 
-data AtEnd = Continue | End
--}
-
-  {-
-    f lhs rhs compare end = \case
-      Cons col (remainingBlocks, asm) -> mdo
-        blk <- block `named` "comparison"
-        let indices = [int32 0, int32 col]
-        lhsPtr <- gep lhs indices
-        rhsPtr <- gep rhs indices
-        lhsValue <- load lhsPtr 0
-        rhsValue <- load rhsPtr 0
-        compareResult <- call compare [(lhsValue, []), (rhsValue, [])]
-        modify $ Map.insert compareResult blk
-        if remainingBlocks > 0
-          then mdo
-            isEqual <- icmp IP.EQ compareResult (int8 0)
-            condBr isEqual continue end
-            continue <- asm
-            pure ()
-          else br end
-
-        pure blk
-      Nil -> pure (panic "Ruh roh")
--}
-
-
-
-  {-
-  func "compare_values" [(ptr value, "lhs"), (ptr value, "rhs")] i8 $ \[lhs, rhs] -> mdo
-    let columns = map fromIntegral $ Set.toList $ index meta
-    (compareResult, _) <- foldrM (f lhs rhs compare) (int32 0, end) $ reverse columns
-    end <- block `named` "end"
-    ret compareResult
-
-  pure ()
-  where
-    f lhs rhs compare col (_, labelUnmatched) = mdo
-      let indices = [int32 0, int32 col]
-      lhsPtr <- gep lhs indices
-      rhsPtr <- gep rhs indices
-      lhsValue <- load lhsPtr 0
-      rhsValue <- load rhsPtr 0
-      compareResult <- call compare [(lhsValue, []), (rhsValue, [])]
-      isEqual <- icmp IP.EQ compareResult (int8 0)
-      condBr isEqual continue labelUnmatched
-      continue <- block `named` "continue"
-      pure (compareResult, continue)
--}
-
-{-
-  func "compare_values" [(ptr value, "lhs"), (ptr value, "rhs")] i8 $ \[lhs, rhs] -> mdo
-    let columns = map fromIntegral $ Set.toList $ index meta
-    (compareResult, _) <- ifLadder lhs rhs compare (int32 0, end) columns
-    end <- block `named` "end"
-    ret compareResult
-
-
-  pure ()
-  where
-    ifLadder lhs rhs compare result@(compareResult, labelUnmatched) = \case
-      [] -> pure result
-      [col] -> mdo
-        let indices = [int32 0, int32 col]
-        lhsValue <- gep lhs indices
-        rhsValue <- gep rhs indices
-        compareResult' <- call compare [(lhsValue, []), (rhsValue, [])]
-        ret compareResult'
-        continue <- currentBlock
-        pure (compareResult', continue)
-
-      col:cols -> mdo
-        let indices = [int32 0, int32 col]
-        lhsValue <- gep lhs indices
-        rhsValue <- gep rhs indices
-        compareResult' <- call compare [(lhsValue, []), (rhsValue, [])]
-        isEqual <- icmp IP.EQ compareResult' (int8 0)
-        condBr isEqual continue labelUnmatched
-        continue <- block `named` "continue"
-        (_, labelUnmatched') <- ifLadder lhs rhs compare (compareResult', continue) cols
-        pure (compareResult', labelUnmatched')
--}
+nullPtr :: Type -> Operand
+nullPtr = ConstantOperand . Constant.Null . ptr
 
 
 data Types
   = Types
   { btreeTy :: Type
   , iteratorTy :: Type
+  , nodeTypeTy :: Type
+  , nodeTy :: Type
   , leafNodeTy :: Type
   , innerNodeTy :: Type
   , valueTy :: Type
   , columnTy :: Type
   }
 
-data CGState = CGState { meta :: Meta, types :: Types }
+data Externals
+  = Externals
+  { extMalloc :: Operand
+  , extFree :: Operand
+  , extMemset :: Operand
+  }
+
+data CGState
+  = CGState
+  { meta :: Meta
+  , types :: Types
+  , externals :: Externals
+  }
 
 type ModuleCodegen = ReaderT CGState ModuleBuilder
 
@@ -287,6 +250,9 @@ type CodegenM = ReaderT CodeGenState (IRBuilderT ModuleBuilder)
 
 lookupVar :: Variable -> CodegenM Operand
 lookupVar v = asks $ unsafeFromJust . Map.lookup v
+
+int16 :: Integer -> Operand
+int16 = ConstantOperand . Constant.Int 16
 
 -- Btree specific code:
 
