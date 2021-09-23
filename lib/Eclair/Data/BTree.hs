@@ -8,7 +8,7 @@ module Eclair.Data.BTree
   , codegen
   ) where
 
-import Protolude hiding ( Type, Meta, void, bit )
+import Protolude hiding ( Type, Meta, void, bit, typeOf )
 import Protolude.Unsafe ( unsafeFromJust )
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -156,9 +156,16 @@ data ControlFlow = Continue | End
 mkNodeNew :: ModuleCodegen ()
 mkNodeNew = mdo
   md <- asks meta
-  -- TODO refactor
-  (nodeType, (node, innerNode)) <- asks ((nodeTypeTy &&& nodeTy &&& innerNodeTy) . types)
-  (malloc, memset) <- asks ((extMalloc &&& extMemset) . externals)
+  nodeType <- typeOf NodeType
+  node <- typeOf Node
+  innerNode <- typeOf InnerNode
+
+  leafNodeSize <- int32 . toInteger <$> sizeOf Node
+  innerNodeSize <- int32 . toInteger <$> sizeOf InnerNode
+  valueSize <- sizeOf Value
+
+  malloc <- asks (extMalloc . externals)
+
   function "node_new" [(nodeType, "type")] (ptr node) $ \[ty] -> mdo
     structSize <- select ty leafNodeSize innerNodeSize
     memory <- call malloc [(structSize, [])]
@@ -175,9 +182,8 @@ mkNodeNew = mdo
     store nodeTypePtr 0 ty
 
     valuesPtr <- gep n [int32 0, int32 1]
-    valuesPtr' <- valuesPtr `bitcast` ptr i8
-    let valuesByteCount = toInteger (numKeys md) * valueSize
-    call memset [(valuesPtr', []), (int8 0, []), (int64 valuesByteCount, []), (bit 0, [])]
+    let valuesByteCount = numKeys md * valueSize
+    memset valuesPtr 0 valuesByteCount
 
     isInner <- icmp IP.EQ ty innerNodeTypeVal
     condBr isInner initInner end
@@ -185,27 +191,18 @@ mkNodeNew = mdo
     initInner <- block `named` "init_inner"
     inner <- n `bitcast` ptr innerNode
     childrenPtr <- gep inner [int32 0, int32 1]
-    childrenPtr' <- childrenPtr `bitcast` ptr i8
-    let childrenByteCount = toInteger (numKeys md + 1) * nodePtrSize md
-    call memset [(childrenPtr', []), (int8 0, []), (int64 childrenByteCount, []), (bit 0, [])]
+    let childrenByteCount = (numKeys md + 1) * ptrSize md
+    memset childrenPtr 0 childrenByteCount
     br end
 
     end <- block `named` "end"
     ret n
 
   pure ()
-  where
-    nodePtrSize md = case arch md of X86 -> 4; X64 -> 8
-    leafNodeSize = int32 1000 -- TODO
-    innerNodeSize = int32 1000  -- TODO
-    valueSize = 1000  -- TODO
-    -- TODO: refactor next 2 lines outside of function
-    leafNodeTypeVal = bit 0
-    innerNodeTypeVal = bit 1
 
-nullPtr :: Type -> Operand
-nullPtr = ConstantOperand . Constant.Null . ptr
-
+leafNodeTypeVal, innerNodeTypeVal :: Operand
+leafNodeTypeVal = bit 0
+innerNodeTypeVal = bit 1
 
 data Types
   = Types
@@ -237,22 +234,64 @@ type ModuleCodegen = ReaderT CGState ModuleBuilder
 
 type IRCodegen = IRBuilderT ModuleCodegen
 
+-- TODO: remove this hack and replace with proper usage of LLVM Datalayout class
+sizeOf :: MonadReader CGState m => DataType -> m Word64
+sizeOf dt = do
+  md <- asks meta
+  pure $ fromIntegral $ f (numColumns md) (arch md)
+  where
+    f columnCount = \case
+      X86 -> case dt of
+        NodeType -> 1
+        Node -> 252
+        InnerNode -> 336
+        Value -> columnCount * 4
+      X64 -> case dt of
+        NodeType -> 1
+        Node -> 256
+        InnerNode -> 424
+        Value -> columnCount * 4
+
+data DataType
+  = NodeType
+  | Node
+  | InnerNode
+  | Value
+
+typeOf :: MonadReader CGState m => DataType -> m Type
+typeOf dt =
+  let getType = case dt of
+        Node -> nodeTy
+        NodeType -> nodeTypeTy
+        InnerNode -> innerNodeTy
+        Value -> valueTy
+   in getType <$> asks types
+
 
 -- TODO: move as much as possible to "common llvm helpers file"
--- Some type synonyms for readability
 
-type Variable = ParameterName
-
--- During codegen we need to keep track of a mapping from variable names to operands (%0, %1, ...) in IR
-type CodeGenState = Map Variable Operand
-
-type CodegenM = ReaderT CodeGenState (IRBuilderT ModuleBuilder)
-
-lookupVar :: Variable -> CodegenM Operand
-lookupVar v = asks $ unsafeFromJust . Map.lookup v
+memset :: Operand -> Word8 -> Word64 -> IRCodegen ()
+memset p val byteCount = do
+  memsetFn <- asks (extMemset . externals)
+  p' <- p `bitcast` ptr i8
+  call memsetFn [ (p', [])
+                , (int8 0, [])
+                , (int64 (fromIntegral byteCount), [])
+                , (bit 0, [])
+                ]
+  pure ()
 
 int16 :: Integer -> Operand
 int16 = ConstantOperand . Constant.Int 16
+
+nullPtr :: Type -> Operand
+nullPtr = ConstantOperand . Constant.Null . ptr
+
+ptrSize :: Meta -> Word64
+ptrSize md = case arch md of
+  X86 -> 4
+  X64 -> 8
+
 
 -- Btree specific code:
 
