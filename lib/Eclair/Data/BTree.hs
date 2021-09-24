@@ -220,15 +220,9 @@ mkNodeDelete = mdo
     forLoop (int16 0) (icmp IP.UGE numElements) (add (int16 1)) $ \i -> mdo
       childPtr <- gep inner [int32 0, int32 1, i]
       child <- load childPtr 0
-      isNull <- icmp IP.EQ child (nullPtr node)
-      condBr isNull skipDelete delete
-      delete <- block `named` "delete_child"
-      call nodeDelete [(child, [])]
-      br endDelete
-      skipDelete <- block `named` "skip_delete_child"
-      br endDelete
-      endDelete <- block `named` "end_delete_child"
-      pure ()
+      isNotNull <- icmp IP.NE child (nullPtr node)
+      if' isNotNull $
+        call nodeDelete [(child, [])]
 
     br end
 
@@ -238,6 +232,15 @@ mkNodeDelete = mdo
     pure ()
 
   pure nodeDelete
+
+if' :: Operand -> IRCodegen a -> IRCodegen ()
+if' condition asm = mdo
+  condBr condition ifBlock end
+  ifBlock <- block `named` "if"
+  asm
+  br end
+  end <- block `named` "end_if"
+  pure ()
 
 whileLoop :: IRCodegen Operand -> IRCodegen a -> IRCodegen ()
 whileLoop condition asm = mdo
