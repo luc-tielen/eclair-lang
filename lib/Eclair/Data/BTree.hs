@@ -107,6 +107,8 @@ generateFunctions :: ModuleCodegen ()
 generateFunctions = do
   mkCompare
   mkNodeNew
+  mkNodeDelete
+  pure ()
 
 mkCompare :: ModuleCodegen ()
 mkCompare = do
@@ -153,7 +155,7 @@ mkCompare = do
 
 data ControlFlow = Continue | End
 
-mkNodeNew :: ModuleCodegen ()
+mkNodeNew :: ModuleCodegen Operand
 mkNodeNew = mdo
   md <- asks meta
   nodeType <- typeOf NodeType
@@ -198,6 +200,75 @@ mkNodeNew = mdo
     end <- block `named` "end"
     ret n
 
+mkNodeDelete :: ModuleCodegen Operand
+mkNodeDelete = mdo
+  node <- typeOf Node
+  innerNode <- typeOf InnerNode
+  free <- asks (extFree . externals)
+
+  nodeDelete <- function "node_delete" [(ptr node, "node")] void $ \[n] -> mdo
+    metaPtr <- gep n [int32 0, int32 0]
+    nodeTyPtr <- gep metaPtr [int32 0, int32 3]
+    nodeTy <- load nodeTyPtr 0
+    condBr nodeTy deleteInner end
+
+    deleteInner <- block `named` "delete_inner"
+    inner <- n `bitcast` ptr innerNode
+    numElementsPtr <- gep metaPtr [int32 0, int32 2]
+    numElements <- load numElementsPtr 0
+
+    forLoop (int16 0) (icmp IP.UGE numElements) (add (int16 1)) $ \i -> mdo
+      childPtr <- gep inner [int32 0, int32 1, i]
+      child <- load childPtr 0
+      isNull <- icmp IP.EQ child (nullPtr node)
+      condBr isNull skipDelete delete
+      delete <- block `named` "delete_child"
+      call nodeDelete [(child, [])]
+      br endDelete
+      skipDelete <- block `named` "skip_delete_child"
+      br endDelete
+      endDelete <- block `named` "end_delete_child"
+      pure ()
+
+    br end
+
+    end <- block `named` "end"
+    memory <- n `bitcast` ptr i8
+    call free [(memory, [])]
+    pure ()
+
+  pure nodeDelete
+
+whileLoop :: IRCodegen Operand -> IRCodegen a -> IRCodegen ()
+whileLoop condition asm = mdo
+  br begin
+  begin <- block `named` "while_begin"
+  result <- condition
+  condBr result body end
+  body <- block `named` "while_body"
+  asm
+  br begin
+  end <- block `named` "while_end"
+  pure ()
+
+forLoop :: Operand
+        -> (Operand -> IRCodegen Operand)
+        -> (Operand -> IRCodegen Operand)
+        -> (Operand -> IRCodegen a)
+        -> IRCodegen ()
+forLoop beginValue condition post asm = mdo
+  start <- currentBlock
+  br begin
+  begin <- block `named` "for_begin"
+  loopValue <- phi [(beginValue, start), (updatedValue, bodyEnd)]
+  result <- condition loopValue
+  condBr result bodyStart end
+  bodyStart <- block `named` "for_body"
+  asm loopValue
+  updatedValue <- post loopValue
+  bodyEnd <- currentBlock
+  br begin
+  end <- block `named` "for_end"
   pure ()
 
 leafNodeTypeVal, innerNodeTypeVal :: Operand
