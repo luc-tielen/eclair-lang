@@ -1,4 +1,4 @@
-{-# LANGUAGE RecursiveDo, FlexibleContexts, ScopedTypeVariables #-}
+{-# LANGUAGE RecursiveDo, FlexibleContexts, ScopedTypeVariables, OverloadedLists #-}
 
 module Eclair.Runtime.BTree
   ( Meta(..)
@@ -8,7 +8,8 @@ module Eclair.Runtime.BTree
   , codegen
   ) where
 
-import Protolude hiding ( Type, Meta, void, bit, typeOf )
+import Protolude hiding ( (.), Type, Meta, void, bit, typeOf )
+import Control.Category
 import Control.Arrow ((&&&))
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -152,27 +153,22 @@ mkNodeNew = mdo
     memory <- call malloc [(structSize, [])]
     n <- memory `bitcast` ptr node
 
-    metaPtr <- gep n [int32 0, int32 0]
-    parentPtr <- gep metaPtr [int32 0, int32 0]
-    posInParentPtr <- gep metaPtr [int32 0, int32 1]
-    numElementsPtr <- gep metaPtr [int32 0, int32 2]
-    nodeTypePtr <- gep metaPtr [int32 0, int32 3]
-    store parentPtr 0 (nullPtr node)
-    store posInParentPtr 0 (int16 0)
-    store numElementsPtr 0 (int16 0)
-    store nodeTypePtr 0 ty
+    assign (parentOf . metaOf) n (nullPtr node)
+    assign (posInParentOf . metaOf) n (int16 0)
+    assign (numElemsOf . metaOf) n (int16 0)
+    assign (nodeTypeOf . metaOf) n ty
 
-    valuesPtr <- gep n [int32 0, int32 1]
     let valuesByteCount = numKeys md * valueSize
+    valuesPtr <- addr valuesOf n
     memset valuesPtr 0 valuesByteCount
 
-    isInner <- icmp IP.EQ ty innerNodeTypeVal
+    isInner <- ty `eq` innerNodeTypeVal
     condBr isInner initInner end
 
     initInner <- block `named` "init_inner"
     inner <- n `bitcast` ptr innerNode
-    childrenPtr <- gep inner [int32 0, int32 1]
     let childrenByteCount = (numKeys md + 1) * ptrSize md
+    childrenPtr <- addr childrenOf inner
     memset childrenPtr 0 childrenByteCount
     br end
 
@@ -186,20 +182,16 @@ mkNodeDelete = mdo
   free <- asks (extFree . externals)
 
   nodeDelete <- function "node_delete" [(ptr node, "node")] void $ \[n] -> mdo
-    metaPtr <- gep n [int32 0, int32 0]
-    nodeTyPtr <- gep metaPtr [int32 0, int32 3]
-    nodeTy <- load nodeTyPtr 0
+    nodeTy <- deref (nodeTypeOf . metaOf) n
     condBr nodeTy deleteInner end
 
     deleteInner <- block `named` "delete_inner"
     inner <- n `bitcast` ptr innerNode
-    numElementsPtr <- gep metaPtr [int32 0, int32 2]
-    numElements <- load numElementsPtr 0
 
+    numElements <- deref (numElemsOf . metaOf) n
     forLoop (int16 0) (`ule` numElements) (add (int16 1)) $ \i -> mdo
-      childPtr <- gep inner [int32 0, int32 1, i]
-      child <- load childPtr 0
-      isNotNull <- icmp IP.NE child (nullPtr node)
+      child <- deref (childAt i) inner
+      isNotNull <- child `ne` nullPtr node
       if' isNotNull $
         call nodeDelete [(child, [])]
 
@@ -217,8 +209,7 @@ mkNodeClone nodeNew = mdo
   node <- typeOf Node
 
   nodeClone <- function "node_clone" [(ptr node, "node")] (ptr node) $ \[n] -> mdo
-    typePtr <- gep n [int32 0, int32 0, int32 3]
-    ty <- load typePtr 0
+    ty <- deref (nodeTypeOf . metaOf) n
     newNode <- call nodeNew [(ty, [])]
     condBr ty cloneInner cloneLeaf
 
@@ -228,7 +219,7 @@ mkNodeClone nodeNew = mdo
     br end
 
     cloneLeaf <- block `named` "clone_leaf"
-    --copyNode n newNode
+    copyNode n newNode
     br end
 
     end <- block `named` "end"
@@ -236,38 +227,24 @@ mkNodeClone nodeNew = mdo
   pure ()
   where
     copyNode n newNode = mdo
-      nMeta <- gep n [int32 0, int32 0]
-      newNodeMeta <- gep newNode [int32 0, int32 0]
       -- NOTE: original impl did copied everything except for parent pointer
-      nValue <- load nMeta 0
-      store newNodeMeta 0 nValue
+      nMeta <- copy metaOf n newNode
 
-      numElementsPtr <- gep nMeta [int32 0, int32 2]
-      numElements <- load numElementsPtr 0
+      numElements <- deref (numElemsOf . metaOf) n
       forLoop (int16 0) (`ult` numElements) (add (int16 1)) $ \i -> mdo
-        let idx = [int32 0, int32 1, i]
-        nValuePtr <- gep n idx
-        newNodeValuePtr <- gep newNode idx
-        nValue <- load nValuePtr 0
-        store newNodeValuePtr 0 nValue
+        copy (valueAt i) n newNode
 
     copyChildren nodeClone n newNode = mdo
       innerNode <- typeOf InnerNode
       innerN <- n `bitcast` ptr innerNode
       newInnerN <- newNode `bitcast` ptr innerNode
-      numElementsPtr <- gep n [int32 0, int32 0, int32 2]
-      numElements <- load numElementsPtr 0
+
+      numElements <- deref (numElemsOf . metaOf) n
       forLoop (int16 0) (`ule` numElements) (add (int16 1)) $ \i -> mdo
-        let idx = [int32 0, int32 1, i]
-        childPtr <- gep innerN idx
-        child <- load childPtr 0
-
+        child <- deref (childAt i) innerN
         clonedChild <- call nodeClone [(child, [])]
-        parentPtr <- gep clonedChild [int32 0, int32 0, int32 0]
-        store parentPtr 0 newNode
-
-        newChildPtr <- gep newInnerN idx
-        store newChildPtr 0 clonedChild
+        assign (parentOf . metaOf) clonedChild newNode
+        assign (childAt i) newInnerN clonedChild
 
 
 leafNodeTypeVal, innerNodeTypeVal :: Operand
@@ -343,6 +320,47 @@ ptrSize :: Meta -> Word64
 ptrSize md = case arch md of
   X86 -> 4
   X64 -> 8
+
+
+data Index
+  = NodeIdx
+  | InnerNodeIdx
+  | MetaIdx
+  | ValueIdx
+  | PositionIdx
+  | NumElemsIdx
+  | NodeTypeIdx
+  | ArrayOf Index
+
+metaOf :: Path 'NodeIdx 'MetaIdx
+metaOf = mkPath [int32 0]
+
+valuesOf :: Path 'NodeIdx ('ArrayOf ValueIdx)
+valuesOf = mkPath [int32 1]
+
+valueAt :: Operand -> Path 'NodeIdx 'ValueIdx
+valueAt idx = mkPath [int32 1, idx]
+
+parentOf :: Path 'MetaIdx 'NodeIdx
+parentOf = mkPath [int32 0]
+
+posInParentOf :: Path 'MetaIdx 'PositionIdx
+posInParentOf = mkPath [int32 1]
+
+numElemsOf :: Path 'MetaIdx 'NumElemsIdx
+numElemsOf = mkPath [int32 2]
+
+nodeTypeOf :: Path 'MetaIdx 'NodeTypeIdx
+nodeTypeOf = mkPath [int32 3]
+
+baseOf :: Path 'InnerNodeIdx 'NodeIdx
+baseOf = mkPath [int32 0]
+
+childrenOf :: Path 'InnerNodeIdx ('ArrayOf NodeIdx)
+childrenOf = mkPath [int32 1]
+
+childAt :: Operand -> Path 'InnerNodeIdx 'NodeIdx
+childAt idx = mkPath [int32 1, idx]
 
 data DataType
   = NodeType
