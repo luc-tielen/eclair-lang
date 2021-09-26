@@ -106,8 +106,9 @@ numKeys meta = fromIntegral $ max 3 desiredNumberOfKeys
 generateFunctions :: ModuleCodegen ()
 generateFunctions = do
   mkCompare
-  mkNodeNew
+  nodeNew <- mkNodeNew
   mkNodeDelete
+  mkNodeClone nodeNew
   pure ()
 
 mkCompare :: ModuleCodegen ()
@@ -232,6 +233,64 @@ mkNodeDelete = mdo
     pure ()
 
   pure nodeDelete
+
+mkNodeClone :: Operand -> ModuleCodegen ()
+mkNodeClone nodeNew = mdo
+  node <- typeOf Node
+
+  nodeClone <- function "node_clone" [(ptr node, "node")] (ptr node) $ \[n] -> mdo
+    typePtr <- gep n [int32 0, int32 0, int32 3]
+    ty <- load typePtr 0
+    newNode <- call nodeNew [(ty, [])]
+    condBr ty cloneInner cloneLeaf
+
+    cloneInner <- block `named` "clone_inner"
+    copyNode n newNode
+    copyChildren nodeClone n newNode
+    br end
+
+    cloneLeaf <- block `named` "clone_leaf"
+    --copyNode n newNode
+    br end
+
+    end <- block `named` "end"
+    ret newNode
+  pure ()
+  where
+    copyNode n newNode = mdo
+      nMeta <- gep n [int32 0, int32 0]
+      newNodeMeta <- gep newNode [int32 0, int32 0]
+      -- NOTE: original impl did copied everything except for parent pointer
+      nValue <- load nMeta 0
+      store newNodeMeta 0 nValue
+
+      numElementsPtr <- gep nMeta [int32 0, int32 2]
+      numElements <- load numElementsPtr 0
+      forLoop (int16 0) (icmp IP.UGT numElements) (add (int16 1)) $ \i -> mdo
+        let idx = [int32 0, int32 1, i]
+        nValuePtr <- gep n idx
+        newNodeValuePtr <- gep newNode idx
+        nValue <- load nValuePtr 0
+        store newNodeValuePtr 0 nValue
+
+    copyChildren nodeClone n newNode = mdo
+      innerNode <- typeOf InnerNode
+      innerN <- n `bitcast` ptr innerNode
+      newInnerN <- newNode `bitcast` ptr innerNode
+      numElementsPtr <- gep n [int32 0, int32 0, int32 2]
+      numElements <- load numElementsPtr 0
+      forLoop (int16 0) (icmp IP.UGE numElements) (add (int16 1)) $ \i -> mdo
+        let idx = [int32 0, int32 1, i]
+        childPtr <- gep innerN idx
+        child <- load childPtr 0
+
+        clonedChild <- call nodeClone [(child, [])]
+        parentPtr <- gep clonedChild [int32 0, int32 0, int32 0]
+        store parentPtr 0 newNode
+
+        newChildPtr <- gep newInnerN idx
+        store newChildPtr 0 clonedChild
+
 
 if' :: Operand -> IRCodegen a -> IRCodegen ()
 if' condition asm = mdo
