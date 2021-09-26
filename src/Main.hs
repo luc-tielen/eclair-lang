@@ -5,7 +5,7 @@ import qualified Data.Text.Lazy.IO as T
 import qualified Data.Set as Set
 import LLVM.Pretty
 import LLVM.IRBuilder.Module
-import Eclair.Data.BTree
+import Eclair.Runtime.BTree
 
 
 main :: IO ()

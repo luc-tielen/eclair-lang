@@ -1,6 +1,6 @@
 {-# LANGUAGE RecursiveDo, FlexibleContexts, ScopedTypeVariables #-}
 
-module Eclair.Data.BTree
+module Eclair.Runtime.BTree
   ( Meta(..)
   , Architecture(..)
   , SearchIndex
