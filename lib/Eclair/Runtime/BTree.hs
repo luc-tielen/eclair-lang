@@ -71,6 +71,7 @@ generateTypes meta = mdo
   pure $ Types
     { btreeTy = btreeTy
     , iteratorTy = btreeIteratorTy
+    , nodeSizeTy = nodeSizeTy
     , nodeTypeTy = nodeTypeTy
     , nodeTy = nodeTy
     , leafNodeTy = leafNodeTy
@@ -88,6 +89,7 @@ generateFunctions = do
   nodeNew <- mkNodeNew
   mkNodeDelete
   mkNodeClone nodeNew
+  mkNodeDepth
   pure ()
 
 mkCompare :: ModuleCodegen ()
@@ -246,6 +248,28 @@ mkNodeClone nodeNew = mdo
         assign (parentOf . metaOf) clonedChild newNode
         assign (childAt i) newInnerN clonedChild
 
+mkNodeDepth :: ModuleCodegen ()
+mkNodeDepth = mdo
+  node <- typeOf Node
+  innerNode <- typeOf InnerNode
+  nodeSize <- typeOf NodeSize
+
+  nodeDepth <- function "node_depth" [(ptr node, "node")] nodeSize $ \[n] -> mdo
+    ty <- deref (nodeTypeOf . metaOf) n
+    condBr ty depthInner depthLeaf
+
+    depthInner <- block `named` "depth_inner"
+    inner <- n `bitcast` ptr innerNode
+    child <- deref (childAt (int16 0)) inner
+    depthChild <- call nodeDepth [(child, [])]
+    depth <- add (int16 1) depthChild
+    ret depth
+
+    depthLeaf <- block `named` "depth_leaf"
+    ret (int16 1)
+
+  pure ()
+
 
 leafNodeTypeVal, innerNodeTypeVal :: Operand
 leafNodeTypeVal = bit 0
@@ -255,6 +279,7 @@ data Types
   = Types
   { btreeTy :: Type
   , iteratorTy :: Type
+  , nodeSizeTy :: Type
   , nodeTypeTy :: Type
   , nodeTy :: Type
   , leafNodeTy :: Type
@@ -367,6 +392,7 @@ data DataType
   | Node
   | InnerNode
   | Value
+  | NodeSize
 
 -- TODO: remove this hack and replace with proper usage of LLVM Datalayout class
 sizeOf :: MonadReader CGState m => DataType -> m Word64
@@ -380,11 +406,13 @@ sizeOf dt = do
         Node -> 252
         InnerNode -> 336
         Value -> columnCount * 4
+        NodeSize -> 2
       X64 -> case dt of
         NodeType -> 1
         Node -> 256
         InnerNode -> 424
         Value -> columnCount * 4
+        NodeSize -> 2
 
 typeOf :: MonadReader CGState m => DataType -> m Type
 typeOf dt =
@@ -393,6 +421,7 @@ typeOf dt =
         NodeType -> nodeTypeTy
         InnerNode -> innerNodeTy
         Value -> valueTy
+        NodeSize -> nodeSizeTy
    in getType <$> asks types
 
 memset :: Operand -> Word8 -> Word64 -> IRCodegen ()
