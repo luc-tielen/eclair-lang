@@ -9,29 +9,19 @@ module Eclair.Data.BTree
   ) where
 
 import Protolude hiding ( Type, Meta, void, bit, typeOf )
-import Protolude.Unsafe ( unsafeFromJust )
+import Control.Arrow ((&&&))
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import LLVM.Pretty
-import qualified LLVM.AST.Constant as Constant
-import qualified LLVM.AST.Name as Name
+import Data.Functor.Foldable
 import qualified LLVM.AST.IntegerPredicate as IP
 import LLVM.AST.Type
 import LLVM.AST.Operand ( Operand(..) )
-import LLVM.AST.DataLayout
 import LLVM.IRBuilder.Module
 import LLVM.IRBuilder.Monad
 import LLVM.IRBuilder.Constant
 import LLVM.IRBuilder.Instruction
-import qualified LLVM.Internal.FFI.DataLayout as DL
-import qualified LLVM.Internal.DataLayout as DL
-import qualified LLVM.Internal.Coding as Encode
-import qualified LLVM.Internal.EncodeAST as Encode
-import qualified LLVM.Internal.Type
-import qualified LLVM.Internal.Context as Context
-import qualified LLVM.Internal.FFI.PtrHierarchy as T
-import Control.Arrow ((&&&))
-import Data.Functor.Foldable
+import Eclair.Runtime.LLVM hiding (IRCodegen, ModuleCodegen)
+import qualified Eclair.Runtime.LLVM as LLVM
 
 
 codegen :: Meta -> ModuleBuilder ()
@@ -90,18 +80,6 @@ generateTypes meta = mdo
   where
     mkType name ty = typedef name (Just ty)
     struct = StructureType False
-
-numKeys :: Meta -> Word64
-numKeys meta = fromIntegral $ max 3 desiredNumberOfKeys
-  where
-    blockByteSize = blockSize meta
-    nodeMetaSize = if arch meta == X86 then 12 else 16
-    valueByteSize = numColumns meta * 4
-    valuesByteSize =
-      if blockByteSize > nodeMetaSize
-      then blockByteSize - nodeMetaSize
-      else 0
-    desiredNumberOfKeys = valuesByteSize `div` valueByteSize
 
 generateFunctions :: ModuleCodegen ()
 generateFunctions = do
@@ -218,7 +196,7 @@ mkNodeDelete = mdo
     numElementsPtr <- gep metaPtr [int32 0, int32 2]
     numElements <- load numElementsPtr 0
 
-    forLoop (int16 0) (icmp IP.UGE numElements) (add (int16 1)) $ \i -> mdo
+    forLoop (int16 0) (`ule` numElements) (add (int16 1)) $ \i -> mdo
       childPtr <- gep inner [int32 0, int32 1, i]
       child <- load childPtr 0
       isNotNull <- icmp IP.NE child (nullPtr node)
@@ -266,7 +244,7 @@ mkNodeClone nodeNew = mdo
 
       numElementsPtr <- gep nMeta [int32 0, int32 2]
       numElements <- load numElementsPtr 0
-      forLoop (int16 0) (icmp IP.UGT numElements) (add (int16 1)) $ \i -> mdo
+      forLoop (int16 0) (`ult` numElements) (add (int16 1)) $ \i -> mdo
         let idx = [int32 0, int32 1, i]
         nValuePtr <- gep n idx
         newNodeValuePtr <- gep newNode idx
@@ -279,7 +257,7 @@ mkNodeClone nodeNew = mdo
       newInnerN <- newNode `bitcast` ptr innerNode
       numElementsPtr <- gep n [int32 0, int32 0, int32 2]
       numElements <- load numElementsPtr 0
-      forLoop (int16 0) (icmp IP.UGE numElements) (add (int16 1)) $ \i -> mdo
+      forLoop (int16 0) (`ule` numElements) (add (int16 1)) $ \i -> mdo
         let idx = [int32 0, int32 1, i]
         childPtr <- gep innerN idx
         child <- load childPtr 0
@@ -291,47 +269,6 @@ mkNodeClone nodeNew = mdo
         newChildPtr <- gep newInnerN idx
         store newChildPtr 0 clonedChild
 
-
-if' :: Operand -> IRCodegen a -> IRCodegen ()
-if' condition asm = mdo
-  condBr condition ifBlock end
-  ifBlock <- block `named` "if"
-  asm
-  br end
-  end <- block `named` "end_if"
-  pure ()
-
-whileLoop :: IRCodegen Operand -> IRCodegen a -> IRCodegen ()
-whileLoop condition asm = mdo
-  br begin
-  begin <- block `named` "while_begin"
-  result <- condition
-  condBr result body end
-  body <- block `named` "while_body"
-  asm
-  br begin
-  end <- block `named` "while_end"
-  pure ()
-
-forLoop :: Operand
-        -> (Operand -> IRCodegen Operand)
-        -> (Operand -> IRCodegen Operand)
-        -> (Operand -> IRCodegen a)
-        -> IRCodegen ()
-forLoop beginValue condition post asm = mdo
-  start <- currentBlock
-  br begin
-  begin <- block `named` "for_begin"
-  loopValue <- phi [(beginValue, start), (updatedValue, bodyEnd)]
-  result <- condition loopValue
-  condBr result bodyStart end
-  bodyStart <- block `named` "for_body"
-  asm loopValue
-  updatedValue <- post loopValue
-  bodyEnd <- currentBlock
-  br begin
-  end <- block `named` "for_end"
-  pure ()
 
 leafNodeTypeVal, innerNodeTypeVal :: Operand
 leafNodeTypeVal = bit 0
@@ -363,68 +300,9 @@ data CGState
   , externals :: Externals
   }
 
-type ModuleCodegen = ReaderT CGState ModuleBuilder
+type IRCodegen = LLVM.IRCodegen CGState
 
-type IRCodegen = IRBuilderT ModuleCodegen
-
--- TODO: remove this hack and replace with proper usage of LLVM Datalayout class
-sizeOf :: MonadReader CGState m => DataType -> m Word64
-sizeOf dt = do
-  md <- asks meta
-  pure $ fromIntegral $ f (numColumns md) (arch md)
-  where
-    f columnCount = \case
-      X86 -> case dt of
-        NodeType -> 1
-        Node -> 252
-        InnerNode -> 336
-        Value -> columnCount * 4
-      X64 -> case dt of
-        NodeType -> 1
-        Node -> 256
-        InnerNode -> 424
-        Value -> columnCount * 4
-
-data DataType
-  = NodeType
-  | Node
-  | InnerNode
-  | Value
-
-typeOf :: MonadReader CGState m => DataType -> m Type
-typeOf dt =
-  let getType = case dt of
-        Node -> nodeTy
-        NodeType -> nodeTypeTy
-        InnerNode -> innerNodeTy
-        Value -> valueTy
-   in getType <$> asks types
-
-
--- TODO: move as much as possible to "common llvm helpers file"
-
-memset :: Operand -> Word8 -> Word64 -> IRCodegen ()
-memset p val byteCount = do
-  memsetFn <- asks (extMemset . externals)
-  p' <- p `bitcast` ptr i8
-  call memsetFn [ (p', [])
-                , (int8 0, [])
-                , (int64 (fromIntegral byteCount), [])
-                , (bit 0, [])
-                ]
-  pure ()
-
-int16 :: Integer -> Operand
-int16 = ConstantOperand . Constant.Int 16
-
-nullPtr :: Type -> Operand
-nullPtr = ConstantOperand . Constant.Null . ptr
-
-ptrSize :: Meta -> Word64
-ptrSize md = case arch md of
-  X86 -> 4
-  X64 -> 8
-
+type ModuleCodegen = LLVM.ModuleCodegen CGState
 
 -- Btree specific code:
 
@@ -447,4 +325,66 @@ type Column = Int
 type SearchIndex = Set Column
 
 data SearchType = Linear | Binary
+
+
+numKeys :: Meta -> Word64
+numKeys meta = fromIntegral $ max 3 desiredNumberOfKeys
+  where
+    blockByteSize = blockSize meta
+    nodeMetaSize = if arch meta == X86 then 12 else 16
+    valueByteSize = numColumns meta * 4
+    valuesByteSize =
+      if blockByteSize > nodeMetaSize
+      then blockByteSize - nodeMetaSize
+      else 0
+    desiredNumberOfKeys = valuesByteSize `div` valueByteSize
+
+ptrSize :: Meta -> Word64
+ptrSize md = case arch md of
+  X86 -> 4
+  X64 -> 8
+
+data DataType
+  = NodeType
+  | Node
+  | InnerNode
+  | Value
+
+-- TODO: remove this hack and replace with proper usage of LLVM Datalayout class
+sizeOf :: MonadReader CGState m => DataType -> m Word64
+sizeOf dt = do
+  md <- asks meta
+  pure $ fromIntegral $ f (numColumns md) (arch md)
+  where
+    f columnCount = \case
+      X86 -> case dt of
+        NodeType -> 1
+        Node -> 252
+        InnerNode -> 336
+        Value -> columnCount * 4
+      X64 -> case dt of
+        NodeType -> 1
+        Node -> 256
+        InnerNode -> 424
+        Value -> columnCount * 4
+
+typeOf :: MonadReader CGState m => DataType -> m Type
+typeOf dt =
+  let getType = case dt of
+        Node -> nodeTy
+        NodeType -> nodeTypeTy
+        InnerNode -> innerNodeTy
+        Value -> valueTy
+   in getType <$> asks types
+
+memset :: Operand -> Word8 -> Word64 -> IRCodegen ()
+memset p val byteCount = do
+  memsetFn <- asks (extMemset . externals)
+  p' <- p `bitcast` ptr i8
+  call memsetFn [ (p', [])
+                , (int8 0, [])
+                , (int64 (fromIntegral byteCount), [])
+                , (bit 0, [])
+                ]
+  pure ()
 
