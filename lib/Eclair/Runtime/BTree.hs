@@ -8,7 +8,7 @@ module Eclair.Runtime.BTree
   , codegen
   ) where
 
-import Protolude hiding ( Type, Meta, void, bit, typeOf )
+import Protolude hiding ( Type, Meta, void, bit, typeOf, minimum )
 import Control.Arrow ((&&&))
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -90,6 +90,10 @@ generateFunctions = do
   mkNodeClone nodeNew
   mkNodeDepth
   mkNodeCount
+  mkNodeCountEntries
+  mkNodeIsEmpty
+  mkNodeIsFull
+  mkNodeSplitPoint
   pure ()
 
 mkCompare :: ModuleCodegen ()
@@ -273,29 +277,102 @@ mkNodeDepth = mdo
 mkNodeCount :: ModuleCodegen ()
 mkNodeCount = mdo
   node <- typeOf Node
-  innerNode <- typeOf InnerNode
 
   countNodes <- function "node_count" [(ptr node, "node")] i64 $ \[n] -> mdo
     ty <- deref (metaOf ->> nodeTypeOf) n
     condBr ty countInner countLeaf
+
     countInner <- block `named` "count_inner"
-    inner <- n `bitcast` ptr innerNode
-
-    numElements <- deref (metaOf ->> numElemsOf) n
-    count <- allocate i64 (int64 1)
-    forLoop (int16 0) (`ule` numElements) (add (int16 1)) $ \i -> mdo
-      child <- deref (childAt i) inner
-      nodeCount <- load count 0
+    count <- loopChildren n i64 (int64 1) $ \nodeCount child -> mdo
       childNodeCount <- call countNodes [(child, [])]
-      updatedNodeCount <- add nodeCount childNodeCount
-      store count 0 updatedNodeCount
-
-    ret =<< load count 0
+      add nodeCount childNodeCount
+    ret count
 
     countLeaf <- block `named` "count_leaf"
     ret (int64 1)
 
   pure ()
+
+mkNodeCountEntries :: ModuleCodegen ()
+mkNodeCountEntries = mdo
+  node <- typeOf Node
+
+  countEntries <- function "node_count_entries" [(ptr node, "node")] i64 $ \[n] -> mdo
+    numElements <- deref (metaOf ->> numElemsOf) n
+    ty <- deref (metaOf ->> nodeTypeOf) n
+    condBr ty countInner countLeaf
+
+    countInner <- block `named` "count_inner"
+    numElements' <- zext numElements i64
+    count <- loopChildren n i64 numElements' $ \entryCount child -> mdo
+      childNodeCount <- call countEntries [(child, [])]
+      add entryCount childNodeCount
+
+    countLeaf <- block `named` "count_leaf"
+    ret numElements
+
+  pure ()
+
+mkNodeIsEmpty :: ModuleCodegen ()
+mkNodeIsEmpty = mdo
+  node <- typeOf Node
+
+  function "node_is_empty" [(ptr node, "node")] i1 $ \[n] -> mdo
+    numElements <- deref (metaOf ->> numElemsOf) n
+    ret =<< numElements `eq` int16 0
+
+  pure ()
+
+mkNodeIsFull :: ModuleCodegen ()
+mkNodeIsFull = mdo
+  metadata <- asks meta
+  let numberOfKeys = int16 $ toInteger $ numKeys metadata
+  node <- typeOf Node
+
+  function "node_is_full" [(ptr node, "node")] i1 $ \[n] -> mdo
+    numElements <- deref (metaOf ->> numElemsOf) n
+    ret =<< numElements `eq` numberOfKeys
+
+  pure ()
+
+mkNodeSplitPoint :: ModuleCodegen ()
+mkNodeSplitPoint = mdo
+  nodeSize <- typeOf NodeSize
+  metadata <- asks meta
+  let numberOfKeys = int16 $ toInteger $ numKeys metadata
+
+  function "node_split_point" [] nodeSize $ \_ -> mdo
+    a' <- mul (int16 3) numberOfKeys
+    a <- fdiv a' (int16 4)
+    b <- sub numberOfKeys (int16 2)
+    ret =<< minimum a b
+
+  pure ()
+
+-- NOTE: only works for unsigned integers!
+minimum :: Operand -> Operand -> IRCodegen Operand
+minimum a b = do
+  isLessThan <- a `ult` b
+  select isLessThan a b
+
+loopChildren :: Operand
+             -> Type
+             -> Operand
+             -> (Operand -> Operand -> IRCodegen Operand)
+             -> IRCodegen Operand
+loopChildren n ty beginValue f = mdo
+  innerNode <- typeOf InnerNode
+  inner <- n `bitcast` ptr innerNode
+
+  result <- allocate ty beginValue
+  numElements <- deref (metaOf ->> numElemsOf) n
+  forLoop (int16 0) (`ule` numElements) (add (int16 1)) $ \i -> mdo
+    currentResult <- load result 0
+    child <- deref (childAt i) inner
+    updatedResult <- f currentResult child
+    store result 0 updatedResult
+
+  load result 0
 
 leafNodeTypeVal, innerNodeTypeVal :: Operand
 leafNodeTypeVal = bit 0
