@@ -116,3 +116,13 @@ copy :: Path a b -> Operand -> Operand -> IRCodegen r ()
 copy path src dst = do
   value <- deref path src
   assign path dst value
+
+allocateMany :: Type -> Integer -> Operand -> IRCodegen r Operand
+allocateMany ty count beginValue = mdo
+  value <- alloca ty (Just (int32 count)) 0
+  store value 0 beginValue
+  pure value
+
+allocate :: Type -> Operand -> IRCodegen r Operand
+allocate ty = allocateMany ty 1
+

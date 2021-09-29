@@ -1,4 +1,4 @@
-{-# LANGUAGE RecursiveDo, FlexibleContexts, ScopedTypeVariables, OverloadedLists #-}
+{-# LANGUAGE RecursiveDo, FlexibleContexts, ScopedTypeVariables #-}
 
 module Eclair.Runtime.BTree
   ( Meta(..)
@@ -281,10 +281,9 @@ mkNodeCount = mdo
     countInner <- block `named` "count_inner"
     inner <- n `bitcast` ptr innerNode
 
-    numElements <- flip zext i64 =<< deref (metaOf ->> numElemsOf) n
-    count <- alloca i64 Nothing 0
-    store count 0 (int64 1)
-    forLoop (int64 0) (`ule` numElements) (add (int64 1)) $ \i -> mdo
+    numElements <- deref (metaOf ->> numElemsOf) n
+    count <- allocate i64 (int64 1)
+    forLoop (int16 0) (`ule` numElements) (add (int16 1)) $ \i -> mdo
       child <- deref (childAt i) inner
       nodeCount <- load count 0
       childNodeCount <- call countNodes [(child, [])]
