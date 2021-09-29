@@ -8,8 +8,7 @@ module Eclair.Runtime.BTree
   , codegen
   ) where
 
-import Protolude hiding ( (.), Type, Meta, void, bit, typeOf )
-import Control.Category
+import Protolude hiding ( Type, Meta, void, bit, typeOf )
 import Control.Arrow ((&&&))
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -90,6 +89,7 @@ generateFunctions = do
   mkNodeDelete
   mkNodeClone nodeNew
   mkNodeDepth
+  mkNodeCount
   pure ()
 
 mkCompare :: ModuleCodegen ()
@@ -155,10 +155,10 @@ mkNodeNew = mdo
     memory <- call malloc [(structSize, [])]
     n <- memory `bitcast` ptr node
 
-    assign (parentOf . metaOf) n (nullPtr node)
-    assign (posInParentOf . metaOf) n (int16 0)
-    assign (numElemsOf . metaOf) n (int16 0)
-    assign (nodeTypeOf . metaOf) n ty
+    assign (metaOf ->> parentOf) n (nullPtr node)
+    assign (metaOf ->> posInParentOf) n (int16 0)
+    assign (metaOf ->> numElemsOf) n (int16 0)
+    assign (metaOf ->> nodeTypeOf) n ty
 
     let valuesByteCount = numKeys md * valueSize
     valuesPtr <- addr valuesOf n
@@ -184,13 +184,13 @@ mkNodeDelete = mdo
   free <- asks (extFree . externals)
 
   nodeDelete <- function "node_delete" [(ptr node, "node")] void $ \[n] -> mdo
-    nodeTy <- deref (nodeTypeOf . metaOf) n
+    nodeTy <- deref (metaOf ->> nodeTypeOf) n
     condBr nodeTy deleteInner end
 
     deleteInner <- block `named` "delete_inner"
     inner <- n `bitcast` ptr innerNode
 
-    numElements <- deref (numElemsOf . metaOf) n
+    numElements <- deref (metaOf ->> numElemsOf) n
     forLoop (int16 0) (`ule` numElements) (add (int16 1)) $ \i -> mdo
       child <- deref (childAt i) inner
       isNotNull <- child `ne` nullPtr node
@@ -211,7 +211,7 @@ mkNodeClone nodeNew = mdo
   node <- typeOf Node
 
   nodeClone <- function "node_clone" [(ptr node, "node")] (ptr node) $ \[n] -> mdo
-    ty <- deref (nodeTypeOf . metaOf) n
+    ty <- deref (metaOf ->> nodeTypeOf) n
     newNode <- call nodeNew [(ty, [])]
     condBr ty cloneInner cloneLeaf
 
@@ -232,7 +232,7 @@ mkNodeClone nodeNew = mdo
       -- NOTE: original impl did copied everything except for parent pointer
       nMeta <- copy metaOf n newNode
 
-      numElements <- deref (numElemsOf . metaOf) n
+      numElements <- deref (metaOf ->> numElemsOf) n
       forLoop (int16 0) (`ult` numElements) (add (int16 1)) $ \i -> mdo
         copy (valueAt i) n newNode
 
@@ -241,11 +241,11 @@ mkNodeClone nodeNew = mdo
       innerN <- n `bitcast` ptr innerNode
       newInnerN <- newNode `bitcast` ptr innerNode
 
-      numElements <- deref (numElemsOf . metaOf) n
+      numElements <- deref (metaOf ->> numElemsOf) n
       forLoop (int16 0) (`ule` numElements) (add (int16 1)) $ \i -> mdo
         child <- deref (childAt i) innerN
         clonedChild <- call nodeClone [(child, [])]
-        assign (parentOf . metaOf) clonedChild newNode
+        assign (metaOf ->> parentOf) clonedChild newNode
         assign (childAt i) newInnerN clonedChild
 
 mkNodeDepth :: ModuleCodegen ()
@@ -255,7 +255,7 @@ mkNodeDepth = mdo
   nodeSize <- typeOf NodeSize
 
   nodeDepth <- function "node_depth" [(ptr node, "node")] nodeSize $ \[n] -> mdo
-    ty <- deref (nodeTypeOf . metaOf) n
+    ty <- deref (metaOf ->> nodeTypeOf) n
     condBr ty depthInner depthLeaf
 
     depthInner <- block `named` "depth_inner"
@@ -270,6 +270,33 @@ mkNodeDepth = mdo
 
   pure ()
 
+mkNodeCount :: ModuleCodegen ()
+mkNodeCount = mdo
+  node <- typeOf Node
+  innerNode <- typeOf InnerNode
+
+  countNodes <- function "node_count" [(ptr node, "node")] i64 $ \[n] -> mdo
+    ty <- deref (metaOf ->> nodeTypeOf) n
+    condBr ty countInner countLeaf
+    countInner <- block `named` "count_inner"
+    inner <- n `bitcast` ptr innerNode
+
+    numElements <- flip zext i64 =<< deref (metaOf ->> numElemsOf) n
+    count <- alloca i64 Nothing 0
+    store count 0 (int64 1)
+    forLoop (int64 0) (`ule` numElements) (add (int64 1)) $ \i -> mdo
+      child <- deref (childAt i) inner
+      nodeCount <- load count 0
+      childNodeCount <- call countNodes [(child, [])]
+      updatedNodeCount <- add nodeCount childNodeCount
+      store count 0 updatedNodeCount
+
+    ret =<< load count 0
+
+    countLeaf <- block `named` "count_leaf"
+    ret (int64 1)
+
+  pure ()
 
 leafNodeTypeVal, innerNodeTypeVal :: Operand
 leafNodeTypeVal = bit 0

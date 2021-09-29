@@ -1,4 +1,4 @@
-{-# LANGUAGE RecursiveDo, PolyKinds #-}
+{-# LANGUAGE RoleAnnotations, RecursiveDo, PolyKinds #-}
 
 module Eclair.Runtime.LLVM
   ( module Eclair.Runtime.LLVM
@@ -83,21 +83,24 @@ forLoop beginValue condition post asm = mdo
 
 newtype Path (a :: k) (b :: k)
   = Path (NonEmpty Operand)
+type role Path nominal nominal
 
-instance Category Path where
-  id = Path (pure $ int32 0)
-  Path b2c . Path a2b =
-    Path $ NE.head a2b :| (NE.tail a2b ++ NE.tail b2c)
+(->>) :: Path a b -> Path b c -> Path a c
+Path a2b ->> Path b2c =
+  let b2c' = if NE.head b2c == int32 0
+               then NE.tail b2c
+               else NE.toList b2c
+   in Path $ NE.head a2b :| (NE.tail a2b ++ b2c')
 
 mkPath :: [Operand] -> Path a b
 mkPath path = Path (int32 0 :| path)
 
-pathToIndices :: Path a b -> [Operand]
-pathToIndices (Path indices) =
-  NE.toList indices
-
 addr :: Path a b -> Operand -> IRCodegen r Operand
 addr path p = gep p (pathToIndices path)
+  where
+    pathToIndices :: Path a b -> [Operand]
+    pathToIndices (Path indices) =
+      NE.toList indices
 
 deref :: Path a b -> Operand -> IRCodegen r Operand
 deref path p = do
