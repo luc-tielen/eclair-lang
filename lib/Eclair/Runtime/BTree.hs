@@ -83,7 +83,7 @@ generateTypes meta = mdo
     struct = StructureType False
 
 generateFunctions :: ModuleCodegen ()
-generateFunctions = do
+generateFunctions = mdo
   mkCompare
   nodeNew <- mkNodeNew
   mkNodeDelete
@@ -93,7 +93,9 @@ generateFunctions = do
   mkNodeCountEntries
   mkNodeIsEmpty
   mkNodeIsFull
-  mkNodeSplitPoint
+  splitPoint <- mkNodeSplitPoint
+  mkSplit nodeNew splitPoint growParent
+  growParent <- mkGrowParent
   pure ()
 
 mkCompare :: ModuleCodegen ()
@@ -335,7 +337,7 @@ mkNodeIsFull = mdo
 
   pure ()
 
-mkNodeSplitPoint :: ModuleCodegen ()
+mkNodeSplitPoint :: ModuleCodegen Operand
 mkNodeSplitPoint = mdo
   nodeSize <- typeOf NodeSize
   metadata <- asks meta
@@ -343,17 +345,71 @@ mkNodeSplitPoint = mdo
 
   function "node_split_point" [] nodeSize $ \_ -> mdo
     a' <- mul (int16 3) numberOfKeys
-    a <- fdiv a' (int16 4)
+    a <- udiv a' (int16 4)
     b <- sub numberOfKeys (int16 2)
     ret =<< minimum a b
-
-  pure ()
 
 -- NOTE: only works for unsigned integers!
 minimum :: Operand -> Operand -> IRCodegen Operand
 minimum a b = do
   isLessThan <- a `ult` b
   select isLessThan a b
+
+mkSplit :: Operand -> Operand -> Operand -> ModuleCodegen ()
+mkSplit nodeNew nodeSplitPoint growParent = mdo
+  node <- typeOf Node
+  innerNode <- typeOf InnerNode
+  metadata <- asks meta
+  let numberOfKeys = int16 $ toInteger $ numKeys metadata
+
+  function "node_split" [(ptr node, "node"), (ptr (ptr node), "root")] void $ \[n, root] -> mdo
+    -- TODO: how to do assertions in LLVM?
+    -- assert(n->meta.num_elements == NUM_KEYS);
+    splitPoint <- call nodeSplitPoint []
+    splitPoint' <- add (int16 1) splitPoint
+    ty <- deref (metaOf ->> nodeTypeOf) n
+    -- Create a new sibling node and move some of the data to sibling
+    sibling <- call nodeNew [(ty, [])]
+    jPtr <- allocate i16 (int16 0)
+    forLoop splitPoint' (`ult` numberOfKeys) (add (int16 1)) $ \i -> mdo
+      j <- load jPtr 0
+      siblingValue <- deref (valueAt j) sibling
+      assign (valueAt i) n siblingValue
+      j' <- add (int16 1) j
+      store jPtr 0 j'
+
+    isInner <- ty `eq` bit 1
+    if' isInner $ mdo
+      iSibling <- sibling `bitcast` ptr innerNode
+      iNode <- n `bitcast` ptr innerNode
+
+      store jPtr 0 (int16 0)
+      forLoop splitPoint' (`ult` numberOfKeys) (add (int16 1)) $ \i -> mdo
+        j <- load jPtr 0
+        -- TODO: check if this is correctly implemented
+        iChild <- deref (childAt i) iNode
+        assign (metaOf ->> parentOf) iChild sibling
+        assign (metaOf ->> numElemsOf) iChild j
+        assign (childAt j) iSibling iChild
+        j' <- add (int16 1) j
+        store jPtr 0 j'
+
+    assign (metaOf ->> numElemsOf) n splitPoint
+    siblingNumKeys <- sub numberOfKeys splitPoint >>= flip sub (int16 1)
+    assign (metaOf ->> numElemsOf) sibling siblingNumKeys
+
+    call growParent [(n, []), (root, []), (sibling, [])]
+    pure ()
+
+  pure ()
+
+mkGrowParent :: ModuleCodegen Operand
+mkGrowParent = mdo
+  node <- typeOf Node
+
+  function "node_grow_parent" [(ptr node, "node"), (ptr (ptr node), "root"), (ptr node, "sibling")] void $
+    \[n, root, sibling] -> mdo
+      pure ()
 
 loopChildren :: Operand
              -> Type
