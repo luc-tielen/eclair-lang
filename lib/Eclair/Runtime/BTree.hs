@@ -87,10 +87,10 @@ generateFunctions = mdo
   compareValues <- mkCompare
   nodeNew <- mkNodeNew
   mkNodeDelete
-  mkNodeClone nodeNew
+  nodeClone <- mkNodeClone nodeNew
   mkNodeDepth
   mkNodeCount
-  mkNodeCountEntries
+  nodeCountEntries <- mkNodeCountEntries
   mkNodeIsEmpty
   mkNodeIsFull
   splitPoint <- mkNodeSplitPoint
@@ -105,6 +105,14 @@ generateFunctions = mdo
   mkIteratorNext
   mkLinearSearchLowerBound compareValues
   mkLinearSearchUpperBound compareValues
+  mkBtreeInitEmpty
+  mkBtreeInit btreeInsert
+  mkBtreeCopy nodeClone isEmptyTree
+  mkBtreeDestroy btreeClear
+  isEmptyTree <- mkBtreeIsEmpty
+  mkBtreeSize nodeCountEntries
+  btreeInsert <- undefined -- TODO
+  btreeClear <- undefined -- TODO
   pure ()
 
 mkCompare :: ModuleCodegen Operand
@@ -220,7 +228,7 @@ mkNodeDelete = mdo
 
   pure nodeDelete
 
-mkNodeClone :: Operand -> ModuleCodegen ()
+mkNodeClone :: Operand -> ModuleCodegen Operand
 mkNodeClone nodeNew = mdo
   node <- typeOf Node
 
@@ -240,7 +248,7 @@ mkNodeClone nodeNew = mdo
 
     end <- block `named` "end"
     ret newNode
-  pure ()
+  pure nodeClone
   where
     copyNode n newNode = mdo
       -- NOTE: original impl did copied everything except for parent pointer
@@ -303,7 +311,7 @@ mkNodeCount = mdo
 
   pure ()
 
-mkNodeCountEntries :: ModuleCodegen ()
+mkNodeCountEntries :: ModuleCodegen Operand
 mkNodeCountEntries = mdo
   node <- typeOf Node
 
@@ -321,7 +329,7 @@ mkNodeCountEntries = mdo
     countLeaf <- block `named` "count_leaf"
     ret numElements
 
-  pure ()
+  pure countEntries
 
 mkNodeIsEmpty :: ModuleCodegen ()
 mkNodeIsEmpty = mdo
@@ -630,6 +638,16 @@ mkIteratorIsEqual = do
     notEqual <- block `named` "notEqual"
     ret (bit 0)
 
+mkIteratorCurrent :: ModuleCodegen Operand
+mkIteratorCurrent = do
+  iter <- typeOf Iterator
+  value <- typeOf Value
+
+  function "iterator_current" [(ptr iter, "iter")] (ptr value) $ \[iter] -> mdo
+    valuePos <- deref valuePosOf iter
+    valueAddr <- addr (currentOf ->> valueAt valuePos) iter
+    ret valueAddr
+
 mkIteratorNext :: ModuleCodegen Operand
 mkIteratorNext = do
   iter <- typeOf Iterator
@@ -738,15 +756,105 @@ mkLinearSearchUpperBound compareValues = do
 
   pure ()
 
-mkIteratorCurrent :: ModuleCodegen Operand
-mkIteratorCurrent = do
-  iter <- typeOf Iterator
-  value <- typeOf Value
+mkBtreeInitEmpty :: ModuleCodegen ()
+mkBtreeInitEmpty = do
+  tree <- typeOf BTree
+  node <- typeOf Node
 
-  function "iterator_current" [(ptr iter, "iter")] (ptr value) $ \[iter] -> mdo
-    valuePos <- deref valuePosOf iter
-    valueAddr <- addr (currentOf ->> valueAt valuePos) iter
-    ret valueAddr
+  function "btree_init_empty" [(ptr tree, "tree")] void $ \[tree] -> mdo
+    assign rootPtrOf tree (nullPtr node)
+    assign firstPtrOf tree (nullPtr node)
+
+  pure ()
+
+mkBtreeInit :: Operand -> ModuleCodegen ()
+mkBtreeInit btreeInsert = do
+  tree <- typeOf BTree
+  iter <- typeOf Iterator
+  let args = [(ptr tree, "tree"), (ptr iter, "start"), (ptr iter, "end")]
+
+  function "btree_init" args void $ \[tree, start, end] -> mdo
+    call btreeInsert $ (,[]) <$> [tree, start, end]
+    pure ()
+
+  pure ()
+
+mkBtreeCopy :: Operand -> Operand -> ModuleCodegen ()
+mkBtreeCopy nodeClone isEmptyTree = do
+  tree <- typeOf BTree
+  node <- typeOf Node
+  innerNode <- typeOf InnerNode
+
+  function "btree_copy" [(ptr tree, "to"), (ptr tree, "from")] void $ \[to, from] -> mdo
+    isSame <- to `eq` from
+    condBr isSame earlyReturn differentBlock
+
+    earlyReturn <- block `named` "early_return"
+    retVoid
+
+    differentBlock <- block `named` "different"
+    isEmpty <- call isEmptyTree [(from, [])]
+    condBr isEmpty earlyReturn copyBlock
+
+    copyBlock <- block `named` "copy_tree"
+    -- NOTE: this assumes from is still empty -> no memory cleanup
+    root <- deref rootPtrOf from
+    clonedRoot <- call nodeClone [(root, [])]
+    assign rootPtrOf to clonedRoot
+
+    tmpPtr <- allocate (ptr node) =<< deref rootPtrOf to
+    let loopCondition = do
+          tmp <- load tmpPtr 0
+          ty <- deref (metaOf ->> nodeTypeOf) tmp
+          ty `eq` innerNodeTypeVal
+    whileLoop loopCondition $ do
+      iTmp <- load tmpPtr 0 >>= (`bitcast` ptr innerNode)
+      firstChild <- deref (childAt (int16 0)) iTmp
+      store tmpPtr 0 firstChild
+
+    tmp <- load tmpPtr 0
+    assign firstPtrOf to tmp
+
+  pure ()
+
+mkBtreeDestroy :: Operand -> ModuleCodegen ()
+mkBtreeDestroy btreeClear = do
+  tree <- typeOf BTree
+
+  function "btree_destroy" [(ptr tree, "tree")] void $ \[t] -> do
+    call btreeClear [(t, [])]
+    pure ()
+
+  pure ()
+
+mkBtreeIsEmpty :: ModuleCodegen Operand
+mkBtreeIsEmpty = do
+  tree <- typeOf BTree
+  node <- typeOf Node
+
+  function "btree_is_empty" [(ptr tree, "tree")] i1 $ \[t] -> do
+    root <- deref rootPtrOf t
+    isNull <- root `eq` nullPtr node
+    ret isNull
+
+mkBtreeSize :: Operand -> ModuleCodegen ()
+mkBtreeSize nodeCountEntries = do
+  tree <- typeOf BTree
+  node <- typeOf Node
+
+  function "btree_size" [(ptr tree, "tree")] i64 $ \[t] -> mdo
+    root <- deref rootPtrOf t
+    isNull <- root `eq` nullPtr node
+    condBr isNull nullBlock notNullBlock
+
+    nullBlock <- block `named` "null"
+    ret (int64 0)
+
+    notNullBlock <- block `named` "not_null"
+    count <- call nodeCountEntries [(root, [])]
+    ret count
+
+  pure ()
 
 loopChildren :: Operand
              -> Type
@@ -857,6 +965,7 @@ data Index
   | NumElemsIdx
   | NodeTypeIdx
   | IteratorIdx
+  | TreeIdx
   | ArrayOf Index
   | PtrOf Index
 
@@ -899,6 +1008,12 @@ currentOf = mkPath [int32 0, int32 0]
 valuePosOf :: Path 'IteratorIdx 'PositionIdx
 valuePosOf = mkPath [int32 1]
 
+rootPtrOf :: Path 'TreeIdx ('PtrOf 'NodeIdx)
+rootPtrOf = mkPath [int32 0]
+
+firstPtrOf :: Path 'TreeIdx ('PtrOf 'NodeIdx)
+firstPtrOf = mkPath [int32 1]
+
 data DataType
   = NodeType
   | Node
@@ -906,6 +1021,7 @@ data DataType
   | Value
   | NodeSize
   | Iterator
+  | BTree
 
 -- TODO: remove this hack and replace with proper usage of LLVM Datalayout class
 sizeOf :: MonadReader CGState m => DataType -> m Word64
@@ -921,6 +1037,7 @@ sizeOf dt = do
         Value -> columnCount * 4
         NodeSize -> 2
         Iterator -> panic "sizeOf: not implemented for iterator"
+        BTree -> panic "sizeOf: not implemented for btree"
       X64 -> case dt of
         NodeType -> 1
         Node -> 256
@@ -928,6 +1045,7 @@ sizeOf dt = do
         Value -> columnCount * 4
         NodeSize -> 2
         Iterator -> panic "sizeOf: not implemented for iterator"
+        BTree -> panic "sizeOf: not implemented for btree"
 
 typeOf :: MonadReader CGState m => DataType -> m Type
 typeOf dt =
@@ -938,6 +1056,7 @@ typeOf dt =
         Value -> valueTy
         NodeSize -> nodeSizeTy
         Iterator -> iteratorTy
+        BTree -> btreeTy
    in getType <$> asks types
 
 memset :: Operand -> Word8 -> Word64 -> IRCodegen ()
