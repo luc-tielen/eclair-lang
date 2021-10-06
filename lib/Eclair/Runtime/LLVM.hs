@@ -112,6 +112,17 @@ assign path p value = do
   dstAddr <- addr path p
   store dstAddr 0 value
 
+update :: Path a b
+       -> Operand
+       -> (Operand -> IRCodegen r Operand)
+       -> IRCodegen r ()
+update path p f = do
+  dstAddr <- addr path p
+  store dstAddr 0 =<< f =<< load dstAddr 0
+
+increment :: (Integer -> Operand) -> Path a b -> Operand -> IRCodegen r ()
+increment ty path p = update path p (add (ty 1))
+
 copy :: Path a b -> Operand -> Operand -> IRCodegen r ()
 copy path src dst = do
   value <- deref path src
@@ -126,3 +137,8 @@ allocateMany ty count beginValue = mdo
 allocate :: Type -> Operand -> IRCodegen r Operand
 allocate ty = allocateMany ty 1
 
+-- NOTE: only works for unsigned integers!
+minimum :: Operand -> Operand -> IRCodegen r Operand
+minimum a b = do
+  isLessThan <- a `ult` b
+  select isLessThan a b

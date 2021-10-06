@@ -4,7 +4,7 @@ cabal-version: 2.2
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: e33c18d639e5c385dd62b0e0fcd60aab007dc4527e24e9d616436e92e0fe7547
+-- hash: 3d9b42dee8b18f6e916eaf966b230bf3020707eeb354f9803391e9f08d4b3c9d
 
 name:           eclair-lang
 version:        0.1.0.0
@@ -34,7 +34,7 @@ library
       Paths_eclair_lang
   hs-source-dirs:
       lib
-  default-extensions: NoImplicitPrelude OverloadedStrings LambdaCase ViewPatterns DataKinds
+  default-extensions: NoImplicitPrelude OverloadedStrings LambdaCase ViewPatterns DataKinds TupleSections
   ghc-options: -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__ -Wall
   build-depends:
@@ -68,7 +68,7 @@ executable eclairc
       Paths_eclair_lang
   hs-source-dirs:
       src
-  default-extensions: NoImplicitPrelude OverloadedStrings LambdaCase ViewPatterns DataKinds
+  default-extensions: NoImplicitPrelude OverloadedStrings LambdaCase ViewPatterns DataKinds TupleSections
   ghc-options: -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__
   build-depends:
@@ -104,7 +104,7 @@ test-suite eclair-test
       Paths_eclair_lang
   hs-source-dirs:
       tests
-  default-extensions: NoImplicitPrelude OverloadedStrings LambdaCase ViewPatterns DataKinds
+  default-extensions: NoImplicitPrelude OverloadedStrings LambdaCase ViewPatterns DataKinds TupleSections
   ghc-options: -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__
   build-depends:

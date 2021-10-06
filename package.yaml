@@ -35,6 +35,7 @@ default-extensions:
   - LambdaCase
   - ViewPatterns
   - DataKinds
+  - TupleSections
 
 ghc-options:
   - -fhide-source-paths

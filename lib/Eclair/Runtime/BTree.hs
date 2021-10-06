@@ -8,7 +8,7 @@ module Eclair.Runtime.BTree
   , codegen
   ) where
 
-import Protolude hiding ( Type, Meta, void, bit, typeOf, minimum )
+import Protolude hiding ( Type, Meta, void, bit, typeOf, minimum, and )
 import Control.Arrow ((&&&))
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -84,7 +84,7 @@ generateTypes meta = mdo
 
 generateFunctions :: ModuleCodegen ()
 generateFunctions = mdo
-  mkCompare
+  compareValues <- mkCompare
   nodeNew <- mkNodeNew
   mkNodeDelete
   mkNodeClone nodeNew
@@ -94,11 +94,20 @@ generateFunctions = mdo
   mkNodeIsEmpty
   mkNodeIsFull
   splitPoint <- mkNodeSplitPoint
-  mkSplit nodeNew splitPoint growParent
-  growParent <- mkGrowParent
+  split <- mkSplit nodeNew splitPoint growParent
+  growParent <- mkGrowParent nodeNew insertInner
+  insertInner <- mkInsertInner rebalanceOrSplit
+  rebalanceOrSplit <- mkRebalanceOrSplit split
+  iterInit <- mkIteratorInit
+  iterInitEnd <- mkIteratorInitEnd iterInit
+  mkIteratorIsEqual
+  mkIteratorCurrent
+  mkIteratorNext
+  mkLinearSearchLowerBound compareValues
+  mkLinearSearchUpperBound compareValues
   pure ()
 
-mkCompare :: ModuleCodegen ()
+mkCompare :: ModuleCodegen Operand
 mkCompare = do
   (tys, meta) <- asks (types &&& meta)
   let column = columnTy tys
@@ -135,7 +144,6 @@ mkCompare = do
             pure ()
     end <- block `named` "end"
     ret =<< phi (Map.toList results)
-  pure ()
   where
     endCheck = \case
       Nil -> End
@@ -327,8 +335,7 @@ mkNodeIsEmpty = mdo
 
 mkNodeIsFull :: ModuleCodegen ()
 mkNodeIsFull = mdo
-  metadata <- asks meta
-  let numberOfKeys = int16 $ toInteger $ numKeys metadata
+  numberOfKeys <- numKeysAsOperand
   node <- typeOf Node
 
   function "node_is_full" [(ptr node, "node")] i1 $ \[n] -> mdo
@@ -340,8 +347,7 @@ mkNodeIsFull = mdo
 mkNodeSplitPoint :: ModuleCodegen Operand
 mkNodeSplitPoint = mdo
   nodeSize <- typeOf NodeSize
-  metadata <- asks meta
-  let numberOfKeys = int16 $ toInteger $ numKeys metadata
+  numberOfKeys <- numKeysAsOperand
 
   function "node_split_point" [] nodeSize $ \_ -> mdo
     a' <- mul (int16 3) numberOfKeys
@@ -349,18 +355,11 @@ mkNodeSplitPoint = mdo
     b <- sub numberOfKeys (int16 2)
     ret =<< minimum a b
 
--- NOTE: only works for unsigned integers!
-minimum :: Operand -> Operand -> IRCodegen Operand
-minimum a b = do
-  isLessThan <- a `ult` b
-  select isLessThan a b
-
-mkSplit :: Operand -> Operand -> Operand -> ModuleCodegen ()
+mkSplit :: Operand -> Operand -> Operand -> ModuleCodegen Operand
 mkSplit nodeNew nodeSplitPoint growParent = mdo
   node <- typeOf Node
   innerNode <- typeOf InnerNode
-  metadata <- asks meta
-  let numberOfKeys = int16 $ toInteger $ numKeys metadata
+  numberOfKeys <- numKeysAsOperand
 
   function "node_split" [(ptr node, "node"), (ptr (ptr node), "root")] void $ \[n, root] -> mdo
     -- TODO: how to do assertions in LLVM?
@@ -401,15 +400,353 @@ mkSplit nodeNew nodeSplitPoint growParent = mdo
     call growParent [(n, []), (root, []), (sibling, [])]
     pure ()
 
-  pure ()
-
-mkGrowParent :: ModuleCodegen Operand
-mkGrowParent = mdo
+mkGrowParent :: Operand -> Operand -> ModuleCodegen Operand
+mkGrowParent nodeNew insertInner = mdo
   node <- typeOf Node
+  innerNode <- typeOf InnerNode
 
   function "node_grow_parent" [(ptr node, "node"), (ptr (ptr node), "root"), (ptr node, "sibling")] void $
     \[n, root, sibling] -> mdo
-      pure ()
+    parent <- deref (metaOf ->> parentOf) n
+    isNull <- parent `eq` nullPtr node
+    numElems <- deref (metaOf ->> numElemsOf) n
+    condBr isNull createNewRoot insertNewNodeInParent
+
+    createNewRoot <- block `named` "create_new_root"
+    -- TODO: assert(n == *root)
+    newRoot <- call nodeNew [(innerNodeTypeVal, [])]
+    iNewRoot <- newRoot `bitcast` ptr innerNode
+    assign (metaOf ->> numElemsOf) newRoot (int16 1)
+    lastValueOfN <- deref (valueAt numElems) n
+    assign (valueAt (int16 0)) newRoot lastValueOfN
+    assign (childAt (int16 0)) iNewRoot n
+    assign (childAt (int16 1)) iNewRoot sibling
+
+    assign (metaOf ->> parentOf) n newRoot
+    assign (metaOf ->> parentOf) sibling newRoot
+    assign (metaOf ->> posInParentOf) n (int16 0)  -- TODO: why missing in souffle code? default initialized?
+                                                    -- also: why is num elements of n not decremented?
+    assign (metaOf ->> posInParentOf) sibling (int16 1)
+    store root 0 newRoot
+    retVoid
+
+    insertNewNodeInParent <- block `named` "insert_new_node_in_parent"
+    pos <- deref (metaOf ->> posInParentOf) n
+    lastValuePtr <- addr (valueAt numElems) n
+    call insertInner $ (, []) <$> [parent, root, pos, n, lastValuePtr, sibling]
+    retVoid
+
+mkInsertInner :: Operand -> ModuleCodegen Operand
+mkInsertInner rebalanceOrSplit = mdo
+  node <- typeOf Node
+  innerNode <- typeOf InnerNode
+  nodeSize <- typeOf NodeSize
+  value <- typeOf Value
+  let args = [ (ptr node, "node"), (ptr (ptr node), "root")
+             , (nodeSize, "pos"), (ptr node, "predecessor")
+             , (ptr value, "key"), (ptr node, "new_node")
+             ]
+  numberOfKeys <- numKeysAsOperand
+
+  insertInner <- function "node_insert_inner" args void $
+    \[n, root, pos, predecessor, key, newNode] -> mdo
+    -- Need to allocate pos on the stack, otherwise pos updates are
+    -- not visible later on!
+    posPtr <- allocate nodeSize pos
+
+    numElems <- deref (metaOf ->> numElemsOf) n
+    needsRebalanceOrSplit <- numElems `uge` numberOfKeys
+
+    if' needsRebalanceOrSplit $ do
+      pos' <- load posPtr 0
+      pos'' <- sub pos' <=< call rebalanceOrSplit $ (,[]) <$> [n, root, pos]
+      store posPtr 0 pos''
+      numElems' <- deref (metaOf ->> numElemsOf) n
+      needsInsertInNewNode <- pos'' `ugt` numElems'
+
+      if' needsInsertInNewNode $ do
+        -- Insertion needs to be done in new sibling node:
+        pos''' <- sub pos'' numElems' >>= flip sub (int16 1)
+        store posPtr 0 pos'''
+        parent <- deref (metaOf ->> parentOf) n >>= (`bitcast` ptr innerNode)
+        siblingPos <- add (int16 1) =<< deref (metaOf ->> posInParentOf) n
+        sibling <- deref (childAt siblingPos) parent
+        call insertInner $ (, []) <$> [sibling, root, pos''', predecessor, key, newNode]
+        retVoid
+
+    -- Move bigger keys one forward
+    iN <- n `bitcast` ptr innerNode
+    numElems' <- deref (metaOf ->> numElemsOf) n
+    startIdx <- sub numElems' (int16 1)
+    pos' <- load posPtr 0
+    forLoop startIdx (`uge` pos') (`sub` int16 1) $ \i -> mdo
+      j <- add i (int16 1)
+      k <- add i (int16 2)
+      assign (valueAt j) n =<< deref (valueAt i) n
+      assign (childAt k) iN =<< deref (childAt j) iN
+      increment int16 (childAt k ->> metaOf ->> posInParentOf) iN
+
+    -- TODO: assert(i_n->children[pos] == predecessor);
+
+    -- Insert new element
+    assign (valueAt pos') n =<< load key 0
+    pos'' <- add pos' (int16 1)
+    assign (childAt pos'') iN newNode
+    assign (metaOf ->> parentOf) newNode n
+    assign (metaOf ->> posInParentOf) newNode pos''
+    increment int16 (metaOf ->> numElemsOf) n
+
+  pure insertInner
+
+mkRebalanceOrSplit :: Operand -> ModuleCodegen Operand
+mkRebalanceOrSplit splitFn = mdo
+  node <- typeOf Node
+  innerNode <- typeOf InnerNode
+  nodeSize <- typeOf NodeSize
+
+  numberOfKeys <- numKeysAsOperand
+
+  let args = [(ptr node, "node"), (ptr (ptr node), "root"), (nodeSize, "idx")]
+  function "node_rebalance_or_split" args nodeSize $ \[n, root, idx] -> mdo
+    -- TODO assert(n->meta.num_elements == NUM_KEYS);
+
+    parent <- deref (metaOf ->> parentOf) n >>= (`bitcast` ptr innerNode)
+    pos <- deref (metaOf ->> posInParentOf) n
+    hasParent <- parent `ne` nullPtr node
+    posGTZero <- pos `ugt` int16 0
+    shouldRebalance <- and hasParent posGTZero
+    condBr shouldRebalance rebalance split
+
+    rebalance <- block `named` "rebalance"
+    -- Option A) re-balance data
+    pos' <- sub pos (int16 1)
+    left <- deref (childAt pos') parent
+
+    -- Compute amount of elements movable to the left
+    leftSlotsOpen <- calculateLeftSlotsOpen numberOfKeys left idx
+    hasOpenLeftSlots <- leftSlotsOpen `ugt` int16 0
+    if' hasOpenLeftSlots $ do
+      splitPos <- deref (metaOf ->> posInParentOf) n >>= (`sub` int16 1)
+      splitter <- addr (baseOf ->> valueAt splitPos) parent
+      splitterValue <- load splitter 0  -- TODO: deref?
+
+      -- Move keys to left node
+      leftNumElems <- deref (metaOf ->> numElemsOf) left
+      assign (valueAt leftNumElems) left splitterValue
+
+      leftSlotsOpen' <- sub leftSlotsOpen (int16 1)
+      forLoop (int16 0) (`ult` leftSlotsOpen') (add (int16 1)) $ \i -> do
+        j <- add leftNumElems (int16 1) >>= add i
+        assign (valueAt j) left =<< deref (valueAt i) n
+
+      store splitter 0 =<< deref (valueAt leftSlotsOpen') n
+
+      -- Shift keys in this node to the left
+      numElemsN <- deref (metaOf ->> numElemsOf) n
+      idxEnd <- sub numElemsN leftSlotsOpen
+      forLoop (int16 0) (`ult` idxEnd) (add (int16 1)) $ \i -> do
+        -- TODO memmove possible?
+        j <- add i leftSlotsOpen
+        assign (valueAt i) n =<< deref (valueAt j) n
+
+      -- And children (if necessary)
+      isInnerNode <- deref (metaOf ->> nodeTypeOf) n >>= (`eq` innerNodeTypeVal)
+      if' isInnerNode $ do
+        iN <- n `bitcast` ptr innerNode
+        iLeft <- left `bitcast` ptr innerNode
+
+        -- Move children
+        forLoop (int16 0) (`ult` leftSlotsOpen) (add (int16 1)) $ \i -> do
+          leftNumElems <- deref (metaOf ->> numElemsOf) left
+          leftPos <- add leftNumElems (int16 1) >>= add i
+          -- TODO: check next part against C++ code
+          assign (childAt leftPos) iLeft =<< deref (childAt i) iN
+          assign (childAt leftPos ->> metaOf ->> parentOf) iLeft left
+          assign (childAt leftPos ->> metaOf ->> posInParentOf) iLeft leftPos
+
+        -- Shift child pointer to the left + update position
+        endIdx <- sub numElemsN leftSlotsOpen >>= add (int16 1)
+        forLoop (int16 0) (`ult` endIdx) (add (int16 1)) $ \i -> do
+          j <- add i leftSlotsOpen
+          assign (childAt i) iN =<< deref (childAt j) iN
+          assign (childAt i ->> metaOf ->> posInParentOf) iN i
+
+      -- Update node sizes
+      update (metaOf ->> numElemsOf) left (`add` leftSlotsOpen)
+      update (metaOf ->> numElemsOf) n (`sub` leftSlotsOpen)
+      ret leftSlotsOpen
+
+    split <- block `named` "split"
+    -- Option B) split
+    call splitFn $ (,[]) <$> [n, root]
+    ret (int16 0)  -- No re-balancing
+  where
+    calculateLeftSlotsOpen numberOfKeys left idx = do
+      -- TODO: check if casting needed?
+      numElems <- deref (metaOf ->> numElemsOf) left
+      openSlots <- sub numberOfKeys numElems
+      isLessThan <- openSlots `slt` idx
+      select isLessThan openSlots idx
+
+mkIteratorInit :: ModuleCodegen Operand
+mkIteratorInit = do
+  iter <- typeOf Iterator
+  node <- typeOf Node
+  nodeSize <- typeOf NodeSize
+  let args = [(ptr iter, "iter"), (ptr node, "cur"), (nodeSize, "pos")]
+
+  function "iterator_init" args void $ \[iter, cur, pos] -> do
+    assign currentPtrOf iter cur
+    assign valuePosOf iter pos
+
+mkIteratorInitEnd :: Operand -> ModuleCodegen Operand
+mkIteratorInitEnd iterInit = do
+  iter <- typeOf Iterator
+  node <- typeOf Node
+
+  function "iterator_end_init" [(ptr iter, "iter")] void $ \[iter] -> do
+    call iterInit $ (,[]) <$> [iter, nullPtr node, int16 0]
+    retVoid
+
+mkIteratorIsEqual :: ModuleCodegen Operand
+mkIteratorIsEqual = do
+  iter <- typeOf Iterator
+
+  function "iterator_is_equal" [(ptr iter, "lhs"), (ptr iter, "rhs")] i1 $ \[lhs, rhs] -> mdo
+    currentLhs <- deref currentPtrOf lhs
+    currentRhs <- deref currentPtrOf rhs
+    isEqualPtrs <- currentLhs `eq` currentRhs
+    condBr isEqualPtrs equalPtrs notEqual
+
+    equalPtrs <- block `named` "equal_pointers"
+    valuePosLhs <- deref valuePosOf lhs
+    valuePosRhs <- deref valuePosOf rhs
+    isEqual <- valuePosLhs `eq` valuePosRhs
+    condBr isEqual equal notEqual
+
+    equal <- block `named` "equal"
+    ret (bit 1)
+
+    notEqual <- block `named` "notEqual"
+    ret (bit 0)
+
+mkIteratorNext :: ModuleCodegen Operand
+mkIteratorNext = do
+  iter <- typeOf Iterator
+  node <- typeOf Node
+  innerNode <- typeOf InnerNode
+
+  function "iterator_next" [(ptr iter, "iter")] void $ \[iter] -> mdo
+    isLeaf <- deref (currentOf ->> metaOf ->> nodeTypeOf) iter >>= (`eq` leafNodeTypeVal)
+    condBr isLeaf leafNext innerNext
+
+    leafNext <- block `named` "leaf_next"
+    -- Case 1: Still elements left to iterate -> increment position
+    increment int16 valuePosOf iter
+    valuePos <- deref valuePosOf iter
+    numElems <- deref (currentOf ->> metaOf ->> numElemsOf) iter
+    hasNextInLeaf <- valuePos `ult` numElems
+    condBr hasNextInLeaf end leafToNextInner
+
+    leafToNextInner <- block `named` "leaf_next_inner"
+    -- Case 2: at right-most element -> go to next inner node
+    let loopCondition = do
+          isNotNull <- deref currentPtrOf iter >>= (`ne` nullPtr node)
+          pos' <- deref valuePosOf iter
+          numElems' <- deref (currentOf ->> metaOf ->> numElemsOf) iter
+          atEnd <- pos' `eq` numElems'
+          isNotNull `and` atEnd
+    whileLoop loopCondition $ do
+      assign valuePosOf iter =<< deref (currentOf ->> metaOf ->> posInParentOf) iter
+      assign currentPtrOf iter =<< deref (currentOf ->> metaOf ->> parentOf) iter
+
+    innerNext <- block `named` "inner_next"
+    -- Case 3: Go to left most child in inner node
+    nextPos <- deref valuePosOf iter >>= add (int16 1)
+    iCurrent <- deref currentPtrOf iter >>= (`bitcast` ptr innerNode)
+    currentPtr <- allocate (ptr node) =<< deref (childAt nextPos) iCurrent
+    let loopCondition' = do
+          ty <- deref (metaOf ->> nodeTypeOf) =<< load currentPtr 0
+          ty `eq` innerNodeTypeVal
+    whileLoop loopCondition' $ do
+      iCurrent <- load currentPtr 0 >>= (`bitcast` ptr innerNode)
+      firstChild <- deref (childAt (int16 0)) iCurrent
+      store currentPtr 0 firstChild
+
+    assign currentPtrOf iter =<< load currentPtr 0
+    assign valuePosOf iter (int16 0)
+    retVoid
+
+    end <- block `named` "end"
+    retVoid
+
+mkLinearSearchLowerBound :: Operand -> ModuleCodegen ()
+mkLinearSearchLowerBound compareValues = do
+  value <- typeOf Value
+  let args = [(ptr value, "val"), (ptr value, "current"), (ptr value, "end")]
+
+  function "linear_search_lower_bound" args (ptr value) $ \[val, curr, end] -> mdo
+    -- Finds an iterator to first element not less than given value.
+    currentPtr <- allocate (ptr value) curr
+    let loopCondition = do
+          current <- load currentPtr 0
+          current `ne` end
+    whileLoop loopCondition $ mdo
+      current <- load currentPtr 0
+      result <- call compareValues [(current, []), (val, [])]
+      isLessThan <- result `eq` int8 (-1)
+      condBr isLessThan ltBlock gtOrEqBlock
+
+      ltBlock <- block `named` "compare_lt"
+      current' <- gep current [int32 1] -- TODO: check if correct
+      store currentPtr 0 current'
+
+    ret end
+
+    gtOrEqBlock <- block `named` "compare_gt_or_eq"
+    current <- load currentPtr 0
+    ret current
+
+  pure ()
+
+mkLinearSearchUpperBound :: Operand -> ModuleCodegen ()
+mkLinearSearchUpperBound compareValues = do
+  value <- typeOf Value
+  let args = [(ptr value, "val"), (ptr value, "current"), (ptr value, "end")]
+
+  function "linear_search_upper_bound" args (ptr value) $ \[val, curr, end] -> mdo
+    -- Finds an iterator to first element that is greater than given value.
+    currentPtr <- allocate (ptr value) curr
+    let loopCondition = do
+          current <- load currentPtr 0
+          current `ne` end
+    whileLoop loopCondition $ mdo
+      current <- load currentPtr 0
+      result <- call compareValues [(current, []), (val, [])]
+      isGreaterThan <- result `eq` int8 1
+      condBr isGreaterThan gtBlock ltOrEqBlock
+
+      ltOrEqBlock <- block `named` "compare_lt_or_eq"
+      current' <- gep current [int32 1] -- TODO: check if correct
+      store currentPtr 0 current'
+
+    ret end
+
+    gtBlock <- block `named` "compare_gt"
+    current <- load currentPtr 0
+    ret current
+
+  pure ()
+
+mkIteratorCurrent :: ModuleCodegen Operand
+mkIteratorCurrent = do
+  iter <- typeOf Iterator
+  value <- typeOf Value
+
+  function "iterator_current" [(ptr iter, "iter")] (ptr value) $ \[iter] -> mdo
+    valuePos <- deref valuePosOf iter
+    valueAddr <- addr (currentOf ->> valueAt valuePos) iter
+    ret valueAddr
 
 loopChildren :: Operand
              -> Type
@@ -500,6 +837,11 @@ numKeys meta = fromIntegral $ max 3 desiredNumberOfKeys
       else 0
     desiredNumberOfKeys = valuesByteSize `div` valueByteSize
 
+numKeysAsOperand :: ModuleCodegen Operand
+numKeysAsOperand = do
+  metadata <- asks meta
+  pure $ int16 $ toInteger $ numKeys metadata
+
 ptrSize :: Meta -> Word64
 ptrSize md = case arch md of
   X86 -> 4
@@ -514,7 +856,9 @@ data Index
   | PositionIdx
   | NumElemsIdx
   | NodeTypeIdx
+  | IteratorIdx
   | ArrayOf Index
+  | PtrOf Index
 
 metaOf :: Path 'NodeIdx 'MetaIdx
 metaOf = mkPath [int32 0]
@@ -546,12 +890,22 @@ childrenOf = mkPath [int32 1]
 childAt :: Operand -> Path 'InnerNodeIdx 'NodeIdx
 childAt idx = mkPath [int32 1, idx]
 
+currentPtrOf :: Path 'IteratorIdx ('PtrOf 'NodeIdx)
+currentPtrOf = mkPath [int32 0]
+
+currentOf :: Path 'IteratorIdx 'NodeIdx
+currentOf = mkPath [int32 0, int32 0]
+
+valuePosOf :: Path 'IteratorIdx 'PositionIdx
+valuePosOf = mkPath [int32 1]
+
 data DataType
   = NodeType
   | Node
   | InnerNode
   | Value
   | NodeSize
+  | Iterator
 
 -- TODO: remove this hack and replace with proper usage of LLVM Datalayout class
 sizeOf :: MonadReader CGState m => DataType -> m Word64
@@ -566,12 +920,14 @@ sizeOf dt = do
         InnerNode -> 336
         Value -> columnCount * 4
         NodeSize -> 2
+        Iterator -> panic "sizeOf: not implemented for iterator"
       X64 -> case dt of
         NodeType -> 1
         Node -> 256
         InnerNode -> 424
         Value -> columnCount * 4
         NodeSize -> 2
+        Iterator -> panic "sizeOf: not implemented for iterator"
 
 typeOf :: MonadReader CGState m => DataType -> m Type
 typeOf dt =
@@ -581,6 +937,7 @@ typeOf dt =
         InnerNode -> innerNodeTy
         Value -> valueTy
         NodeSize -> nodeSizeTy
+        Iterator -> iteratorTy
    in getType <$> asks types
 
 memset :: Operand -> Word8 -> Word64 -> IRCodegen ()
@@ -594,3 +951,5 @@ memset p val byteCount = do
                 ]
   pure ()
 
+-- TODO: check if state is not updated inside helper function, always ask for latest data of struct
+-- TODO: early returns in for and if are broken?
