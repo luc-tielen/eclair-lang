@@ -4,7 +4,7 @@ module Eclair.Runtime.LLVM
   ( module Eclair.Runtime.LLVM
   ) where
 
-import Protolude hiding ( Type, (.) )
+import Protolude hiding ( Type, (.), bit )
 import Control.Category
 import qualified Data.List.NonEmpty as NE
 import LLVM.IRBuilder.Module
@@ -48,6 +48,15 @@ if' condition asm = mdo
   br end
   end <- block `named` "end_if"
   pure ()
+
+-- Note: this loops forever, only way to exit is if the inner block of ASM
+-- Jumps to a label outside the loop
+loop :: IRCodegen r a -> IRCodegen r ()
+loop asm = mdo
+  br begin
+  begin <- block `named` "loop"
+  asm
+  br begin
 
 whileLoop :: IRCodegen r Operand -> IRCodegen r a -> IRCodegen r ()
 whileLoop condition asm = mdo
@@ -142,3 +151,15 @@ minimum :: Operand -> Operand -> IRCodegen r Operand
 minimum a b = do
   isLessThan <- a `ult` b
   select isLessThan a b
+
+pointerDiff :: Type -> Operand -> Operand -> IRCodegen r Operand
+pointerDiff ty a b = do
+  a' <- ptrtoint a i64
+  b' <- ptrtoint b i64
+  result <- sub a' b'
+  trunc result ty
+
+-- NOTE: assumes input is of type i1
+not :: Operand -> IRCodegen r Operand
+not bool = select bool (bit 0) (bit 1)
+
