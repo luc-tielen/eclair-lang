@@ -143,14 +143,11 @@ swap path lhs rhs = do
   copy path rhs lhs
   assign path rhs tmp
 
-allocateMany :: Type -> Integer -> Operand -> IRCodegen r Operand
-allocateMany ty count beginValue = mdo
-  value <- alloca ty (Just (int32 count)) 0
+allocate :: Type -> Operand -> IRCodegen r Operand
+allocate ty beginValue = do
+  value <- alloca ty (Just (int32 1)) 0
   store value 0 beginValue
   pure value
-
-allocate :: Type -> Operand -> IRCodegen r Operand
-allocate ty = allocateMany ty 1
 
 -- NOTE: only works for unsigned integers!
 minimum :: Operand -> Operand -> IRCodegen r Operand

@@ -30,12 +30,42 @@ packages:
   original:
     hackage: megaparsec-9.0.1@sha256:2244ab77521a52a0083966c5405b3151f149e1db50b1a5b104cd9b1e56617203,3248
 - completed:
-    hackage: llvm-hs-pretty-0.9.0.0@sha256:b7a5de5f3dd97893d19d2b47af1e4dd8d075a5cf57062180a912d1f3ef1def60,1671
+    subdir: llvm-hs
+    name: llvm-hs
+    version: 9.0.1.1
+    git: https://github.com/luc-tielen/llvm-hs
     pantry-tree:
-      size: 4685
-      sha256: 8cf6d628bb4f962575ad0993bb1010e9989cea00b325b8a45ac35ac201061386
+      size: 14018
+      sha256: 7336db96faddbf178009d31aaa1b3d78d3c86d2b3aca352f43c0a1e1048ff50f
+    commit: 69ae96c9eea8531c750c9d81f9813286ef5ced81
   original:
-    hackage: llvm-hs-pretty-0.9.0.0@sha256:b7a5de5f3dd97893d19d2b47af1e4dd8d075a5cf57062180a912d1f3ef1def60,1671
+    subdir: llvm-hs
+    git: https://github.com/luc-tielen/llvm-hs
+    commit: 69ae96c9eea8531c750c9d81f9813286ef5ced81
+- completed:
+    subdir: llvm-hs-pure
+    name: llvm-hs-pure
+    version: 9.0.1.1
+    git: https://github.com/luc-tielen/llvm-hs
+    pantry-tree:
+      size: 2652
+      sha256: fd6f6823c3bfbd45f4cf5daf6e0eee32a3ecb1161c972157e43390ddd271d43a
+    commit: 69ae96c9eea8531c750c9d81f9813286ef5ced81
+  original:
+    subdir: llvm-hs-pure
+    git: https://github.com/luc-tielen/llvm-hs
+    commit: 69ae96c9eea8531c750c9d81f9813286ef5ced81
+- completed:
+    name: llvm-hs-pretty
+    version: 0.9.0.0
+    git: https://github.com/luc-tielen/llvm-hs-pretty
+    pantry-tree:
+      size: 5163
+      sha256: f8026bf66442f288964b52b6372e8b08a907cbad867ff8e69673e54a11c7f237
+    commit: b0e8a13ee087f0d16fc3f70a6f208467ed13023f
+  original:
+    git: https://github.com/luc-tielen/llvm-hs-pretty
+    commit: b0e8a13ee087f0d16fc3f70a6f208467ed13023f
 snapshots:
 - completed:
     size: 532832

@@ -134,10 +134,8 @@ mkCompare = do
       value = valueTy tys
   compare <- function "compare" [(column, "lhs"), (column, "rhs")] i8 $ \[lhs, rhs] -> mdo
     result1 <- icmp IP.ULT lhs rhs
-    condBr result1 lt gtOrEq
-    lt <- block `named` "lt"
-    ret $ int8 (-1)
-    gtOrEq <- block `named` "gt_or_eq"
+    if' result1 $
+      ret $ int8 (-1)
     result2 <- icmp IP.UGT lhs rhs
     ret =<< select result2 (int8 1) (int8 0)
 
@@ -199,16 +197,12 @@ mkNodeNew = mdo
     memset valuesPtr 0 valuesByteCount
 
     isInner <- ty `eq` innerNodeTypeVal
-    condBr isInner initInner end
+    if' isInner $ mdo
+      inner <- n `bitcast` ptr innerNode
+      let childrenByteCount = (numKeys md + 1) * ptrSize md
+      childrenPtr <- addr childrenOf inner
+      memset childrenPtr 0 childrenByteCount
 
-    initInner <- block `named` "init_inner"
-    inner <- n `bitcast` ptr innerNode
-    let childrenByteCount = (numKeys md + 1) * ptrSize md
-    childrenPtr <- addr childrenOf inner
-    memset childrenPtr 0 childrenByteCount
-    br end
-
-    end <- block `named` "end"
     ret n
 
 mkNodeDelete :: ModuleCodegen Operand
@@ -219,21 +213,17 @@ mkNodeDelete = mdo
 
   nodeDelete <- function "node_delete" [(ptr node, "node")] void $ \[n] -> mdo
     nodeTy <- deref (metaOf ->> nodeTypeOf) n
-    condBr nodeTy deleteInner end
+    isInner <- nodeTy `eq` innerNodeTypeVal
+    if' isInner $ do  -- Delete children of inner node
+      inner <- n `bitcast` ptr innerNode
 
-    deleteInner <- block `named` "delete_inner"
-    inner <- n `bitcast` ptr innerNode
+      numElements <- deref (metaOf ->> numElemsOf) n
+      forLoop (int16 0) (`ule` numElements) (add (int16 1)) $ \i -> mdo
+        child <- deref (childAt i) inner
+        isNotNull <- child `ne` nullPtr node
+        if' isNotNull $
+          call nodeDelete [(child, [])]
 
-    numElements <- deref (metaOf ->> numElemsOf) n
-    forLoop (int16 0) (`ule` numElements) (add (int16 1)) $ \i -> mdo
-      child <- deref (childAt i) inner
-      isNotNull <- child `ne` nullPtr node
-      if' isNotNull $
-        call nodeDelete [(child, [])]
-
-    br end
-
-    end <- block `named` "end"
     memory <- n `bitcast` ptr i8
     call free [(memory, [])]
     pure ()
@@ -246,19 +236,11 @@ mkNodeClone nodeNew = mdo
 
   nodeClone <- function "node_clone" [(ptr node, "node")] (ptr node) $ \[n] -> mdo
     ty <- deref (metaOf ->> nodeTypeOf) n
+    isInner <- ty `eq` innerNodeTypeVal
     newNode <- call nodeNew [(ty, [])]
-    condBr ty cloneInner cloneLeaf
-
-    cloneInner <- block `named` "clone_inner"
     copyNode n newNode
-    copyChildren nodeClone n newNode
-    br end
-
-    cloneLeaf <- block `named` "clone_leaf"
-    copyNode n newNode
-    br end
-
-    end <- block `named` "end"
+    if' isInner $
+      copyChildren nodeClone n newNode
     ret newNode
   pure nodeClone
   where
@@ -290,17 +272,14 @@ mkNodeDepth = mdo
 
   nodeDepth <- function "node_depth" [(ptr node, "node")] nodeSize $ \[n] -> mdo
     ty <- deref (metaOf ->> nodeTypeOf) n
-    condBr ty depthInner depthLeaf
+    isLeaf <- ty `eq` leafNodeTypeVal
+    if' isLeaf $
+      ret (int16 1)
 
-    depthInner <- block `named` "depth_inner"
     inner <- n `bitcast` ptr innerNode
     child <- deref (childAt (int16 0)) inner
     depthChild <- call nodeDepth [(child, [])]
-    depth <- add (int16 1) depthChild
-    ret depth
-
-    depthLeaf <- block `named` "depth_leaf"
-    ret (int16 1)
+    ret =<< add (int16 1) depthChild
 
   pure nodeDepth
 
@@ -310,16 +289,14 @@ mkNodeCount = mdo
 
   countNodes <- function "node_count" [(ptr node, "node")] i64 $ \[n] -> mdo
     ty <- deref (metaOf ->> nodeTypeOf) n
-    condBr ty countInner countLeaf
+    isLeaf <- ty `eq` leafNodeTypeVal
+    if' isLeaf $
+      ret (int64 1)
 
-    countInner <- block `named` "count_inner"
     count <- loopChildren n i64 (int64 1) $ \nodeCount child -> mdo
       childNodeCount <- call countNodes [(child, [])]
       add nodeCount childNodeCount
     ret count
-
-    countLeaf <- block `named` "count_leaf"
-    ret (int64 1)
 
   pure ()
 
@@ -330,16 +307,15 @@ mkNodeCountEntries = mdo
   countEntries <- function "node_count_entries" [(ptr node, "node")] i64 $ \[n] -> mdo
     numElements <- deref (metaOf ->> numElemsOf) n
     ty <- deref (metaOf ->> nodeTypeOf) n
-    condBr ty countInner countLeaf
+    isLeaf <- ty `eq` leafNodeTypeVal
+    if' isLeaf $
+      ret numElements
 
-    countInner <- block `named` "count_inner"
     numElements' <- zext numElements i64
     count <- loopChildren n i64 numElements' $ \entryCount child -> mdo
       childNodeCount <- call countEntries [(child, [])]
       add entryCount childNodeCount
-
-    countLeaf <- block `named` "count_leaf"
-    ret numElements
+    ret count
 
   pure countEntries
 
@@ -392,26 +368,23 @@ mkSplit nodeNew nodeSplitPoint growParent = mdo
     jPtr <- allocate i16 (int16 0)
     forLoop splitPoint' (`ult` numberOfKeys) (add (int16 1)) $ \i -> mdo
       j <- load jPtr 0
-      siblingValue <- deref (valueAt j) sibling
-      assign (valueAt i) n siblingValue
-      j' <- add (int16 1) j
-      store jPtr 0 j'
+      assign (valueAt j) sibling =<< deref (valueAt i) n
+      store jPtr 0 =<< add (int16 1) j
 
-    isInner <- ty `eq` bit 1
+    isInner <- ty `eq` innerNodeTypeVal
     if' isInner $ mdo
       iSibling <- sibling `bitcast` ptr innerNode
-      iNode <- n `bitcast` ptr innerNode
+      iN <- n `bitcast` ptr innerNode
 
       store jPtr 0 (int16 0)
       forLoop splitPoint' (`ult` numberOfKeys) (add (int16 1)) $ \i -> mdo
         j <- load jPtr 0
         -- TODO: check if this is correctly implemented
-        iChild <- deref (childAt i) iNode
+        iChild <- deref (childAt i) iN
         assign (metaOf ->> parentOf) iChild sibling
         assign (metaOf ->> numElemsOf) iChild j
         assign (childAt j) iSibling iChild
-        j' <- add (int16 1) j
-        store jPtr 0 j'
+        store jPtr 0 =<< add (int16 1) j
 
     assign (metaOf ->> numElemsOf) n splitPoint
     siblingNumKeys <- sub numberOfKeys splitPoint >>= flip sub (int16 1)
@@ -445,7 +418,7 @@ mkGrowParent nodeNew insertInner = mdo
     assign (metaOf ->> parentOf) n newRoot
     assign (metaOf ->> parentOf) sibling newRoot
     assign (metaOf ->> posInParentOf) n (int16 0)  -- TODO: why missing in souffle code? default initialized?
-                                                    -- also: why is num elements of n not decremented?
+                                                   -- also: why is num elements of n not decremented?
     assign (metaOf ->> posInParentOf) sibling (int16 1)
     store root 0 newRoot
     retVoid
@@ -479,9 +452,9 @@ mkInsertInner rebalanceOrSplit = mdo
 
     if' needsRebalanceOrSplit $ do
       pos' <- load posPtr 0
-      pos'' <- sub pos' <=< call rebalanceOrSplit $ (,[]) <$> [n, root, pos]
+      pos'' <- sub pos' =<< call rebalanceOrSplit ((,[]) <$> [n, root, pos])
       store posPtr 0 pos''
-      numElems' <- deref (metaOf ->> numElemsOf) n
+      numElems' <- deref (metaOf ->> numElemsOf) n  -- NOTE: n might be updated in rebalanceOrSplit
       needsInsertInNewNode <- pos'' `ugt` numElems'
 
       if' needsInsertInNewNode $ do
@@ -548,7 +521,7 @@ mkRebalanceOrSplit splitFn = mdo
     if' hasOpenLeftSlots $ do
       splitPos <- deref (metaOf ->> posInParentOf) n >>= (`sub` int16 1)
       splitter <- addr (baseOf ->> valueAt splitPos) parent
-      splitterValue <- load splitter 0  -- TODO: deref?
+      splitterValue <- load splitter 0
 
       -- Move keys to left node
       leftNumElems <- deref (metaOf ->> numElemsOf) left
@@ -596,13 +569,13 @@ mkRebalanceOrSplit splitFn = mdo
       update (metaOf ->> numElemsOf) n (`sub` leftSlotsOpen)
       ret leftSlotsOpen
 
+    br split
     split <- block `named` "split"
     -- Option B) split
     call splitFn $ (,[]) <$> [n, root]
     ret (int16 0)  -- No re-balancing
   where
     calculateLeftSlotsOpen numberOfKeys left idx = do
-      -- TODO: check if casting needed?
       numElems <- deref (metaOf ->> numElemsOf) left
       openSlots <- sub numberOfKeys numElems
       isLessThan <- openSlots `slt` idx
@@ -635,20 +608,14 @@ mkIteratorIsEqual = do
   function "iterator_is_equal" [(ptr iter, "lhs"), (ptr iter, "rhs")] i1 $ \[lhs, rhs] -> mdo
     currentLhs <- deref currentPtrOf lhs
     currentRhs <- deref currentPtrOf rhs
-    isEqualPtrs <- currentLhs `eq` currentRhs
-    condBr isEqualPtrs equalPtrs notEqual
 
-    equalPtrs <- block `named` "equal_pointers"
+    isDifferentPtrs <- currentLhs `ne` currentRhs
+    if' isDifferentPtrs $
+      ret (bit 0)
+
     valuePosLhs <- deref valuePosOf lhs
     valuePosRhs <- deref valuePosOf rhs
-    isEqual <- valuePosLhs `eq` valuePosRhs
-    condBr isEqual equal notEqual
-
-    equal <- block `named` "equal"
-    ret (bit 1)
-
-    notEqual <- block `named` "notEqual"
-    ret (bit 0)
+    ret =<< valuePosLhs `eq` valuePosRhs
 
 mkIteratorCurrent :: ModuleCodegen Operand
 mkIteratorCurrent = do
@@ -657,58 +624,57 @@ mkIteratorCurrent = do
 
   function "iterator_current" [(ptr iter, "iter")] (ptr value) $ \[iter] -> mdo
     valuePos <- deref valuePosOf iter
-    valueAddr <- addr (currentOf ->> valueAt valuePos) iter
-    ret valueAddr
+    ret =<< addr (currentOf ->> valueAt valuePos) iter
 
 mkIteratorNext :: ModuleCodegen Operand
 mkIteratorNext = do
   iter <- typeOf Iterator
-  node <- typeOf Node
-  innerNode <- typeOf InnerNode
 
   function "iterator_next" [(ptr iter, "iter")] void $ \[iter] -> mdo
     isLeaf <- deref (currentOf ->> metaOf ->> nodeTypeOf) iter >>= (`eq` leafNodeTypeVal)
-    condBr isLeaf leafNext innerNext
+    if' isLeaf $ do
+      leafIterNext iter
+      retVoid
 
-    leafNext <- block `named` "leaf_next"
-    -- Case 1: Still elements left to iterate -> increment position
-    increment int16 valuePosOf iter
-    valuePos <- deref valuePosOf iter
-    numElems <- deref (currentOf ->> metaOf ->> numElemsOf) iter
-    hasNextInLeaf <- valuePos `ult` numElems
-    condBr hasNextInLeaf end leafToNextInner
+    innerIterNext iter
+  where
+    leafIterNext iter = mdo
+      node <- typeOf Node
+      -- Case 1: Still elements left to iterate -> increment position
+      increment int16 valuePosOf iter
+      valuePos <- deref valuePosOf iter
+      numElems <- deref (currentOf ->> metaOf ->> numElemsOf) iter
+      hasNextInLeaf <- valuePos `ult` numElems
+      if' hasNextInLeaf
+        retVoid
 
-    leafToNextInner <- block `named` "leaf_next_inner"
-    -- Case 2: at right-most element -> go to next inner node
-    let loopCondition = do
-          isNotNull <- deref currentPtrOf iter >>= (`ne` nullPtr node)
-          pos' <- deref valuePosOf iter
-          numElems' <- deref (currentOf ->> metaOf ->> numElemsOf) iter
-          atEnd <- pos' `eq` numElems'
-          isNotNull `and` atEnd
-    whileLoop loopCondition $ do
-      assign valuePosOf iter =<< deref (currentOf ->> metaOf ->> posInParentOf) iter
-      assign currentPtrOf iter =<< deref (currentOf ->> metaOf ->> parentOf) iter
+      -- Case 2: at right-most element -> go to next inner node
+      let loopCondition = do
+            isNotNull <- deref currentPtrOf iter >>= (`ne` nullPtr node)
+            pos' <- deref valuePosOf iter
+            numElems' <- deref (currentOf ->> metaOf ->> numElemsOf) iter
+            atEnd <- pos' `eq` numElems'
+            isNotNull `and` atEnd
+      whileLoop loopCondition $ do
+        assign valuePosOf iter =<< deref (currentOf ->> metaOf ->> posInParentOf) iter
+        assign currentPtrOf iter =<< deref (currentOf ->> metaOf ->> parentOf) iter
+    innerIterNext iter = mdo
+      node <- typeOf Node
+      innerNode <- typeOf InnerNode
+      -- Case 3: Go to left most child in inner node
+      nextPos <- deref valuePosOf iter >>= add (int16 1)
+      iCurrent <- deref currentPtrOf iter >>= (`bitcast` ptr innerNode)
+      currentPtr <- allocate (ptr node) =<< deref (childAt nextPos) iCurrent
+      let loopCondition' = do
+            ty <- deref (metaOf ->> nodeTypeOf) =<< load currentPtr 0
+            ty `eq` innerNodeTypeVal
+      whileLoop loopCondition' $ do
+        iCurrent <- load currentPtr 0 >>= (`bitcast` ptr innerNode)
+        firstChild <- deref (childAt (int16 0)) iCurrent
+        store currentPtr 0 firstChild
 
-    innerNext <- block `named` "inner_next"
-    -- Case 3: Go to left most child in inner node
-    nextPos <- deref valuePosOf iter >>= add (int16 1)
-    iCurrent <- deref currentPtrOf iter >>= (`bitcast` ptr innerNode)
-    currentPtr <- allocate (ptr node) =<< deref (childAt nextPos) iCurrent
-    let loopCondition' = do
-          ty <- deref (metaOf ->> nodeTypeOf) =<< load currentPtr 0
-          ty `eq` innerNodeTypeVal
-    whileLoop loopCondition' $ do
-      iCurrent <- load currentPtr 0 >>= (`bitcast` ptr innerNode)
-      firstChild <- deref (childAt (int16 0)) iCurrent
-      store currentPtr 0 firstChild
-
-    assign currentPtrOf iter =<< load currentPtr 0
-    assign valuePosOf iter (int16 0)
-    retVoid
-
-    end <- block `named` "end"
-    retVoid
+      assign currentPtrOf iter =<< load currentPtr 0
+      assign valuePosOf iter (int16 0)
 
 mkLinearSearchLowerBound :: Operand -> ModuleCodegen Operand
 mkLinearSearchLowerBound compareValues = do
@@ -724,18 +690,14 @@ mkLinearSearchLowerBound compareValues = do
     whileLoop loopCondition $ mdo
       current <- load currentPtr 0
       result <- call compareValues [(current, []), (val, [])]
-      isLessThan <- result `eq` int8 (-1)
-      condBr isLessThan ltBlock gtOrEqBlock
+      isGtOrEqThan <- result `ne` int8 (-1)
+      if' isGtOrEqThan $
+        ret current
 
-      ltBlock <- block `named` "compare_lt"
-      current' <- gep current [int32 1] -- TODO: check if correct
+      current' <- gep current [int32 1]
       store currentPtr 0 current'
 
     ret end
-
-    gtOrEqBlock <- block `named` "compare_gt_or_eq"
-    current <- load currentPtr 0
-    ret current
 
 mkLinearSearchUpperBound :: Operand -> ModuleCodegen Operand
 mkLinearSearchUpperBound compareValues = do
@@ -752,26 +714,22 @@ mkLinearSearchUpperBound compareValues = do
       current <- load currentPtr 0
       result <- call compareValues [(current, []), (val, [])]
       isGreaterThan <- result `eq` int8 1
-      condBr isGreaterThan gtBlock ltOrEqBlock
+      if' isGreaterThan $
+        ret current
 
-      ltOrEqBlock <- block `named` "compare_lt_or_eq"
-      current' <- gep current [int32 1] -- TODO: check if correct
+      current' <- gep current [int32 1]
       store currentPtr 0 current'
 
     ret end
-
-    gtBlock <- block `named` "compare_gt"
-    current <- load currentPtr 0
-    ret current
 
 mkBtreeInitEmpty :: ModuleCodegen ()
 mkBtreeInitEmpty = do
   tree <- typeOf BTree
   node <- typeOf Node
 
-  function "btree_init_empty" [(ptr tree, "tree")] void $ \[tree] -> mdo
-    assign rootPtrOf tree (nullPtr node)
-    assign firstPtrOf tree (nullPtr node)
+  function "btree_init_empty" [(ptr tree, "tree")] void $ \[t] -> mdo
+    assign rootPtrOf t (nullPtr node)
+    assign firstPtrOf t (nullPtr node)
 
   pure ()
 
@@ -781,8 +739,8 @@ mkBtreeInit btreeInsert = do
   iter <- typeOf Iterator
   let args = [(ptr tree, "tree"), (ptr iter, "start"), (ptr iter, "end")]
 
-  function "btree_init" args void $ \[tree, start, end] -> mdo
-    call btreeInsert $ (,[]) <$> [tree, start, end]
+  function "btree_init" args void $ \[t, start, end] -> mdo
+    call btreeInsert $ (,[]) <$> [t, start, end]
     pure ()
 
   pure ()
@@ -795,16 +753,13 @@ mkBtreeCopy nodeClone isEmptyTree = do
 
   function "btree_copy" [(ptr tree, "to"), (ptr tree, "from")] void $ \[to, from] -> mdo
     isSame <- to `eq` from
-    condBr isSame earlyReturn differentBlock
+    if' isSame
+      retVoid
 
-    earlyReturn <- block `named` "early_return"
-    retVoid
-
-    differentBlock <- block `named` "different"
     isEmpty <- call isEmptyTree [(from, [])]
-    condBr isEmpty earlyReturn copyBlock
+    if' isEmpty
+      retVoid
 
-    copyBlock <- block `named` "copy_tree"
     -- NOTE: this assumes from is still empty -> no memory cleanup
     root <- deref rootPtrOf from
     clonedRoot <- call nodeClone [(root, [])]
@@ -842,8 +797,7 @@ mkBtreeIsEmpty = do
 
   function "btree_is_empty" [(ptr tree, "tree")] i1 $ \[t] -> do
     root <- deref rootPtrOf t
-    isNull <- root `eq` nullPtr node
-    ret isNull
+    ret =<< root `eq` nullPtr node
 
 mkBtreeSize :: Operand -> ModuleCodegen Operand
 mkBtreeSize nodeCountEntries = do
@@ -853,14 +807,10 @@ mkBtreeSize nodeCountEntries = do
   function "btree_size" [(ptr tree, "tree")] i64 $ \[t] -> mdo
     root <- deref rootPtrOf t
     isNull <- root `eq` nullPtr node
-    condBr isNull nullBlock notNullBlock
+    if' isNull $
+      ret (int64 0)
 
-    nullBlock <- block `named` "null"
-    ret (int64 0)
-
-    notNullBlock <- block `named` "not_null"
-    count <- call nodeCountEntries [(root, [])]
-    ret count
+    ret =<< call nodeCountEntries [(root, [])]
 
 mkBtreeInsertValue :: Operand -> Operand -> Operand -> Operand -> Operand -> Operand -> ModuleCodegen Operand
 mkBtreeInsertValue nodeNew rebalanceOrSplit compareValues searchLowerBound searchUpperBound isEmptyTree = do
@@ -920,7 +870,7 @@ mkBtreeInsertValue nodeNew rebalanceOrSplit compareValues searchLowerBound searc
       continueInsert <- block `named` "inner_continue_insert"
       iCurrent <- current `bitcast` ptr innerNode
       store currentPtr 0 =<< deref (childAt idx) iCurrent
-      br loopBlock  -- TODO: check if correctly generated
+      br loopBlock
 
     insertInNonEmptyLeafNode loopBlock noInsert inserted t currentPtr current val numberOfKeys = mdo
       -- Rest is for leaf nodes
@@ -964,7 +914,8 @@ mkBtreeInsertValue nodeNew rebalanceOrSplit compareValues searchLowerBound searc
       noSplit <- block `named` "no_split"
       -- No split -> move keys and insert new element
       idx''' <- load idxPtr 0
-      forLoop numElems (`ugt` idx''') (`sub` int16 1) $ \j -> do
+      numElems' <- deref (metaOf ->> numElemsOf) current  -- Might've been updated in the meantime
+      forLoop numElems' (`ugt` idx''') (`sub` int16 1) $ \j -> do
         -- TODO: memmove possible?
         j' <- sub j (int16 1)
         assign (valueAt j) current =<< deref (valueAt j') current
@@ -1015,14 +966,13 @@ mkBtreeContains iterIsEqual btreeFind btreeEnd = do
   tree <- typeOf BTree
   value <- typeOf Value
 
-  function "btree_end" [(ptr tree, "tree"), (ptr value, "val")] i1 $ \[t, val] -> do
+  function "btree_contains" [(ptr tree, "tree"), (ptr value, "val")] i1 $ \[t, val] -> do
     iterPtr <- allocateIter
     endIterPtr <- allocateIter
     call btreeFind $ (,[]) <$> [t, val, iterPtr]
     call btreeEnd $ (,[]) <$> [t, endIterPtr]
     isEqual <- call iterIsEqual $ (,[]) <$> [iterPtr, endIterPtr]
-    isNotEqual <- not isEqual
-    ret isNotEqual
+    ret =<< not isEqual
 
 mkBtreeFind :: Operand -> Operand -> Operand -> Operand -> Operand -> Operand -> ModuleCodegen Operand
 mkBtreeFind btreeEnd isEmptyTree searchLowerBound compareValues iterInit iterInitEnd = do
@@ -1035,13 +985,10 @@ mkBtreeFind btreeEnd isEmptyTree searchLowerBound compareValues iterInit iterIni
 
   function "btree_find" args void $ \[t, val, result] -> mdo
     isEmpty <- call isEmptyTree [(t, [])]
-    condBr isEmpty notFound doFind
+    if' isEmpty $ do
+      call btreeEnd $ (,[]) <$> [t, result]
+      retVoid
 
-    notFound <- block `named` "not_found"
-    call btreeEnd $ (,[]) <$> [t, result]
-    retVoid
-
-    doFind <- block `named` "find"
     currentPtr <- allocate (ptr node) =<< deref rootPtrOf t
     -- Find iterator using iterative approach
     loop $ mdo
@@ -1056,27 +1003,18 @@ mkBtreeFind btreeEnd isEmptyTree searchLowerBound compareValues iterInit iterIni
       foundMatch <- pos `ult` last
       matchesVal <- call compareValues ((, []) <$> [pos, val]) >>= (`eq` bit 0)
       foundValue <- foundMatch `and` matchesVal
-      condBr foundValue handleMatch continueFind
+      if' foundValue $ do
+        call iterInit $ (,[]) <$> [result, current, idx]
+        retVoid
 
-      handleMatch <- block `named` "handle_found_match"
-      call iterInit $ (,[]) <$> [result, current, idx]
-      br end
-
-      continueFind <- block `named` "continue_find"
       isLeaf <- deref (metaOf ->> nodeTypeOf) current >>= (`eq` leafNodeTypeVal)
-      condBr isLeaf notFound searchChildren
+      if' isLeaf $ do
+        call btreeEnd $ (,[]) <$> [t, result]
+        retVoid
 
-      notFound <- block `named` "not_found"
-      call iterInitEnd [(result, [])]
-      br end
-
-      searchChildren <- block `named` "search_in_children"
       -- Continue search in child node
       iCurrent <- current `bitcast` ptr innerNode
       store currentPtr 0 =<< deref (childAt idx) iCurrent
-
-    end <- block `named` "end"
-    retVoid
 
 mkBtreeLowerBound :: Operand -> Operand -> Operand -> Operand -> Operand -> ModuleCodegen ()
 mkBtreeLowerBound isEmptyTree iterInit iterInitEnd searchLowerBound compareValues = do
@@ -1089,13 +1027,11 @@ mkBtreeLowerBound isEmptyTree iterInit iterInitEnd searchLowerBound compareValue
 
   function "btree_lower_bound" args void $ \[t, val, result] -> mdo
     isEmpty <- call isEmptyTree [(t, [])]
-    condBr isEmpty lowerBoundEmpty lowerBoundNonEmpty
+    if' isEmpty $ do
+      -- TODO: replace with btreeEnd (also in locations below?)
+      call iterInitEnd [(result, [])]
+      retVoid
 
-    lowerBoundEmpty <- block `named` "empty"
-    call iterInitEnd [(result, [])]
-    retVoid
-
-    lowerBoundNonEmpty <- block `named` "non_empty"
     res <- allocateIter
     call iterInitEnd [(res, [])]
     currentPtr <- allocate (ptr node) =<< deref rootPtrOf t
@@ -1108,41 +1044,32 @@ mkBtreeLowerBound isEmptyTree iterInit iterInitEnd searchLowerBound compareValue
       pos <- call searchLowerBound $ (,[]) <$> [val, first, last]
       idx <- pointerDiff i16 pos first
       isLeaf <- deref (metaOf ->> nodeTypeOf) current >>= (`eq` leafNodeTypeVal)
-      condBr isLeaf lowerBoundLeaf lowerBoundInner
+      if' isLeaf $ mdo
+        isLast <- pos `eq` last
+        condBr isLast handleLast handleOther
 
-      lowerBoundLeaf <- block `named` "lower_bound_leaf"
-      isLast <- pos `eq` last
-      condBr isLast handleLast handleOther
+        handleLast <- block `named` "handle_last"
+        copy currentPtrOf res result
+        copy valuePosOf res result
+        retVoid
 
-      handleLast <- block `named` "handle_last"
-      copy currentPtrOf res result
-      copy valuePosOf res result
-      br end
+        handleOther <- block `named` "handle_not_last"
+        call iterInit $ (,[]) <$> [result, current, idx]
+        retVoid
 
-      handleOther <- block `named` "handle_not_last"
-      call iterInit $ (,[]) <$> [result, current, idx]
-      br end
-
-      lowerBoundInner <- block `named` "lower_bound_inner"
       isNotLast <- pos `ne` last
       -- Can the following be done with just pointer comparisons?
       matchesVal' <- call compareValues ((,[]) <$> [pos, val]) >>= (`eq` bit 0)
       matchFound <- isNotLast `and` matchesVal'
-      condBr matchFound innerFound innerNotFound
+      if' matchFound $ do
+        call iterInit $ (,[]) <$> [result, current, idx]
+        retVoid
 
-      innerFound <- block `named` "inner_found"
-      call iterInit $ (,[]) <$> [result, current, idx]
-      br end
-
-      innerNotFound <- block `named` "inner_not_found"
       if' isNotLast $ do
         call iterInit $ (,[]) <$> [res, current, idx]
 
       iCurrent <- current `bitcast` ptr innerNode
       store currentPtr 0 =<< deref (childAt idx) iCurrent
-
-    end <- block `named` "end"
-    retVoid
 
   pure ()
 
@@ -1157,13 +1084,11 @@ mkBtreeUpperBound isEmptyTree iterInit iterInitEnd searchUpperBound compareValue
 
   function "btree_upper_bound" args void $ \[t, val, result] -> mdo
     isEmpty <- call isEmptyTree [(t, [])]
-    condBr isEmpty upperBoundEmpty upperBoundNonEmpty
+    if' isEmpty $ do
+      -- TODO: replace with btreeEnd (also in locations below?)
+      call iterInitEnd [(result, [])]
+      retVoid
 
-    upperBoundEmpty <- block `named` "empty"
-    call iterInitEnd [(result, [])]
-    retVoid
-
-    upperBoundNonEmpty <- block `named` "non_empty"
     res <- allocateIter
     call iterInitEnd [(res, [])]
     currentPtr <- allocate (ptr node) =<< deref rootPtrOf t
@@ -1176,22 +1101,19 @@ mkBtreeUpperBound isEmptyTree iterInit iterInitEnd searchUpperBound compareValue
       pos <- call searchUpperBound $ (,[]) <$> [val, first, last]
       idx <- pointerDiff i16 pos first
       isLeaf <- deref (metaOf ->> nodeTypeOf) current >>= (`eq` leafNodeTypeVal)
-      condBr isLeaf upperBoundLeaf upperBoundInner
+      if' isLeaf $ mdo
+        isLast <- pos `eq` last
+        condBr isLast handleLast handleOther
 
-      upperBoundLeaf <- block `named` "upper_bound_leaf"
-      isLast <- pos `eq` last
-      condBr isLast handleLast handleOther
+        handleLast <- block `named` "handle_last"
+        copy currentPtrOf res result
+        copy valuePosOf res result
+        retVoid
 
-      handleLast <- block `named` "handle_last"
-      copy currentPtrOf res result
-      copy valuePosOf res result
-      br end
+        handleOther <- block `named` "handle_not_last"
+        call iterInit $ (,[]) <$> [result, current, idx]
+        retVoid
 
-      handleOther <- block `named` "handle_not_last"
-      call iterInit $ (,[]) <$> [result, current, idx]
-      br end
-
-      upperBoundInner <- block `named` "upper_bound_inner"
       -- Can the following be done with just pointer comparisons?
       isNotLast <- pos `ne` last
       if' isNotLast $ do
@@ -1199,9 +1121,6 @@ mkBtreeUpperBound isEmptyTree iterInit iterInitEnd searchUpperBound compareValue
 
       iCurrent <- current `bitcast` ptr innerNode
       store currentPtr 0 =<< deref (childAt idx) iCurrent
-
-    end <- block `named` "end"
-    retVoid
 
   pure ()
 
@@ -1236,13 +1155,13 @@ mkBtreeAssign isEmptyTree nodeClone = do
 
   function "btree_assign" [(ptr tree, "tree"), (ptr tree, "other")] void $ \[t, other] -> mdo
     isSame <- t `eq` other
-    condBr isSame end emptyCheck
+    if' isSame
+      retVoid
 
-    emptyCheck <- block `named` "empty_check"
     isOtherEmpty <- call isEmptyTree [(other, [])]
-    condBr isOtherEmpty end doAssign
+    if' isOtherEmpty
+      retVoid
 
-    doAssign <- block `named` "assign_tree"
     -- Deep copy
     otherRoot <- deref rootPtrOf other
     assign rootPtrOf t =<< call nodeClone [(otherRoot, [])]
@@ -1256,10 +1175,6 @@ mkBtreeAssign isEmptyTree nodeClone = do
       store currentPtr 0 =<< deref (childAt (int16 0)) iCurrent
 
     assign firstPtrOf t =<< load currentPtr 0
-    br end
-
-    end <- block `named` "end"
-    retVoid
 
   pure ()
 
@@ -1270,23 +1185,23 @@ mkBtreeIsEqual btreeBegin btreeEnd btreeContains btreeSize iterIsEqual iterNext 
 
   btreeIsEqual <- function "btree_is_equal" args i1 $ \[lhs, rhs] -> mdo
     isSame <- lhs `eq` rhs
-    condBr isSame returnTrue notSame
+    if' isSame $
+      ret (bit 1)
 
-    notSame <- block `named` "not_same_trees"
     sizeLhs <- call btreeSize [(lhs, [])]
     sizeRhs <- call btreeSize [(rhs, [])]
     sizesNotEqual <- sizeLhs `ne` sizeRhs
-    condBr sizesNotEqual returnFalse continueCompare
+    if' sizesNotEqual $
+      ret (bit 0)
 
-    continueCompare <- block `named` "compare_trees"
     leftSmaller <- sizeLhs `ult` sizeRhs
-    condBr leftSmaller flipComparison continueCompare'
+    condBr leftSmaller flipComparison continueCompare
 
     flipComparison <- block `named` "flip_comparison"
     result <- call btreeIsEqual $ (,[]) <$> [rhs, lhs]
     ret result
 
-    continueCompare' <- block `named` "compare_trees"
+    continueCompare <- block `named` "compare_trees"
     beginPtr <- allocateIter
     endPtr <- allocateIter
     call btreeBegin $ (,[]) <$> [rhs, beginPtr]
@@ -1297,20 +1212,13 @@ mkBtreeIsEqual btreeBegin btreeEnd btreeContains btreeSize iterIsEqual iterNext 
           not isEqual
     whileLoop loopCondition $ mdo
       val <- call iterCurrent [(beginPtr, [])]
-      leftContains <- call btreeContains $ (,[]) <$> [lhs, val]
-      leftNotContains <- not leftContains
-      condBr leftNotContains returnFalse advanceIter
+      leftNotContains <- not <=< call btreeContains $ (,[]) <$> [lhs, val]
+      if' leftNotContains $
+        ret (bit 0)
 
-      advanceIter <- block `named` "advance_iterator"
       call iterNext [(beginPtr, [])]
 
-    br returnTrue
-
-    returnTrue <- block `named` "trees_are_equal"
     ret (bit 1)
-
-    returnFalse <- block `named` "trees_not_equal"
-    ret (bit 0)
 
   pure ()
 
@@ -1318,17 +1226,13 @@ mkBtreeDepth :: Operand -> Operand -> ModuleCodegen ()
 mkBtreeDepth isEmptyTree nodeDepth = do
   tree <- typeOf BTree
 
-  function "btree_is_empty" [(ptr tree, "tree")] i64 $ \[t] -> mdo
+  function "btree_depth" [(ptr tree, "tree")] i64 $ \[t] -> mdo
     isEmpty <- call isEmptyTree [(t, [])]
-    condBr isEmpty emptyBlk notEmptyBlk
+    if' isEmpty $
+      ret (int64 0)
 
-    emptyBlk <- block `named` "empty"
-    ret (int64 0)
-
-    notEmptyBlk <- block `named` "not_empty"
     root <- deref currentPtrOf t
-    result <- call nodeDepth [(root, [])]
-    ret result
+    ret =<< call nodeDepth [(root, [])]
 
   pure ()
 
@@ -1336,17 +1240,13 @@ mkBtreeCountNodes :: Operand -> Operand -> ModuleCodegen ()
 mkBtreeCountNodes isEmptyTree nodeCountEntries = do
   tree <- typeOf BTree
 
-  function "btree_is_empty" [(ptr tree, "tree")] i64 $ \[t] -> mdo
+  function "btree_count_nodes" [(ptr tree, "tree")] i64 $ \[t] -> mdo
     isEmpty <- call isEmptyTree [(t, [])]
-    condBr isEmpty emptyBlk notEmptyBlk
+    if' isEmpty $
+      ret (int64 0)
 
-    emptyBlk <- block `named` "empty"
-    ret (int64 0)
-
-    notEmptyBlk <- block `named` "not_empty"
     root <- deref currentPtrOf t
-    result <- call nodeCountEntries [(root, [])]
-    ret result
+    ret =<< call nodeCountEntries [(root, [])]
 
   pure ()
 
@@ -1573,6 +1473,5 @@ allocateIter = do
   alloca iter (Just (int32 1)) 0
 
 -- TODO: check if state is not updated inside helper function, always ask for latest data of struct
--- TODO: early returns in for and if are broken?
--- TODO: check all branches at end of loops, rewrite if needed.. make it impossible to make a mistake?
 -- TODO: check how "isSet" is configured for normal btree..
+-- TODO: fix all remaining TODOs
