@@ -33,9 +33,6 @@ class ToHash a where
 instance ToHash T.Text where
   getHash = Hash
 
-instance ToHash String where
-  getHash = Hash . T.pack
-
 instance ToHash Int where
   getHash = Hash . T.pack . show
 
@@ -68,6 +65,9 @@ class GToHash f where
 
 instance ToHash a => GToHash (K1 i a) where
   gGetHash (K1 x) = getHash x
+
+instance GToHash U1 where
+  gGetHash U1 = Hash "0"
 
 instance GToHash a => GToHash (M1 i c a) where
   gGetHash (M1 x) = gGetHash x

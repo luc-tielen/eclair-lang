@@ -4,7 +4,7 @@ cabal-version: 2.2
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 236947f34a67b5a92b1d6f4edc6167a19b088b073bc1d4093a064c0dc1165adf
+-- hash: d6853e23307047d4004d81256c7fb66674c6a200a365d07c25bffa2702893226
 
 name:           eclair-lang
 version:        0.1.0.0
@@ -102,6 +102,7 @@ test-suite eclair-test
   other-modules:
       Test.Eclair.RA.CodegenSpec
       Test.Eclair.RA.InterpreterSpec
+      Test.Eclair.Runtime.HashSpec
       Paths_eclair_lang
   hs-source-dirs:
       tests

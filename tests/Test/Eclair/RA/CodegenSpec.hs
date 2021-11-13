@@ -1,6 +1,5 @@
 
-{-# LANGUAGE DeriveGeneric, TypeFamilies, DataKinds, RankNTypes #-}
-{-# LANGUAGE QuasiQuotes, FlexibleInstances, FlexibleContexts #-}
+{-# LANGUAGE TypeFamilies, RankNTypes, QuasiQuotes #-}
 module Test.Eclair.RA.CodegenSpec
   ( module Test.Eclair.RA.CodegenSpec
   ) where
