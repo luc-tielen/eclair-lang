@@ -7,6 +7,7 @@ module Eclair.Runtime.LLVM
 import Protolude hiding ( Type, (.), bit )
 import Control.Category
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Text as T
 import LLVM.IRBuilder.Module
 import LLVM.IRBuilder.Monad
 import LLVM.IRBuilder.Constant
@@ -15,6 +16,8 @@ import qualified LLVM.AST.IntegerPredicate as IP
 import qualified LLVM.AST.Constant as Constant
 import LLVM.AST.Operand ( Operand(..) )
 import LLVM.AST.Type
+import LLVM.AST.Name
+import Eclair.Runtime.Hash
 
 
 type ModuleCodegen r = ReaderT r ModuleBuilder
@@ -89,6 +92,17 @@ forLoop beginValue condition post asm = mdo
   br begin
   end <- block `named` "for_end"
   pure ()
+
+def :: ToHash r
+    => Text
+    -> [(Type, ParameterName)]
+    -> Type
+    -> ([Operand] -> IRCodegen r ())
+    -> ModuleCodegen r Operand
+def funcName args retTy body = do
+  h <- asks getHash
+  let funcNameWithHash = mkName $ T.unpack $ funcName <> "_" <> unHash h
+  function funcNameWithHash args retTy body
 
 newtype Path (a :: k) (b :: k)
   = Path (NonEmpty Operand)
