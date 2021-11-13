@@ -21,6 +21,14 @@ data Config = Config Int Int Int MyOption
   deriving stock Generic
   deriving ToHash via HashWithPrefix "config" Config
 
+data OnlyInt
+  = OnlyInt
+  { getInt :: Int
+  , getText :: Text
+  , getMyOption :: MyOption
+  }
+  deriving ToHash via HashOnly "getInt" OnlyInt
+
 spec :: Spec
 spec = describe "Hashing data" $ parallel $ do
   it "can hash ints" $ do
@@ -51,6 +59,10 @@ spec = describe "Hashing data" $ parallel $ do
   it "can hash generic product types" $ do
     let cfg = Config 1 2 3 Option1
     unHash (getHash cfg) `shouldBe` "config__1__2__3__1"
+
+  it "can hash only a specific field of a record" $ do
+    let onlyInt = OnlyInt 123 "abc" Option1
+    unHash (getHash onlyInt) `shouldBe` "123"
 
   it "can combine hashes" $ do
     let x, y :: Int

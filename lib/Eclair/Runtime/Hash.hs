@@ -1,10 +1,11 @@
-{-# LANGUAGE UndecidableInstances, TypeOperators, DefaultSignatures #-}
+{-# LANGUAGE TypeApplications, UndecidableInstances, TypeOperators, DefaultSignatures #-}
 
 module Eclair.Runtime.Hash
   ( Hash
   , unHash
   , HashEnum(..)
   , HashWithPrefix(..)
+  , HashOnly(..)
   , ToHash(..)
   ) where
 
@@ -23,6 +24,7 @@ newtype HashEnum a = HashEnum a
 newtype HashWithPrefix (prefix :: Symbol) a
   = HashWithPrefix a
 
+newtype HashOnly (ty :: Symbol) a = HashOnly a
 
 class ToHash a where
   getHash :: a -> Hash
@@ -58,6 +60,9 @@ instance forall prefix a. (KnownSymbol prefix, Generic a, GToHash (Rep a))
         h = gGetHash (from a)
      in pre <> h
 
+instance (HasField ty a b, ToHash b) => ToHash (HashOnly ty a) where
+  getHash (HashOnly a) =
+    getHash $ getField @ty a
 
 class GToHash f where
   gGetHash :: f a -> Hash
