@@ -9,7 +9,6 @@ module Eclair.Runtime.Hash
   ) where
 
 import Protolude
-import Prelude (String)
 import qualified Data.Text as T
 
 
