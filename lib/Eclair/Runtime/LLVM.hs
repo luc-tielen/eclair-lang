@@ -104,6 +104,12 @@ def funcName args retTy body = do
   let funcNameWithHash = mkName $ T.unpack $ funcName <> "_" <> unHash h
   function funcNameWithHash args retTy body
 
+mkType :: ToHash r => Text -> Type -> ModuleCodegen r Type
+mkType typeName ty = do
+  h <- asks getHash
+  let typeNameWithHash = mkName $ T.unpack $ typeName <> "_" <> unHash h
+  typedef typeNameWithHash (Just ty)
+
 newtype Path (a :: k) (b :: k)
   = Path (NonEmpty Operand)
 type role Path nominal nominal

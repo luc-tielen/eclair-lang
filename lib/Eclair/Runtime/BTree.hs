@@ -27,7 +27,7 @@ import Eclair.Runtime.Hash
 
 codegen :: Meta -> ModuleBuilder ()
 codegen meta = do
-  tys <- generateTypes meta
+  tys <- runReaderT generateTypes meta
   exts <- mkExternals
   runReaderT generateFunctions $ CGState meta tys exts
 
@@ -38,8 +38,9 @@ mkExternals = do
   memset <- extern "llvm.memset.p0i8.i64" [ptr i8, i8, i64, i1] void
   pure $ Externals malloc free memset
 
-generateTypes :: Meta -> ModuleBuilder Types
-generateTypes meta = mdo
+generateTypes :: LLVM.ModuleCodegen Meta Types
+generateTypes = mdo
+  meta <- ask
   columnTy <- mkType "column_t" i32
   valueTy <- mkType "value_t" $ ArrayType (fromIntegral $ numColumns meta) columnTy
   positionTy <- mkType "position_t" i16
@@ -79,9 +80,7 @@ generateTypes meta = mdo
     , valueTy = valueTy
     , columnTy = columnTy
     }
-  where
-    mkType name ty = typedef name (Just ty)
-    struct = StructureType False
+  where struct = StructureType False
 
 generateFunctions :: ModuleCodegen ()
 generateFunctions = mdo
