@@ -106,7 +106,7 @@ generateFunctions = mdo
   searchLowerBound <- mkLinearSearchLowerBound compareValues
   searchUpperBound <- mkLinearSearchUpperBound compareValues
   mkBtreeInitEmpty
-  mkBtreeInit btreeInsert
+  mkBtreeInit btreeInsertRange
   mkBtreeCopy nodeClone isEmptyTree
   mkBtreeDestroy btreeClear
   isEmptyTree <- mkBtreeIsEmpty
@@ -133,10 +133,10 @@ mkCompare = do
   let column = columnTy tys
       value = valueTy tys
   compare <- def "compare" [(column, "lhs"), (column, "rhs")] i8 $ \[lhs, rhs] -> mdo
-    result1 <- icmp IP.ULT lhs rhs
+    result1 <- lhs `ult` rhs
     if' result1 $
       ret $ int8 (-1)
-    result2 <- icmp IP.UGT lhs rhs
+    result2 <- lhs `ugt` rhs
     ret =<< select result2 (int8 1) (int8 0)
 
   def "compare_values" [(ptr value, "lhs"), (ptr value, "rhs")] i8 $ \[lhs, rhs] -> mdo
@@ -308,10 +308,10 @@ mkNodeCountEntries = mdo
     numElements <- deref (metaOf ->> numElemsOf) n
     ty <- deref (metaOf ->> nodeTypeOf) n
     isLeaf <- ty `eq` leafNodeTypeVal
-    if' isLeaf $
-      ret numElements
-
     numElements' <- zext numElements i64
+    if' isLeaf $
+      ret numElements'
+
     count <- loopChildren n i64 numElements' $ \entryCount child -> mdo
       childNodeCount <- call countEntries [(child, [])]
       add entryCount childNodeCount
@@ -379,7 +379,6 @@ mkSplit nodeNew nodeSplitPoint growParent = mdo
       store jPtr 0 (int16 0)
       forLoop splitPoint' (`ult` numberOfKeys) (add (int16 1)) $ \i -> mdo
         j <- load jPtr 0
-        -- TODO: check if this is correctly implemented
         iChild <- deref (childAt i) iN
         assign (metaOf ->> parentOf) iChild sibling
         assign (metaOf ->> numElemsOf) iChild j
@@ -477,7 +476,8 @@ mkInsertInner rebalanceOrSplit = mdo
       k <- add i (int16 2)
       assign (valueAt j) n =<< deref (valueAt i) n
       assign (childAt k) iN =<< deref (childAt j) iN
-      increment int16 (childAt k ->> metaOf ->> posInParentOf) iN
+      childK <- deref (childAt k) iN
+      increment int16 (metaOf ->> posInParentOf) childK
 
     -- TODO: assert(i_n->children[pos] == predecessor);
 
@@ -554,15 +554,17 @@ mkRebalanceOrSplit splitFn = mdo
           leftPos <- add leftNumElems (int16 1) >>= add i
           -- TODO: check next part against C++ code
           assign (childAt leftPos) iLeft =<< deref (childAt i) iN
-          assign (childAt leftPos ->> metaOf ->> parentOf) iLeft left
-          assign (childAt leftPos ->> metaOf ->> posInParentOf) iLeft leftPos
+          leftChild <- deref (childAt leftPos) iLeft
+          assign (metaOf ->> parentOf) leftChild left
+          assign (metaOf ->> posInParentOf) leftChild leftPos
 
         -- Shift child pointer to the left + update position
         endIdx <- sub numElemsN leftSlotsOpen >>= add (int16 1)
         forLoop (int16 0) (`ult` endIdx) (add (int16 1)) $ \i -> do
           j <- add i leftSlotsOpen
           assign (childAt i) iN =<< deref (childAt j) iN
-          assign (childAt i ->> metaOf ->> posInParentOf) iN i
+          child <- deref (childAt i) iN
+          assign (metaOf ->> posInParentOf) child i
 
       -- Update node sizes
       update (metaOf ->> numElemsOf) left (`add` leftSlotsOpen)
@@ -624,14 +626,16 @@ mkIteratorCurrent = do
 
   def "iterator_current" [(ptr iter, "iter")] (ptr value) $ \[iter] -> mdo
     valuePos <- deref valuePosOf iter
-    ret =<< addr (currentOf ->> valueAt valuePos) iter
+    currentNode <- deref currentPtrOf iter
+    ret =<< addr (valueAt valuePos) currentNode
 
 mkIteratorNext :: ModuleCodegen Operand
 mkIteratorNext = do
   iter <- typeOf Iterator
 
   def "iterator_next" [(ptr iter, "iter")] void $ \[iter] -> mdo
-    isLeaf <- deref (currentOf ->> metaOf ->> nodeTypeOf) iter >>= (`eq` leafNodeTypeVal)
+    current <- deref currentPtrOf iter
+    isLeaf <- deref (metaOf ->> nodeTypeOf) current >>= (`eq` leafNodeTypeVal)
     if' isLeaf $ do
       leafIterNext iter
       retVoid
@@ -643,7 +647,8 @@ mkIteratorNext = do
       -- Case 1: Still elements left to iterate -> increment position
       increment int16 valuePosOf iter
       valuePos <- deref valuePosOf iter
-      numElems <- deref (currentOf ->> metaOf ->> numElemsOf) iter
+      current <- deref currentPtrOf iter
+      numElems <- deref (metaOf ->> numElemsOf) current
       hasNextInLeaf <- valuePos `ult` numElems
       if' hasNextInLeaf
         retVoid
@@ -652,12 +657,14 @@ mkIteratorNext = do
       let loopCondition = do
             isNotNull <- deref currentPtrOf iter >>= (`ne` nullPtr node)
             pos' <- deref valuePosOf iter
-            numElems' <- deref (currentOf ->> metaOf ->> numElemsOf) iter
+            current' <- deref currentPtrOf iter
+            numElems' <- deref (metaOf ->> numElemsOf) current'
             atEnd <- pos' `eq` numElems'
             isNotNull `and` atEnd
       whileLoop loopCondition $ do
-        assign valuePosOf iter =<< deref (currentOf ->> metaOf ->> posInParentOf) iter
-        assign currentPtrOf iter =<< deref (currentOf ->> metaOf ->> parentOf) iter
+        current' <- deref currentPtrOf iter
+        assign valuePosOf iter =<< deref (metaOf ->> posInParentOf) current'
+        assign currentPtrOf iter =<< deref (metaOf ->> parentOf) current'
     innerIterNext iter = mdo
       node <- typeOf Node
       innerNode <- typeOf InnerNode
@@ -734,13 +741,13 @@ mkBtreeInitEmpty = do
   pure ()
 
 mkBtreeInit :: Operand -> ModuleCodegen ()
-mkBtreeInit btreeInsert = do
+mkBtreeInit btreeInsertRange = do
   tree <- typeOf BTree
   iter <- typeOf Iterator
   let args = [(ptr tree, "tree"), (ptr iter, "start"), (ptr iter, "end")]
 
   def "btree_init" args void $ \[t, start, end] -> mdo
-    call btreeInsert $ (,[]) <$> [t, start, end]
+    call btreeInsertRange $ (,[]) <$> [t, start, end]
     pure ()
 
   pure ()
@@ -863,7 +870,7 @@ mkBtreeInsertValue nodeNew rebalanceOrSplit compareValues searchLowerBound searc
       idx <- pointerDiff i16 pos first
       notLast <- pos `ne` last
       valueAtPos <- gep pos [int32 0]
-      isEqual <- (bit 0 `eq`) =<< call compareValues ((,[]) <$> [valueAtPos, val])  -- Can we do a weak compare just by using pointers here?
+      isEqual <- (int8 0 `eq`) =<< call compareValues ((,[]) <$> [valueAtPos, val])  -- Can we do a weak compare just by using pointers here?
       alreadyInserted <- notLast `and` isEqual
       condBr alreadyInserted noInsert continueInsert
 
@@ -884,7 +891,7 @@ mkBtreeInsertValue nodeNew rebalanceOrSplit compareValues searchLowerBound searc
       idxPtr <- allocate i16 =<< pointerDiff i16 pos first
       notFirst <- pos `ne` first
       valueAtPrevPos <- gep pos [int32 (-1)]
-      isEqual <- (bit 0 `eq`) =<< call compareValues ((,[]) <$> [valueAtPrevPos, val])  -- Can we do a weak compare just by using pointers here?
+      isEqual <- (int8 0 `eq`) =<< call compareValues ((,[]) <$> [valueAtPrevPos, val])  -- Can we do a weak compare just by using pointers here?
       alreadyInserted <- notFirst `and` isEqual
       condBr alreadyInserted noInsert continueInsert
 
@@ -920,12 +927,11 @@ mkBtreeInsertValue nodeNew rebalanceOrSplit compareValues searchLowerBound searc
         j' <- sub j (int16 1)
         assign (valueAt j) current =<< deref (valueAt j') current
 
-      value <- gep val [int32 0]
-      assign (valueAt idx) current value
+      assign (valueAt idx''') current =<< load val 0
       update (metaOf ->> numElemsOf) current (add (int16 1))
       br inserted
 
-mkBtreeInsertRange :: Operand -> Operand -> Operand -> Operand -> ModuleCodegen ()
+mkBtreeInsertRange :: Operand -> Operand -> Operand -> Operand -> ModuleCodegen Operand
 mkBtreeInsertRange iterIsEqual iterCurrent iterNext btreeInsertValue = do
   tree <- typeOf BTree
   iter <- typeOf Iterator
@@ -939,8 +945,6 @@ mkBtreeInsertRange iterIsEqual iterCurrent iterNext btreeInsertValue = do
       val <- call iterCurrent [(begin, [])]
       call btreeInsertValue $ (,[]) <$> [t, val]
       call iterNext [(begin, [])]
-
-  pure ()
 
 mkBtreeBegin :: ModuleCodegen Operand
 mkBtreeBegin = do
@@ -1001,7 +1005,7 @@ mkBtreeFind btreeEnd isEmptyTree searchLowerBound compareValues iterInit iterIni
 
       -- Can the following equality check be done using just pointers?
       foundMatch <- pos `ult` last
-      matchesVal <- call compareValues ((, []) <$> [pos, val]) >>= (`eq` bit 0)
+      matchesVal <- (int8 0 `eq`) =<< call compareValues ((, []) <$> [pos, val])
       foundValue <- foundMatch `and` matchesVal
       if' foundValue $ do
         call iterInit $ (,[]) <$> [result, current, idx]
@@ -1059,7 +1063,7 @@ mkBtreeLowerBound isEmptyTree iterInit iterInitEnd searchLowerBound compareValue
 
       isNotLast <- pos `ne` last
       -- Can the following be done with just pointer comparisons?
-      matchesVal' <- call compareValues ((,[]) <$> [pos, val]) >>= (`eq` bit 0)
+      matchesVal' <- (int8 0 `eq`) =<< call compareValues ((,[]) <$> [pos, val])
       matchFound <- isNotLast `and` matchesVal'
       if' matchFound $ do
         call iterInit $ (,[]) <$> [result, current, idx]
@@ -1232,7 +1236,8 @@ mkBtreeDepth isEmptyTree nodeDepth = do
       ret (int64 0)
 
     root <- deref currentPtrOf t
-    ret =<< call nodeDepth [(root, [])]
+    depth <- call nodeDepth [(root, [])]
+    ret =<< zext depth i64
 
   pure ()
 
@@ -1397,7 +1402,7 @@ baseOf = mkPath [int32 0]
 childrenOf :: Path 'InnerNodeIdx ('ArrayOf NodeIdx)
 childrenOf = mkPath [int32 1]
 
-childAt :: Operand -> Path 'InnerNodeIdx 'NodeIdx
+childAt :: Operand -> Path 'InnerNodeIdx ('PtrOf 'NodeIdx)
 childAt idx = mkPath [int32 1, idx]
 
 currentPtrOf :: Path 'IteratorIdx ('PtrOf 'NodeIdx)
