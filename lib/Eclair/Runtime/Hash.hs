@@ -37,6 +37,9 @@ instance ToHash T.Text where
 instance ToHash Int where
   getHash = Hash . T.pack . show
 
+instance ToHash Word64 where
+  getHash = Hash . T.pack . show
+
 instance ToHash a => ToHash [a] where
   getHash = getFoldableHash
 

@@ -6,6 +6,7 @@ module Eclair.Runtime.LLVM
 
 import Protolude hiding ( Type, (.), bit )
 import Control.Category
+import Control.Monad.Morph
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import LLVM.IRBuilder.Module
@@ -18,6 +19,16 @@ import LLVM.AST.Operand ( Operand(..) )
 import LLVM.AST.Type
 import LLVM.AST.Name
 import Eclair.Runtime.Hash
+import LLVM.Internal.EncodeAST
+import LLVM.Internal.Coding hiding (alloca)
+import LLVM.Internal.Type
+import qualified LLVM.Context as Context
+import qualified LLVM.Internal.DataLayout as DL
+import qualified LLVM.Internal.FFI.DataLayout as DL
+import qualified LLVM.CodeGenOpt as CG
+import qualified LLVM.CodeModel as CM
+import qualified LLVM.Relocation as Rel
+import LLVM.Target
 
 
 type ModuleCodegen r = ReaderT r ModuleBuilder
@@ -110,6 +121,21 @@ mkType typeName ty = do
   let typeNameWithHash = mkName $ T.unpack $ typeName <> "_" <> unHash h
   typedef typeNameWithHash (Just ty)
 
+sizeOfType :: (Name, Type) -> ModuleBuilderT IO Word64
+sizeOfType (n, ty) = do
+  liftIO $ withHostTargetMachine Rel.PIC CM.Default CG.None $ \tm -> do
+    dl <- getTargetMachineDataLayout tm
+    Context.withContext $ flip runEncodeAST $ do
+      createType n ty
+      ty' <- encodeM ty
+      liftIO $ DL.withFFIDataLayout dl $ flip DL.getTypeAllocSize ty'
+  where
+    createType :: Name -> Type -> EncodeAST ()
+    createType n ty = do
+      (t', n') <- createNamedType n
+      defineType n n' t'
+      setNamedType t' ty
+
 newtype Path (a :: k) (b :: k)
   = Path (NonEmpty Operand)
 type role Path nominal nominal
@@ -185,4 +211,8 @@ pointerDiff ty a b = do
 -- NOTE: assumes input is of type i1
 not :: Operand -> IRCodegen r Operand
 not bool = select bool (bit 0) (bit 1)
+
+-- NOTE: Orphan instance, but should give no conflicts.
+instance MFunctor ModuleBuilderT where
+  hoist nat = ModuleBuilderT . hoist nat . unModuleBuilderT
 

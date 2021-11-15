@@ -2,7 +2,6 @@
 
 module Eclair.Runtime.BTree
   ( Meta(..)
-  , Architecture(..)
   , SearchIndex
   , SearchType(..)
   , codegen
@@ -10,11 +9,13 @@ module Eclair.Runtime.BTree
 
 import Protolude hiding ( Type, Meta, swap, void, bit, typeOf, minimum, and, not )
 import Control.Arrow ((&&&))
+import Control.Monad.Morph
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import Data.Functor.Foldable
+import Data.Functor.Foldable hiding (hoist)
 import qualified LLVM.AST.IntegerPredicate as IP
 import LLVM.AST.Type
+import LLVM.AST.Name
 import LLVM.AST.Operand ( Operand(..) )
 import LLVM.IRBuilder.Module
 import LLVM.IRBuilder.Monad
@@ -25,11 +26,14 @@ import qualified Eclair.Runtime.LLVM as LLVM
 import Eclair.Runtime.Hash
 
 
-codegen :: Meta -> ModuleBuilder ()
+codegen :: Meta -> ModuleBuilderT IO ()
 codegen meta = do
-  tys <- runReaderT generateTypes meta
-  exts <- mkExternals
-  runReaderT generateFunctions $ CGState meta tys exts
+  sizes <- computeSizes meta
+  hoist intoIO $ do
+    tys <- runReaderT (generateTypes sizes) meta
+    exts <- mkExternals
+    runReaderT generateFunctions $ CGState meta tys sizes exts
+  where intoIO = pure . runIdentity
 
 mkExternals :: ModuleBuilder Externals
 mkExternals = do
@@ -38,28 +42,65 @@ mkExternals = do
   memset <- extern "llvm.memset.p0i8.i64" [ptr i8, i8, i64, i1] void
   pure $ Externals malloc free memset
 
-generateTypes :: LLVM.ModuleCodegen Meta Types
-generateTypes = mdo
+data Sizes
+  = Sizes
+  { pointerSize :: Word64
+  , valueSize :: Word64
+  , nodeDataSize :: Word64
+  , leafNodeSize :: Word64
+  , innerNodeSize :: Word64
+  }
+
+computeSizes :: Meta -> ModuleBuilderT IO Sizes
+computeSizes meta = do
+  let nodeDataTy = wrap
+        [ -- Next type doesn't matter here, but we need to break the
+          -- cyclic loop or Haskell will throw an exception.
+          ptrTy   -- parent
+        , i16     -- position_in_parent
+        , i16     -- num_elements
+        , i1      -- node type
+        ]
+      ptrTy = wrap [ptr i8]
+      valueTy = wrap [ArrayType (fromIntegral $ numColumns meta) i32]
+  ptrSize <- sizeOfType ("pointer_t", ptrTy)
+  valueSize <- sizeOfType ("value_t", valueTy)
+  nodeDataSize <- sizeOfType ("node_data_t", nodeDataTy)
+  let numKeys' = numKeysHelper meta nodeDataSize valueSize
+      nodeTy = wrap [nodeDataTy, ArrayType numKeys' valueTy]
+      innerNodeTy = wrap [nodeTy, ArrayType (numKeys' + 1) (ptr nodeTy)]
+  leafNodeSize <- sizeOfType ("leaf_node_t", nodeTy)
+  innerNodeSize <- sizeOfType ("inner_node_t", innerNodeTy)
+  pure $ Sizes ptrSize valueSize nodeDataSize leafNodeSize innerNodeSize
+  where
+    wrap = StructureType False
+
+
+generateTypes :: Sizes -> LLVM.ModuleCodegen Meta Types
+generateTypes sizes = mdo
   meta <- ask
+  let numKeys' = numKeys meta sizes
+
   columnTy <- mkType "column_t" i32
   valueTy <- mkType "value_t" $ ArrayType (fromIntegral $ numColumns meta) columnTy
   positionTy <- mkType "position_t" i16
   nodeSizeTy <- mkType "node_size_t" i16  -- Note: used to be size_t/i64
   nodeTypeTy <- mkType "node_type_t" i1
-  nodeDataTy <- mkType "node_data_t" $
+  let nodeDataName = "node_data_t"
+  nodeDataTy <- mkType nodeDataName $
     struct [ ptr nodeTy  -- parent
            , positionTy  -- position_in_parent
            , nodeSizeTy  -- num_elements
            , nodeTypeTy  -- node type
            ]
   nodeTy <- mkType "node_t" $
-    struct [ nodeDataTy                 -- meta
-           , ArrayType (numKeys meta) valueTy  -- values
+    struct [ nodeDataTy                  -- meta
+           , ArrayType numKeys' valueTy  -- values
            ]
   leafNodeTy <- mkType "leaf_node_t" nodeTy
   innerNodeTy <- mkType "inner_node_t" $
-    struct [ nodeTy                                -- base
-           , ArrayType (numKeys meta + 1) (ptr nodeTy)  -- children
+    struct [ nodeTy                                 -- base
+           , ArrayType (numKeys' + 1) (ptr nodeTy)  -- children
            ]
   btreeIteratorTy <- mkType "btree_iterator_t" $
     struct [ ptr nodeTy  -- current
@@ -176,14 +217,17 @@ mkNodeNew = mdo
   node <- typeOf Node
   innerNode <- typeOf InnerNode
 
-  leafNodeSize <- int32 . toInteger <$> sizeOf Node
-  innerNodeSize <- int32 . toInteger <$> sizeOf InnerNode
-  valueSize <- sizeOf Value
+  sizes <- asks typeSizes
+  let numKeys' = numKeys md sizes
+      ptrSize = pointerSize sizes
+      valuesByteCount = numKeys' * valueSize sizes
+      leafSize = int32 . toInteger $ leafNodeSize sizes
+      innerSize = int32 . toInteger $ innerNodeSize sizes
 
   malloc <- asks (extMalloc . externals)
 
   def "node_new" [(nodeType, "type")] (ptr node) $ \[ty] -> mdo
-    structSize <- select ty leafNodeSize innerNodeSize
+    structSize <- select ty leafSize innerSize
     memory <- call malloc [(structSize, [])]
     n <- memory `bitcast` ptr node
 
@@ -192,14 +236,13 @@ mkNodeNew = mdo
     assign (metaOf ->> numElemsOf) n (int16 0)
     assign (metaOf ->> nodeTypeOf) n ty
 
-    let valuesByteCount = numKeys md * valueSize
     valuesPtr <- addr valuesOf n
     memset valuesPtr 0 valuesByteCount
 
     isInner <- ty `eq` innerNodeTypeVal
     if' isInner $ mdo
       inner <- n `bitcast` ptr innerNode
-      let childrenByteCount = (numKeys md + 1) * ptrSize md
+      let childrenByteCount = (numKeys' + 1) * ptrSize
       childrenPtr <- addr childrenOf inner
       memset childrenPtr 0 childrenByteCount
 
@@ -1303,6 +1346,7 @@ data CGState
   = CGState
   { meta :: Meta
   , types :: Types
+  , typeSizes :: Sizes
   , externals :: Externals
   }
   deriving ToHash via HashOnly "meta" CGState
@@ -1315,20 +1359,13 @@ type ModuleCodegen = LLVM.ModuleCodegen CGState
 
 data Meta
   = Meta
-  { arch :: Architecture     -- 32- or 64-bit architecture
-  , numColumns :: Int        -- Amount of columns each node has
-  , blockSize :: Int         -- Number of bytes per btree node
+  { numColumns :: Int        -- Amount of columns each node has
   , index :: SearchIndex     -- Which columns are used to index values
+  , blockSize :: Word64      -- Number of bytes per btree node
   , searchType :: SearchType -- Search strategy used in a single node
   }
   deriving stock Generic
   deriving ToHash via HashWithPrefix "btree" Meta
-
-data Architecture
-  = X86
-  | X64
-  deriving stock (Generic, Eq, Enum)
-  deriving ToHash via HashEnum Architecture
 
 type Column = Int
 
@@ -1339,12 +1376,19 @@ data SearchType = Linear | Binary
   deriving ToHash via HashEnum SearchType
 
 
-numKeys :: Meta -> Word64
-numKeys meta = fromIntegral $ max 3 desiredNumberOfKeys
+numKeys :: Meta -> Sizes -> Word64
+numKeys meta sizes =
+  numKeysHelper meta nodeMetaSize valueByteSize
+  where
+    nodeMetaSize = nodeDataSize sizes
+    valueByteSize = valueSize sizes
+
+-- NOTE: Where possible, use the more userfriendly numKeys function
+numKeysHelper :: Meta -> Word64 -> Word64 -> Word64
+numKeysHelper meta nodeMetaSize valueByteSize =
+  max 3 desiredNumberOfKeys
   where
     blockByteSize = blockSize meta
-    nodeMetaSize = if arch meta == X86 then 12 else 16
-    valueByteSize = numColumns meta * 4
     valuesByteSize =
       if blockByteSize > nodeMetaSize
       then blockByteSize - nodeMetaSize
@@ -1353,13 +1397,8 @@ numKeys meta = fromIntegral $ max 3 desiredNumberOfKeys
 
 numKeysAsOperand :: ModuleCodegen Operand
 numKeysAsOperand = do
-  metadata <- asks meta
-  pure $ int16 $ toInteger $ numKeys metadata
-
-ptrSize :: Meta -> Word64
-ptrSize md = case arch md of
-  X86 -> 4
-  X64 -> 8
+  (metadata, sizes) <- asks (meta &&& typeSizes)
+  pure $ int16 $ toInteger $ numKeys metadata sizes
 
 
 data Index
@@ -1428,30 +1467,6 @@ data DataType
   | NodeSize
   | Iterator
   | BTree
-
--- TODO: remove this hack and replace with proper usage of LLVM Datalayout class
-sizeOf :: MonadReader CGState m => DataType -> m Word64
-sizeOf dt = do
-  md <- asks meta
-  pure $ fromIntegral $ f (numColumns md) (arch md)
-  where
-    f columnCount = \case
-      X86 -> case dt of
-        NodeType -> 1
-        Node -> 252
-        InnerNode -> 336
-        Value -> columnCount * 4
-        NodeSize -> 2
-        Iterator -> panic "sizeOf: not implemented for iterator"
-        BTree -> panic "sizeOf: not implemented for btree"
-      X64 -> case dt of
-        NodeType -> 1
-        Node -> 256
-        InnerNode -> 424
-        Value -> columnCount * 4
-        NodeSize -> 2
-        Iterator -> panic "sizeOf: not implemented for iterator"
-        BTree -> panic "sizeOf: not implemented for btree"
 
 typeOf :: MonadReader CGState m => DataType -> m Type
 typeOf dt =
