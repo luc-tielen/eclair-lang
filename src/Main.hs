@@ -7,16 +7,13 @@ import LLVM.Pretty
 import LLVM.IRBuilder.Module
 import Eclair.Runtime.BTree
 
-
 main :: IO ()
 main = do
-  let meta = Meta { arch = X64
-                  , numColumns = 4
-                  , blockSize = 256
+  let meta = Meta { numColumns = 4
                   , index = Set.fromList [1, 3]
+                  , blockSize = 256
                   , searchType = Linear
                   }
-  let moduleIR = buildModule "btree" (codegen meta)
-      output = ppllvm moduleIR
+  moduleIR <- buildModuleT "btree" (codegen meta)
+  let output = ppllvm moduleIR
   T.putStrLn output
-

@@ -26,6 +26,67 @@ import qualified Eclair.Runtime.LLVM as LLVM
 import Eclair.Runtime.Hash
 
 
+data Meta
+  = Meta
+  { numColumns :: Int        -- Amount of columns each node has
+  , index :: SearchIndex     -- Which columns are used to index values
+  , blockSize :: Word64      -- Number of bytes per btree node
+  , searchType :: SearchType -- Search strategy used in a single node
+  }
+  deriving stock Generic
+  deriving ToHash via HashWithPrefix "btree" Meta
+
+type Column = Int
+
+type SearchIndex = Set Column
+
+data SearchType = Linear | Binary
+  deriving stock (Generic, Enum)
+  deriving ToHash via HashEnum SearchType
+
+data Types
+  = Types
+  { btreeTy :: Type
+  , iteratorTy :: Type
+  , nodeSizeTy :: Type
+  , nodeTypeTy :: Type
+  , nodeTy :: Type
+  , leafNodeTy :: Type
+  , innerNodeTy :: Type
+  , valueTy :: Type
+  , columnTy :: Type
+  }
+
+data Externals
+  = Externals
+  { extMalloc :: Operand
+  , extFree :: Operand
+  , extMemset :: Operand
+  }
+
+data Sizes
+  = Sizes
+  { pointerSize :: Word64
+  , valueSize :: Word64
+  , nodeDataSize :: Word64
+  , leafNodeSize :: Word64
+  , innerNodeSize :: Word64
+  }
+
+data CGState
+  = CGState
+  { meta :: Meta
+  , types :: Types
+  , typeSizes :: Sizes
+  , externals :: Externals
+  }
+  deriving ToHash via HashOnly "meta" CGState
+
+type IRCodegen = LLVM.IRCodegen CGState
+
+type ModuleCodegen = LLVM.ModuleCodegen CGState
+
+
 codegen :: Meta -> ModuleBuilderT IO ()
 codegen meta = do
   sizes <- computeSizes meta
@@ -41,15 +102,6 @@ mkExternals = do
   free <- extern "free" [ptr i8] void
   memset <- extern "llvm.memset.p0i8.i64" [ptr i8, i8, i64, i1] void
   pure $ Externals malloc free memset
-
-data Sizes
-  = Sizes
-  { pointerSize :: Word64
-  , valueSize :: Word64
-  , nodeDataSize :: Word64
-  , leafNodeSize :: Word64
-  , innerNodeSize :: Word64
-  }
 
 computeSizes :: Meta -> ModuleBuilderT IO Sizes
 computeSizes meta = do
@@ -74,7 +126,6 @@ computeSizes meta = do
   pure $ Sizes ptrSize valueSize nodeDataSize leafNodeSize innerNodeSize
   where
     wrap = StructureType False
-
 
 generateTypes :: Sizes -> LLVM.ModuleCodegen Meta Types
 generateTypes sizes = mdo
@@ -1298,7 +1349,6 @@ mkBtreeCountNodes isEmptyTree nodeCountEntries = do
 
   pure ()
 
-
 loopChildren :: Operand
              -> Type
              -> Operand
@@ -1321,60 +1371,6 @@ loopChildren n ty beginValue f = mdo
 leafNodeTypeVal, innerNodeTypeVal :: Operand
 leafNodeTypeVal = bit 0
 innerNodeTypeVal = bit 1
-
-data Types
-  = Types
-  { btreeTy :: Type
-  , iteratorTy :: Type
-  , nodeSizeTy :: Type
-  , nodeTypeTy :: Type
-  , nodeTy :: Type
-  , leafNodeTy :: Type
-  , innerNodeTy :: Type
-  , valueTy :: Type
-  , columnTy :: Type
-  }
-
-data Externals
-  = Externals
-  { extMalloc :: Operand
-  , extFree :: Operand
-  , extMemset :: Operand
-  }
-
-data CGState
-  = CGState
-  { meta :: Meta
-  , types :: Types
-  , typeSizes :: Sizes
-  , externals :: Externals
-  }
-  deriving ToHash via HashOnly "meta" CGState
-
-type IRCodegen = LLVM.IRCodegen CGState
-
-type ModuleCodegen = LLVM.ModuleCodegen CGState
-
--- Btree specific code:
-
-data Meta
-  = Meta
-  { numColumns :: Int        -- Amount of columns each node has
-  , index :: SearchIndex     -- Which columns are used to index values
-  , blockSize :: Word64      -- Number of bytes per btree node
-  , searchType :: SearchType -- Search strategy used in a single node
-  }
-  deriving stock Generic
-  deriving ToHash via HashWithPrefix "btree" Meta
-
-type Column = Int
-
-type SearchIndex = Set Column
-
-data SearchType = Linear | Binary
-  deriving stock (Generic, Enum)
-  deriving ToHash via HashEnum SearchType
-
 
 numKeys :: Meta -> Sizes -> Word64
 numKeys meta sizes =
@@ -1497,7 +1493,3 @@ allocateIter :: IRCodegen Operand
 allocateIter = do
   iter <- typeOf Iterator
   alloca iter (Just (int32 1)) 0
-
--- TODO: check if state is not updated inside helper function, always ask for latest data of struct
--- TODO: check how "isSet" is configured for normal btree..
--- TODO: fix all remaining TODOs
