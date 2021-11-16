@@ -1,10 +1,10 @@
 cabal-version: 2.2
 
--- This file has been generated from package.yaml by hpack version 0.34.4.
+-- This file has been generated from package.yaml by hpack version 0.33.0.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 62737e2248dce8a2258d125283bcc311fe5f499eb129ae770901ff8f2c8abaa8
+-- hash: 5f6ce71d18a2aa988093bbaa98c2380e924381e0a9e33015f0799e0e5b33bea0
 
 name:           eclair-lang
 version:        0.1.0.0
@@ -28,21 +28,15 @@ library
       Eclair.RA.Interpreter
       Eclair.RA.IR
       Eclair.RA.Printer
+      Eclair.Runtime.BTree
+      Eclair.Runtime.Hash
+      Eclair.Runtime.LLVM
       Eclair.Syntax
   other-modules:
       Paths_eclair_lang
   hs-source-dirs:
       lib
-  default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
-      LambdaCase
-      ViewPatterns
-      TypeFamilies
-      DeriveFunctor
-      DeriveFoldable
-      DeriveTraversable
-      ScopedTypeVariables
+  default-extensions: NoImplicitPrelude OverloadedStrings LambdaCase ViewPatterns TypeFamilies DataKinds KindSignatures TupleSections DeriveFunctor DeriveFoldable DeriveTraversable DeriveGeneric DeriveAnyClass DerivingStrategies DerivingVia FlexibleContexts FlexibleInstances ScopedTypeVariables
   ghc-options: -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__ -Wall
   build-depends:
@@ -52,7 +46,11 @@ library
     , exceptions ==0.10.*
     , extra ==1.*
     , lens ==4.*
+    , llvm-hs ==9.*
+    , llvm-hs-pretty ==0.9.0.0
+    , llvm-hs-pure ==9.*
     , megaparsec ==9.*
+    , mmorph ==1.*
     , mtl ==2.*
     , prettyprinter ==1.*
     , protolude ==0.3.0
@@ -69,33 +67,29 @@ library
         stdc++
   default-language: Haskell2010
 
-executable ec
+executable eclairc
   main-is: Main.hs
   other-modules:
       Paths_eclair_lang
   hs-source-dirs:
       src
-  default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
-      LambdaCase
-      ViewPatterns
-      TypeFamilies
-      DeriveFunctor
-      DeriveFoldable
-      DeriveTraversable
-      ScopedTypeVariables
+  default-extensions: NoImplicitPrelude OverloadedStrings LambdaCase ViewPatterns TypeFamilies DataKinds KindSignatures TupleSections DeriveFunctor DeriveFoldable DeriveTraversable DeriveGeneric DeriveAnyClass DerivingStrategies DerivingVia FlexibleContexts FlexibleInstances ScopedTypeVariables
   ghc-options: -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits -threaded -rtsopts -with-rtsopts=-N
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__
   build-depends:
       algebraic-graphs ==0.*
     , base >=4.7 && <5
     , containers ==0.*
+    , directory ==1.*
     , eclair-lang
     , exceptions ==0.10.*
     , extra ==1.*
     , lens ==4.*
+    , llvm-hs ==9.*
+    , llvm-hs-pretty ==0.9.0.0
+    , llvm-hs-pure ==9.*
     , megaparsec ==9.*
+    , mmorph ==1.*
     , mtl ==2.*
     , prettyprinter ==1.*
     , protolude ==0.3.0
@@ -115,19 +109,11 @@ test-suite eclair-test
   other-modules:
       Test.Eclair.RA.CodegenSpec
       Test.Eclair.RA.InterpreterSpec
+      Test.Eclair.Runtime.HashSpec
       Paths_eclair_lang
   hs-source-dirs:
       tests
-  default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
-      LambdaCase
-      ViewPatterns
-      TypeFamilies
-      DeriveFunctor
-      DeriveFoldable
-      DeriveTraversable
-      ScopedTypeVariables
+  default-extensions: NoImplicitPrelude OverloadedStrings LambdaCase ViewPatterns TypeFamilies DataKinds KindSignatures TupleSections DeriveFunctor DeriveFoldable DeriveTraversable DeriveGeneric DeriveAnyClass DerivingStrategies DerivingVia FlexibleContexts FlexibleInstances ScopedTypeVariables
   ghc-options: -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__
   build-depends:
@@ -142,7 +128,11 @@ test-suite eclair-test
     , hspec >=2.6.1 && <3.0.0
     , hspec-hedgehog ==0.*
     , lens ==4.*
+    , llvm-hs ==9.*
+    , llvm-hs-pretty ==0.9.0.0
+    , llvm-hs-pure ==9.*
     , megaparsec ==9.*
+    , mmorph ==1.*
     , mtl ==2.*
     , neat-interpolation ==0.*
     , prettyprinter ==1.*
