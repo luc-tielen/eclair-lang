@@ -1,47 +1,53 @@
-name:                eclair-lang
-version:             0.1.0.0
+name: eclair-lang
+version: 0.1.0.0
 #synopsis:
 #description:
-homepage:            https://github.com/luc-tielen/eclair-lang
-license:             BSD3
-author:              Luc Tielen
-maintainer:          luc.tielen@gmail.com
-copyright:           Luc Tielen, 2021
-category:            Web
+homepage: https://github.com/luc-tielen/eclair-lang
+license: BSD3
+author: Luc Tielen
+maintainer: luc.tielen@gmail.com
+copyright: Luc Tielen, 2021
+category: Web
 extra-source-files:
-- README.md
+  - README.md
 
 dependencies:
   - base >= 4.7 && < 5
   - protolude == 0.3.0
-  - souffle-haskell == 3.0.0
-  - megaparsec == 9.*
+  - extra == 1.*
   - text == 1.*
   - vector == 0.12.*
   - containers == 0.*
-  - lens == 4.*
+  - transformers == 0.*
   - mtl == 2.*
-  - prettyprinter == 1.*
+  - mmorph == 1.*
   - exceptions == 0.10.*
-  - extra == 1.*
+  - lens == 4.*  # TODO: use microlens?
+  - prettyprinter == 1.*
+  - megaparsec == 9.*
+  - souffle-haskell == 3.0.0
+  - recursion-schemes == 5.*
+  - algebraic-graphs == 0.*
   - llvm-hs == 9.*
   - llvm-hs-pure == 9.*
   - llvm-hs-pretty == 0.9.0.0
-  - recursion-schemes == 5.*
-  - mmorph == 1.*
 
 default-extensions:
   - NoImplicitPrelude
   - OverloadedStrings
   - LambdaCase
   - ViewPatterns
+  - TypeFamilies
   - DataKinds
   - KindSignatures
   - TupleSections
-  - DerivingStrategies
-  - DerivingVia
+  - DeriveFunctor
+  - DeriveFoldable
+  - DeriveTraversable
   - DeriveGeneric
   - DeriveAnyClass
+  - DerivingStrategies
+  - DerivingVia
   - FlexibleContexts
   - FlexibleInstances
   - ScopedTypeVariables
@@ -78,6 +84,11 @@ executables:
       - base >= 4.7 && < 5
       - protolude == 0.3.0
       - directory == 1.*
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+      # - -Wall
 
 tests:
   eclair-test:

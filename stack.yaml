@@ -52,6 +52,8 @@ extra-deps:
     - llvm-hs-pure
 - git: https://github.com/luc-tielen/llvm-hs-pretty
   commit: b0e8a13ee087f0d16fc3f70a6f208467ed13023f  # builds with later llvm-hs versions (>9)
+- git: https://github.com/snowleopard/alga
+  commit: 1623fae605503595ee331929157c61b5e5e0c1c7
 
 # Override default flag values for local packages and extra-deps
 # flags: {}

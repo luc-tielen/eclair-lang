@@ -4,7 +4,7 @@ cabal-version: 2.2
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: d6bf6e200e777663d1e16327f6523b6aa502ee979b26d4d3a31795f9d98505ef
+-- hash: 5f6ce71d18a2aa988093bbaa98c2380e924381e0a9e33015f0799e0e5b33bea0
 
 name:           eclair-lang
 version:        0.1.0.0
@@ -24,6 +24,7 @@ library
       Eclair
       Eclair.Parser
       Eclair.RA.Codegen
+      Eclair.RA.IndexSelection
       Eclair.RA.Interpreter
       Eclair.RA.IR
       Eclair.RA.Printer
@@ -35,11 +36,12 @@ library
       Paths_eclair_lang
   hs-source-dirs:
       lib
-  default-extensions: NoImplicitPrelude OverloadedStrings LambdaCase ViewPatterns DataKinds KindSignatures TupleSections DerivingStrategies DerivingVia DeriveGeneric DeriveAnyClass FlexibleContexts FlexibleInstances ScopedTypeVariables
+  default-extensions: NoImplicitPrelude OverloadedStrings LambdaCase ViewPatterns TypeFamilies DataKinds KindSignatures TupleSections DeriveFunctor DeriveFoldable DeriveTraversable DeriveGeneric DeriveAnyClass DerivingStrategies DerivingVia FlexibleContexts FlexibleInstances ScopedTypeVariables
   ghc-options: -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__ -Wall
   build-depends:
-      base >=4.7 && <5
+      algebraic-graphs ==0.*
+    , base >=4.7 && <5
     , containers ==0.*
     , exceptions ==0.10.*
     , extra ==1.*
@@ -55,6 +57,7 @@ library
     , recursion-schemes ==5.*
     , souffle-haskell ==3.0.0
     , text ==1.*
+    , transformers ==0.*
     , vector ==0.12.*
   if os(darwin)
     extra-libraries:
@@ -70,11 +73,12 @@ executable eclairc
       Paths_eclair_lang
   hs-source-dirs:
       src
-  default-extensions: NoImplicitPrelude OverloadedStrings LambdaCase ViewPatterns DataKinds KindSignatures TupleSections DerivingStrategies DerivingVia DeriveGeneric DeriveAnyClass FlexibleContexts FlexibleInstances ScopedTypeVariables
-  ghc-options: -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
+  default-extensions: NoImplicitPrelude OverloadedStrings LambdaCase ViewPatterns TypeFamilies DataKinds KindSignatures TupleSections DeriveFunctor DeriveFoldable DeriveTraversable DeriveGeneric DeriveAnyClass DerivingStrategies DerivingVia FlexibleContexts FlexibleInstances ScopedTypeVariables
+  ghc-options: -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits -threaded -rtsopts -with-rtsopts=-N
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__
   build-depends:
-      base >=4.7 && <5
+      algebraic-graphs ==0.*
+    , base >=4.7 && <5
     , containers ==0.*
     , directory ==1.*
     , eclair-lang
@@ -92,6 +96,7 @@ executable eclairc
     , recursion-schemes ==5.*
     , souffle-haskell ==3.0.0
     , text ==1.*
+    , transformers ==0.*
     , vector ==0.12.*
   if os(darwin)
     extra-libraries:
@@ -108,11 +113,12 @@ test-suite eclair-test
       Paths_eclair_lang
   hs-source-dirs:
       tests
-  default-extensions: NoImplicitPrelude OverloadedStrings LambdaCase ViewPatterns DataKinds KindSignatures TupleSections DerivingStrategies DerivingVia DeriveGeneric DeriveAnyClass FlexibleContexts FlexibleInstances ScopedTypeVariables
+  default-extensions: NoImplicitPrelude OverloadedStrings LambdaCase ViewPatterns TypeFamilies DataKinds KindSignatures TupleSections DeriveFunctor DeriveFoldable DeriveTraversable DeriveGeneric DeriveAnyClass DerivingStrategies DerivingVia FlexibleContexts FlexibleInstances ScopedTypeVariables
   ghc-options: -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__
   build-depends:
-      base >=4.7 && <5
+      algebraic-graphs ==0.*
+    , base >=4.7 && <5
     , containers ==0.*
     , eclair-lang
     , exceptions ==0.10.*
@@ -134,6 +140,7 @@ test-suite eclair-test
     , recursion-schemes ==5.*
     , souffle-haskell ==3.0.0
     , text ==1.*
+    , transformers ==0.*
     , vector ==0.12.*
   if os(darwin)
     extra-libraries:

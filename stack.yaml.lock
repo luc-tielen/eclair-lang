@@ -66,6 +66,17 @@ packages:
   original:
     git: https://github.com/luc-tielen/llvm-hs-pretty
     commit: b0e8a13ee087f0d16fc3f70a6f208467ed13023f
+- completed:
+    name: algebraic-graphs
+    version: '0.7'
+    git: https://github.com/snowleopard/alga
+    pantry-tree:
+      size: 4507
+      sha256: 8e77e5c93693cdfdb4daaa652cce591f888424682ef0ce55f6c1f6ae4f525aa4
+    commit: 1623fae605503595ee331929157c61b5e5e0c1c7
+  original:
+    git: https://github.com/snowleopard/alga
+    commit: 1623fae605503595ee331929157c61b5e5e0c1c7
 snapshots:
 - completed:
     size: 532832

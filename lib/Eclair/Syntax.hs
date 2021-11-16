@@ -47,7 +47,7 @@ startsWithId (Id x) (Id start) =
 stripIdPrefixes :: Id -> Id
 stripIdPrefixes (Id x) = Id $ stripPrefixes x where
   stripPrefixes t = foldl' stripPrefix t [deltaPrefix, newPrefix]
-  stripPrefix acc pre = fromMaybe acc (T.stripPrefix pre acc)
+  stripPrefix acc prefix = fromMaybe acc (T.stripPrefix prefix acc)
 
 -- TODO: make all prefixes starts with special symbol, invalid in syntax
 deltaPrefix, newPrefix :: Text
@@ -74,7 +74,7 @@ scc = \case
   Module decls -> map G.flattenSCC sortedDecls where
     -- TODO: fix issue when loose atom does not appear
     sortedDecls = G.stronglyConnComp $ zipWith (\i d -> (d, i, refersTo d)) [0..] decls
-    declLineMapping = M.fromListWith (++) $ zipWith (\i d -> (nameFor d, [i])) [0..] decls
+    declLineMapping = M.fromListWith (++) $ zipWith (\i d -> (nameFor d, [i])) [0 :: Int ..] decls
     refersTo = \case
       Rule _ _ clauses -> concatMap (unsafeFromJust . flip M.lookup declLineMapping . nameFor) clauses
       _ -> []

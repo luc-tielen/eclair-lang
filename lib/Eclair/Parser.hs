@@ -10,7 +10,6 @@ module Eclair.Parser
 
 import Control.Monad.Fail
 import Data.Char
-import Data.Text (Text)
 import Data.Vector as V
 import Data.Void
 import Eclair.Syntax
@@ -69,9 +68,9 @@ valueParser =  Var <$> identifier
 
 identifier :: Parser Id
 identifier = Id <$> do
-  first <- P.letterChar P.<?> "start of identifier"
+  firstLetter <- P.letterChar P.<?> "start of identifier"
   rest <- P.takeWhileP (Just "rest of identifier") isIdentifierChar
-  let parsed = T.cons first rest
+  let parsed = T.cons firstLetter rest
   when (parsed `V.elem` reserved) $ do
     fail . T.unpack $ "Reserved keyword: " <> parsed
   pure parsed

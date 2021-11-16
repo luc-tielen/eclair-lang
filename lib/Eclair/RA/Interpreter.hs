@@ -14,7 +14,6 @@ import Control.Monad.Extra
 import Eclair.RA.IR
 import Eclair.Syntax (Id(..), Number, startsWithId)
 import qualified Data.Map as M
-import Data.Map (Map)
 
 type Record = [Number]
 type AliasMap = Map Id Record
@@ -74,20 +73,20 @@ interpretRA ra = removeInternals <$> runInterpreter (interpret ra) where
 
 runInterpreter :: InterpreterM a -> IO DB
 runInterpreter m = do
-  state <- newIORef (InterpreterState mempty mempty)
-  void $ runReaderT m state
-  db <$> readIORef state
+  stateRef <- newIORef (InterpreterState mempty mempty)
+  void $ runReaderT m stateRef
+  db <$> readIORef stateRef
 
 merge :: Relation -> Relation -> DB -> DB
-merge fromR toR db =
-  let values = lookupOrInit fromR db
-   in M.insertWith (<>) toR values db
+merge fromR toR kb =
+  let values = lookupOrInit fromR kb
+   in M.insertWith (<>) toR values kb
 
 swap :: Relation -> Relation -> DB -> DB
-swap r1 r2 db =
-  let valuesR1 = lookupOrInit r1 db
-      valuesR2 = lookupOrInit r2 db
-   in M.insert r1 valuesR2 (M.insert r2 valuesR1 db)
+swap r1 r2 kb =
+  let valuesR1 = lookupOrInit r1 kb
+      valuesR2 = lookupOrInit r2 kb
+   in M.insert r1 valuesR2 (M.insert r2 valuesR1 kb)
 
 purge :: Relation -> DB -> DB
 purge r = M.insert r mempty

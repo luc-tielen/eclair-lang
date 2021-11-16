@@ -1,14 +1,13 @@
 module Eclair ( compile, run ) where
 
 import Protolude hiding (swap)
-import Protolude.Unsafe (unsafeFromJust)
 import Eclair.Syntax hiding (Clause)
 import Eclair.Parser
 import Eclair.RA.Codegen
 import Eclair.RA.Interpreter
+import Eclair.RA.IndexSelection
 import Control.Lens hiding (Equality, Index)
 import qualified Data.Map as M
-import qualified Data.Text as T
 import qualified Eclair.RA.IR as RA
 
 type RA = RA.RA
@@ -85,12 +84,12 @@ nestedSearchAndProject relation intoRelation terms clauses =
     project intoRelation terms
   where
     processRuleClause ruleName clause inner = case clause of
-      AtomClause clauseName terms ->
+      AtomClause clauseName args ->
         let relation' =
               if clauseName `startsWithId` ruleName
                 then prependToId deltaPrefix clauseName
                 else clauseName
-        in search relation' terms inner
+        in search relation' args inner
       ConstrainClause (NotElem r values) ->
         noElemOf r values inner
 
@@ -109,7 +108,13 @@ newRelationOf = prependToId newPrefix
 
 compile :: FilePath -> IO (Either ParseError RA)
 compile path = do
-  map compileRA <$> parseFile path
+  parseResult <- parseFile path
+  case map compileRA parseResult of
+    Left err -> pure $ Left err
+    Right ra -> do
+      let getIndexForSearch = getIndexForSearchInProgram ra
+      -- TODO: use helper function in btree impl
+      pure $ Right ra
 
 run :: FilePath -> IO (M.Map Relation [[Number]])
 run path = compile path >>= \case
