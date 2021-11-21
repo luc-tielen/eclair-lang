@@ -4,7 +4,7 @@ cabal-version: 2.2
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: e59b2012d89cffc837deab8d7155dabd0e275b8752040a907614adcf89f39555
+-- hash: f18f41340a3fbf87a96a969012d146e52d13a9e5ca60aeddb87df276be2dac6d
 
 name:           eclair-lang
 version:        0.1.0.0
@@ -23,6 +23,7 @@ library
   exposed-modules:
       Eclair
       Eclair.Lowering.AST
+      Eclair.Lowering.RA
       Eclair.Parser
       Eclair.RA.Codegen
       Eclair.RA.IndexSelection
@@ -32,12 +33,14 @@ library
       Eclair.Runtime.BTree
       Eclair.Runtime.Hash
       Eclair.Runtime.LLVM
+      Eclair.Runtime.Store
       Eclair.Syntax
+      Eclair.TypeSystem
   other-modules:
       Paths_eclair_lang
   hs-source-dirs:
       lib
-  default-extensions: NoImplicitPrelude OverloadedStrings LambdaCase ViewPatterns TypeFamilies DataKinds KindSignatures TupleSections DeriveFunctor DeriveFoldable DeriveTraversable DeriveGeneric DeriveAnyClass DerivingStrategies DerivingVia FlexibleContexts FlexibleInstances ScopedTypeVariables
+  default-extensions: NoImplicitPrelude OverloadedStrings LambdaCase ViewPatterns RankNTypes TypeFamilies DataKinds KindSignatures TupleSections DeriveFunctor DeriveFoldable DeriveTraversable DeriveGeneric DeriveAnyClass DerivingStrategies DerivingVia FlexibleContexts FlexibleInstances ScopedTypeVariables
   ghc-options: -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__ -Wall
   build-depends:
@@ -74,7 +77,7 @@ executable eclairc
       Paths_eclair_lang
   hs-source-dirs:
       src
-  default-extensions: NoImplicitPrelude OverloadedStrings LambdaCase ViewPatterns TypeFamilies DataKinds KindSignatures TupleSections DeriveFunctor DeriveFoldable DeriveTraversable DeriveGeneric DeriveAnyClass DerivingStrategies DerivingVia FlexibleContexts FlexibleInstances ScopedTypeVariables
+  default-extensions: NoImplicitPrelude OverloadedStrings LambdaCase ViewPatterns RankNTypes TypeFamilies DataKinds KindSignatures TupleSections DeriveFunctor DeriveFoldable DeriveTraversable DeriveGeneric DeriveAnyClass DerivingStrategies DerivingVia FlexibleContexts FlexibleInstances ScopedTypeVariables
   ghc-options: -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits -threaded -rtsopts -with-rtsopts=-N
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__
   build-depends:
@@ -114,7 +117,7 @@ test-suite eclair-test
       Paths_eclair_lang
   hs-source-dirs:
       tests
-  default-extensions: NoImplicitPrelude OverloadedStrings LambdaCase ViewPatterns TypeFamilies DataKinds KindSignatures TupleSections DeriveFunctor DeriveFoldable DeriveTraversable DeriveGeneric DeriveAnyClass DerivingStrategies DerivingVia FlexibleContexts FlexibleInstances ScopedTypeVariables
+  default-extensions: NoImplicitPrelude OverloadedStrings LambdaCase ViewPatterns RankNTypes TypeFamilies DataKinds KindSignatures TupleSections DeriveFunctor DeriveFoldable DeriveTraversable DeriveGeneric DeriveAnyClass DerivingStrategies DerivingVia FlexibleContexts FlexibleInstances ScopedTypeVariables
   ghc-options: -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__
   build-depends:

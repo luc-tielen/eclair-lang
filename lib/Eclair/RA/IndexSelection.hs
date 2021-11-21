@@ -1,4 +1,11 @@
-module Eclair.RA.IndexSelection ( getIndexForSearchInProgram ) where
+module Eclair.RA.IndexSelection
+  ( IndexMap
+  , IndexSelector
+  , Index(..)
+  , SearchSignature(..)
+  , Column
+  , runIndexSelection
+  ) where
 
 -- Based on the paper "Automatic Index Selection for Large-Scale Datalog Computation"
 -- http://www.vldb.org/pvldb/vol12/p141-subotic.pdf
@@ -34,8 +41,11 @@ type SearchGraph = AdjacencyMap SearchSignature SearchSignature
 type SearchMatching = Matching SearchSignature SearchSignature
 type IndexSelection = [(Relation, Map SearchSignature Index)]
 
-getIndexForSearchInProgram :: RA -> (Relation -> SearchSignature -> Index)
-getIndexForSearchInProgram ra r s =
+type IndexMap = Map Relation (Set Index)
+type IndexSelector = Relation -> SearchSignature -> Index
+
+runIndexSelection :: RA -> (IndexMap, IndexSelector)
+runIndexSelection ra =
   let searchMap = searchesForProgram ra
       indexSelection = Map.foldrWithKey (\r searchSet acc ->
         let graph = buildGraph searchSet
@@ -43,9 +53,12 @@ getIndexForSearchInProgram ra r s =
             chains = getChainsFromMatching graph matching
             indices = indicesFromChains searchSet chains
          in (r, indices):acc) mempty searchMap
-   in unsafeFromJust $ do
+      combineIdxs idxs idx = idxs <> Set.singleton idx
+      indexMap = foldl' combineIdxs mempty <$> Map.fromList indexSelection
+      indexSelector r s = unsafeFromJust $ do
         indexMapping <- snd <$> List.find ((== r) . fst) indexSelection
         Map.lookup s indexMapping
+  in (indexMap, indexSelector)
 
 searchesForProgram :: RA -> SearchMap
 searchesForProgram = zygo constraintsForSearch $ \case
