@@ -2,6 +2,7 @@
 
 module Eclair.Syntax
   ( AST(..)
+  , ASTF(..)
   , _Lit
   , _Var
   , _Atom
@@ -21,12 +22,13 @@ module Eclair.Syntax
   , scc
   ) where
 
-import Control.Lens
 import Protolude
+import Protolude.Unsafe (unsafeFromJust)
+import Control.Lens
+import Data.Functor.Foldable.TH
 import qualified Data.Graph as G
 import qualified Data.Map as M
 import qualified Data.Text as T
-import Protolude.Unsafe (unsafeFromJust)
 
 
 type Number = Int
@@ -67,6 +69,7 @@ data AST
   deriving (Eq, Show)
 
 makePrisms ''AST
+makeBaseFunctor ''AST
 
 
 scc :: AST -> [[AST]]

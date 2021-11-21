@@ -1,4 +1,13 @@
-module Eclair.RA.IndexSelection ( getIndexForSearchInProgram ) where
+module Eclair.RA.IndexSelection
+  ( IndexMap
+  , IndexSelector
+  , Index(..)
+  , SearchSignature(..)
+  , Column
+  , runIndexSelection
+  , constraintsForSearch
+  , columnsForRelation
+  ) where
 
 -- Based on the paper "Automatic Index Selection for Large-Scale Datalog Computation"
 -- http://www.vldb.org/pvldb/vol12/p141-subotic.pdf
@@ -34,8 +43,11 @@ type SearchGraph = AdjacencyMap SearchSignature SearchSignature
 type SearchMatching = Matching SearchSignature SearchSignature
 type IndexSelection = [(Relation, Map SearchSignature Index)]
 
-getIndexForSearchInProgram :: RA -> (Relation -> SearchSignature -> Index)
-getIndexForSearchInProgram ra r s =
+type IndexMap = Map Relation (Set Index)
+type IndexSelector = Relation -> SearchSignature -> Index
+
+runIndexSelection :: RA -> (IndexMap, IndexSelector)
+runIndexSelection ra =
   let searchMap = searchesForProgram ra
       indexSelection = Map.foldrWithKey (\r searchSet acc ->
         let graph = buildGraph searchSet
@@ -43,9 +55,12 @@ getIndexForSearchInProgram ra r s =
             chains = getChainsFromMatching graph matching
             indices = indicesFromChains searchSet chains
          in (r, indices):acc) mempty searchMap
-   in unsafeFromJust $ do
+      combineIdxs idxs idx = idxs <> Set.singleton idx
+      indexMap = foldl' combineIdxs mempty <$> Map.fromList indexSelection
+      indexSelector r s = unsafeFromJust $ do
         indexMapping <- snd <$> List.find ((== r) . fst) indexSelection
         Map.lookup s indexMapping
+  in (indexMap, indexSelector)
 
 searchesForProgram :: RA -> SearchMap
 searchesForProgram = zygo constraintsForSearch $ \case
@@ -54,14 +69,17 @@ searchesForProgram = zygo constraintsForSearch $ \case
      in Map.insertWith (<>) r (Set.singleton signature) sMap
   ra ->
     foldr (Map.unionWith (<>) . snd) Map.empty ra
-  where
-    constraintsForSearch :: RAF [(Relation, Column)] -> [(Relation, Column)]
-    constraintsForSearch = \case
-      ColumnIndexF r col -> [(r, col)]
-      e -> fold e
-    columnsForRelation r (r' , col)
-      | r == r'   = Just col
-      | otherwise = Nothing
+
+constraintsForSearch :: RAF [(Relation, Column)] -> [(Relation, Column)]
+constraintsForSearch = \case
+  ColumnIndexF r col -> [(r, col)]
+  NotElemF r cols -> (r,) <$> zipWith const [0..] cols
+  e -> fold e
+
+columnsForRelation :: Relation -> (Relation, Column) -> Maybe Column
+columnsForRelation r (r' , col)
+  | r == r'   = Just col
+  | otherwise = Nothing
 
 buildGraph :: SearchSet -> SearchGraph
 buildGraph searchSet =
