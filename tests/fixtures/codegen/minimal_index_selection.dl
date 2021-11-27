@@ -1,0 +1,18 @@
+// [0,1,2]
+first(1, 2, 3).
+
+second(x, y) :-
+  // [0,1] => [0,1,2]
+  first(x, y, z).
+
+third(x, y) :-
+  // [1,2]
+  first(a, x, y).
+
+fourth(x) :-
+  // [2]
+  first(a, b, x).
+
+fifth(x) :-
+  // [1] => [1,2]
+  first(a, x, b).

@@ -17,6 +17,7 @@ module Eclair.Syntax
   , appendToId
   , startsWithId
   , stripIdPrefixes
+  , startsWithIdPrefix
   , deltaPrefix
   , newPrefix
   , scc
@@ -55,6 +56,11 @@ stripIdPrefixes (Id x) = Id $ stripPrefixes x where
 deltaPrefix, newPrefix :: Text
 deltaPrefix = "delta_"
 newPrefix = "new_"
+
+startsWithIdPrefix :: Id -> Bool
+startsWithIdPrefix (Id x) =
+  any (`T.isPrefixOf` x) [deltaPrefix, newPrefix]
+
 
 type Value = AST
 type Clause = AST

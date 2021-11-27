@@ -1,21 +1,25 @@
-fact_a(1).
-fact_b(1, 2).
-fact_c(1, 2, 3).
-fact_d(1, 2).
+a(1).
+b(1, 2).
+c(1, 2, 3).
+d(1, 2).
 triple(1, 2, 3).
 
 a(z) :-
-  fact_a(x),
-  triple(x, y, z).
+  // [2]
+  triple(x, z, 42).
 
 b(x, y) :-
-  fact_b(x, y),
+  a(x),
+  a(y),
+  // [0,1] => [0,1,2]
   triple(x, y, z).
 
 c(x, y, z) :-
-  fact_c(x, y, z),
+  // [0,1,2]
   triple(x, y, z).
 
 d(x, z) :-
-  fact_d(x, z),
+  a(x),
+  a(z),
+  // [0, 2]
   triple(x, y, z).
