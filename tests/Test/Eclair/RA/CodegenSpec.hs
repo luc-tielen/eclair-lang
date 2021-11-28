@@ -61,6 +61,9 @@ spec = describe "RA Code Generation" $ parallel $ do
           project (link0[0], link0[1], link1[1]) into chain
       |]
 
+  it "generates code for a rule where columns need to equal each other" $
+    pending -- TODO use fixture: rule_equal_columns
+
   it "generates code for a single recursive rule" $ do
     cg "single_recursive_rule" `resultsIn` [text|
       project (1, 2) into edge

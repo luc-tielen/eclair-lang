@@ -20,7 +20,7 @@ main =
 main :: IO ()
 main = do
   let meta = Meta { numColumns = 4
-                  , index = Set.fromList [1, 3]
+                  , index = [1, 3]
                   , blockSize = 256
                   , searchType = Linear
                   }

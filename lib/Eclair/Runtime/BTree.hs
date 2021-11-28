@@ -24,6 +24,7 @@ import LLVM.IRBuilder.Instruction
 import Eclair.Runtime.LLVM hiding (IRCodegen, ModuleCodegen)
 import qualified Eclair.Runtime.LLVM as LLVM
 import Eclair.Runtime.Hash
+import Eclair.Runtime.Store
 
 
 data Meta
@@ -38,7 +39,7 @@ data Meta
 
 type Column = Int
 
-type SearchIndex = Set Column
+type SearchIndex = [Column]
 
 data SearchType = Linear | Binary
   deriving stock (Generic, Enum)
@@ -86,8 +87,7 @@ type IRCodegen = LLVM.IRCodegen CGState
 
 type ModuleCodegen = LLVM.ModuleCodegen CGState
 
-
-codegen :: Meta -> ModuleBuilderT IO ()
+codegen :: Meta -> ModuleBuilderT IO Functions
 codegen meta = do
   sizes <- computeSizes meta
   hoist intoIO $ do
@@ -174,7 +174,7 @@ generateTypes sizes = mdo
     }
   where struct = StructureType False
 
-generateFunctions :: ModuleCodegen ()
+generateFunctions :: ModuleCodegen Functions
 generateFunctions = mdo
   compareValues <- mkCompare
   nodeNew <- mkNodeNew
@@ -212,12 +212,24 @@ generateFunctions = mdo
   mkBtreeLowerBound isEmptyTree iterInit iterInitEnd searchLowerBound compareValues
   mkBtreeUpperBound isEmptyTree iterInit iterInitEnd searchUpperBound compareValues
   btreeClear <- mkBtreeClear nodeDelete
-  mkBtreeSwap
+  btreeSwap <- mkBtreeSwap
   mkBtreeIsEqual btreeBegin btreeEnd btreeContains btreeSize iterIsEqual iterNext iterCurrent
   mkBtreeAssign isEmptyTree nodeClone
   mkBtreeDepth isEmptyTree nodeDepth
   mkBtreeCountNodes isEmptyTree nodeCountEntries
-  pure ()
+
+  tree <- typeOf BTree
+  iter <- typeOf Iterator
+  let fns = Functions
+        { fnPurge = btreeClear
+        , fnSwap = btreeSwap
+        , fnBegin = btreeBegin
+        , fnEnd = btreeEnd
+        , fnInsertRange = btreeInsertRange
+        , fnAllocateObj = alloca tree (Just (int32 1)) 0
+        , fnAllocateIter = alloca iter (Just (int32 1)) 0
+        }
+  pure fns
 
 mkCompare :: ModuleCodegen Operand
 mkCompare = do
@@ -232,7 +244,7 @@ mkCompare = do
     ret =<< select result2 (int8 1) (int8 0)
 
   def "compare_values" [(ptr value, "lhs"), (ptr value, "rhs")] i8 $ \[lhs, rhs] -> mdo
-    let columns = map fromIntegral $ Set.toList $ index meta
+    let columns = map fromIntegral $ index meta
     results <- flip execStateT mempty $ flip (zygo endCheck) columns $ \case
       Nil -> pure ()
       Cons col (atEnd, asm) -> do
@@ -1235,15 +1247,13 @@ mkBtreeClear nodeDelete = do
       assign rootPtrOf t (nullPtr node)
       assign firstPtrOf t (nullPtr node)
 
-mkBtreeSwap :: ModuleCodegen ()
+mkBtreeSwap :: ModuleCodegen Operand
 mkBtreeSwap = do
   tree <- typeOf BTree
 
   def "btree_swap" [(ptr tree, "lhs"), (ptr tree, "rhs")] void $ \[lhs, rhs] ->
     for_ [rootPtrOf, firstPtrOf] $ \path ->
       swap path lhs rhs
-
-  pure ()
 
 mkBtreeAssign :: Operand -> Operand -> ModuleCodegen ()
 mkBtreeAssign isEmptyTree nodeClone = do

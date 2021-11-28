@@ -7,6 +7,7 @@ module Eclair.Runtime.LLVM
 import Protolude hiding ( Type, (.), bit )
 import Control.Category
 import Control.Monad.Morph
+import Control.Monad.Fix
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import LLVM.IRBuilder.Module
@@ -54,7 +55,8 @@ ugt = icmp IP.UGT
 ule = icmp IP.ULE
 ult = icmp IP.ULT
 
-if' :: Operand -> IRCodegen r a -> IRCodegen r ()
+if' :: (MonadIRBuilder m, MonadFix m)
+    => Operand -> m a -> m ()
 if' condition asm = mdo
   condBr condition ifBlock end
   ifBlock <- block `named` "if"
@@ -65,7 +67,7 @@ if' condition asm = mdo
 
 -- Note: this loops forever, only way to exit is if the inner block of ASM
 -- Jumps to a label outside the loop
-loop :: IRCodegen r a -> IRCodegen r ()
+loop :: (MonadIRBuilder m, MonadFix m) => m a -> m ()
 loop asm = mdo
   br begin
   begin <- block `named` "loop"
@@ -215,4 +217,8 @@ not bool = select bool (bit 0) (bit 1)
 -- NOTE: Orphan instance, but should give no conflicts.
 instance MFunctor ModuleBuilderT where
   hoist nat = ModuleBuilderT . hoist nat . unModuleBuilderT
+
+-- NOTE: Orphan instance, but should give no conflicts.
+instance MFunctor IRBuilderT where
+  hoist nat = IRBuilderT . hoist nat . unIRBuilderT
 
