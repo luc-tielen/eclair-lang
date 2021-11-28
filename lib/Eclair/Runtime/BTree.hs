@@ -39,7 +39,7 @@ data Meta
 
 type Column = Int
 
-type SearchIndex = Set Column
+type SearchIndex = [Column]
 
 data SearchType = Linear | Binary
   deriving stock (Generic, Enum)
@@ -244,7 +244,7 @@ mkCompare = do
     ret =<< select result2 (int8 1) (int8 0)
 
   def "compare_values" [(ptr value, "lhs"), (ptr value, "rhs")] i8 $ \[lhs, rhs] -> mdo
-    let columns = map fromIntegral $ Set.toList $ index meta
+    let columns = map fromIntegral $ index meta
     results <- flip execStateT mempty $ flip (zygo endCheck) columns $ \case
       Nil -> pure ()
       Cons col (atEnd, asm) -> do

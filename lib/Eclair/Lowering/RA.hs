@@ -182,7 +182,7 @@ generateProgramInstructions = cata $ \case
   -}
 
 mkMeta :: Index -> [Type] -> BTree.Meta
-mkMeta idx@(Index (SearchSignature columns)) ts =
+mkMeta idx@(Index columns) ts =
   BTree.Meta
     { BTree.numColumns = length ts
     , BTree.index = columns

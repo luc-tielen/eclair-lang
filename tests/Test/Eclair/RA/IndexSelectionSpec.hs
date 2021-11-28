@@ -34,11 +34,11 @@ toSelection :: [(T.Text, [[Column]])] -> IndexMap
 toSelection info = idxMap
   where
     (texts, colss) = unzip info
-    f text cols = (Id text, Set.fromList $ map (Index . SearchSignature . Set.fromList) cols)
+    f text cols = (Id text, Set.fromList $ map Index cols)
     idxMap = Map.fromList $ zipWith f texts colss
 
 spec :: Spec
-spec = fdescribe "Index selection" $ parallel $ do
+spec = describe "Index selection" $ parallel $ do
   it "creates indexes for a single fact" $ do
     idxSel "single_fact" `resultsIn`
       toSelection [("another", [[0,1,2]]), ("edge", [[0,1]])]
@@ -50,24 +50,33 @@ spec = fdescribe "Index selection" $ parallel $ do
   it "creates indexes for nested searches correctly" $ do
     idxSel "multiple_rule_clauses" `resultsIn`
       toSelection [ ("first",  [[0]])
-                  , ("second", [[0,1], [1]])  -- Is only [1] possible here?
+                  , ("second", [[1,0]])
                   , ("third",  [[0,1]])
                   ]
 
-  xit "handles multiple indexes on 1 rule correctly" $ do
-    idxSel "index_selection" `resultsIn`
+  it "creates indexes for rules with equal columns correctly" $ do
+    idxSel "rule_equal_columns" `resultsIn`
       toSelection [ ("a", [[0]])
                   , ("b", [[0,1]])
                   , ("c", [[0,1,2]])
-                  , ("d", [[0,1]])
-                  , ("triple", [[0,1,2], [2], [0,2]])
+                  , ("d", [[2,0,1,3]])
+                  , ("other", [[0]])
                   ]
 
-  xit "selects a minimal set of indexes for a rule" $ do
+  it "handles multiple indexes on 1 rule correctly" $ do
+    idxSel "index_selection" `resultsIn`
+      toSelection [ ("a", [[0]])
+                  , ("b", [[0]])
+                  , ("c", [[0,1,2]])
+                  , ("d", [[0]])
+                  , ("triple", [[0,1,2], [2,0]])
+                  ]
+
+  it "selects a minimal set of indexes for a rule" $ do
     idxSel "minimal_index_selection" `resultsIn`
-      toSelection [ ("first", [[0,1,2], [1,2], [2]])
-                  , ("second", [[0,1]])
-                  , ("third", [[0,1]])
+      toSelection [ ("first", [[1,0,2], [2,1]])
+                  , ("second", [[0]])
+                  , ("third", [[0]])
                   , ("fourth", [[0]])
                   , ("fifth", [[0]])
                   ]
@@ -88,7 +97,7 @@ spec = fdescribe "Index selection" $ parallel $ do
 
   -- TODO variant where one is recursive
 
-  xit "creates indexes for mutually recursive rules" $ do
+  it "creates indexes for mutually recursive rules" $ do
     idxSel "mutually_recursive_rules" `resultsIn`
       toSelection [ ("a", [[0]])
                   , ("b", [[0]])
@@ -101,3 +110,9 @@ spec = fdescribe "Index selection" $ parallel $ do
                   ]
 
   -- TODO tests for rules with >2 clauses, ...
+
+  it "calculates index correctly for multiple columns at once" $ do
+    idxSel "index_for_chain" `resultsIn`
+      toSelection [ ("a", [[0,1,2,3,4], [4,2,3]])
+                  , ("b", [[0]])
+                  ]

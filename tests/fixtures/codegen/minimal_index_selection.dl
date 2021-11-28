@@ -1,18 +1,22 @@
-// [0,1,2]
+// [1,0,2] ([0,1,2] re-ordered)
 first(1, 2, 3).
+second(1).
+third(1).
+fourth(1).
+fifth(1).
 
-second(x, y) :-
-  // [0,1] => [0,1,2]
-  first(x, y, z).
+second(x) :-
+  // [0,1] => [1,0,2]
+  first(123, 456, x).
 
-third(x, y) :-
-  // [1,2]
-  first(a, x, y).
+third(x) :-
+  // [2,1]
+  first(x, 123, 456).
 
 fourth(x) :-
-  // [2]
-  first(a, b, x).
+  // [2] => [2,1]
+  first(x, a, 123).
 
 fifth(x) :-
-  // [1] => [1,2]
-  first(a, x, b).
+  // [1] => [1,0,2]
+  first(x, 123, a).

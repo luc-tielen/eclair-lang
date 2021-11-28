@@ -1,25 +1,21 @@
 a(1).
-b(1, 2).
+b(1).
 c(1, 2, 3).
-d(1, 2).
-triple(1, 2, 3).
+d(1).
+triple(4, 5, 6).
 
-a(z) :-
+a(y) :-
   // [2]
-  triple(x, z, 42).
+  triple(x, y, 123).
 
-b(x, y) :-
-  a(x),
-  a(y),
+b(x) :-
   // [0,1] => [0,1,2]
-  triple(x, y, z).
+  triple(123, 456, x).
 
 c(x, y, z) :-
   // [0,1,2]
   triple(x, y, z).
 
-d(x, z) :-
-  a(x),
-  a(z),
+d(x) :-
   // [0, 2]
-  triple(x, y, z).
+  triple(123, x, 456).
