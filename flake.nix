@@ -1,5 +1,6 @@
 {
-  description = "eclair-lang: souffle on LLVM";
+  description =
+    "eclair-lang: An experimental and minimal Datalog that compiles to LLVM";
   inputs = {
     np.url = "github:nixos/nixpkgs?ref=haskell-updates";
     fu.url = "github:numtide/flake-utils?ref=master";
