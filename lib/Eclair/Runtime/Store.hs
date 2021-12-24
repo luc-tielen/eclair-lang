@@ -25,7 +25,7 @@ import LLVM.IRBuilder.Instruction
 import LLVM.IRBuilder.Constant
 import LLVM.AST.Type
 import Control.Monad.Morph
-import Eclair.Runtime.LLVM hiding (swap)
+import LLVM.IRBuilder.Combinators hiding (swap)
 
 -- A stack allocated object.
 type Object = Operand

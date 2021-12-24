@@ -7,7 +7,7 @@ module Eclair.Runtime.BTree
   , codegen
   ) where
 
-import Protolude hiding (Type, Meta, swap, void, bit, typeOf, minimum, and, not)
+import Protolude hiding (Type, Meta, swap, void, bit, typeOf, and)
 import Control.Arrow ((&&&))
 import Control.Monad.Morph
 import Control.Monad.Fix
@@ -22,8 +22,8 @@ import LLVM.IRBuilder.Module
 import LLVM.IRBuilder.Monad
 import LLVM.IRBuilder.Constant
 import LLVM.IRBuilder.Instruction
-import Eclair.Runtime.LLVM hiding (IRCodegen, ModuleCodegen)
-import qualified Eclair.Runtime.LLVM as LLVM
+import LLVM.IRBuilder.Combinators
+import Eclair.Runtime.LLVM
 import Eclair.Runtime.Hash
 import Eclair.Runtime.Store (Functions(..))
 
@@ -337,7 +337,7 @@ mkNodeDelete = mdo
       inner <- n `bitcast` ptr innerNode
 
       numElements <- deref (metaOf ->> numElemsOf) n
-      forLoop (int16 0) (`ule` numElements) (add (int16 1)) $ \i -> mdo
+      loopFor (int16 0) (`ule` numElements) (add (int16 1)) $ \i -> mdo
         child <- deref (childAt i) inner
         isNotNull <- child `ne` nullPtr node
         if' isNotNull $
@@ -368,7 +368,7 @@ mkNodeClone nodeNew = mdo
       nMeta <- copy metaOf n newNode
 
       numElements <- deref (metaOf ->> numElemsOf) n
-      forLoop (int16 0) (`ult` numElements) (add (int16 1)) $ \i -> mdo
+      loopFor (int16 0) (`ult` numElements) (add (int16 1)) $ \i -> mdo
         copy (valueAt i) n newNode
 
     copyChildren nodeClone n newNode = mdo
@@ -377,7 +377,7 @@ mkNodeClone nodeNew = mdo
       newInnerN <- newNode `bitcast` ptr innerNode
 
       numElements <- deref (metaOf ->> numElemsOf) n
-      forLoop (int16 0) (`ule` numElements) (add (int16 1)) $ \i -> mdo
+      loopFor (int16 0) (`ule` numElements) (add (int16 1)) $ \i -> mdo
         child <- deref (childAt i) innerN
         clonedChild <- call nodeClone [(child, [])]
         assign (metaOf ->> parentOf) clonedChild newNode
@@ -468,7 +468,7 @@ mkNodeSplitPoint = mdo
     a' <- mul (int16 3) numberOfKeys
     a <- udiv a' (int16 4)
     b <- sub numberOfKeys (int16 2)
-    ret =<< minimum a b
+    ret =<< minimum' Unsigned a b
 
 mkSplit :: Operand -> Operand -> Operand -> ModuleCodegen Operand
 mkSplit nodeNew nodeSplitPoint growParent = mdo
@@ -485,7 +485,7 @@ mkSplit nodeNew nodeSplitPoint growParent = mdo
     -- Create a new sibling node and move some of the data to sibling
     sibling <- call nodeNew [(ty, [])]
     jPtr <- allocate i16 (int16 0)
-    forLoop splitPoint' (`ult` numberOfKeys) (add (int16 1)) $ \i -> mdo
+    loopFor splitPoint' (`ult` numberOfKeys) (add (int16 1)) $ \i -> mdo
       j <- load jPtr 0
       assign (valueAt j) sibling =<< deref (valueAt i) n
       store jPtr 0 =<< add (int16 1) j
@@ -496,7 +496,7 @@ mkSplit nodeNew nodeSplitPoint growParent = mdo
       iN <- n `bitcast` ptr innerNode
 
       store jPtr 0 (int16 0)
-      forLoop splitPoint' (`ult` numberOfKeys) (add (int16 1)) $ \i -> mdo
+      loopFor splitPoint' (`ult` numberOfKeys) (add (int16 1)) $ \i -> mdo
         j <- load jPtr 0
         iChild <- deref (childAt i) iN
         assign (metaOf ->> parentOf) iChild sibling
@@ -590,7 +590,7 @@ mkInsertInner rebalanceOrSplit = mdo
     numElems' <- deref (metaOf ->> numElemsOf) n
     startIdx <- sub numElems' (int16 1)
     pos' <- load posPtr 0
-    forLoop startIdx (`uge` pos') (`sub` int16 1) $ \i -> mdo
+    loopFor startIdx (`uge` pos') (`sub` int16 1) $ \i -> mdo
       j <- add i (int16 1)
       k <- add i (int16 2)
       assign (valueAt j) n =<< deref (valueAt i) n
@@ -647,7 +647,7 @@ mkRebalanceOrSplit splitFn = mdo
       assign (valueAt leftNumElems) left splitterValue
 
       leftSlotsOpen' <- sub leftSlotsOpen (int16 1)
-      forLoop (int16 0) (`ult` leftSlotsOpen') (add (int16 1)) $ \i -> do
+      loopFor (int16 0) (`ult` leftSlotsOpen') (add (int16 1)) $ \i -> do
         j <- add leftNumElems (int16 1) >>= add i
         assign (valueAt j) left =<< deref (valueAt i) n
 
@@ -656,7 +656,7 @@ mkRebalanceOrSplit splitFn = mdo
       -- Shift keys in this node to the left
       numElemsN <- deref (metaOf ->> numElemsOf) n
       idxEnd <- sub numElemsN leftSlotsOpen
-      forLoop (int16 0) (`ult` idxEnd) (add (int16 1)) $ \i -> do
+      loopFor (int16 0) (`ult` idxEnd) (add (int16 1)) $ \i -> do
         -- TODO memmove possible?
         j <- add i leftSlotsOpen
         assign (valueAt i) n =<< deref (valueAt j) n
@@ -668,7 +668,7 @@ mkRebalanceOrSplit splitFn = mdo
         iLeft <- left `bitcast` ptr innerNode
 
         -- Move children
-        forLoop (int16 0) (`ult` leftSlotsOpen) (add (int16 1)) $ \i -> do
+        loopFor (int16 0) (`ult` leftSlotsOpen) (add (int16 1)) $ \i -> do
           leftNumElems <- deref (metaOf ->> numElemsOf) left
           leftPos <- add leftNumElems (int16 1) >>= add i
           -- TODO: check next part against C++ code
@@ -679,7 +679,7 @@ mkRebalanceOrSplit splitFn = mdo
 
         -- Shift child pointer to the left + update position
         endIdx <- sub numElemsN leftSlotsOpen >>= add (int16 1)
-        forLoop (int16 0) (`ult` endIdx) (add (int16 1)) $ \i -> do
+        loopFor (int16 0) (`ult` endIdx) (add (int16 1)) $ \i -> do
           j <- add i leftSlotsOpen
           assign (childAt i) iN =<< deref (childAt j) iN
           child <- deref (childAt i) iN
@@ -780,7 +780,7 @@ mkIteratorNext = do
             numElems' <- deref (metaOf ->> numElemsOf) current'
             atEnd <- pos' `eq` numElems'
             isNotNull `and` atEnd
-      whileLoop loopCondition $ do
+      loopWhile loopCondition $ do
         current' <- deref currentPtrOf iter
         assign valuePosOf iter =<< deref (metaOf ->> posInParentOf) current'
         assign currentPtrOf iter =<< deref (metaOf ->> parentOf) current'
@@ -794,7 +794,7 @@ mkIteratorNext = do
       let loopCondition' = do
             ty <- deref (metaOf ->> nodeTypeOf) =<< load currentPtr 0
             ty `eq` innerNodeTypeVal
-      whileLoop loopCondition' $ do
+      loopWhile loopCondition' $ do
         iCurrent <- load currentPtr 0 >>= (`bitcast` ptr innerNode)
         firstChild <- deref (childAt (int16 0)) iCurrent
         store currentPtr 0 firstChild
@@ -813,7 +813,7 @@ mkLinearSearchLowerBound compareValues = do
     let loopCondition = do
           current <- load currentPtr 0
           current `ne` end
-    whileLoop loopCondition $ mdo
+    loopWhile loopCondition $ mdo
       current <- load currentPtr 0
       result <- call compareValues [(current, []), (val, [])]
       isGtOrEqThan <- result `ne` int8 (-1)
@@ -836,7 +836,7 @@ mkLinearSearchUpperBound compareValues = do
     let loopCondition = do
           current <- load currentPtr 0
           current `ne` end
-    whileLoop loopCondition $ mdo
+    loopWhile loopCondition $ mdo
       current <- load currentPtr 0
       result <- call compareValues [(current, []), (val, [])]
       isGreaterThan <- result `eq` int8 1
@@ -896,7 +896,7 @@ mkBtreeCopy nodeClone isEmptyTree = do
           tmp <- load tmpPtr 0
           ty <- deref (metaOf ->> nodeTypeOf) tmp
           ty `eq` innerNodeTypeVal
-    whileLoop loopCondition $ do
+    loopWhile loopCondition $ do
       iTmp <- load tmpPtr 0 >>= (`bitcast` ptr innerNode)
       firstChild <- deref (childAt (int16 0)) iTmp
       store tmpPtr 0 firstChild
@@ -1039,7 +1039,7 @@ mkBtreeInsertValue nodeNew rebalanceOrSplit compareValues searchLowerBound searc
       -- No split -> move keys and insert new element
       idx''' <- load idxPtr 0
       numElems' <- deref (metaOf ->> numElemsOf) current  -- Might've been updated in the meantime
-      forLoop numElems' (`ugt` idx''') (`sub` int16 1) $ \j -> do
+      loopFor numElems' (`ugt` idx''') (`sub` int16 1) $ \j -> do
         -- TODO: memmove possible?
         j' <- sub j (int16 1)
         assign (valueAt j) current =<< deref (valueAt j') current
@@ -1057,8 +1057,8 @@ mkBtreeInsertRange iterIsEqual iterCurrent iterNext btreeInsertValue = do
   def "btree_insert_range" args void $ \[t, begin, end] -> do
     let loopCondition = do
           isEqual <- call iterIsEqual $ (,[]) <$> [begin, end]
-          not isEqual
-    whileLoop loopCondition $ do
+          not' isEqual
+    loopWhile loopCondition $ do
       val <- call iterCurrent [(begin, [])]
       call btreeInsertValue $ (,[]) <$> [t, val]
       call iterNext [(begin, [])]
@@ -1093,7 +1093,7 @@ mkBtreeContains iterIsEqual btreeFind btreeEnd = do
     call btreeFind $ (,[]) <$> [t, val, iterPtr]
     call btreeEnd $ (,[]) <$> [t, endIterPtr]
     isEqual <- call iterIsEqual $ (,[]) <$> [iterPtr, endIterPtr]
-    ret =<< not isEqual
+    ret =<< not' isEqual
 
 mkBtreeFind :: Operand -> Operand -> Operand -> Operand -> Operand -> Operand -> ModuleCodegen Operand
 mkBtreeFind btreeEnd isEmptyTree searchLowerBound compareValues iterInit iterInitEnd = do
@@ -1285,7 +1285,7 @@ mkBtreeAssign isEmptyTree nodeClone = do
     let loopCondition = do
           ty <- deref (metaOf ->> nodeTypeOf) =<< load currentPtr 0
           ty `eq` innerNodeTypeVal
-    whileLoop loopCondition $ mdo
+    loopWhile loopCondition $ mdo
       iCurrent <- load currentPtr 0 >>= (`bitcast` ptr innerNode)
       store currentPtr 0 =<< deref (childAt (int16 0)) iCurrent
 
@@ -1324,10 +1324,10 @@ mkBtreeIsEqual btreeBegin btreeEnd btreeContains btreeSize iterIsEqual iterNext 
 
     let loopCondition = do
           isEqual <- call iterIsEqual $ (,[]) <$> [beginPtr, endPtr]
-          not isEqual
-    whileLoop loopCondition $ mdo
+          not' isEqual
+    loopWhile loopCondition $ mdo
       val <- call iterCurrent [(beginPtr, [])]
-      leftNotContains <- not <=< call btreeContains $ (,[]) <$> [lhs, val]
+      leftNotContains <- not' <=< call btreeContains $ (,[]) <$> [lhs, val]
       if' leftNotContains $
         ret (bit 0)
 
@@ -1377,7 +1377,7 @@ loopChildren n ty beginValue f = mdo
 
   result <- allocate ty beginValue
   numElements <- deref (metaOf ->> numElemsOf) n
-  forLoop (int16 0) (`ule` numElements) (add (int16 1)) $ \i -> mdo
+  loopFor (int16 0) (`ule` numElements) (add (int16 1)) $ \i -> mdo
     currentResult <- load result 0
     child <- deref (childAt i) inner
     updatedResult <- f currentResult child
