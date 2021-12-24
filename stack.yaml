@@ -50,6 +50,8 @@ extra-deps:
   subdirs:
     - llvm-hs
     - llvm-hs-pure
+- git: https://github.com/luc-tielen/llvm-hs-combinators
+  commit: 6a5494d00d55dc2d988957588cf204731f27abc1
 - git: https://github.com/luc-tielen/llvm-hs-pretty
   commit: 990bb6981f6214d9c1bbf46fd9e9ce5596d3bf30  # builds with later llvm-hs versions (>9)
 - git: https://github.com/snowleopard/alga

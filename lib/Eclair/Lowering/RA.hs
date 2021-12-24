@@ -13,7 +13,6 @@ import qualified Data.Set as Set
 import qualified Data.Text.Lazy.IO as TIO
 import Eclair.RA.IR
 import Eclair.RA.IndexSelection
-import Eclair.Runtime.LLVM
 import Eclair.Runtime.Store (Store(..), Object, Functions(..))
 import Eclair.TypeSystem
 import qualified Eclair.Runtime.BTree as BTree
@@ -25,6 +24,7 @@ import LLVM.IRBuilder.Constant
 import LLVM.IRBuilder.Instruction
 import LLVM.IRBuilder.Module
 import LLVM.IRBuilder.Monad
+import LLVM.IRBuilder.Combinators
 import LLVM.Pretty
 import qualified LLVM.AST.IntegerPredicate as IP
 
@@ -141,8 +141,8 @@ generateProgramInstructions = zygo extractQueryInfo $ \case
     call (fnUpperBound fns) [(obj, []), (ubValue, []), (endIter, [])]
     let hasNext = do
           isEqual <- call (fnIterIsEqual fns) [(beginIter, []), (endIter, [])]
-          not isEqual
-    whileLoop hasNext $ mdo
+          not' isEqual
+    loopWhile hasNext $ mdo
       currValue <- call (fnIterCurrent fns) [(beginIter, [])]
       matchesQuery <- withReaderT (SearchState alias currValue) query
       if' matchesQuery $
@@ -225,7 +225,7 @@ extractQueryInfo = toQuery `combine` constraintsForSearch where
       value <- Store.mkValue fns
       for_ (zip [0..] vals) $ \(i, val) ->
         assign (mkPath [int32 i]) value val
-      not =<< call (fnContains fns) [(obj, []), (value, [])]
+      not' =<< call (fnContains fns) [(obj, []), (value, [])]
     _ ->
       panic "Unsupported variant in extractQueryInfo when lowering RA IR to LLVM."
   lowerState = \case

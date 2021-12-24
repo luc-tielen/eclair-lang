@@ -56,6 +56,17 @@ packages:
     git: https://github.com/luc-tielen/llvm-hs
     commit: 69ae96c9eea8531c750c9d81f9813286ef5ced81
 - completed:
+    name: llvm-hs-combinators
+    version: 0.1.0.0
+    git: https://github.com/luc-tielen/llvm-hs-combinators
+    pantry-tree:
+      size: 644
+      sha256: 6025658144cef1f3cae922e3e2af8151ae0d2d9de2c9d1961af25a19de6507b9
+    commit: 6a5494d00d55dc2d988957588cf204731f27abc1
+  original:
+    git: https://github.com/luc-tielen/llvm-hs-combinators
+    commit: 6a5494d00d55dc2d988957588cf204731f27abc1
+- completed:
     name: llvm-hs-pretty
     version: 0.9.0.0
     git: https://github.com/luc-tielen/llvm-hs-pretty
