@@ -5,7 +5,8 @@ module Eclair.RA.IndexSelection
   , SearchSignature(..)
   , Column
   , runIndexSelection
-  , buildGraph
+  , columnsForRelation
+  , constraintsForSearch
   ) where
 
 -- Based on the paper "Automatic Index Selection for Large-Scale Datalog Computation"
@@ -32,7 +33,6 @@ newtype SearchSignature
   = SearchSignature (Set Column)
   deriving (Eq, Ord, Show)
 
--- An index is also a search signature in essence, but a newtype for type safety
 newtype Index = Index [Column]  -- TODO: use NonEmpty
   deriving (Eq, Ord, Show)
 
@@ -93,13 +93,16 @@ searchesForProgram ra = solve $ execState (zygo constraintsForSearch constraints
       MergeF r1 r2 -> addFact $ Related r1 r2
       SwapF r1 r2  -> addFact $ Related r1 r2
       ra -> traverse_ snd ra
-    constraintsForSearch :: RAF [(Relation, Column)] -> [(Relation, Column)]
-    constraintsForSearch = \case
-      ColumnIndexF r col -> [(r, col)]
-      e -> fold e
-    columnsForRelation r (r', col)
-      | r == r'   = Just col
-      | otherwise = Nothing
+
+constraintsForSearch :: RAF [(Relation, Column)] -> [(Relation, Column)]
+constraintsForSearch = \case
+  ColumnIndexF r col -> [(r, col)]
+  e -> fold e
+
+columnsForRelation :: Relation -> (Relation, Column) -> Maybe Column
+columnsForRelation r (r', col)
+  | r == r'   = Just col
+  | otherwise = Nothing
 
 solve :: [SearchFact] -> SearchMap
 solve facts = execState (traverse solveOne $ sort facts) mempty

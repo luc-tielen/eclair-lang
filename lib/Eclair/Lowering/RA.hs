@@ -2,26 +2,31 @@
 
 module Eclair.Lowering.RA ( compileLLVM ) where
 
-import Protolude hiding (Type)
+import Protolude hiding (Type, bit, not, and)
 import Protolude.Unsafe (unsafeHead, unsafeFromJust)
+import Control.Arrow ((&&&))
+import Control.Monad.Reader
+import Data.Functor.Foldable
+import Data.List ((!!))
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text.Lazy.IO as TIO
-import Data.Functor.Foldable
-import Eclair.TypeSystem
 import Eclair.RA.IR
 import Eclair.RA.IndexSelection
-import Eclair.Runtime.Store
 import Eclair.Runtime.LLVM
+import Eclair.Runtime.Store (Store(..), Object, Functions(..))
+import Eclair.TypeSystem
 import qualified Eclair.Runtime.BTree as BTree
+import qualified Eclair.Runtime.Store as Store
+import LLVM.AST.Name
+import LLVM.AST.Operand hiding (local)
+import LLVM.AST.Type hiding (Type)
+import LLVM.IRBuilder.Constant
+import LLVM.IRBuilder.Instruction
 import LLVM.IRBuilder.Module
 import LLVM.IRBuilder.Monad
-import LLVM.IRBuilder.Instruction
-import LLVM.IRBuilder.Constant
-import LLVM.AST.Type hiding (Type)
-import LLVM.AST.Name
 import LLVM.Pretty
-import Control.Monad.Morph (hoist)
+import qualified LLVM.AST.IntegerPredicate as IP
 
 
 type Module = ()  -- TODO llvm module type
@@ -31,12 +36,22 @@ type StoreMap = Map Relation Store
 -- TODO: add typeinfo to reader?
 type CodegenM = IRBuilderT (ModuleBuilderT IO)
 
+type Value = [Operand]  -- TODO: remove?
+
 data LowerState
   = LowerState
   { endLabel :: Name
+  , typeEnv :: TypeInfo
   , relations :: StoreMap
   , idxSelector :: IndexSelector
+  , aliasMap :: Map Alias Operand  -- Maps to a value pointer
   }
+
+data QueryState
+  = SearchState Alias Operand LowerState
+  | ProjectState Relation LowerState
+
+type QueryM = ReaderT QueryState CodegenM
 
 
 compileLLVM :: TypeInfo -> RA -> IO Module
@@ -46,9 +61,10 @@ compileLLVM typeInfo ra = do
     fnsMap <- generateFnsForRelations indexMap typeInfo
 
     let params = [(i32, "argc"), (ptr (ptr i8), "argv")]
+    -- TODO: split into multiple functions
     function "main" params i32 $ \[argc, argv] -> mdo
       storeMap <- allocateStores fnsMap
-      let beginState = LowerState end storeMap getIndexForSearch
+      let beginState = LowerState end typeInfo storeMap getIndexForSearch mempty
       runReaderT (generateProgramInstructions ra) beginState
       cleanupStores storeMap
       br end
@@ -61,30 +77,15 @@ compileLLVM typeInfo ra = do
 
   -- TODO: generate code for reading/writing values from/to datalog
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 allocateStores :: FunctionsMap -> CodegenM StoreMap
 allocateStores = traverse $ \objMap ->
   map Store $ flip Map.traverseWithKey objMap $ \idx fns ->
-    (, fns) <$> fnAllocateObj fns
+    (, fns) <$> Store.mkObject fns
+    -- TODO: call initialize (via Store)?
 
 cleanupStores :: StoreMap -> CodegenM ()
-cleanupStores storeMap = do
-  pure () -- TODO: cleanup each store
+cleanupStores storeMap =
+  for_ storeMap Store.destroy
 
 -- TODO: name
 generateFnsForRelations :: IndexMap -> TypeInfo -> ModuleBuilderT IO FunctionsMap
@@ -98,58 +99,77 @@ generateFnsForRelations indexMap typeInfo = do
 
   pure $ map Map.fromList results
 
+data Bound
+  = LowerBound
+  | UpperBound
+
+-- TODO: finish implementation, broken atm
+initValue :: Bound -> Functions -> [Column] -> ReaderT LowerState CodegenM Operand
+initValue bound fns columns = do
+  typeInfo <- asks typeEnv
+  value <- Store.mkValue fns
+  let columnNrs = take (length typeInfo) [0..]
+      valuesWithCols = [(nr, x) | nr <- columnNrs, let x = if nr `elem` columns
+                                                             then bounded
+                                                             else dontCare]
+  for_ valuesWithCols $ \(i, val) -> do
+    -- TODO: take actual values into account!
+    assign (mkPath [int32 (toInteger i)]) value val
+  pure value
+  where
+    -- NOTE: only supports unsigned integers for now!
+    bounded = case bound of
+      LowerBound -> int32 0
+      UpperBound -> int32 0xffffffff
+    dontCare = int32 0
+
 generateProgramInstructions :: RA -> ReaderT LowerState CodegenM ()
-generateProgramInstructions = cata $ \case
-  -- TODO: compile to IR
-  -- call into store functionality as much as possible,
-  -- use index selector to compute indices
-  -- use interpreter as guideline
-  ModuleF actions -> sequence_ actions
-  SearchF r alias clauses action -> do
-    undefined
-  ProjectF r values -> do
-    undefined
+generateProgramInstructions = zygo extractQueryInfo $ \case
+  ModuleF actions ->
+    traverse_ snd actions
+  SearchF r alias (unzip . map fst -> (qs, constraints)) (snd -> asm) -> do
+    store <- asks (storeForRelation r)
+    -- TODO: refactor/move to Store.hs
+    (idx, columns) <- idxFromConstraints r (concat constraints)
+    let (obj, fns) = Store.lookupByIndex store idx
+        query = andM identity qs
+    lbValue <- initValue LowerBound fns columns
+    ubValue <- initValue UpperBound fns columns
+    beginIter <- Store.mkIter fns
+    endIter <- Store.mkIter fns
+    call (fnLowerBound fns) [(obj, []), (lbValue, []), (beginIter, [])]
+    call (fnUpperBound fns) [(obj, []), (ubValue, []), (endIter, [])]
+    let hasNext = do
+          isEqual <- call (fnIterIsEqual fns) [(beginIter, []), (endIter, [])]
+          not isEqual
+    whileLoop hasNext $ mdo
+      currValue <- call (fnIterCurrent fns) [(beginIter, [])]
+      matchesQuery <- withReaderT (SearchState alias currValue) query
+      if' matchesQuery $
+        updateAlias fns alias currValue
+        asm
+
+      call (fnIterNext fns) [(beginIter, [])]
+  ProjectF r (map (fst . fst) -> unresolvedValues) -> do
+    store <- asks (storeForRelation r)
+    values <- withReaderT (ProjectState r) $ sequence unresolvedValues
+    Store.project store values
   MergeF r1 r2 -> do
     store1 <- asks (storeForRelation r1)
     store2 <- asks (storeForRelation r2)
-    -- TODO: move next code to store module so this focuses on actual lowering and not instructions?
-    let objs1 = objects store1
-        objs2 = objects store2
-        objsCombined = Map.intersectionWith (,) objs1 objs2
-    -- NOTE: fns1 == fns2
-    -- obj1 = from/src, obj2 = to/dst
-    for_ objsCombined $ \((obj1, fns1), (obj2, fns2)) -> do
-      let begin = fnBegin fns1
-          end = fnEnd fns1
-          insertRange = fnInsertRange fns1
-          allocateIter = fnAllocateIter fns1
-      iterBegin1 <- allocateIter
-      iterEnd1 <- allocateIter
-      call begin [(obj1, []), (iterBegin1, [])]
-      call end [(obj1, []), (iterEnd1, [])]
-      call insertRange [(obj2, []), (iterBegin1, []), (iterEnd1, [])]
-      pure ()
+    Store.merge store1 store2
   PurgeF r -> do
     store <- asks (storeForRelation r)
-    -- TODO: move next code to store module so this focuses on actual lowering and not instructions?
-    for_ (objects store) $ \(obj, functions) -> do
-      let purge = fnPurge functions
-      call purge [(obj, [])]
+    Store.purge store
   SwapF r1 r2 -> do
     store1 <- asks (storeForRelation r1)
     store2 <- asks (storeForRelation r2)
-    -- TODO: move next code to store module so this focuses on actual lowering and not instructions?
-    let objs1 = objects store1
-        objs2 = objects store2
-        objsCombined = Map.intersectionWith (,) objs1 objs2
-    for_ objsCombined $ \((obj1, fns1), (obj2, fns2)) -> do
-      let swap = fnSwap fns1  -- fns1 == fns2
-      call swap [(obj1, []), (obj2, [])]
+    Store.swap store1 store2
   ParF actions ->
-    sequence_ actions -- TODO: make parallel
+    traverse_ snd actions -- TODO: make parallel
   LoopF actions -> mdo
     local (\s -> s { endLabel = end }) $
-      loop $ sequence actions
+      loop $ traverse_ snd actions
 
     end <- block `named` "loop.end"
     pure ()
@@ -157,29 +177,89 @@ generateProgramInstructions = cata $ \case
     end <- asks endLabel
     kb <- asks relations
     let stores = mapMaybe (`Map.lookup` kb) rs
-    flip cata (map objects stores) $ \case
-      Nil -> pure ()
-      Cons idxMap asm -> do
-        let (obj, fns) = firstValueInMap idxMap
-            isEmpty = fnIsEmpty fns
-        condition <- call isEmpty [(obj, [])]
-        if' isEmpty $
-          br end
+    allEmpty <- andM Store.isEmpty stores
+    if' allEmpty $
+      br end
+  _ -> panic "Unexpected variant when lowering RA IR to LLVM."
 
-        asm
-  _ -> undefined  -- TODO
-  where
-    storeForRelation r = unsafeFromJust . Map.lookup r . relations
-    firstValueInMap m =
-      let firstKey = unsafeHead $ Map.keys m
-       in unsafeFromJust $ Map.lookup firstKey m
+idxFromConstraints :: Relation -> [(Relation, Column)] -> ReaderT LowerState CodegenM (Index, [Column])
+idxFromConstraints r constraints = do
+    getIndexForSearch <- asks idxSelector
+    let columns = mapMaybe (columnsForRelation r) constraints
+        signature = SearchSignature $ Set.fromList columns
+        idx = getIndexForSearch r signature
+    pure (idx, columns)
 
-  {- TODO: how to handle the following?
-  | Lit Number
-  | ColumnIndex Relation ColumnIndex
-  | Constrain RA RA  -- equality constraint
-  | NotElem Relation [RA]
-  -}
+
+-- TODO: is constraintsForSearch enough, maybe we need constraintsForRA too?
+extractQueryInfo :: RAF (QueryM Operand, [(Relation, Column)])
+                 ->     (QueryM Operand, [(Relation, Column)])
+extractQueryInfo = toQuery `combine` constraintsForSearch where
+  -- NOTE: The following typechecks, but actually returns completely
+  -- different things on the LLVM level because there it is all "just Operands".
+  toQuery :: RAF (QueryM Operand) -> QueryM Operand
+  toQuery = \case
+    LitF x -> pure (int32 $ toInteger x)
+    ColumnIndexF a' col -> ask >>= \case
+      SearchState a value ls ->
+        if a == a'
+          then getColumn value col
+          else do
+            let currentAliasValue = lookupAliasValue a ls
+            getColumn currentAliasValue col
+      ProjectState r ls -> do
+        let currentAliasValue = lookupAliasValue r ls
+        getColumn currentAliasValue col
+      where
+        getColumn value col =
+          deref (mkPath [int32 $ toInteger col]) value
+    ConstrainF lhs rhs -> do
+      a <- lhs
+      b <- rhs
+      a `eq` b
+    NotElemF r values -> do
+      store <- asks (storeForRelation r . lowerState)
+      let idx = mkFindIndex values
+          (obj, fns) = unsafeFromJust $ Map.lookup idx (Store.objects store)
+      vals <- sequence values
+      value <- Store.mkValue fns
+      for_ (zip [0..] vals) $ \(i, val) ->
+        assign (mkPath [int32 i]) value val
+      not =<< call (fnContains fns) [(obj, []), (value, [])]
+    _ ->
+      panic "Unsupported variant in extractQueryInfo when lowering RA IR to LLVM."
+  lowerState = \case
+    SearchState _ _ ls -> ls
+    ProjectState _ ls -> ls
+
+combine :: Functor f => (f a -> a) -> (f b -> b) -> f (a, b) -> (a, b)
+combine f g = f . map fst &&& g . map snd
+
+andM :: (MonadModuleBuilder m, MonadIRBuilder m)
+     => (a -> m Operand) -> [a] -> m Operand
+andM f as = flip cata as $ \case
+  Nil -> pure (bit 1)
+  Cons a asm -> do
+    result <- f a
+    (result `and`) =<< asm
+
+storeForRelation :: Relation -> LowerState -> Store
+storeForRelation r =
+  unsafeFromJust . Map.lookup r . relations
+
+lookupAliasValue :: Alias -> LowerState -> Operand
+lookupAliasValue a =
+  unsafeFromJust . Map.lookup a . aliasMap
+
+updateAlias :: Functions -> Alias -> Operand -> ReaderT LowerState CodegenM () -> ReaderT LowerState CodegenM ()
+updateAlias fns alias iter m = do
+  curr <- call (fnIterCurrent fns) [(iter, [])]
+  local (\ls -> ls { aliasMap = Map.insert alias curr (aliasMap ls) }) m
+
+-- TODO: Is this index always correct? -> no; how to get corresponding index?
+mkFindIndex :: [a] -> Index
+mkFindIndex values =
+  Index $ zipWith const [0..] values
 
 mkMeta :: Index -> [Type] -> BTree.Meta
 mkMeta idx@(Index columns) ts =

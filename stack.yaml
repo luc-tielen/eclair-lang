@@ -51,9 +51,10 @@ extra-deps:
     - llvm-hs
     - llvm-hs-pure
 - git: https://github.com/luc-tielen/llvm-hs-pretty
-  commit: b0e8a13ee087f0d16fc3f70a6f208467ed13023f  # builds with later llvm-hs versions (>9)
+  commit: 990bb6981f6214d9c1bbf46fd9e9ce5596d3bf30  # builds with later llvm-hs versions (>9)
 - git: https://github.com/snowleopard/alga
   commit: 1623fae605503595ee331929157c61b5e5e0c1c7
+- prettyprinter-1.5.1@sha256:fca87c3e2611d3499a0341a59857e9b424a23f31646e4737d535a18582284f96,5375
 
 # Override default flag values for local packages and extra-deps
 # flags: {}

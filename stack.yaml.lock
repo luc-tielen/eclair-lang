@@ -60,12 +60,12 @@ packages:
     version: 0.9.0.0
     git: https://github.com/luc-tielen/llvm-hs-pretty
     pantry-tree:
-      size: 5163
-      sha256: f8026bf66442f288964b52b6372e8b08a907cbad867ff8e69673e54a11c7f237
-    commit: b0e8a13ee087f0d16fc3f70a6f208467ed13023f
+      size: 5223
+      sha256: 873e6de0735eed620563a0ec13e2e55a6a2910dd4e00b1568e2e0feb6962cf29
+    commit: 990bb6981f6214d9c1bbf46fd9e9ce5596d3bf30
   original:
     git: https://github.com/luc-tielen/llvm-hs-pretty
-    commit: b0e8a13ee087f0d16fc3f70a6f208467ed13023f
+    commit: 990bb6981f6214d9c1bbf46fd9e9ce5596d3bf30
 - completed:
     name: algebraic-graphs
     version: '0.7'
@@ -77,6 +77,13 @@ packages:
   original:
     git: https://github.com/snowleopard/alga
     commit: 1623fae605503595ee331929157c61b5e5e0c1c7
+- completed:
+    hackage: prettyprinter-1.5.1@sha256:fca87c3e2611d3499a0341a59857e9b424a23f31646e4737d535a18582284f96,5375
+    pantry-tree:
+      size: 2106
+      sha256: 86fd583112db41bac5ac9ecf258ec402ad615253e9c5eabc56ec127bfb94c096
+  original:
+    hackage: prettyprinter-1.5.1@sha256:fca87c3e2611d3499a0341a59857e9b424a23f31646e4737d535a18582284f96,5375
 snapshots:
 - completed:
     size: 532832

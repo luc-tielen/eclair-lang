@@ -7,16 +7,17 @@ module Eclair.Runtime.BTree
   , codegen
   ) where
 
-import Protolude hiding ( Type, Meta, swap, void, bit, typeOf, minimum, and, not )
+import Protolude hiding (Type, Meta, swap, void, bit, typeOf, minimum, and, not)
 import Control.Arrow ((&&&))
 import Control.Monad.Morph
+import Control.Monad.Fix
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Functor.Foldable hiding (hoist)
 import qualified LLVM.AST.IntegerPredicate as IP
 import LLVM.AST.Type
 import LLVM.AST.Name
-import LLVM.AST.Operand ( Operand(..) )
+import LLVM.AST.Operand (Operand(..))
 import LLVM.IRBuilder.Module
 import LLVM.IRBuilder.Monad
 import LLVM.IRBuilder.Constant
@@ -24,7 +25,7 @@ import LLVM.IRBuilder.Instruction
 import Eclair.Runtime.LLVM hiding (IRCodegen, ModuleCodegen)
 import qualified Eclair.Runtime.LLVM as LLVM
 import Eclair.Runtime.Hash
-import Eclair.Runtime.Store
+import Eclair.Runtime.Store (Functions(..))
 
 
 data Meta
@@ -83,9 +84,10 @@ data CGState
   }
   deriving ToHash via HashOnly "meta" CGState
 
-type IRCodegen = LLVM.IRCodegen CGState
+type IRCodegen = IRBuilderT ModuleCodegen
 
-type ModuleCodegen = LLVM.ModuleCodegen CGState
+type ModuleCodegen = ReaderT CGState ModuleBuilder
+
 
 codegen :: Meta -> ModuleBuilderT IO Functions
 codegen meta = do
@@ -127,7 +129,8 @@ computeSizes meta = do
   where
     wrap = StructureType False
 
-generateTypes :: Sizes -> LLVM.ModuleCodegen Meta Types
+generateTypes :: (MonadModuleBuilder m, MonadReader Meta m, MonadFix m)
+              => Sizes -> m Types
 generateTypes sizes = mdo
   meta <- ask
   let numKeys' = numKeys meta sizes
@@ -200,7 +203,7 @@ generateFunctions = mdo
   mkBtreeInitEmpty
   mkBtreeInit btreeInsertRange
   mkBtreeCopy nodeClone isEmptyTree
-  mkBtreeDestroy btreeClear
+  btreeDestroy <- mkBtreeDestroy btreeClear
   isEmptyTree <- mkBtreeIsEmpty
   btreeSize <- mkBtreeSize nodeCountEntries
   btreeInsert <- mkBtreeInsertValue nodeNew rebalanceOrSplit compareValues searchLowerBound searchUpperBound isEmptyTree
@@ -209,8 +212,8 @@ generateFunctions = mdo
   btreeEnd <- mkBtreeEnd
   btreeContains <- mkBtreeContains iterIsEqual btreeFind btreeEnd
   btreeFind <- mkBtreeFind btreeEnd isEmptyTree searchLowerBound compareValues iterInit iterInitEnd
-  mkBtreeLowerBound isEmptyTree iterInit iterInitEnd searchLowerBound compareValues
-  mkBtreeUpperBound isEmptyTree iterInit iterInitEnd searchUpperBound compareValues
+  btreeLowerBound <- mkBtreeLowerBound isEmptyTree iterInit iterInitEnd searchLowerBound compareValues
+  btreeUpperBound <- mkBtreeUpperBound isEmptyTree iterInit iterInitEnd searchUpperBound compareValues
   btreeClear <- mkBtreeClear nodeDelete
   btreeSwap <- mkBtreeSwap
   mkBtreeIsEqual btreeBegin btreeEnd btreeContains btreeSize iterIsEqual iterNext iterCurrent
@@ -220,16 +223,26 @@ generateFunctions = mdo
 
   tree <- typeOf BTree
   iter <- typeOf Iterator
-  let fns = Functions
-        { fnPurge = btreeClear
+  value <- typeOf Value
+  pure Functions
+        { fnDestroy = btreeDestroy
+        , fnPurge = btreeClear
         , fnSwap = btreeSwap
         , fnBegin = btreeBegin
         , fnEnd = btreeEnd
+        , fnInsert = btreeInsert
         , fnInsertRange = btreeInsertRange
-        , fnAllocateObj = alloca tree (Just (int32 1)) 0
-        , fnAllocateIter = alloca iter (Just (int32 1)) 0
+        , fnIsEmpty = isEmptyTree
+        , fnLowerBound = btreeLowerBound
+        , fnUpperBound = btreeUpperBound
+        , fnContains = btreeContains
+        , fnIterIsEqual = iterIsEqual
+        , fnIterCurrent = iterCurrent
+        , fnIterNext = iterNext
+        , typeObj = tree
+        , typeIter = iter
+        , typeValue = value
         }
-  pure fns
 
 mkCompare :: ModuleCodegen Operand
 mkCompare = do
@@ -893,15 +906,13 @@ mkBtreeCopy nodeClone isEmptyTree = do
 
   pure ()
 
-mkBtreeDestroy :: Operand -> ModuleCodegen ()
+mkBtreeDestroy :: Operand -> ModuleCodegen Operand
 mkBtreeDestroy btreeClear = do
   tree <- typeOf BTree
 
   def "btree_destroy" [(ptr tree, "tree")] void $ \[t] -> do
     call btreeClear [(t, [])]
     pure ()
-
-  pure ()
 
 mkBtreeIsEmpty :: ModuleCodegen Operand
 mkBtreeIsEmpty = do
@@ -1126,7 +1137,7 @@ mkBtreeFind btreeEnd isEmptyTree searchLowerBound compareValues iterInit iterIni
       iCurrent <- current `bitcast` ptr innerNode
       store currentPtr 0 =<< deref (childAt idx) iCurrent
 
-mkBtreeLowerBound :: Operand -> Operand -> Operand -> Operand -> Operand -> ModuleCodegen ()
+mkBtreeLowerBound :: Operand -> Operand -> Operand -> Operand -> Operand -> ModuleCodegen Operand
 mkBtreeLowerBound isEmptyTree iterInit iterInitEnd searchLowerBound compareValues = do
   tree <- typeOf BTree
   iter <- typeOf Iterator
@@ -1181,9 +1192,7 @@ mkBtreeLowerBound isEmptyTree iterInit iterInitEnd searchLowerBound compareValue
       iCurrent <- current `bitcast` ptr innerNode
       store currentPtr 0 =<< deref (childAt idx) iCurrent
 
-  pure ()
-
-mkBtreeUpperBound :: Operand -> Operand -> Operand -> Operand -> Operand -> ModuleCodegen ()
+mkBtreeUpperBound :: Operand -> Operand -> Operand -> Operand -> Operand -> ModuleCodegen Operand
 mkBtreeUpperBound isEmptyTree iterInit iterInitEnd searchUpperBound compareValues = do
   tree <- typeOf BTree
   iter <- typeOf Iterator
@@ -1231,8 +1240,6 @@ mkBtreeUpperBound isEmptyTree iterInit iterInitEnd searchUpperBound compareValue
 
       iCurrent <- current `bitcast` ptr innerNode
       store currentPtr 0 =<< deref (childAt idx) iCurrent
-
-  pure ()
 
 mkBtreeClear :: Operand -> ModuleCodegen Operand
 mkBtreeClear nodeDelete = do
