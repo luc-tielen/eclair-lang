@@ -5,32 +5,88 @@
     np.url = "github:nixos/nixpkgs?ref=haskell-updates";
     fu.url = "github:numtide/flake-utils?ref=master";
     hls.url = "github:haskell/haskell-language-server?ref=master";
+    shs.url = "github:luc-tielen/souffle-haskell?ref=master";
   };
-  outputs = { self, np, fu, hls }:
+  outputs = { self, np, fu, hls, shs }:
     with fu.lib;
     eachSystem [ "x86_64-linux" ] (system:
       let
-        config = { allowBroken = true; };
+        config = { };
         overlay = final: _:
           with final;
           with final.haskell.lib;
-          with final.haskellPackages.extend (final: super: {
-            souffle-haskell = with super; dontCheck souffle-haskell;
-            algebraic-graphs = with final;
-              dontCheck (callCabal2nixWithOptions "algebraic-graphs"
+          with final.haskellPackages.extend (final: super:
+            let
+              lhsGit = fetchFromGitHub {
+                owner = "luc-tielen";
+                repo = "llvm-hs";
+                rev = "69ae96c9eea8531c750c9d81f9813286ef5ced81";
+                sha256 = "180ssgmi8f7j0wcbwj82rhn1375mgq9q8cirkrfw4yld1wz9wfpx";
+              };
+              ppGit = fetchFromGitHub {
+                owner = "quchen";
+                repo = "prettyprinter";
+                rev = "v1.6.2";
+                sha256 = "0f88y96f74a020iwzfs5c414nlh2kdpsl35v8sg42jjvlnyrqcl1";
+              };
+              ppGit' = fetchFromGitHub {
+                owner = "quchen";
+                repo = "prettyprinter";
+                rev = "v1.7.0";
+                sha256 = "00p30lpm0fijr6caal765jnjls6xjp58qd8bjx0b1dvylwm4avkw";
+              };
+            in rec {
+              inherit (shs.packages."${system}") souffle-haskell;
+
+              llvm-config = llvmPackages_9.llvm;
+
+              llvm-hs-pure = with final;
+                addBuildTools (callCabal2nixWithOptions "llvm-hs-pure"
+                  "${lhsGit}/llvm-hs-pure" "" { }) [ ];
+
+              llvm-hs = with final;
+                dontHaddock
+                (callCabal2nixWithOptions "llvm-hs" "${lhsGit}/llvm-hs" "" {
+                  inherit llvm-hs-pure;
+                  llvm-config = llvmPackages_9.llvm;
+                });
+
+              llvm-hs-pretty = with final;
+                dontCheck (overrideCabal
+                  (callCabal2nixWithOptions "llvm-hs-pretty" (fetchFromGitHub {
+                    owner = "luc-tielen";
+                    repo = "llvm-hs-pretty";
+                    rev = "990bb6981f6214d9c1bbf46fd9e9ce5596d3bf30";
+                    sha256 =
+                      "0kqb8n40zzv6jgcfi4wr40axz7r2q18rwzpq6qhpjnxwgg9qix0j";
+                  }) "" { inherit llvm-hs llvm-hs-pure; })
+                  (_: { patches = [ ./patches/1-llvm-hs-pretty.patch ]; }));
+
+              llvm-hs-combinators = with final;
+                callCabal2nixWithOptions "llvm-hs-combinators"
                 (fetchFromGitHub {
-                  owner = "snowleopard";
-                  repo = "alga";
-                  rev = "75de41a4323ab9e58ca49dbd78b77f307b189795";
+                  owner = "luc-tielen";
+                  repo = "llvm-hs-combinators";
+                  rev = "6a5494d00d55dc2d988957588cf204731f27abc1";
                   sha256 =
-                    "10jdy8hvjadnrrq2ch2sxcv9mk7l1q7p12w9d3bwhrgzfm3hb9sx";
-                }) "" { });
-          }); {
-            eclair-lang = dontCheck (callCabal2nix "eclair-lang" ./. {
-              inherit algebraic-graphs souffle-haskell;
-            });
-          };
-        overlays = [ overlay hls.overlay ];
+                    "0l9l3h38mqr4m15a04awq6n0dmlz880zp18sxvi4iyr14qcfcyvw";
+                }) "" { inherit llvm-hs-pure; };
+
+              algebraic-graphs = with final;
+                dontCheck (callCabal2nixWithOptions "algebraic-graphs"
+                  (fetchFromGitHub {
+                    owner = "snowleopard";
+                    repo = "alga";
+                    rev = "75de41a4323ab9e58ca49dbd78b77f307b189795";
+                    sha256 =
+                      "10jdy8hvjadnrrq2ch2sxcv9mk7l1q7p12w9d3bwhrgzfm3hb9sx";
+                  }) "" { });
+            }); {
+              eclair-lang = dontCheck (callCabal2nix "eclair-lang" ./. {
+                inherit algebraic-graphs llvm-hs-pure llvm-hs;
+              });
+            };
+        overlays = [ overlay hls.overlay ] ++ shs.overlays."${system}";
       in with (import np { inherit system config overlays; });
       with np.lib; rec {
         inherit overlays;
@@ -38,15 +94,8 @@
         defaultPackage = packages.eclair-lang;
         devShell = with haskellPackages;
           shellFor {
-            packages = p:
-              with p; [
-                algebraic-graphs
-                souffle-haskell
-                llvm-hs
-                llvm-hs-pure
-                llvm-hs-pretty
-              ];
-            nativeBuildInputs = [ llvmPackages_9.llvm ];
+            packages = p: with p; [ souffle-haskell ];
+            nativeBuildInputs = [ llvm-config ];
             buildInputs =
               [ hsc2hs haskell-language-server hpack ghc cabal-install ];
           };
