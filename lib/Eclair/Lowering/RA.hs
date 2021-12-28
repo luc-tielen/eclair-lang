@@ -3,7 +3,7 @@
 module Eclair.Lowering.RA ( compileLLVM ) where
 
 import Protolude hiding (Type, bit, not, and)
-import Protolude.Unsafe (unsafeHead, unsafeFromJust)
+import Data.Maybe (fromJust)
 import Control.Arrow ((&&&))
 import Control.Monad.Reader
 import Data.Functor.Foldable
@@ -94,7 +94,7 @@ generateFnsForRelations indexMap typeInfo = do
     -- TODO: cache functions if possible?
     -- TODO: avoid codegen collisions between relations
     for (toList idxs) $ \idx -> do
-      let meta = mkMeta idx (unsafeFromJust $ Map.lookup r typeInfo)
+      let meta = mkMeta idx (fromJust $ Map.lookup r typeInfo)
       (idx,) <$> BTree.codegen meta
 
   pure $ map Map.fromList results
@@ -220,7 +220,7 @@ extractQueryInfo = toQuery `combine` constraintsForSearch where
     NotElemF r values -> do
       store <- asks (storeForRelation r . lowerState)
       let idx = mkFindIndex values
-          (obj, fns) = unsafeFromJust $ Map.lookup idx (Store.objects store)
+          (obj, fns) = fromJust $ Map.lookup idx (Store.objects store)
       vals <- sequence values
       value <- Store.mkValue fns
       for_ (zip [0..] vals) $ \(i, val) ->
@@ -245,11 +245,11 @@ andM f as = flip cata as $ \case
 
 storeForRelation :: Relation -> LowerState -> Store
 storeForRelation r =
-  unsafeFromJust . Map.lookup r . relations
+  fromJust . Map.lookup r . relations
 
 lookupAliasValue :: Alias -> LowerState -> Operand
 lookupAliasValue a =
-  unsafeFromJust . Map.lookup a . aliasMap
+  fromJust . Map.lookup a . aliasMap
 
 updateAlias :: Functions -> Alias -> Operand -> ReaderT LowerState CodegenM () -> ReaderT LowerState CodegenM ()
 updateAlias fns alias iter m = do

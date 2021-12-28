@@ -1,8 +1,10 @@
 cabal-version: 2.2
 
--- This file has been generated from package.yaml by hpack version 0.34.4.
+-- This file has been generated from package.yaml by hpack version 0.33.0.
 --
 -- see: https://github.com/sol/hpack
+--
+-- hash: d1ee9dddd03131277d842aea3755eb9f758ba3c896a0d50c9ef0766f04007f79
 
 name:           eclair-lang
 version:        0.1.0.0
@@ -16,6 +18,11 @@ license-file:   LICENSE
 build-type:     Simple
 extra-source-files:
     README.md
+
+flag debug
+  description: Enables stack traces.
+  manual: True
+  default: False
 
 library
   exposed-modules:
@@ -38,26 +45,7 @@ library
       Paths_eclair_lang
   hs-source-dirs:
       lib
-  default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
-      LambdaCase
-      ViewPatterns
-      RankNTypes
-      TypeFamilies
-      DataKinds
-      KindSignatures
-      TupleSections
-      DeriveFunctor
-      DeriveFoldable
-      DeriveTraversable
-      DeriveGeneric
-      DeriveAnyClass
-      DerivingStrategies
-      DerivingVia
-      FlexibleContexts
-      FlexibleInstances
-      ScopedTypeVariables
+  default-extensions: NoImplicitPrelude OverloadedStrings LambdaCase ViewPatterns RankNTypes TypeFamilies DataKinds KindSignatures TupleSections DeriveFunctor DeriveFoldable DeriveTraversable DeriveGeneric DeriveAnyClass DerivingStrategies DerivingVia FlexibleContexts FlexibleInstances ScopedTypeVariables
   ghc-options: -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__ -Wall
   build-depends:
@@ -84,6 +72,10 @@ library
   if os(darwin)
     extra-libraries:
         c++
+  if flag(debug)
+    ghc-options: -fplugin=StackTrace.Plugin
+    build-depends:
+        haskell-stack-trace-plugin ==0.*
   if os(linux)
     extra-libraries:
         stdc++
@@ -95,26 +87,7 @@ executable eclairc
       Paths_eclair_lang
   hs-source-dirs:
       src
-  default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
-      LambdaCase
-      ViewPatterns
-      RankNTypes
-      TypeFamilies
-      DataKinds
-      KindSignatures
-      TupleSections
-      DeriveFunctor
-      DeriveFoldable
-      DeriveTraversable
-      DeriveGeneric
-      DeriveAnyClass
-      DerivingStrategies
-      DerivingVia
-      FlexibleContexts
-      FlexibleInstances
-      ScopedTypeVariables
+  default-extensions: NoImplicitPrelude OverloadedStrings LambdaCase ViewPatterns RankNTypes TypeFamilies DataKinds KindSignatures TupleSections DeriveFunctor DeriveFoldable DeriveTraversable DeriveGeneric DeriveAnyClass DerivingStrategies DerivingVia FlexibleContexts FlexibleInstances ScopedTypeVariables
   ghc-options: -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits -threaded -rtsopts -with-rtsopts=-N
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__
   build-depends:
@@ -143,6 +116,10 @@ executable eclairc
   if os(darwin)
     extra-libraries:
         c++
+  if flag(debug)
+    ghc-options: -fplugin=StackTrace.Plugin
+    build-depends:
+        haskell-stack-trace-plugin ==0.*
   default-language: Haskell2010
 
 test-suite eclair-test
@@ -156,26 +133,7 @@ test-suite eclair-test
       Paths_eclair_lang
   hs-source-dirs:
       tests
-  default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
-      LambdaCase
-      ViewPatterns
-      RankNTypes
-      TypeFamilies
-      DataKinds
-      KindSignatures
-      TupleSections
-      DeriveFunctor
-      DeriveFoldable
-      DeriveTraversable
-      DeriveGeneric
-      DeriveAnyClass
-      DerivingStrategies
-      DerivingVia
-      FlexibleContexts
-      FlexibleInstances
-      ScopedTypeVariables
+  default-extensions: NoImplicitPrelude OverloadedStrings LambdaCase ViewPatterns RankNTypes TypeFamilies DataKinds KindSignatures TupleSections DeriveFunctor DeriveFoldable DeriveTraversable DeriveGeneric DeriveAnyClass DerivingStrategies DerivingVia FlexibleContexts FlexibleInstances ScopedTypeVariables
   ghc-options: -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__
   build-depends:
@@ -208,4 +166,8 @@ test-suite eclair-test
   if os(darwin)
     extra-libraries:
         c++
+  if flag(debug)
+    ghc-options: -fplugin=StackTrace.Plugin
+    build-depends:
+        haskell-stack-trace-plugin ==0.*
   default-language: Haskell2010

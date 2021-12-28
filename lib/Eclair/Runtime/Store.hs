@@ -15,7 +15,8 @@ module Eclair.Runtime.Store
   ) where
 
 import Protolude hiding (Type, swap)
-import Protolude.Unsafe (unsafeHead, unsafeFromJust)
+import qualified Data.List as L (head)
+import Data.Maybe (fromJust)
 import qualified Data.Map as Map
 import LLVM.AST.Operand (Operand)
 import Eclair.RA.IndexSelection
@@ -83,7 +84,7 @@ project :: (MonadModuleBuilder m, MonadIRBuilder m)
         => Store -> [Operand] -> m ()
 project store vals = do
   -- NOTE: Value type is the same for all (but not the insert function)
-  let (_ , fns) = unsafeHead $ Map.elems (objects store)
+  let (_ , fns) = L.head $ Map.elems (objects store)
   value <- mkValue fns
   for_ (zip [0..] vals) $ \(i, val) ->
     assign (mkPath [int32 i]) value val
@@ -121,7 +122,7 @@ isEmpty :: (MonadModuleBuilder m, MonadIRBuilder m)
 isEmpty store = call (fnIsEmpty fns) [(obj, [])]
   where
     (obj, fns) = firstValueInMap (objects store)
-    firstValueInMap m = unsafeHead $ Map.elems m
+    firstValueInMap m = L.head $ Map.elems m
 
 -- NOTE: Only allowed if fns1 == fns2 (stores have similar structure)
 intersect :: Store -> Store -> Map Index (Object, Object, Functions)
@@ -136,4 +137,4 @@ intersect store1 store2 =
 -- passed in definitely exists.
 lookupByIndex :: Store -> Index -> (Object, Functions)
 lookupByIndex store idx =
-  unsafeFromJust $ Map.lookup idx (objects store)
+  fromJust $ Map.lookup idx (objects store)

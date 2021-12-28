@@ -22,7 +22,7 @@ module Eclair.RA.Codegen
 
 import Control.Monad.RWS.Strict
 import Protolude hiding (Constraint, swap, from, to)
-import Protolude.Unsafe (unsafeFromJust)
+import Data.Maybe (fromJust)
 import qualified Data.Map as M
 import qualified Data.Text as T
 import qualified Eclair.RA.IR as RA
@@ -155,7 +155,7 @@ resolveTerm = \case
   LitTerm x -> pure $ RA.Lit x
   VarTerm v -> do
     cs <- asks snd
-    let (Constraint name _ col _) = unsafeFromJust $ findBestMatchingConstraint cs v
+    let (Constraint name _ col _) = fromJust $ findBestMatchingConstraint cs v
      in pure $ RA.ColumnIndex name col
 
 resolveClause :: Relation -> Column -> Term -> CodegenM (Maybe RA)

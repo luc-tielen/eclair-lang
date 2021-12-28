@@ -11,6 +11,12 @@ category: Web
 extra-source-files:
   - README.md
 
+flags:
+  debug:
+    description: Enables stack traces.
+    manual: yes
+    default: no
+
 dependencies:
   - base >= 4.7 && < 5
   - protolude == 0.3.0
@@ -58,6 +64,7 @@ ghc-options:
   - -fhide-source-paths
   - -fno-show-valid-hole-fits
   - -fno-sort-valid-hole-fits
+
 cxx-options:
   - -std=c++20
   - -D__EMBEDDED_SOUFFLE__
@@ -67,6 +74,11 @@ cxx-sources:
 when:
   - condition: os(darwin)
     extra-libraries: c++
+  - condition: flag(debug)
+    dependencies:
+      - haskell-stack-trace-plugin == 0.*
+    ghc-options:
+      - -fplugin=StackTrace.Plugin
 
 library:
   source-dirs: lib

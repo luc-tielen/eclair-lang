@@ -57,6 +57,8 @@ extra-deps:
 - git: https://github.com/snowleopard/alga
   commit: 1623fae605503595ee331929157c61b5e5e0c1c7
 - prettyprinter-1.5.1@sha256:fca87c3e2611d3499a0341a59857e9b424a23f31646e4737d535a18582284f96,5375
+- haskell-stack-trace-plugin-0.1.3.0@sha256:b7f05707849dda721ed466df769ca9a3fb41de996c9cea1e568af85687489362,2121
+
 
 # Override default flag values for local packages and extra-deps
 # flags: {}

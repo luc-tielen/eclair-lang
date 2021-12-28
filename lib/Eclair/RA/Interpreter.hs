@@ -6,7 +6,7 @@ module Eclair.RA.Interpreter
 -- but can be used to evaluate the resulting RA data.
 
 import Protolude hiding (handle, swap)
-import Protolude.Unsafe (unsafeFromJust)
+import Data.Maybe (fromJust)
 import Data.IORef
 import Data.List ((!!))
 import Control.Monad.Catch
@@ -101,7 +101,7 @@ resolveValue = \case
 
 currentValueInSearch :: Alias -> InterpreterM Record
 currentValueInSearch r =
-  unsafeFromJust . M.lookup r . aliases <$> readRef
+  fromJust . M.lookup r . aliases <$> readRef
 
 project :: Relation -> Record -> DB -> DB
 project r values =
