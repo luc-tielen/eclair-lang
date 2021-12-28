@@ -78,10 +78,7 @@
                 });
             }); {
               eclair-lang =
-                callCabal2nixWithOptions "eclair-lang" ./. "-fdebug" {
-                  inherit algebraic-graphs llvm-hs-pure llvm-hs
-                    haskell-stack-trace-plugin;
-                };
+                callCabal2nixWithOptions "eclair-lang" ./. "-fdebug" { };
             };
         overlays = [ overlay hls.overlay ] ++ shs.overlays."${system}";
       in with (import np { inherit system config overlays; });
