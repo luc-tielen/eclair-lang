@@ -23,18 +23,6 @@
                 rev = "69ae96c9eea8531c750c9d81f9813286ef5ced81";
                 sha256 = "180ssgmi8f7j0wcbwj82rhn1375mgq9q8cirkrfw4yld1wz9wfpx";
               };
-              ppGit = fetchFromGitHub {
-                owner = "quchen";
-                repo = "prettyprinter";
-                rev = "v1.6.2";
-                sha256 = "0f88y96f74a020iwzfs5c414nlh2kdpsl35v8sg42jjvlnyrqcl1";
-              };
-              ppGit' = fetchFromGitHub {
-                owner = "quchen";
-                repo = "prettyprinter";
-                rev = "v1.7.0";
-                sha256 = "00p30lpm0fijr6caal765jnjls6xjp58qd8bjx0b1dvylwm4avkw";
-              };
             in rec {
               inherit (shs.packages."${system}") souffle-haskell;
 
@@ -81,10 +69,19 @@
                     sha256 =
                       "10jdy8hvjadnrrq2ch2sxcv9mk7l1q7p12w9d3bwhrgzfm3hb9sx";
                   }) "" { });
+              haskell-stack-trace-plugin = with final;
+                dontCheck (callHackage "haskell-stack-trace-plugin" "0.1.3.0" {
+                  hspec = callHackage "hspec" "2.8.5" {
+                    hspec-core = callHackage "hspec-core" "2.8.5" { };
+                    hspec-discover = callHackage "hspec-discover" "2.8.5" { };
+                  };
+                });
             }); {
-              eclair-lang = dontCheck (callCabal2nix "eclair-lang" ./. {
-                inherit algebraic-graphs llvm-hs-pure llvm-hs;
-              });
+              eclair-lang =
+                callCabal2nixWithOptions "eclair-lang" ./. "-fdebug" {
+                  inherit algebraic-graphs llvm-hs-pure llvm-hs
+                    haskell-stack-trace-plugin;
+                };
             };
         overlays = [ overlay hls.overlay ] ++ shs.overlays."${system}";
       in with (import np { inherit system config overlays; });
