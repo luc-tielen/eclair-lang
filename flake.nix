@@ -17,7 +17,7 @@
           with final.haskell.lib;
           with final.haskellPackages.extend (final: super:
             let
-              lhsGit = fetchFromGitHub {
+              llvmHsGit = fetchFromGitHub {
                 owner = "luc-tielen";
                 repo = "llvm-hs";
                 rev = "69ae96c9eea8531c750c9d81f9813286ef5ced81";
@@ -30,11 +30,11 @@
 
               llvm-hs-pure = with final;
                 addBuildTools (callCabal2nixWithOptions "llvm-hs-pure"
-                  "${lhsGit}/llvm-hs-pure" "" { }) [ ];
+                  "${llvmHsGit}/llvm-hs-pure" "" { }) [ ];
 
               llvm-hs = with final;
                 dontHaddock
-                (callCabal2nixWithOptions "llvm-hs" "${lhsGit}/llvm-hs" "" {
+                (callCabal2nixWithOptions "llvm-hs" "${llvmHsGit}/llvm-hs" "" {
                   inherit llvm-hs-pure;
                   llvm-config = llvmPackages_9.llvm;
                 });
@@ -77,8 +77,7 @@
                   };
                 });
             }); {
-              eclair-lang =
-                callCabal2nixWithOptions "eclair-lang" ./. "-fdebug" { };
+              eclair-lang = callCabal2nix "eclair-lang" ./. { };
             };
         overlays = [ overlay hls.overlay ] ++ shs.overlays."${system}";
       in with (import np { inherit system config overlays; });
