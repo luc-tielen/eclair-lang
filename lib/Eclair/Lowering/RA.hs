@@ -55,7 +55,10 @@ type QueryM = ReaderT QueryState CodegenM
 
 
 compileLLVM :: TypeInfo -> RA -> IO Module
-compileLLVM typeInfo ra = do
+compileLLVM typeInfo ra = pure ()
+  {-
+  TODO finish remaining code
+do
   let (indexMap, getIndexForSearch) = runIndexSelection ra
   moduleIR <- buildModuleT "module" $ do
     fnsMap <- generateFnsForRelations indexMap typeInfo
@@ -74,7 +77,7 @@ compileLLVM typeInfo ra = do
 
   let output = ppllvm moduleIR
   TIO.putStrLn output -- TODO: remove
-
+-}
   -- TODO: generate code for reading/writing values from/to datalog
 
 allocateStores :: FunctionsMap -> CodegenM StoreMap
