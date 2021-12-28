@@ -8,7 +8,7 @@ run:
 	stack run
 
 test:
-	stack test --fast
+	stack test --fast --flag eclair-lang:-debug
 
 repl:
 	stack ghci

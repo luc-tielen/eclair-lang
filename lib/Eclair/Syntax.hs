@@ -24,7 +24,7 @@ module Eclair.Syntax
   ) where
 
 import Protolude
-import Protolude.Unsafe (unsafeFromJust)
+import Data.Maybe (fromJust)
 import Control.Lens
 import Data.Functor.Foldable.TH
 import qualified Data.Graph as G
@@ -85,7 +85,7 @@ scc = \case
     sortedDecls = G.stronglyConnComp $ zipWith (\i d -> (d, i, refersTo d)) [0..] decls
     declLineMapping = M.fromListWith (++) $ zipWith (\i d -> (nameFor d, [i])) [0 :: Int ..] decls
     refersTo = \case
-      Rule _ _ clauses -> concatMap (unsafeFromJust . flip M.lookup declLineMapping . nameFor) clauses
+      Rule _ _ clauses -> concatMap (fromJust . flip M.lookup declLineMapping . nameFor) clauses
       _ -> []
     -- TODO use traversals?
     nameFor = \case

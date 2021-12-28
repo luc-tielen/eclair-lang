@@ -13,7 +13,7 @@ module Eclair.RA.IndexSelection
 -- http://www.vldb.org/pvldb/vol12/p141-subotic.pdf
 
 import Protolude
-import Protolude.Unsafe (unsafeHead, unsafeFromJust)
+import Data.Maybe (fromJust)
 import Eclair.Syntax (startsWithIdPrefix, stripIdPrefixes)
 import Eclair.RA.IR
 import Algebra.Graph.Bipartite.AdjacencyMap
@@ -57,7 +57,7 @@ runIndexSelection ra =
          in (r, indices):acc) mempty searchMap
       combineIdxs idxs idx = idxs <> Set.singleton idx
       indexMap = foldl' combineIdxs mempty <$> Map.fromList indexSelection
-      indexSelector r s = unsafeFromJust $ do
+      indexSelector r s = fromJust $ do
         indexMapping <- snd <$> List.find ((== r) . fst) indexSelection
         Map.lookup s indexMapping
   in (indexMap, indexSelector)
