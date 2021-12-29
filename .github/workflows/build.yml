@@ -1,0 +1,35 @@
+name: "Build"
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ${{matrix.os}}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v2.4.0
+        with:
+          # Nix Flakes doesn't work on shallow clones
+          fetch-depth: 0
+      - uses: cachix/install-nix-action@v15
+        with:
+          install_url: https://releases.nixos.org/nix/nix-2.5.1/install
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+      - run: |
+          nix profile install nixpkgs#cachix
+          cachix use cachix
+          cachix use luctielen
+      - name: nix build
+        run: nix build
+      - name: nix log
+        if: ${{ always() }}
+        run: |
+          nix log &> ${{ matrix.os }}-eclair-lang.log
+      - name: upload ${{ matrix.os }}-eclair-lang.log
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.os }}-eclair-lang.log
+          path: ${{ matrix.os }}-eclair-lang.log
