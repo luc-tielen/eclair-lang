@@ -77,6 +77,7 @@
                   };
                 });
             }); {
+              inherit souffle-haskell llvm-config;
               eclair-lang = callCabal2nix "eclair-lang" ./. { };
             };
         overlays = [ overlay hls.overlay ] ++ shs.overlays."${system}";
@@ -85,11 +86,11 @@
         inherit overlays;
         packages = flattenTree (recurseIntoAttrs { inherit eclair-lang; });
         defaultPackage = packages.eclair-lang;
-        devShell = with haskellPackages;
-          shellFor {
-            packages = p: with p; [ souffle-haskell ];
+        devShell =
+          haskellPackages.shellFor {
+            packages = _: [ souffle-haskell ];
             nativeBuildInputs = [ llvm-config ];
-            buildInputs =
+            buildInputs = with haskellPackages;
               [ hsc2hs haskell-language-server hpack ghc cabal-install ];
           };
       });
