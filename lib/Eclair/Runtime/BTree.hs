@@ -2,6 +2,7 @@
 
 module Eclair.Runtime.BTree
   ( Meta(..)
+  , Sizes(..)
   , SearchIndex
   , SearchType(..)
   , codegen
@@ -69,6 +70,8 @@ data Externals
 data Sizes
   = Sizes
   { pointerSize :: Word64
+  , treeSize :: Word64
+  , iterSize :: Word64
   , valueSize :: Word64
   , nodeDataSize :: Word64
   , leafNodeSize :: Word64
@@ -89,13 +92,14 @@ type IRCodegen = IRBuilderT ModuleCodegen
 type ModuleCodegen = ReaderT CGState ModuleBuilder
 
 
-codegen :: Meta -> ModuleBuilderT IO Functions
+codegen :: Meta -> ModuleBuilderT IO (Functions, Sizes)
 codegen meta = do
   sizes <- computeSizes meta
   hoist intoIO $ do
     tys <- runReaderT (generateTypes sizes) meta
     exts <- mkExternals
-    runReaderT generateFunctions $ CGState meta tys sizes exts
+    fns <- runReaderT generateFunctions $ CGState meta tys sizes exts
+    pure (fns, sizes)
   where intoIO = pure . runIdentity
 
 mkExternals :: ModuleBuilder Externals
@@ -125,7 +129,10 @@ computeSizes meta = do
       innerNodeTy = wrap [nodeTy, ArrayType (numKeys' + 1) (ptr nodeTy)]
   leafNodeSize <- sizeOfType ("leaf_node_t", nodeTy)
   innerNodeSize <- sizeOfType ("inner_node_t", innerNodeTy)
-  pure $ Sizes ptrSize valueSize nodeDataSize leafNodeSize innerNodeSize
+  let positionTy = i16
+  iterSize <- sizeOfType ("btree_iterator_t", wrap [ptr nodeTy, positionTy])
+  treeSize <- sizeOfType ("btree_t", wrap [ptr nodeTy, ptr nodeTy])
+  pure $ Sizes ptrSize treeSize iterSize valueSize nodeDataSize leafNodeSize innerNodeSize
   where
     wrap = StructureType False
 

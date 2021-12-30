@@ -98,7 +98,8 @@ generateFnsForRelations indexMap typeInfo = do
     -- TODO: avoid codegen collisions between relations
     for (toList idxs) $ \idx -> do
       let meta = mkMeta idx (fromJust $ Map.lookup r typeInfo)
-      (idx,) <$> BTree.codegen meta
+      (fns, _sizes) <- BTree.codegen meta
+      pure (idx, fns)
 
   pure $ map Map.fromList results
 

@@ -22,6 +22,7 @@ dependencies:
   - protolude == 0.3.0
   - extra == 1.*
   - text == 1.*
+  - bytestring == 0.*
   - vector == 0.12.*
   - containers == 0.*
   - transformers == 0.*

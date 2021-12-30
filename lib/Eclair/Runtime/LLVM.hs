@@ -4,7 +4,7 @@ module Eclair.Runtime.LLVM
   ( module Eclair.Runtime.LLVM
   ) where
 
-import Protolude hiding ( Type, (.), bit )
+import Protolude hiding ( Type, (.), bit, moduleName )
 import Control.Category
 import Control.Monad.Morph
 import Control.Monad.Fix
@@ -17,6 +17,7 @@ import LLVM.IRBuilder.Instruction
 import qualified LLVM.AST.IntegerPredicate as IP
 import qualified LLVM.AST.Constant as Constant
 import LLVM.AST.Operand ( Operand(..) )
+import LLVM.AST (Module, moduleName, moduleDefinitions, defaultModule)
 import LLVM.AST.Type
 import LLVM.AST.Name
 import Eclair.Runtime.Hash
@@ -30,6 +31,7 @@ import qualified LLVM.CodeGenOpt as CG
 import qualified LLVM.CodeModel as CM
 import qualified LLVM.Relocation as Rel
 import LLVM.Target
+import Data.ByteString.Short
 
 
 -- TODO: remove, import directly from llvm-hs
@@ -71,6 +73,12 @@ sizeOfType (n, ty) = do
       (t', n') <- createNamedType n
       defineType n n' t'
       setNamedType t' ty
+
+codegenModule :: ShortByteString -> ModuleBuilderT IO a -> IO (a, Module)
+codegenModule name mod =
+  map mkModule <$> runModuleBuilderT emptyModuleBuilder mod
+  where
+    mkModule defs = defaultModule { moduleName = name, moduleDefinitions = defs }
 
 -- NOTE: Orphan instance, but should give no conflicts.
 instance MFunctor ModuleBuilderT where
