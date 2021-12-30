@@ -1,0 +1,13 @@
+cradle:
+  cabal:
+    - path: "lib"
+      component: "lib:eclair-lang"
+
+    - path: "src/Main.hs"
+      component: "eclair-lang:exe:eclairc"
+
+    - path: "src/Paths_eclair_lang.hs"
+      component: "eclair-lang:exe:eclairc"
+
+    - path: "tests"
+      component: "eclair-lang:test:eclair-test"
