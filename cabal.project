@@ -1,0 +1,6 @@
+packages: .
+
+source-repository-package
+        type: git
+        location: https://github.com/luc-tielen/llvm-hs-combinators.git
+        tag: 6a5494d00d55dc2d988957588cf204731f27abc1
