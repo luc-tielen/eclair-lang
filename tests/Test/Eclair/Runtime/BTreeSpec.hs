@@ -2,7 +2,7 @@ module Test.Eclair.Runtime.BTreeSpec
   ( module Test.Eclair.Runtime.BTreeSpec
   ) where
 
-import Protolude
+import Protolude hiding (Meta)
 import Test.Hspec
 import Control.Monad.Cont
 import Data.ByteString.Short hiding (index)

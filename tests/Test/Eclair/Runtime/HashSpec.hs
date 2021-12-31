@@ -2,7 +2,7 @@ module Test.Eclair.Runtime.HashSpec
   ( module Test.Eclair.Runtime.HashSpec
   ) where
 
-import Protolude
+import Protolude hiding (Meta)
 import Prelude (String)
 import qualified Data.Set as Set
 import Eclair.Runtime.Hash
