@@ -30,11 +30,11 @@ foreign import ccall "dynamic" foreignSwap
   :: FunPtr (Ptr Tree -> Ptr Tree -> IO ())
   -> Ptr Tree -> Ptr Tree -> IO ()
 foreign import ccall "dynamic" foreignBegin
-  :: FunPtr (Ptr Tree -> Ptr Value -> IO ())
-  -> Ptr Tree -> Ptr Value -> IO ()
+  :: FunPtr (Ptr Tree -> Ptr Iter -> IO ())
+  -> Ptr Tree -> Ptr Iter -> IO ()
 foreign import ccall "dynamic" foreignEnd
-  :: FunPtr (Ptr Tree -> Ptr Value -> IO ())
-  -> Ptr Tree -> Ptr Value -> IO ()
+  :: FunPtr (Ptr Tree -> Ptr Iter -> IO ())
+  -> Ptr Tree -> Ptr Iter -> IO ()
 foreign import ccall "dynamic" foreignInsert
   :: FunPtr (Ptr Tree -> Ptr Value -> IO Bool)
   -> Ptr Tree -> Ptr Value -> IO Bool
@@ -89,8 +89,8 @@ data FFI
   { ffiWithEmptyTree :: forall a. (Ptr Tree -> IO a) -> IO a
   , ffiPurge :: Ptr Tree -> IO ()
   , ffiSwap :: Ptr Tree -> Ptr Tree -> IO ()
-  , ffiBegin :: Ptr Tree -> IO (ForeignPtr Value)
-  , ffiEnd :: Ptr Tree -> IO (ForeignPtr Value)
+  , ffiBegin :: Ptr Tree -> IO (ForeignPtr Iter)
+  , ffiEnd :: Ptr Tree -> IO (ForeignPtr Iter)
   , ffiInsert :: Ptr Tree -> Ptr Value -> IO Bool
   , ffiInsertRange :: Ptr Tree -> Ptr Iter -> Ptr Iter -> IO ()
   , ffiIsEmpty :: Ptr Tree -> IO Bool
@@ -131,8 +131,8 @@ jitCompile = jit (codegen settings) $ \compileLayer (_, sizes) -> do
   pure FFI { ffiWithEmptyTree = withResource (treeSize sizes) fnInitEmpty fnDestroy
            , ffiPurge = fnPurge
            , ffiSwap = fnSwap
-           , ffiBegin = \tree -> allocateAndApply (valueSize sizes) (fnBegin tree)
-           , ffiEnd = \tree -> allocateAndApply (valueSize sizes) (fnEnd tree)
+           , ffiBegin = allocateAndApply (valueSize sizes) . fnBegin
+           , ffiEnd = allocateAndApply (valueSize sizes) . fnEnd
            , ffiInsert = fnInsert
            , ffiInsertRange = fnInsertRange
            , ffiIsEmpty = fnIsEmpty
@@ -167,6 +167,45 @@ allocateAndApply size f = do
   ptr <- mallocForeignPtrBytes (fromIntegral size)
   withForeignPtr ptr f
   pure ptr
+
+data Val = Val {-# UNPACK #-} !Int32 !Int32 !Int32 !Int32
+
+putValue :: Val -> IO (ForeignPtr Value)
+putValue (Val x0 x1 x2 x3) = do
+  ptr <- mallocForeignPtrBytes 16
+  withForeignPtr ptr $ \ptr' -> do
+    let p = castPtr ptr'
+    pokeElemOff p 0 x0
+    pokeElemOff p 1 x1
+    pokeElemOff p 2 x2
+    pokeElemOff p 3 x3
+  pure ptr
+
+getValue :: Ptr Value -> IO Val
+getValue ptr = do
+  let p = castPtr ptr
+  x0 <- peekElemOff p 0
+  x1 <- peekElemOff p 1
+  x2 <- peekElemOff p 2
+  x3 <- peekElemOff p 3
+  pure $ Val x0 x1 x2 x3
+
+getAllValues :: FFI -> Ptr Tree -> IO [Val]
+getAllValues ffi tree = do
+  begin <- ffiBegin ffi tree
+  end <- ffiEnd ffi tree
+  withForeignPtr begin $ \begin' ->
+    withForeignPtr end $ \end' ->
+      go begin' end' []
+  where
+    go current end result = do
+      isEqual <- ffiIterIsEqual ffi current end
+      if isEqual
+        then pure result
+        else do
+          val <- getValue =<< ffiIterCurrent ffi current
+          ffiIterNext ffi current
+          go current end (val : result)
 
 -- TODO: take specialized hash into account for function names
 -- TODO: generate list of ops using hedgehog, run program with that
