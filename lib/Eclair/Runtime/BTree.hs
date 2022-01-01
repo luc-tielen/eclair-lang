@@ -632,7 +632,7 @@ mkRebalanceOrSplit splitFn = mdo
 
     parent <- deref (metaOf ->> parentOf) n >>= (`bitcast` ptr innerNode)
     pos <- deref (metaOf ->> posInParentOf) n
-    hasParent <- parent `ne` nullPtr node
+    hasParent <- parent `ne` nullPtr innerNode
     posGTZero <- pos `ugt` int16 0
     shouldRebalance <- and hasParent posGTZero
     condBr shouldRebalance rebalance split

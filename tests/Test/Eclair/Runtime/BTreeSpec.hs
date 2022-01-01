@@ -14,6 +14,7 @@ import LLVM.Context
 import LLVM.Module
 import LLVM.Target
 import LLVM.OrcJIT
+import LLVM.Analysis
 import qualified LLVM.Relocation as Relocation
 import qualified LLVM.CodeModel as CodeModel
 import qualified LLVM.CodeGenOpt as CodeGenOpt
@@ -69,6 +70,7 @@ jit code f = flip runContT pure $ do
   ctx <- ContT withContext
   (a, ffiCode) <- lift $ codegenModule "test.ll" code
   mod <- ContT $ withModuleFromAST ctx ffiCode
+  lift $ verify mod
   tm <- ContT $ withHostTargetMachine Relocation.PIC CodeModel.JITDefault CodeGenOpt.None
   exeSession <- ContT withExecutionSession
   resolver <- ContT $ withSymbolResolver exeSession (SymbolResolver symbolResolver)
