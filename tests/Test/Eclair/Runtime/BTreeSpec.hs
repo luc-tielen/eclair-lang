@@ -3,12 +3,14 @@ module Test.Eclair.Runtime.BTreeSpec
   ) where
 
 import Protolude hiding (Meta)
+import qualified Data.Text.Encoding as TE
 import Test.Hspec
 import Control.Monad.Cont
 import Data.ByteString.Short hiding (index)
 import Eclair.Runtime.BTree
 import Eclair.Runtime.Store
 import Eclair.Runtime.LLVM
+import Eclair.Runtime.Hash
 import LLVM.IRBuilder.Module
 import LLVM.Context
 import LLVM.Module
@@ -146,9 +148,12 @@ jitCompile = jit (codegen settings) $ \compileLayer (_, sizes) -> do
            , ffiIterNext = fnIterNext
            }
 
-importSymbol :: CompileLayer l => l -> ShortByteString -> (FunPtr a -> a) -> IO a
+importSymbol :: CompileLayer l => l -> Text -> (FunPtr a -> a) -> IO a
 importSymbol compileLayer symbol fn = do
-  mangled <- mangleSymbol compileLayer symbol
+  let hash = getHash settings
+      hashedSymbol = symbol <> "_" <> unHash hash
+      hashedSymbol' = toShort $ TE.encodeUtf8 hashedSymbol
+  mangled <- mangleSymbol compileLayer hashedSymbol'
   Right (JITSymbol symbolPtr _) <- CL.findSymbol compileLayer mangled True
   pure $ fn $ castPtrToFunPtr $ wordPtrToPtr symbolPtr
 
@@ -209,7 +214,6 @@ getAllValues ffi tree = do
           ffiIterNext ffi current
           go current end (val : result)
 
--- TODO: take specialized hash into account for function names
 -- TODO: generate list of ops using hedgehog, run program with that
 
 spec :: Spec
