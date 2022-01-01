@@ -1,15 +1,19 @@
+{-# LANGUAGE MultiWayIf #-}
+
 module Test.Eclair.Runtime.BTreeSpec
   ( module Test.Eclair.Runtime.BTreeSpec
   ) where
 
 import Protolude hiding (Meta)
+import Data.IORef
+import Data.Maybe (fromJust)
 import qualified Data.Text.Encoding as TE
 import Test.Hspec
 import Control.Monad.Cont
 import Data.ByteString.Short hiding (index)
 import Eclair.Runtime.BTree
 import Eclair.Runtime.Store
-import Eclair.Runtime.LLVM
+import Eclair.Runtime.LLVM hiding (nullPtr)
 import Eclair.Runtime.Hash
 import LLVM.IRBuilder.Module
 import LLVM.Context
@@ -68,21 +72,41 @@ foreign import ccall "dynamic" foreignIterNext
 
 
 jit :: ModuleBuilderT IO a -> (forall l. CompileLayer l => l -> a -> IO b) -> IO b
-jit code f = flip runContT pure $ do
-  ctx <- ContT withContext
-  (a, ffiCode) <- lift $ codegenModule "test.ll" code
-  mod <- ContT $ withModuleFromAST ctx ffiCode
-  lift $ verify mod
-  tm <- ContT $ withHostTargetMachine Relocation.PIC CodeModel.JITDefault CodeGenOpt.None
-  exeSession <- ContT withExecutionSession
-  resolver <- ContT $ withSymbolResolver exeSession (SymbolResolver symbolResolver)
-  objectLayer <- ContT $ withObjectLinkingLayer exeSession (\_key -> pure resolver)
-  compileLayer <- ContT $ withIRCompileLayer objectLayer tm
-  key <- ContT $ withModuleKey exeSession
-  lift $ withModule compileLayer key mod $ f compileLayer a
+jit code f = do
+  cl <- newIORef Nothing
+  flip runContT pure $ do
+    ctx <- ContT withContext
+    (a, ffiCode) <- lift $ codegenModule "test.ll" code
+    mod <- ContT $ withModuleFromAST ctx ffiCode
+    lift $ verify mod
+    tm <- ContT $ withHostTargetMachine Relocation.PIC CodeModel.JITDefault CodeGenOpt.None
+    exeSession <- ContT withExecutionSession
+    resolver <- ContT $ withSymbolResolver exeSession (SymbolResolver $ symbolResolver cl)
+    objectLayer <- ContT $ withObjectLinkingLayer exeSession (\_key -> pure resolver)
+    compileLayer <- ContT $ withIRCompileLayer objectLayer tm
+    lift $ writeIORef cl (Just compileLayer)
+    key <- ContT $ withModuleKey exeSession
+    lift $ withModule compileLayer key mod $ f compileLayer a
 
-symbolResolver :: MangledSymbol -> IO (Either JITSymbolError JITSymbol)
-symbolResolver = panic "Not implemented!"
+symbolResolver :: CompileLayer l => IORef (Maybe l) -> MangledSymbol -> IO (Either JITSymbolError JITSymbol)
+symbolResolver compileLayer symbol = do
+  cl <- fromJust <$> readIORef compileLayer
+  malloc <- mangleSymbol cl "malloc"
+  freeSym <- mangleSymbol cl "free"
+  if | symbol == malloc -> do
+      funPtr <- wrapMalloc $ \int -> mallocBytes (fromIntegral int)
+      let addr = ptrToWordPtr (castFunPtrToPtr funPtr)
+      pure $ Right $ JITSymbol addr defaultJITSymbolFlags
+     | symbol == freeSym -> do
+      funPtr <- wrapFree free
+      let addr = ptrToWordPtr (castFunPtrToPtr funPtr)
+      pure $ Right $ JITSymbol addr defaultJITSymbolFlags
+     | otherwise -> panic $ "Can't resolve symbol: " <> show symbol
+
+foreign import ccall "wrapper" wrapMalloc
+  :: (Int64 -> IO (Ptr a)) -> IO (FunPtr (Int64 -> IO (Ptr a)))
+foreign import ccall "wrapper" wrapFree
+  :: (Ptr a -> IO ()) -> IO (FunPtr (Ptr a -> IO ()))
 
 data Tree
 data Value
