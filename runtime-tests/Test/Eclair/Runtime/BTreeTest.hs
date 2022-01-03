@@ -196,18 +196,24 @@ allocateAndApply size f = do
 data Val = Val {-# UNPACK #-} !Int32 !Int32 !Int32 !Int32
   deriving (Eq, Show)
 
-type BTreeModel = Set Val  -- TODO: not needed?
 
-putValue :: Val -> IO (ForeignPtr Value)
-putValue (Val x0 x1 x2 x3) = do
-  ptr <- mallocForeignPtrBytes 16
-  withForeignPtr ptr $ \ptr' -> do
-    let p = castPtr ptr'
-    pokeElemOff p 0 x0
-    pokeElemOff p 1 x1
-    pokeElemOff p 2 x2
-    pokeElemOff p 3 x3
-  pure ptr
+writeValPtr :: Val -> Ptr Value -> IO ()
+writeValPtr (Val x0 x1 x2 x3) ptr = do
+  let p = castPtr ptr
+  pokeElemOff p 0 x0
+  pokeElemOff p 1 x1
+  pokeElemOff p 2 x2
+  pokeElemOff p 3 x3
+
+putValue :: FFI -> Ptr Tree -> Val -> IO Bool
+putValue ffi tree val = do
+  allocaBytes 16 $ \ptr -> do
+    writeValPtr val ptr
+    ffiInsert ffi tree ptr
+
+putValues :: FFI -> Ptr Tree -> [Val] -> IO [Bool]
+putValues ffi tree =
+  traverse (putValue ffi tree)
 
 getValue :: Ptr Value -> IO Val
 getValue ptr = do
@@ -252,13 +258,25 @@ spec = jitCompile $ \ffi -> hspec $ do
         ffiWithEmptyTree ffi $ \tree ->
           tree `shouldNotBe` nullPtr
 
-    -- TODO: try with empty tree
-    -- TODO: try with tree that contains values
-    it "can iterate over the full range of values" $ pending
+    describe "retrieving values" $ parallel $ do
+      it "returns empty results for empty tree" $ hedgehog $ do
+          vals <- lift $ ffiWithEmptyTree ffi $ \tree -> do
+            getAllValues ffi tree
+
+          vals === []
+
+      it "can iterate over the full range of values" $ hedgehog $ do
+          vals <- forAll genValues
+
+          vals' <- lift $ ffiWithEmptyTree ffi $ \tree -> do
+            putValues ffi tree vals
+            getAllValues ffi tree
+
+          vals === vals'
 
     it "can use lower- and upper-bound to iterate over a subset of values" $ pending
 
-    describe "is_empty" $ parallel $ do
+    describe "btree_is_empty" $ parallel $ do
       it "should return True for empty trees" $ hedgehog $ do
         isEmpty <- lift $ ffiWithEmptyTree ffi $ ffiIsEmpty ffi
         isEmpty === True
@@ -267,40 +285,117 @@ spec = jitCompile $ \ffi -> hspec $ do
         vals <- forAll genValues
 
         isEmpty <- lift $ ffiWithEmptyTree ffi $ \tree -> do
-          for_ vals $ \val -> do
-            val' <- putValue val
-            withForeignPtr val' $ ffiInsert ffi tree
+          putValues ffi tree vals
           ffiIsEmpty ffi tree
 
         isEmpty === False
 
-      it "should be empty after purging" $ do
-        pending
+      it "should be empty after purging" $ hedgehog $ do
+        vals <- forAll genValues
 
-    describe "swap" $ parallel $ do
-      it "swaps contents of tree A and B" $ pending
+        isEmpty <- lift $ ffiWithEmptyTree ffi $ \tree -> do
+          putValues ffi tree vals
+          ffiPurge ffi tree
+          ffiIsEmpty ffi tree
 
-      it "is a no-op to swap twice" $ pending
+        isEmpty === True
 
-    describe "insert" $ parallel $ do
-      it "is not empty afterwards" $ pending
+    describe "btree_swap" $ parallel $ do
+      it "swaps contents of tree A and B" $ hedgehog $ do
+        vals1 <- forAll genValues
+        vals2 <- forAll genValues
 
-      it "does nothing if value is already stored in tree" $ pending
+        (vals1', vals2') <- lift $ ffiWithEmptyTree ffi $ \tree1 -> ffiWithEmptyTree ffi $ \tree2 -> do
+          putValues ffi tree1 vals1
+          putValues ffi tree2 vals2
 
-      it "adds the new value if not stored in tree" $ pending
+          ffiSwap ffi tree1 tree2
 
-      it "is commutative" $ pending
+          values1 <- getAllValues ffi tree1
+          values2 <- getAllValues ffi tree2
+          pure (values1, values2)
 
-    describe "insertRange" $ parallel $ do
-      it "increases in size by up to N when adding N elements" $ pending
-      -- TODO same props as insert?
+        vals1 === vals2'
+        vals2 === vals1'
 
-    describe "isEmpty" $ parallel $ do
-      it "returns true for empty trees" $ pending
+      it "is a no-op to swap twice" $ hedgehog $ do
+        -- TODO: assert vals1 != vals2
+        vals1 <- forAll genValues
+        vals2 <- forAll genValues
 
-      it "returns false for non-empty trees" $ pending
+        (vals1', vals2') <- lift $ ffiWithEmptyTree ffi $ \tree1 -> ffiWithEmptyTree ffi $ \tree2 -> do
+          putValues ffi tree1 vals1
+          putValues ffi tree2 vals2
 
-    describe "contains" $ parallel $ do
-      it "returns true if element is inside the tree" $ pending
+          ffiSwap ffi tree1 tree2
+          ffiSwap ffi tree1 tree2
 
-      it "returns false if element is not inside the tree" $ pending
+          values1 <- getAllValues ffi tree1
+          values2 <- getAllValues ffi tree2
+          pure (values1, values2)
+
+        vals1 === vals1'
+        vals2 === vals2'
+
+    describe "btree_insert" $ parallel $ do
+      it "is not empty afterwards and insert succeeds for empty trees" $ hedgehog $ do
+        val <- forAll genValue
+
+        (didInsert, isEmpty) <- lift $ ffiWithEmptyTree ffi $ \tree -> do
+          result <- putValue ffi tree val
+          (result,) <$> ffiIsEmpty ffi tree
+
+        isEmpty === False
+        didInsert === True
+
+      it "does nothing if value is already stored in tree" $ hedgehog $ do
+        val <- forAll genValue
+
+        (didInsert, isEmpty) <- lift $ ffiWithEmptyTree ffi $ \tree -> do
+          _ <- putValue ffi tree val
+          result <- putValue ffi tree val
+          (result,) <$> ffiIsEmpty ffi tree
+
+        isEmpty === False
+        didInsert === False
+
+      it "is commutative" $ hedgehog $ do
+        val1 <- forAll genValue
+        val2 <- forAll genValue
+
+        (values1, values2) <- lift $ ffiWithEmptyTree ffi $ \tree1 -> ffiWithEmptyTree ffi $ \tree2 -> do
+          _ <- putValue ffi tree1 val1
+          _ <- putValue ffi tree1 val2
+          valuesA <- getAllValues ffi tree1
+
+          _ <- putValue ffi tree2 val2
+          _ <- putValue ffi tree2 val1
+          valuesB <- getAllValues ffi tree2
+          pure (valuesA, valuesB)
+
+        values1 === values2
+
+    describe "btree_insert_range" $ parallel $ do
+      it "is the same as inserting values one by one" pending
+
+    describe "btree_contains" $ parallel $ do
+      it "returns true if element is inside the tree" $ hedgehog $ do
+        val <- forAll genValue
+
+        contains <- lift $ ffiWithEmptyTree ffi $ \tree -> do
+          putValue ffi tree val
+          allocaBytes 16 $ \valuePtr -> do
+            writeValPtr val valuePtr
+            ffiContains ffi tree valuePtr
+
+        contains === True
+
+      it "returns false if element is not inside the tree" $ hedgehog $ do
+        val <- forAll genValue
+
+        contains <- lift $ ffiWithEmptyTree ffi $ \tree -> do
+          allocaBytes 16 $ \valuePtr -> do
+            writeValPtr val valuePtr
+            ffiContains ffi tree valuePtr
+
+        contains === False
