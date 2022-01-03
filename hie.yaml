@@ -11,3 +11,6 @@ cradle:
 
     - path: "tests"
       component: "eclair-lang:test:eclair-test"
+
+    - path: "runtime-tests"
+      component: "eclair-lang:test:eclair-runtime-test"

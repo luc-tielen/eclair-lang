@@ -1,7 +1,7 @@
 {-# LANGUAGE MultiWayIf, TypeApplications #-}
 
-module Test.Eclair.Runtime.BTreeSpec
-  ( module Test.Eclair.Runtime.BTreeSpec
+module Test.Eclair.Runtime.BTreeTest
+  ( module Test.Eclair.Runtime.BTreeTest
   ) where
 
 import Protolude hiding (Meta)
@@ -34,7 +34,7 @@ import Foreign.LibFFI
 
 
 jit :: ModuleBuilderT IO a -> (forall l. CompileLayer l => l -> a -> IO b) -> IO b
-jit code f = do
+jit code f = liftIO $ do
   cl <- newIORef Nothing
   flip runContT pure $ do
     ctx <- ContT withContext
@@ -101,6 +101,7 @@ settings
   , searchType = Linear
   }
 
+
 jitCompile :: (FFI -> IO ()) -> IO ()
 jitCompile action = jit (codegen settings) $ \compileLayer (_, sizes) -> do
   fnInitEmpty <- importSymbol compileLayer "btree_init_empty"
@@ -135,8 +136,8 @@ jitCompile action = jit (codegen settings) $ \compileLayer (_, sizes) -> do
                 }
   action ffi
 
-importSymbol :: Import a => CompileLayer l => l -> Text -> IO a
-importSymbol compileLayer symbol = do
+importSymbol :: (Import a, MonadIO m) => CompileLayer l => l -> Text -> m a
+importSymbol compileLayer symbol = liftIO $ do
   let hash = getHash settings
       hashedSymbol = symbol <> "_" <> unHash hash
       hashedSymbol' = toShort $ TE.encodeUtf8 hashedSymbol
@@ -195,6 +196,8 @@ allocateAndApply size f = do
 data Val = Val {-# UNPACK #-} !Int32 !Int32 !Int32 !Int32
   deriving (Eq, Show)
 
+type BTreeModel = Set Val  -- TODO: not needed?
+
 putValue :: Val -> IO (ForeignPtr Value)
 putValue (Val x0 x1 x2 x3) = do
   ptr <- mallocForeignPtrBytes 16
@@ -242,8 +245,8 @@ genValue = Val <$> genInt <*> genInt <*> genInt <*> genInt
 genValues :: MonadGen m => m [Val]
 genValues = Gen.list (Range.linear 1 100) genValue
 
-main :: IO ()
-main = jitCompile $ \ffi -> hspec $ do
+spec :: IO ()
+spec = jitCompile $ \ffi -> hspec $ do
   describe "btree" $ parallel $ do
     it "can create and destroy btrees" $ do
         ffiWithEmptyTree ffi $ \tree ->
