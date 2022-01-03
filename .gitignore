@@ -1,2 +1,5 @@
 .stack-work/
-dist-*
+dist*
+cabal.project.*
+# makes rg ignore files in .git when searching:
+.git/

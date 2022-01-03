@@ -115,4 +115,5 @@ tests:
       - hedgehog == 1.*
       - filepath == 1.*
       - neat-interpolation == 0.*
+      - libffi == 0.*
       - eclair-lang
