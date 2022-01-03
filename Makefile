@@ -1,16 +1,19 @@
 build:
-	stack build --fast
+	cabal build
+
+configure:
+	cabal configure --enable-tests --test-option=--color -fdebug
 
 clean:
-	stack clean
+	rm -rf dist-newstyle/
 
 run:
-	stack run
+	cabal run eclairc
 
 test:
-	stack test --fast --flag eclair-lang:-debug
+	cabal test --test-show-details=direct
 
 repl:
-	stack ghci
+	cabal repl
 
-.PHONY: build clean run test repl
+.PHONY: build configure clean run test repl
