@@ -5,11 +5,14 @@ module Test.Eclair.Runtime.BTreeSpec
   ) where
 
 import Protolude hiding (Meta)
-import Data.Coerce
+import Test.Hspec hiding (Arg)
+import Test.Hspec.Hedgehog
+import Hedgehog
+import qualified Hedgehog.Gen as Gen
+import qualified Hedgehog.Range as Range
 import Data.IORef
 import Data.Maybe (fromJust)
 import qualified Data.Text.Encoding as TE
-import Test.Hspec hiding (Arg)
 import Control.Monad.Cont
 import Data.ByteString.Short hiding (index)
 import Eclair.Runtime.BTree
@@ -181,7 +184,7 @@ withResource :: Word64            -- number of bytes to allocate
              -> IO b
 withResource numBytes construct destruct f = do
   allocaBytes (fromIntegral numBytes) $ \ptr -> do
-    bracket (construct ptr *> pure ptr) destruct f
+    bracket (construct ptr $> ptr) destruct f
 
 allocateAndApply :: Word64 -> (Ptr a -> IO b) -> IO (ForeignPtr a)
 allocateAndApply size f = do
@@ -190,6 +193,7 @@ allocateAndApply size f = do
   pure ptr
 
 data Val = Val {-# UNPACK #-} !Int32 !Int32 !Int32 !Int32
+  deriving (Eq, Show)
 
 putValue :: Val -> IO (ForeignPtr Value)
 putValue (Val x0 x1 x2 x3) = do
@@ -228,50 +232,72 @@ getAllValues ffi tree = do
           ffiIterNext ffi current
           go current end (val : result)
 
--- TODO: generate list of ops using hedgehog, run program with that
-
 runContT_ :: Monad m => ContT () m a -> m ()
 runContT_ = flip runContT (const $ pure ())
 
-spec :: Spec
-spec = describe "btree" $ parallel $ do
-  fit "can create and destroy btrees" $ runContT_ $ do
-      ffi <- ContT jitCompile
-      tree <- ContT $ ffiWithEmptyTree ffi
-      lift $ tree `shouldNotBe` nullPtr
+genValue :: MonadGen m => m Val
+genValue = Val <$> genInt <*> genInt <*> genInt <*> genInt
+  where genInt = Gen.int32 (Range.linear 0 10000)
 
-  it "can iterate over the full range of values" $ pending
+genValues :: MonadGen m => m [Val]
+genValues = Gen.list (Range.linear 1 100) genValue
 
-  it "can use lower- and upper-bound to iterate over a subset of values" $ pending
+main :: IO ()
+main = jitCompile $ \ffi -> hspec $ do
+  describe "btree" $ parallel $ do
+    it "can create and destroy btrees" $ do
+        ffiWithEmptyTree ffi $ \tree ->
+          tree `shouldNotBe` nullPtr
 
-  -- TODO: properties
-  it "should be empty after purging" $ do
-    pending
+    -- TODO: try with empty tree
+    -- TODO: try with tree that contains values
+    it "can iterate over the full range of values" $ pending
 
-  describe "swap" $ parallel $ do
-    it "swaps contents of tree A and B" $ pending
+    it "can use lower- and upper-bound to iterate over a subset of values" $ pending
 
-    it "is a no-op to swap twice" $ pending
+    describe "is_empty" $ parallel $ do
+      it "should return True for empty trees" $ hedgehog $ do
+        isEmpty <- lift $ ffiWithEmptyTree ffi $ ffiIsEmpty ffi
+        isEmpty === True
 
-  describe "insert" $ parallel $ do
-    it "is not empty afterwards" $ pending
+      it "should return False for non-empty trees" $ hedgehog $ do
+        vals <- forAll genValues
 
-    it "does nothing if value is already stored in tree" $ pending
+        isEmpty <- lift $ ffiWithEmptyTree ffi $ \tree -> do
+          for_ vals $ \val -> do
+            val' <- putValue val
+            withForeignPtr val' $ ffiInsert ffi tree
+          ffiIsEmpty ffi tree
 
-    it "adds the new value if not stored in tree" $ pending
+        isEmpty === False
 
-    it "is commutative" $ pending
+      it "should be empty after purging" $ do
+        pending
 
-  describe "insertRange" $ parallel $ do
-    it "increases in size by up to N when adding N elements" $ pending
-    -- TODO same props as insert?
+    describe "swap" $ parallel $ do
+      it "swaps contents of tree A and B" $ pending
 
-  describe "isEmpty" $ parallel $ do
-    it "returns true for empty trees" $ pending
+      it "is a no-op to swap twice" $ pending
 
-    it "returns false for non-empty trees" $ pending
+    describe "insert" $ parallel $ do
+      it "is not empty afterwards" $ pending
 
-  describe "contains" $ parallel $ do
-    it "returns true if element is inside the tree" $ pending
+      it "does nothing if value is already stored in tree" $ pending
 
-    it "returns false if element is not inside the tree" $ pending
+      it "adds the new value if not stored in tree" $ pending
+
+      it "is commutative" $ pending
+
+    describe "insertRange" $ parallel $ do
+      it "increases in size by up to N when adding N elements" $ pending
+      -- TODO same props as insert?
+
+    describe "isEmpty" $ parallel $ do
+      it "returns true for empty trees" $ pending
+
+      it "returns false for non-empty trees" $ pending
+
+    describe "contains" $ parallel $ do
+      it "returns true if element is inside the tree" $ pending
+
+      it "returns false if element is not inside the tree" $ pending
