@@ -1,10 +1,10 @@
 cabal-version: 2.2
 
--- This file has been generated from package.yaml by hpack version 0.33.0.
+-- This file has been generated from package.yaml by hpack version 0.34.6.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: d1ee9dddd03131277d842aea3755eb9f758ba3c896a0d50c9ef0766f04007f79
+-- hash: 8b11d5dfe0f830009de9183e70596fb5da6d8ec9ef6d20a1ae21f3b98d70636e
 
 name:           eclair-lang
 version:        0.1.0.0
@@ -43,10 +43,31 @@ library
       Eclair.TypeSystem
   other-modules:
       Paths_eclair_lang
+  autogen-modules:
+      Paths_eclair_lang
   hs-source-dirs:
       lib
-  default-extensions: NoImplicitPrelude OverloadedStrings LambdaCase ViewPatterns RankNTypes TypeFamilies DataKinds KindSignatures TupleSections DeriveFunctor DeriveFoldable DeriveTraversable DeriveGeneric DeriveAnyClass DerivingStrategies DerivingVia FlexibleContexts FlexibleInstances ScopedTypeVariables
-  ghc-options: -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+      LambdaCase
+      ViewPatterns
+      RankNTypes
+      TypeFamilies
+      DataKinds
+      KindSignatures
+      TupleSections
+      DeriveFunctor
+      DeriveFoldable
+      DeriveTraversable
+      DeriveGeneric
+      DeriveAnyClass
+      DerivingStrategies
+      DerivingVia
+      FlexibleContexts
+      FlexibleInstances
+      ScopedTypeVariables
+  ghc-options: -Wall -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__ -Wall
   build-depends:
       algebraic-graphs ==0.*
@@ -65,7 +86,7 @@ library
     , prettyprinter ==1.*
     , protolude ==0.3.0
     , recursion-schemes ==5.*
-    , souffle-haskell ==3.0.0
+    , souffle-haskell ==3.1.0
     , text ==1.*
     , transformers ==0.*
     , vector ==0.12.*
@@ -85,10 +106,31 @@ executable eclairc
   main-is: Main.hs
   other-modules:
       Paths_eclair_lang
+  autogen-modules:
+      Paths_eclair_lang
   hs-source-dirs:
       src
-  default-extensions: NoImplicitPrelude OverloadedStrings LambdaCase ViewPatterns RankNTypes TypeFamilies DataKinds KindSignatures TupleSections DeriveFunctor DeriveFoldable DeriveTraversable DeriveGeneric DeriveAnyClass DerivingStrategies DerivingVia FlexibleContexts FlexibleInstances ScopedTypeVariables
-  ghc-options: -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits -threaded -rtsopts -with-rtsopts=-N
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+      LambdaCase
+      ViewPatterns
+      RankNTypes
+      TypeFamilies
+      DataKinds
+      KindSignatures
+      TupleSections
+      DeriveFunctor
+      DeriveFoldable
+      DeriveTraversable
+      DeriveGeneric
+      DeriveAnyClass
+      DerivingStrategies
+      DerivingVia
+      FlexibleContexts
+      FlexibleInstances
+      ScopedTypeVariables
+  ghc-options: -Wall -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits -threaded -rtsopts -with-rtsopts=-N
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__
   build-depends:
       algebraic-graphs ==0.*
@@ -109,7 +151,7 @@ executable eclairc
     , prettyprinter ==1.*
     , protolude ==0.3.0
     , recursion-schemes ==5.*
-    , souffle-haskell ==3.0.0
+    , souffle-haskell ==3.1.0
     , text ==1.*
     , transformers ==0.*
     , vector ==0.12.*
@@ -131,10 +173,31 @@ test-suite eclair-test
       Test.Eclair.RA.InterpreterSpec
       Test.Eclair.Runtime.HashSpec
       Paths_eclair_lang
+  autogen-modules:
+      Paths_eclair_lang
   hs-source-dirs:
       tests
-  default-extensions: NoImplicitPrelude OverloadedStrings LambdaCase ViewPatterns RankNTypes TypeFamilies DataKinds KindSignatures TupleSections DeriveFunctor DeriveFoldable DeriveTraversable DeriveGeneric DeriveAnyClass DerivingStrategies DerivingVia FlexibleContexts FlexibleInstances ScopedTypeVariables
-  ghc-options: -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+      LambdaCase
+      ViewPatterns
+      RankNTypes
+      TypeFamilies
+      DataKinds
+      KindSignatures
+      TupleSections
+      DeriveFunctor
+      DeriveFoldable
+      DeriveTraversable
+      DeriveGeneric
+      DeriveAnyClass
+      DerivingStrategies
+      DerivingVia
+      FlexibleContexts
+      FlexibleInstances
+      ScopedTypeVariables
+  ghc-options: -Wall -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__
   build-depends:
       algebraic-graphs ==0.*
@@ -159,7 +222,7 @@ test-suite eclair-test
     , prettyprinter ==1.*
     , protolude ==0.3.0
     , recursion-schemes ==5.*
-    , souffle-haskell ==3.0.0
+    , souffle-haskell ==3.1.0
     , text ==1.*
     , transformers ==0.*
     , vector ==0.12.*
