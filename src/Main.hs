@@ -2,15 +2,12 @@ module Main (main) where
 
 import Protolude hiding ( Meta )
 import qualified Data.Text.Lazy.IO as T
-import qualified Data.Set as Set
 import LLVM.Analysis
 import LLVM.Context
 import LLVM.Module
 import LLVM.Pretty
 import LLVM.IRBuilder.Module
 import Eclair.Runtime.BTree
-import Eclair.RA.Printer
-import Eclair
 
 
 {-

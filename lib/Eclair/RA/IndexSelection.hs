@@ -14,16 +14,12 @@ module Eclair.RA.IndexSelection
 
 import Protolude
 import Data.Maybe (fromJust)
-import Eclair.Syntax (startsWithIdPrefix, stripIdPrefixes)
 import Eclair.RA.IR
 import Algebra.Graph.Bipartite.AdjacencyMap
-import Algebra.Graph.Bipartite.AdjacencyMap.Algorithm
+import Algebra.Graph.Bipartite.AdjacencyMap.Algorithm hiding (matching)
 import Data.Functor.Foldable hiding (fold)
 import qualified Data.Set as Set
 import qualified Data.Map as Map
-import Data.STRef (STRef, modifySTRef, newSTRef, readSTRef, writeSTRef)
-import Control.Monad.ST (ST, runST)
-import qualified Data.Sequence as Seq
 import qualified Data.List as List
 
 
@@ -49,6 +45,7 @@ type IndexSelector = Relation -> SearchSignature -> Index
 runIndexSelection :: RA -> (IndexMap, IndexSelector)
 runIndexSelection ra =
   let searchMap = searchesForProgram ra
+      indexSelection :: IndexSelection
       indexSelection = Map.foldrWithKey (\r searchSet acc ->
         let graph = buildGraph searchSet
             matching = maxMatching graph
@@ -92,7 +89,7 @@ searchesForProgram ra = solve $ execState (zygo constraintsForSearch constraints
         addFact $ SearchOn r signature
       MergeF r1 r2 -> addFact $ Related r1 r2
       SwapF r1 r2  -> addFact $ Related r1 r2
-      ra -> traverse_ snd ra
+      raf -> traverse_ snd raf
 
 constraintsForSearch :: RAF [(Relation, Column)] -> [(Relation, Column)]
 constraintsForSearch = \case

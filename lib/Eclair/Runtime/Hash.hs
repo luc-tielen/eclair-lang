@@ -58,7 +58,7 @@ instance (Enum a) => ToHash (HashEnum a) where
 
 instance forall prefix a. (KnownSymbol prefix, Generic a, GToHash (Rep a))
   => ToHash (HashWithPrefix prefix a) where
-  getHash x@(HashWithPrefix a) =
+  getHash (HashWithPrefix a) =
     let pre = Hash $ T.pack $ symbolVal (Proxy :: Proxy prefix)
         h = gGetHash (from a)
      in pre <> h

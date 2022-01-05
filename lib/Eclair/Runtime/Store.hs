@@ -22,10 +22,9 @@ import LLVM.AST.Operand (Operand)
 import Eclair.RA.IndexSelection
 import LLVM.IRBuilder.Module
 import LLVM.IRBuilder.Monad
-import LLVM.IRBuilder.Instruction
+import LLVM.IRBuilder.Instruction hiding (store)
 import LLVM.IRBuilder.Constant
 import LLVM.AST.Type
-import Control.Monad.Morph
 import LLVM.IRBuilder.Combinators hiding (swap)
 
 -- A stack allocated object.
@@ -43,7 +42,9 @@ newtype Store
 -- because of specialization.
 data Functions
   = Functions
-  { fnDestroy :: Operand
+  { fnInit :: Operand
+  , fnInitEmpty :: Operand
+  , fnDestroy :: Operand
   , fnPurge :: Operand
   , fnSwap :: Operand
   , fnBegin :: Operand
@@ -96,14 +97,11 @@ merge :: (MonadModuleBuilder m, MonadIRBuilder m, Monad m)
       => Store -> Store -> m ()
 merge store1 store2 = do  -- NOTE: store1 = from/src, store2 = to/dst
   for_ (store1 `intersect` store2) $ \(obj1, obj2, fns) -> do
-    let begin = fnBegin fns
-        end = fnEnd fns
-        insertRange = fnInsertRange fns
     iterBegin1 <- mkIter fns
     iterEnd1 <- mkIter fns
-    call begin [(obj1, []), (iterBegin1, [])]
-    call end [(obj1, []), (iterEnd1, [])]
-    call insertRange [(obj2, []), (iterBegin1, []), (iterEnd1, [])]
+    _ <- call (fnBegin fns) [(obj1, []), (iterBegin1, [])]
+    _ <- call (fnEnd fns) [(obj1, []), (iterEnd1, [])]
+    call (fnInsertRange fns) [(obj2, []), (iterBegin1, []), (iterEnd1, [])]
 
 purge :: (MonadModuleBuilder m, MonadIRBuilder m, Applicative m)
       => Store -> m ()

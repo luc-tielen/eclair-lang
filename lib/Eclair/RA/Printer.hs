@@ -2,8 +2,8 @@
 
 module Eclair.RA.Printer ( Pretty, printRA ) where
 
-import Data.Text.Prettyprint.Doc
-import Data.Text.Prettyprint.Doc.Render.Text
+import Prettyprinter
+import Prettyprinter.Render.Text
 import Eclair.RA.IR
 import Eclair.Syntax (Id(..))
 import Protolude

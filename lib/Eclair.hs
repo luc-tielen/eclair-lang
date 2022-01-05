@@ -19,7 +19,7 @@ compile path = do
     Right ast -> do
       let typeInfo = getTypeInfo ast
           ra = compileRA ast
-      compileLLVM typeInfo ra
+      _ <- compileLLVM typeInfo ra
       pure $ Right ra -- TODO other return value?
 
 run :: FilePath -> IO (M.Map Relation [[Number]])

@@ -1,4 +1,5 @@
 {-# LANGUAGE RoleAnnotations, PolyKinds #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 module Eclair.Runtime.LLVM
   ( module Eclair.Runtime.LLVM
@@ -7,14 +8,9 @@ module Eclair.Runtime.LLVM
 import Protolude hiding ( Type, (.), bit )
 import Control.Category
 import Control.Monad.Morph
-import Control.Monad.Fix
-import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import LLVM.IRBuilder.Module
 import LLVM.IRBuilder.Monad
-import LLVM.IRBuilder.Constant
-import LLVM.IRBuilder.Instruction
-import qualified LLVM.AST.IntegerPredicate as IP
 import qualified LLVM.AST.Constant as Constant
 import LLVM.AST.Operand ( Operand(..) )
 import LLVM.AST.Type
@@ -62,12 +58,12 @@ sizeOfType (n, ty) = do
   liftIO $ withHostTargetMachine Rel.PIC CM.Default CG.None $ \tm -> do
     dl <- getTargetMachineDataLayout tm
     Context.withContext $ flip runEncodeAST $ do
-      createType n ty
+      createType
       ty' <- encodeM ty
       liftIO $ DL.withFFIDataLayout dl $ flip DL.getTypeAllocSize ty'
   where
-    createType :: Name -> Type -> EncodeAST ()
-    createType n ty = do
+    createType :: EncodeAST ()
+    createType = do
       (t', n') <- createNamedType n
       defineType n n' t'
       setNamedType t' ty
