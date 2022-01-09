@@ -100,6 +100,7 @@
           buildInputs = with haskellPackages; [
             hsc2hs
             haskell-language-server
+            ghcid
             hpack
             ghc
             cabal-install
