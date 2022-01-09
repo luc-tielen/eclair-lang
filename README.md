@@ -21,8 +21,8 @@ yet).
 - [x] Compile Datalog to relation algebra (RA)
 - [x] Prettyprinter for RA IR
 - [x] Interpreter for RA IR
+- [x] Add indices to relations
 - [ ] Compile to LLVM
-- [ ] Add indices to relations
 - [ ] Support other data types than integers (strings, ...)
 - [ ] Add typesystem
 - [ ] Add static analysis for the many edgecases
