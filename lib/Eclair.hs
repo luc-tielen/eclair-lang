@@ -5,13 +5,13 @@ import qualified Data.Map as M
 import Eclair.Lowering.AST
 import Eclair.Lowering.RA
 import Eclair.Parser
-import Eclair.RA.IR
+import Eclair.EIR.IR
 import Eclair.RA.Interpreter
 import Eclair.Syntax
 import Eclair.TypeSystem
 
 
-compile :: FilePath -> IO (Either ParseError RA)
+compile :: FilePath -> IO (Either ParseError EIR)
 compile path = do
   parseResult <- parseFile path
   case parseResult of
@@ -19,14 +19,14 @@ compile path = do
     Right ast -> do
       let typeInfo = getTypeInfo ast
           ra = compileRA ast
-      _ <- compileLLVM typeInfo ra
-      pure $ Right ra -- TODO other return value?
+          eir = compileToEIR typeInfo ra
+      pure $ Right eir -- TODO other return value?
 
 run :: FilePath -> IO (M.Map Relation [[Number]])
 run path = compile path >>= \case
   Left err -> do
     printParseError err
     panic "Failed to interpret path."
-  Right ast -> do
-    interpretRA ast
-
+  Right _ast -> do
+    -- TODO interpretRA ast
+    pure mempty

@@ -4,7 +4,7 @@ cabal-version: 2.2
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 8b11d5dfe0f830009de9183e70596fb5da6d8ec9ef6d20a1ae21f3b98d70636e
+-- hash: f8f8ad89073b4f922a58368ff2070732c7f60531f55714f979b1c4345661faf0
 
 name:           eclair-lang
 version:        0.1.0.0
@@ -27,6 +27,8 @@ flag debug
 library
   exposed-modules:
       Eclair
+      Eclair.EIR.IR
+      Eclair.EIR.Printer
       Eclair.Lowering.AST
       Eclair.Lowering.RA
       Eclair.Parser
@@ -38,7 +40,9 @@ library
       Eclair.Runtime.BTree
       Eclair.Runtime.Hash
       Eclair.Runtime.LLVM
+      Eclair.Runtime.Metadata
       Eclair.Runtime.Store
+      Eclair.Supply
       Eclair.Syntax
       Eclair.TypeSystem
   other-modules:
@@ -67,7 +71,7 @@ library
       FlexibleContexts
       FlexibleInstances
       ScopedTypeVariables
-  ghc-options: -Wall -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
+  ghc-options: -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__ -Wall
   build-depends:
       algebraic-graphs ==0.*
@@ -130,7 +134,7 @@ executable eclairc
       FlexibleContexts
       FlexibleInstances
       ScopedTypeVariables
-  ghc-options: -Wall -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits -threaded -rtsopts -with-rtsopts=-N
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__
   build-depends:
       algebraic-graphs ==0.*
@@ -197,7 +201,7 @@ test-suite eclair-test
       FlexibleContexts
       FlexibleInstances
       ScopedTypeVariables
-  ghc-options: -Wall -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
+  ghc-options: -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__
   build-depends:
       algebraic-graphs ==0.*

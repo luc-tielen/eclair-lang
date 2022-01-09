@@ -61,7 +61,7 @@ default-extensions:
   - ScopedTypeVariables
 
 ghc-options:
-  - -Wall
+  #- -Wall TODO turn on again
   - -fhide-source-paths
   - -fno-show-valid-hole-fits
   - -fno-sort-valid-hole-fits
