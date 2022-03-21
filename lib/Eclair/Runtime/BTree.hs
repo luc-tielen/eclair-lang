@@ -24,6 +24,7 @@ import LLVM.IRBuilder.Combinators
 import Eclair.Runtime.LLVM
 import Eclair.Runtime.Hash
 import Eclair.Runtime.Store (Functions(..))
+import Prettyprinter
 
 
 data Meta
@@ -37,6 +38,13 @@ data Meta
   deriving stock Generic
   deriving ToHash via HashWithPrefix "btree" Meta
 
+instance Pretty Meta where
+  pretty meta =
+    "num_columns=" <> pretty (numColumns meta) <> comma <+>
+    "index=" <> pretty (index meta) <> comma <+>
+    "block_size=" <> pretty (blockSize meta) <> comma <+>
+    "search_type=" <> pretty (searchType meta)
+
 type Column = Int
 
 type SearchIndex = [Column]
@@ -45,6 +53,10 @@ data SearchType = Linear | Binary
   deriving stock (Eq, Show)
   deriving stock (Generic, Enum)
   deriving ToHash via HashEnum SearchType
+
+instance Pretty SearchType where
+  pretty Linear = "linear"
+  pretty Binary = "binary"
 
 data Types
   = Types

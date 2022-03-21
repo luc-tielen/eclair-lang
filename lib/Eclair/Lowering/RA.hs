@@ -173,7 +173,7 @@ forEachRelation programPtr containerInfos f = EIR.Block stmts
 compileInit :: [ContainerInfo] -> EIR
 compileInit containerInfos =
   let programPtr = EIR.Var "program"
-   in EIR.Function [] $ EIR.Block
+   in EIR.Function "eclair_program_init" [] $ EIR.Block
         [ EIR.Assign programPtr $ EIR.HeapAllocate EIR.Program
         , forEachRelation programPtr containerInfos $ \_ci relationPtr ->
             EIR.Call EIR.InitializeEmpty [relationPtr]
@@ -184,7 +184,7 @@ compileInit containerInfos =
 compileDestroy :: [ContainerInfo] -> EIR
 compileDestroy containerInfos =
   let programPtr = EIR.FunctionArg 0
-   in EIR.Function [EIR.Pointer EIR.Program] $ EIR.Block
+   in EIR.Function "eclair_program_destroy" [EIR.Pointer EIR.Program] $ EIR.Block
         [ forEachRelation programPtr containerInfos $ \_ci relationPtr ->
             EIR.Call EIR.Destroy [relationPtr]
         , EIR.FreeProgram programPtr
@@ -195,7 +195,7 @@ compileRun lowerState ra =
   let end = endLabel lowerState
   in runCodegenM lowerState $ do
        stmts <- generateProgramInstructions ra
-       pure $ EIR.Function [EIR.Pointer EIR.Program] $
+       pure $ EIR.Function "eclair_program_run" [EIR.Pointer EIR.Program] $
          EIR.Block [ stmts, EIR.Jump end, EIR.Label end ]
 
 lookupRelationByIndex :: Relation -> Index -> CodegenM EIR

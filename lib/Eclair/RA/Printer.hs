@@ -22,6 +22,15 @@ prettyBlock = indentBlock . vsep . map pretty
 indentBlock :: Doc ann -> Doc ann
 indentBlock block = nest indentation (hardline <> block)
 
+interleaveWith :: Doc ann -> [Doc ann] -> Doc ann
+interleaveWith d = hsep . punctuate d
+
+withCommas :: [Doc ann] -> Doc ann
+withCommas = interleaveWith comma
+
+withAnds :: [Doc ann] -> Doc ann
+withAnds = interleaveWith (space <> "and")
+
 instance Pretty RA where
   pretty = \case
     Search r alias clauses inner ->
@@ -49,12 +58,6 @@ instance Pretty RA where
     Constrain lhs rhs -> pretty lhs <+> "=" <+> pretty rhs
     NotElem r terms -> prettyValues terms <+> "∉" <+> pretty r
     where
-      interleaveWith d = hsep . punctuate d
-      withCommas = interleaveWith comma
-      withAnds = interleaveWith (space <> "and")
       prettyValues terms = parens (withCommas $ map pretty terms)
       formatExitCondition r =
         "counttuples" <> parens (pretty r) <+> "=" <+> "0"
-
-instance Pretty Id where
-  pretty = pretty . unId

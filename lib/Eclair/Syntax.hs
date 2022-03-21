@@ -30,12 +30,16 @@ import Data.Functor.Foldable.TH
 import qualified Data.Graph as G
 import qualified Data.Map as M
 import qualified Data.Text as T
+import Prettyprinter
 
 
 type Number = Int
 
 newtype Id = Id { unId :: Text }
   deriving (Eq, Ord, Show)
+
+instance Pretty Id where
+  pretty = pretty . unId
 
 appendToId :: Id -> Text -> Id
 appendToId (Id x) y = Id (x <> y)

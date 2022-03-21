@@ -54,11 +54,10 @@ instance IsString LabelId where
 
 data EIR
   = Block [EIR]
-  | Function [EIRType] EIR
+  | Function Text [EIRType] EIR
   | FunctionArg Int
   | DeclareType [Metadata] -- TODO: DeclareProgram?
   | FieldAccess EIR Int
-  | Let [EIR] EIR  -- TODO: remove?
   | Var Text
   | Assign EIR EIR
   | Call EIRFunction [EIR]
@@ -74,8 +73,7 @@ data EIR
   | Jump LabelId
   | Label LabelId
   | Return EIR
-  | RangeQuery Relation Index LowerBound UpperBound EIR
-  | Project Relation [EIR] -- TODO
+  | RangeQuery Relation Index LowerBound UpperBound EIR  -- TODO: remove?
   | Lit Number
   deriving (Eq, Show)
 
