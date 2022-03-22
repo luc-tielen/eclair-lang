@@ -33,9 +33,9 @@ withCommas = interleaveWith comma
 
 instance Pretty EIRType where
   pretty = \case
-    Program -> "program"
-    Value -> "value"
-    Iter -> "iter"
+    Program -> "Program"
+    Value -> "Value"
+    Iter -> "Iter"
     Pointer ty -> "*" <> pretty ty
 
 instance Pretty EIRFunction where
@@ -66,9 +66,9 @@ instance Pretty EIR where
            , braceBlock body
            ]
     -- TODO improve function arg
-    FunctionArg pos -> "FN_ARG" <> brackets (pretty pos)
+    FunctionArg pos -> "FN_ARG" <> "." <> pretty pos
     DeclareType metadatas ->
-      vsep ["declare_type" <+> "eclair_program"
+      vsep ["declare_type" <+> "Program"
            , "{"  -- TODO: use braceBlock?
            , foldMap pretty metadatas
            , "}"
@@ -83,7 +83,7 @@ instance Pretty EIR where
     HeapAllocate ty ->
       "heap_allocate" <+> parens (pretty ty)
     FreeProgram ptr ->
-      "free" <+> parens (pretty ptr)
+      "free" <> parens (pretty ptr)
     StackAllocate ty r ->
       "stack_allocate" <+> pretty ty <+> pretty r
     Par stmts ->

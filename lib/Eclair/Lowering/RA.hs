@@ -229,11 +229,12 @@ generateProgramInstructions = zygo constraintsForSearch $ \case
     -- NOTE: Value type is the same for all (but not the insert function)
     values <- withProjectState r $ sequence unresolvedValues
     indices <- toList . fromJust . Map.lookup r . idxMap <$> getLowerState
-    let value = EIR.StackAllocate EIR.Value r
-        assignStmts = zipWith (EIR.Assign . EIR.FieldAccess value) [0..] values
+    let var = EIR.Var "value"
+        value = EIR.Assign var $ EIR.StackAllocate EIR.Value r
+        assignStmts = zipWith (EIR.Assign . EIR.FieldAccess var) [0..] values
     insertStmts <- for indices $ \idx -> do
       relationPtr' <- lookupRelationByIndex r idx
-      pure $ EIR.Call EIR.Insert [relationPtr', value]
+      pure $ EIR.Call EIR.Insert [relationPtr', var]
     pure $ EIR.Block $ assignStmts ++ insertStmts
   RA.PurgeF r -> relationUnaryFn r EIR.Purge
   RA.MergeF r1 r2 -> relationBinFn r1 r2 EIR.Merge
