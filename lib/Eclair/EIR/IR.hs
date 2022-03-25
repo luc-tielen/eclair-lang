@@ -61,7 +61,7 @@ data EIR
   | Var Text
   | Assign EIR EIR
   | Call EIRFunction [EIR]
-  | HeapAllocate EIRType  -- TODO: HeapAllocateProgram?
+  | HeapAllocateProgram
   | FreeProgram EIR
   | StackAllocate EIRType Relation -- NOTE: always need to know for which relation
   | Par [EIR]

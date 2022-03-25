@@ -80,10 +80,10 @@ instance Pretty EIR where
       pretty var <+> "=" <+> pretty value
     Call fn args ->
       pretty fn <> parens (withCommas $ map pretty args)
-    HeapAllocate ty ->
-      "heap_allocate" <+> parens (pretty ty)
+    HeapAllocateProgram ->
+      "heap_allocate_program"
     FreeProgram ptr ->
-      "free" <> parens (pretty ptr)
+      "free_program" <> parens (pretty ptr)
     StackAllocate ty r ->
       "stack_allocate" <+> pretty ty <+> pretty r
     Par stmts ->

@@ -9,7 +9,6 @@ import Data.Maybe (fromJust)
 import Data.Functor.Foldable
 import qualified Eclair.RA.IR as RA
 import qualified Eclair.EIR.IR as EIR
-import Eclair.Supply
 import Eclair.RA.IR (RA)
 import Eclair.EIR.IR (EIR)
 import Eclair.RA.IndexSelection
@@ -19,117 +18,8 @@ import Eclair.TypeSystem
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-
-
-type Relation = EIR.Relation
-type Alias = RA.Alias
-type AliasMap = Map Alias EIR
-
-type ContainerInfo = (Relation, Index, M.Metadata)
-
-data LowerState
-  = LowerState
-  { typeEnv :: TypeInfo
-  , idxMap :: IndexMap
-  , idxSelector :: IndexSelector
-  , containerInfos :: [ContainerInfo]
-  , endLabel :: EIR.LabelId
-  , aliasMap :: AliasMap
-  }
-
-data CGState
-  = Normal LowerState
-  | Search Alias EIR LowerState
-  | Project Relation LowerState
-
-withSearchState :: Alias -> EIR -> CodegenM a -> CodegenM a
-withSearchState alias value m = do
-  ls <- getLowerState
-  local (const $ Search alias value ls) m
-
-withProjectState :: Relation -> CodegenM a -> CodegenM a
-withProjectState relation m = do
-  ls <- getLowerState
-  local (const $ Project relation ls) m
-
--- TODO: rewrite as RWS
-newtype CodegenM a = CodegenM (SupplyT (Reader CGState) a)
-  deriving (Functor, Applicative, Monad, MonadReader CGState)
-  via SupplyT (Reader CGState)
-
-runCodegenM :: LowerState -> CodegenM a -> a
-runCodegenM ls (CodegenM m) =
-  flip runReader (Normal ls) $ runSupplyT m
-
-genLabel :: Text -> CodegenM EIR.LabelId
-genLabel label = CodegenM $ do
-  unique <- fresh
-  pure $ EIR.LabelId $ label <> "_" <> T.pack (show unique)
-
-getFieldOffset :: Relation -> Index -> CodegenM Int
-getFieldOffset r idx = do
-  cis <- containerInfos <$> getLowerState
-  pure $ fromJust $ List.findIndex sameRelationAndIndex cis
-  where
-    sameRelationAndIndex (r', idx', _) =
-      r == r' && idx == idx'
-
-getFirstFieldOffset :: Relation -> CodegenM Int
-getFirstFieldOffset r = do
-  cis <- containerInfos <$> getLowerState
-  pure $ fromJust $ List.findIndex sameRelation cis
-  where
-    sameRelation (r', _, _) = r == r'
-
-getLowerState :: CodegenM LowerState
-getLowerState = asks getLS
-  where
-    getLS = \case
-      Normal ls -> ls
-      Search _ _ ls -> ls
-      Project _ ls -> ls
-
-lookupAlias :: Alias -> CodegenM EIR
-lookupAlias a = ask >>= \case
-  Normal ls -> lookupAlias' ls
-  Search _ _ ls -> lookupAlias' ls
-  Project _ ls -> lookupAlias' ls
-  where
-    lookupAlias' ls =
-      pure $ fromJust $ Map.lookup a (aliasMap ls)
-
-withUpdatedAlias :: Alias -> EIR -> CodegenM a -> CodegenM a
-withUpdatedAlias a iter m = do
-  -- TODO: emit
-  let curr = EIR.Call EIR.IterCurrent [iter]
-  state' <- ask <&> \case
-    Normal ls -> Normal (updateAlias ls curr)
-    Search a v ls -> Search a v (updateAlias ls curr)
-    Project r ls -> Project r (updateAlias ls curr)
-  local (const state') m
-  where
-    updateAlias ls curr =
-      ls { aliasMap = Map.insert a curr (aliasMap ls) }
-
-withEndLabel :: EIR.LabelId -> CodegenM a -> CodegenM a
-withEndLabel end m = do
-  state <- ask
-  local setLabel m
-  where
-    setLabel = \case
-      Normal ls -> Normal (set ls)
-      Search a v ls -> Search a v (set ls)
-      Project r ls -> Project r (set ls)
-    set ls = ls { endLabel = end }
-
-idxFromConstraints :: Relation -> [(Relation, Column)] -> CodegenM (Index, [Column])
-idxFromConstraints r constraints = do
-    getIndexForSearch <- idxSelector <$> getLowerState
-    let columns = mapMaybe (columnsForRelation r) constraints
-        signature = SearchSignature $ Set.fromList columns
-        idx = getIndexForSearch r signature
-    pure (idx, columns)
-
+import Eclair.EIR.Codegen
+-- TODO: cleanup imports
 
 compileToEIR :: TypeInfo -> RA -> EIR
 compileToEIR typeInfo ra =
@@ -174,7 +64,7 @@ compileInit :: [ContainerInfo] -> EIR
 compileInit containerInfos =
   let programPtr = EIR.Var "program"
    in EIR.Function "eclair_program_init" [] $ EIR.Block
-        [ EIR.Assign programPtr $ EIR.HeapAllocate EIR.Program
+        [ EIR.Assign programPtr $ EIR.HeapAllocateProgram
         , forEachRelation programPtr containerInfos $ \_ci relationPtr ->
             EIR.Call EIR.InitializeEmpty [relationPtr]
         -- Open question: if some facts are known at compile time, search for derived facts up front?
@@ -197,12 +87,6 @@ compileRun lowerState ra =
        stmts <- generateProgramInstructions ra
        pure $ EIR.Function "eclair_program_run" [EIR.Pointer EIR.Program] $
          EIR.Block [ stmts, EIR.Jump end, EIR.Label end ]
-
-lookupRelationByIndex :: Relation -> Index -> CodegenM EIR
-lookupRelationByIndex r idx = do
-  field <- getFieldOffset r idx
-  let programPtr = EIR.FunctionArg 0
-  pure $ EIR.FieldAccess programPtr field
 
 -- TODO: use emit iso wrapping in Block? -> yes
 generateProgramInstructions :: RA -> CodegenM EIR
