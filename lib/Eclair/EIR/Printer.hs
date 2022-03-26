@@ -66,7 +66,7 @@ instance Pretty EIR where
            , braceBlock body
            ]
     -- TODO improve function arg
-    FunctionArg pos -> "FN_ARG" <> "." <> pretty pos
+    FunctionArg pos -> "FN_ARG" <> brackets (pretty pos)
     DeclareType metadatas ->
       vsep ["declare_type" <+> "Program"
            , "{"  -- TODO: use braceBlock?
@@ -74,7 +74,7 @@ instance Pretty EIR where
            , "}"
            ]
     FieldAccess ptr pos ->
-      pretty ptr <> brackets (pretty pos)
+      pretty ptr <> "." <> pretty pos
     Var v -> pretty v
     Assign var value ->
       pretty var <+> "=" <+> pretty value
