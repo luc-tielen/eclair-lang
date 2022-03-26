@@ -150,10 +150,8 @@ fieldAccess :: CodegenM EIR -> Int -> CodegenM EIR
 fieldAccess struct n = flip EIR.FieldAccess n <$> struct
 
 heapAllocProgram :: CodegenM EIR
-heapAllocProgram = do
-  programVar <- var "program"
-  assign programVar (pure EIR.HeapAllocateProgram)
-  programVar
+heapAllocProgram =
+  pure EIR.HeapAllocateProgram
 
 freeProgram :: CodegenM EIR -> CodegenM EIR
 freeProgram ptr = EIR.FreeProgram <$> ptr
@@ -165,7 +163,7 @@ loop :: [CodegenM EIR] -> CodegenM EIR
 loop ms = EIR.Loop <$> sequence ms
 
 jump :: EIR.LabelId -> CodegenM EIR
-jump lbl = pure $ EIR.Label lbl
+jump lbl = pure $ EIR.Jump lbl
 
 -- NOTE: labelId and label are split up, so label can be used in 2 ways:
 -- 1) "endLabel" can also be passed into 'label'

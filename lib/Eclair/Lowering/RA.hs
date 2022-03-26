@@ -70,11 +70,11 @@ generateProgramInstructions = zygo constraintsForSearch $ \case
     let values' = map pure values  -- TODO refactor, withProjectState can wrap this entire piece of code?
     indices <- indexesForRelation r
     var <- var "value"
-    let value = assign var $ stackAlloc EIR.Value r
+    let allocValue = assign var $ stackAlloc EIR.Value r
         assignStmts = zipWith (assign . fieldAccess var) [0..] values'
         insertStmts = flip map indices $ \idx ->
           call EIR.Insert [lookupRelationByIndex r idx, var]
-    block $ assignStmts ++ insertStmts
+    block $ allocValue : assignStmts ++ insertStmts
   RA.PurgeF r -> do
     actions <- relationUnaryFn r EIR.Purge
     block actions
@@ -101,12 +101,13 @@ generateProgramInstructions = zygo constraintsForSearch $ \case
   RA.ConstrainF (snd -> lhs) (snd -> rhs) ->
     equals lhs rhs
   RA.NotElemF r (map snd -> columnValues) -> do
+    value <- var "value"
     let idx = mkFindIndex columnValues
         relationPtr = lookupRelationByIndex r idx
-        value = stackAlloc EIR.Value r
+        allocValue = assign value $ stackAlloc EIR.Value r
     containsVar <- var "contains_result"
     let assignActions = zipWith (assign . fieldAccess value) [0..] columnValues
-    block $ assignActions
+    block $ allocValue : assignActions
          ++ [ assign containsVar $ call EIR.Contains [relationPtr, value]
             , not' containsVar -- TODO: need emit here
             ]
@@ -152,6 +153,7 @@ rangeQuery :: Relation
            -> CodegenM EIR
 rangeQuery r relationPtr lbValue ubValue loopAction = do
   endLabel <- labelId "range_query.end"
+  -- TODO: introduce vars for iters
   let beginIter = stackAlloc EIR.Iter r
       endIter = stackAlloc EIR.Iter r
       initLB = call EIR.IterLowerBound [relationPtr, lbValue, beginIter]
@@ -169,6 +171,7 @@ data Bound
 initValue :: Relation -> Bound -> [Column] -> CodegenM EIR
 initValue r bound columns = do
   typeInfo <- typeEnv <$> getLowerState
+  -- TODO: introduce var
   let value = stackAlloc EIR.Value r
       columnNrs = take (length typeInfo) [0..]
       valuesWithCols = [(nr, pure x) | nr <- columnNrs, let x = if nr `elem` columns
