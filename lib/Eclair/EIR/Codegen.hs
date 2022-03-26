@@ -1,10 +1,20 @@
 module Eclair.EIR.Codegen
-  -- TODO: exports
   ( CodegenM
+  , runCodegen
+  , emit
   , ContainerInfo
   , LowerState(..)
   , CGState(..)
+  , getLowerState
   , Relation
+  , getFirstFieldOffset
+  , idxFromConstraints
+  , lookupRelationByIndex
+  , lookupAlias
+  , withUpdatedAlias
+  , withEndLabel
+  , withProjectState
+  , withSearchState
   , block
   , declareType
   , fn
@@ -16,9 +26,17 @@ module Eclair.EIR.Codegen
   , stackAlloc
   , loop
   , jump
+  , labelId
   , label
   , parallel
   , ret
+  , var
+  , assign
+  , if'
+  , not'
+  , and'
+  , equals
+  , lit
   ) where
 
 import Control.Monad.RWS.Strict
@@ -85,9 +103,9 @@ newtype CodegenM a
            )
   via (RWS CGState [EIR] Mapping)
 
-runCodegen :: LowerState -> CodegenM a -> [EIR]
+runCodegen :: LowerState -> CodegenM a -> EIR
 runCodegen ls (CodeGenM m) =
-  snd $ execRWS m (Normal ls) mempty
+  EIR.Block $ snd $ execRWS m (Normal ls) mempty
 
 emit :: CodegenM EIR -> CodegenM ()
 emit m = do
@@ -119,8 +137,8 @@ block ms = EIR.Block <$> sequence ms
 declareType :: [M.Metadata] -> CodegenM EIR
 declareType metas = pure $ EIR.DeclareType metas
 
-fn :: Text -> [EIR.EIRType] -> CodegenM EIR -> CodegenM EIR
-fn name tys body = EIR.Function name tys <$> body
+fn :: Text -> [EIR.EIRType] -> [CodegenM EIR] -> CodegenM EIR
+fn name tys body = EIR.Function name tys <$> block body
 
 fnArg :: Int -> CodegenM EIR
 fnArg n = pure $ EIR.FunctionArg n
@@ -149,13 +167,19 @@ loop ms = EIR.Loop <$> sequence ms
 jump :: EIR.LabelId -> CodegenM EIR
 jump lbl = pure $ EIR.Label lbl
 
--- TODO: split up into label and labelId?
-label :: Text -> CodegenM EIR
-label name = do
+-- NOTE: labelId and label are split up, so label can be used in 2 ways:
+-- 1) "endLabel" can also be passed into 'label'
+-- 2) dynamic labels used for control flow can be generated with 'labelId' and passed to 'label'
+
+labelId :: Text -> CodegenM EIR.LabelId
+labelId name = do
   mapping <- gets labelMapping
   (labelId, updatedMapping) <- lookupId name mapping
   modify $ \s -> s { labelMapping = updatedMapping }
-  pure . EIR.Label . EIR.LabelId $ name
+  pure . EIR.LabelId $ labelId
+
+label :: EIR.LabelId -> CodegenM EIR
+label = pure . EIR.Label
 
 parallel :: [CodegenM EIR] -> CodegenM EIR
 parallel ms = EIR.Par <$> sequence ms
@@ -185,8 +209,8 @@ if' cond block = EIR.If <$> cond <*> block
 not' :: CodegenM EIR -> CodegenM EIR
 not' bool = EIR.Not <$> bool
 
-and :: CodegenM EIR -> CodegenM EIR -> CodegenM EIR
-and lhs rhs = EIR.And <$> lhs <*> rhs
+and' :: CodegenM EIR -> CodegenM EIR -> CodegenM EIR
+and' lhs rhs = EIR.And <$> lhs <*> rhs
 
 equals :: CodegenM EIR -> CodegenM EIR -> CodegenM EIR
 equals lhs rhs = EIR.Equals <$> lhs <*> rhs
@@ -227,10 +251,10 @@ lookupAlias a = ask >>= \case
     lookupAlias' ls =
       pure $ fromJust $ M.lookup a (aliasMap ls)
 
-withUpdatedAlias :: Alias -> EIR -> CodegenM a -> CodegenM a
+withUpdatedAlias :: Alias -> CodegenM EIR -> CodegenM a -> CodegenM a
 withUpdatedAlias a iter m = do
-  -- TODO: emit
-  let curr = EIR.Call EIR.IterCurrent [iter]
+  -- TODO: emit?
+  curr <- call EIR.IterCurrent [iter]
   state' <- ask <&> \case
     Normal ls -> Normal (updateAlias ls curr)
     Search a v ls -> Search a v (updateAlias ls curr)
@@ -259,9 +283,7 @@ idxFromConstraints r constraints = do
         idx = getIndexForSearch r signature
     pure (idx, columns)
 
--- TODO: rewrite using combinators
 lookupRelationByIndex :: Relation -> Index -> CodegenM EIR
 lookupRelationByIndex r idx = do
   field <- getFieldOffset r idx
-  let programPtr = EIR.FunctionArg 0
-  pure $ EIR.FieldAccess programPtr field
+  fieldAccess (fnArg 0) field
