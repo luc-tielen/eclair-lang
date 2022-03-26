@@ -4,7 +4,7 @@ cabal-version: 2.2
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: e1981dc4adcd7a48e5fd15c6f546fe56d526d4a5098590e5f5e9d2aca8a554ba
+-- hash: 4fae38ee40a18c6173b97459bcb14283ca65148336193b2a2f381d69781cf143
 
 name:           eclair-lang
 version:        0.1.0.0
@@ -43,7 +43,6 @@ library
       Eclair.Runtime.LLVM
       Eclair.Runtime.Metadata
       Eclair.Runtime.Store
-      Eclair.Supply
       Eclair.Syntax
       Eclair.TypeSystem
   other-modules:
