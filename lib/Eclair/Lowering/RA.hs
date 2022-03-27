@@ -33,20 +33,7 @@ compileToEIR typeInfo ra =
         -- TODO: functions to read/write values,
         -- for each relation? "generateFnsForRelations"
         ]
-   in flattenBlocks $ EIR.Block $ map (runCodegen lowerState) moduleStmts
-
--- NOTE: this removes nested Blocks, to simplify the EIR AST
--- TODO: do this in 1 pass together with rest of this module
--- maybe generateProgramInstructions should only use recursion schemes starting in some subtree?
-flattenBlocks :: EIR -> EIR
-flattenBlocks = cata f
-  where
-    f = \case
-      EIR.BlockF stmts ->
-        EIR.Block $ flip concatMap stmts $ \case
-          EIR.Block stmts -> stmts
-          stmt -> [stmt]
-      e -> embed e
+   in EIR.Block $ map (runCodegen lowerState) moduleStmts
 
 compileInit :: CodegenM EIR
 compileInit = do

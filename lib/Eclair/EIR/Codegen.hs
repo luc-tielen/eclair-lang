@@ -124,7 +124,11 @@ getLowerState = asks getLS
       Project _ ls -> ls
 
 block :: [CodegenM EIR] -> CodegenM EIR
-block ms = EIR.Block <$> sequence ms
+block ms = do
+  actions <- sequence ms
+  pure $ EIR.Block $ flip concatMap actions $ \case
+    EIR.Block stmts -> stmts
+    stmt -> [stmt]
 
 -- TODO: declareProgram?
 declareType :: [M.Metadata] -> CodegenM EIR
