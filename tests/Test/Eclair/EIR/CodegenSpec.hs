@@ -4,12 +4,13 @@ module Test.Eclair.EIR.CodegenSpec
   ( module Test.Eclair.EIR.CodegenSpec
   ) where
 
+import Protolude hiding ((<.>))
+import Control.Arrow ((&&&))
 import qualified Data.Text as T
 import Eclair
 import qualified Eclair.EIR.IR as EIR
 import Eclair.EIR.Printer
 import Eclair.Syntax
-import Protolude hiding ((<.>))
 import System.FilePath
 import Test.Hspec
 import NeatInterpolation
@@ -29,65 +30,99 @@ resultsIn action output = do
   result `shouldBe` T.strip output
 
 
+extractDeclTypeSnippet :: Text -> Text
+extractDeclTypeSnippet result = extractedSnippet
+  where
+    extractedSnippet = T.strip $ T.unlines $ reAddHeader $ fixIndent $ extract endLineNr
+    extract end = take (endLineNr - 3) $ drop 3 lines
+    reAddHeader body = ["declare_type Program", "{"] ++ body ++ ["}"]
+    fixIndent = map (("  " <>) . T.stripStart)
+    lines = T.lines result
+    lineCount = length lines
+    endTypeLineNr = find ((T.isPrefixOf "}" . T.stripStart) . snd) $ zip [0..] lines
+    endLineNr = fromMaybe lineCount (map fst endTypeLineNr)
+
+data Region
+  = Region
+  { regionName :: Maybe Text
+  , regionBegin :: Int
+  , regionEnd :: Int
+  }
+
+extractFnSnippet :: Text -> Text -> Maybe Text
+extractFnSnippet result fnSignature =
+  uncurry extractSnippet <$> matchingRegion
+  where
+    extractSnippet begin end =
+      let fnBody = map fixIndent $ stripFnHeader begin end $ T.lines result
+       in T.strip $ T.unlines $ reAddFnHeader fnBody
+    -- 2 and 3 is to strip fn ... + {}
+    stripFnHeader begin end = take (end - begin - 3) . drop (begin + 2)
+    reAddFnHeader body = ["fn " <> fnSignature, "{"] ++ body ++ ["}"]
+    fixIndent = ("  " <>) . T.stripStart  -- because top most block is stripped off
+    lines = zip [0..] $ T.lines result
+    lineCount = length lines
+    relevantLines = filter (T.isPrefixOf "fn" . T.stripStart . snd) lines
+    parsedLines = map (map (head . drop 1 . T.words)) relevantLines
+    endLineNrs = drop 1 (map fst parsedLines) ++ [lineCount - 1]
+    regions = zipWith (\(start, fn) end -> Region fn start end) parsedLines endLineNrs
+    matchingRegion = (regionBegin &&& regionEnd) <$> find ((== Just fnSignature) . regionName) regions
+
 spec :: Spec
 spec = describe "EIR Code Generation" $ parallel $ do
-  fit "generates code for a single fact" $ do
-    cg "single_fact" `resultsIn` [text|
+  it "generates code for a single fact" $ do
+    eir <- cg "single_fact"
+    extractDeclTypeSnippet eir `shouldBe` [text|
+      declare_type Program
       {
-        declare_type Program
-        {
-          btree(num_columns=3, index=[0, 1, 2], block_size=256, search_type=linear)
-          btree(num_columns=2, index=[0, 1], block_size=256, search_type=linear)
-        }
-        fn eclair_program_init()
-        {
-          {
-            program = heap_allocate (Program)
-            {
-              init_empty(program.0)
-              init_empty(program.1)
-            }
-            return program
-          }
-        }
-        fn eclair_program_destroy(*Program)
-        {
-          {
-            {
-              destroy(FN_ARG.0.0)
-              destroy(FN_ARG.0.1)
-            }
-            free(FN_ARG.0)
-          }
-        }
-        fn eclair_program_run(*Program)
-        {
-          {
-            {
-              {
-                value = stack_allocate Value another
-                value.0 = 1
-                value.1 = 2
-                value.2 = 3
-                insert(FN_ARG.0.0, value)
-              }
-              {
-                value = stack_allocate Value edge
-                value.0 = 2
-                value.1 = 3
-                insert(FN_ARG.0.1, value)
-              }
-              {
-                value = stack_allocate Value edge
-                value.0 = 1
-                value.1 = 2
-                insert(FN_ARG.0.1, value)
-              }
-            }
-            goto the.end
-            the.end:
-          }
-        }
+        btree(num_columns=3, index=[0,1,2], block_size=256, search_type=linear)
+        btree(num_columns=2, index=[0,1], block_size=256, search_type=linear)
+      }
+      |]
+    extractFnSnippet eir "eclair_program_init()" `shouldBe` Just [text|
+      fn eclair_program_init()
+      {
+        program = heap_allocate_program
+        init_empty(program.0)
+        init_empty(program.1)
+        return program
+      }
+      |]
+    extractFnSnippet eir "eclair_program_init()" `shouldBe` Just [text|
+      fn eclair_program_init()
+      {
+        program = heap_allocate_program
+        init_empty(program.0)
+        init_empty(program.1)
+        return program
+      }
+      |]
+    extractFnSnippet eir "eclair_program_destroy(*Program)" `shouldBe` Just [text|
+      fn eclair_program_destroy(*Program)
+      {
+        destroy(FN_ARG[0].0)
+        destroy(FN_ARG[0].1)
+        free_program(FN_ARG[0])
+      }
+      |]
+    extractFnSnippet eir "eclair_program_run(*Program)" `shouldBe` Just [text|
+      fn eclair_program_run(*Program)
+      {
+        value = stack_allocate Value "another"
+        value.0 = 1
+        value.1 = 2
+        value.2 = 3
+        insert(FN_ARG[0].0, value)
+        value = stack_allocate Value "edge"
+        value.0 = 2
+        value.1 = 3
+        insert(FN_ARG[0].1, value)
+        value = stack_allocate Value "edge"
+        value.0 = 1
+        value.1 = 2
+        insert(FN_ARG[0].1, value)
+        goto the.end
+        the.end:
       }
       |]
 
