@@ -1,7 +1,6 @@
 module Eclair.EIR.Codegen
   ( CodegenM
   , runCodegen
-  , emit
   , ContainerInfo
   , LowerState(..)
   , CGState(..)
@@ -95,22 +94,16 @@ instance Monoid Mapping where
   mempty = Mapping mempty mempty
 
 newtype CodegenM a
-  = CodeGenM (RWS CGState [EIR] Mapping a)
+  = CodeGenM (RWS CGState () Mapping a)
   deriving ( Functor, Applicative, Monad
            , MonadReader CGState
-           , MonadWriter [EIR]
            , MonadState Mapping
            )
-  via (RWS CGState [EIR] Mapping)
+  via (RWS CGState () Mapping)
 
-runCodegen :: LowerState -> CodegenM a -> EIR
+runCodegen :: LowerState -> CodegenM EIR -> EIR
 runCodegen ls (CodeGenM m) =
-  EIR.Block $ snd $ execRWS m (Normal ls) mempty
-
-emit :: CodegenM EIR -> CodegenM ()
-emit m = do
-  eir <- m
-  tell [eir]
+  fst $ evalRWS m (Normal ls) mempty
 
 withSearchState :: Alias -> EIR -> CodegenM a -> CodegenM a
 withSearchState alias value m = do

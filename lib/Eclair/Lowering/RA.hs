@@ -24,6 +24,7 @@ compileToEIR typeInfo ra =
       containerInfos = getContainerInfos indexMap typeInfo
       end = "the.end"
       lowerState = LowerState typeInfo indexMap getIndexForSearch containerInfos end mempty
+      moduleStmts :: [CodegenM EIR]
       moduleStmts =
         [ declareType $ map (\(_, _, m) -> m) containerInfos
         , compileInit
@@ -32,7 +33,7 @@ compileToEIR typeInfo ra =
         -- TODO: functions to read/write values,
         -- for each relation? "generateFnsForRelations"
         ]
-   in flattenBlocks $ runCodegen lowerState $ traverse emit moduleStmts
+   in flattenBlocks $ EIR.Block $ map (runCodegen lowerState) moduleStmts
 
 -- NOTE: this removes nested Blocks, to simplify the EIR AST
 -- TODO: do this in 1 pass together with rest of this module
