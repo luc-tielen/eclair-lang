@@ -15,15 +15,15 @@ printEIR = renderStrict . layoutSmart defaultLayoutOptions . pretty
 indentation :: Int
 indentation = 2
 
-prettyBlock :: Pretty a => [a] -> Doc ann
-prettyBlock = indentBlock "{" "}" . vsep . map pretty
-
 indentBlock :: Doc ann -> Doc ann -> Doc ann -> Doc ann
-indentBlock begin end block =
-  nest indentation (begin <> hardline <> block) <> hardline <> end
+indentBlock begin end blk =
+  nest indentation (begin <> hardline <> blk) <> hardline <> end
 
-braceBlock :: Pretty a => a -> Doc ann
-braceBlock = indentBlock "{" "}" . pretty
+braceBlock :: Doc ann -> Doc ann
+braceBlock = indentBlock "{" "}"
+
+statementBlock :: Pretty a => Doc ann -> Doc ann -> [a] -> Doc ann
+statementBlock begin end = indentBlock begin end . vsep . map pretty
 
 interleaveWith :: Doc ann -> [Doc ann] -> Doc ann
 interleaveWith d = hsep . punctuate d
@@ -32,7 +32,8 @@ withCommas :: [Doc ann] -> Doc ann
 withCommas = interleaveWith comma
 
 between :: Doc ann -> Doc ann -> Doc ann -> Doc ann
-between begin end doc = begin <> doc <> end
+between begin end doc =
+  begin <> doc <> end
 
 instance Pretty EIRType where
   pretty = \case
@@ -63,16 +64,16 @@ instance Pretty LabelId where
 instance Pretty EIR where
   pretty = \case
     Block stmts ->
-      prettyBlock stmts
+      statementBlock "{" "}" stmts
     Function name tys body ->
       vsep ["fn" <+> pretty name <> parens (withCommas $ map pretty tys)
-           , braceBlock body
+           , braceBlock $ pretty body
+           , hardline
            ]
-      <> hardline
     FunctionArg pos -> "FN_ARG" <> brackets (pretty pos)
     DeclareType metadatas ->
       vsep ["declare_type" <+> "Program"
-           , indentBlock "{" "}" $ vsep $ map pretty metadatas
+           , statementBlock "{" "}" metadatas
            ]
       <> hardline
     FieldAccess ptr pos ->
@@ -89,9 +90,9 @@ instance Pretty EIR where
     StackAllocate ty r ->
       "stack_allocate" <+> pretty ty <+> between dquote dquote (pretty r)
     Par stmts ->
-      indentBlock ("parallel" <+> "{") "}" $ vsep $ map pretty stmts
+      statementBlock ("parallel" <+> "{") "}" stmts
     Loop stmts ->
-      indentBlock ("loop" <+> "{") "}" $ vsep $ map pretty stmts
+      statementBlock ("loop" <+> "{") "}" stmts
     If cond body ->
       indentBlock ("if" <+> parens (pretty cond) <+> "{") "}" $ pretty body
     Not bool ->
