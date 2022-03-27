@@ -202,7 +202,7 @@ assign :: CodegenM EIR -> CodegenM EIR -> CodegenM EIR
 assign var value = EIR.Assign <$> var <*> value
 
 if' :: CodegenM EIR -> CodegenM EIR -> CodegenM EIR
-if' cond block = EIR.If <$> cond <*> block
+if' cond body = EIR.If <$> cond <*> body
 
 not' :: CodegenM EIR -> CodegenM EIR
 not' bool = EIR.Not <$> bool

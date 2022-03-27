@@ -67,15 +67,13 @@ instance Pretty EIR where
       statementBlock "{" "}" stmts
     Function name tys body ->
       vsep ["fn" <+> pretty name <> parens (withCommas $ map pretty tys)
-           , braceBlock $ pretty body
-           , hardline
+           , pretty body -- Note: This is already a Block
            ]
     FunctionArg pos -> "FN_ARG" <> brackets (pretty pos)
     DeclareType metadatas ->
       vsep ["declare_type" <+> "Program"
            , statementBlock "{" "}" metadatas
            ]
-      <> hardline
     FieldAccess ptr pos ->
       pretty ptr <> "." <> pretty pos
     Var v -> pretty v

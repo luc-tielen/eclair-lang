@@ -32,7 +32,20 @@ compileToEIR typeInfo ra =
         -- TODO: functions to read/write values,
         -- for each relation? "generateFnsForRelations"
         ]
-   in runCodegen lowerState $ traverse emit moduleStmts
+   in flattenBlocks $ runCodegen lowerState $ traverse emit moduleStmts
+
+-- NOTE: this removes nested Blocks, to simplify the EIR AST
+-- TODO: do this in 1 pass together with rest of this module
+-- maybe generateProgramInstructions should only use recursion schemes starting in some subtree?
+flattenBlocks :: EIR -> EIR
+flattenBlocks = cata f
+  where
+    f = \case
+      EIR.BlockF stmts ->
+        EIR.Block $ flip concatMap stmts $ \case
+          EIR.Block stmts -> stmts
+          stmt -> [stmt]
+      e -> embed e
 
 compileInit :: CodegenM EIR
 compileInit = do
@@ -56,8 +69,7 @@ compileRun :: RA -> CodegenM EIR
 compileRun ra = do
   end <- endLabel <$> getLowerState
   fn "eclair_program_run" [EIR.Pointer EIR.Program] $
-    generateProgramInstructions ra
-    : [ jump end, label end ]
+    generateProgramInstructions ra : [ jump end, label end ]
 
 -- TODO: use emit here (and not on top level) to prevent multiple nested blocks?
 generateProgramInstructions :: RA -> CodegenM EIR
