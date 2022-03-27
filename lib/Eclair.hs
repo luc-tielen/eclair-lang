@@ -22,11 +22,15 @@ compile path = do
           eir = compileToEIR typeInfo ra
       pure $ Right eir -- TODO other return value?
 
+-- TODO: refactor to use compile
 run :: FilePath -> IO (M.Map Relation [[Number]])
-run path = compile path >>= \case
-  Left err -> do
-    printParseError err
-    panic "Failed to interpret path."
-  Right _ast -> do
-    -- TODO interpretRA ast
-    pure mempty
+run path = do
+  parseResult <- parseFile path
+  case parseResult of
+    Left err -> do
+      printParseError err
+      panic "Failed to interpret path."
+    Right ast -> do
+      let typeInfo = getTypeInfo ast
+          ra = compileRA ast
+      interpretRA ra

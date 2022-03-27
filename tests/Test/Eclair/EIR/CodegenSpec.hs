@@ -70,7 +70,7 @@ extractFnSnippet result fnSignature =
 
 spec :: Spec
 spec = describe "EIR Code Generation" $ parallel $ do
-  it "generates code for a single fact" $ do
+  fit "generates code for a single fact" $ do
     eir <- cg "single_fact"
     extractDeclTypeSnippet eir `shouldBe` [text|
       declare_type Program
