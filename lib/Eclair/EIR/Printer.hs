@@ -16,20 +16,23 @@ indentation :: Int
 indentation = 2
 
 prettyBlock :: Pretty a => [a] -> Doc ann
-prettyBlock = indentBlock . vsep . map pretty
+prettyBlock = indentBlock "{" "}" . vsep . map pretty
 
-indentBlock :: Doc ann -> Doc ann
-indentBlock block = nest indentation (hardline <> block)
+indentBlock :: Doc ann -> Doc ann -> Doc ann -> Doc ann
+indentBlock begin end block =
+  nest indentation (begin <> hardline <> block) <> hardline <> end
 
 braceBlock :: Pretty a => a -> Doc ann
-braceBlock fnBody =
-  vsep ["{", indentBlock $ pretty fnBody, "}"]
+braceBlock = indentBlock "{" "}" . pretty
 
 interleaveWith :: Doc ann -> [Doc ann] -> Doc ann
 interleaveWith d = hsep . punctuate d
 
 withCommas :: [Doc ann] -> Doc ann
 withCommas = interleaveWith comma
+
+between :: Doc ann -> Doc ann -> Doc ann -> Doc ann
+between begin end doc = begin <> doc <> end
 
 instance Pretty EIRType where
   pretty = \case
@@ -60,19 +63,18 @@ instance Pretty LabelId where
 instance Pretty EIR where
   pretty = \case
     Block stmts ->
-      vsep ["{", prettyBlock stmts, "}"]
+      prettyBlock stmts
     Function name tys body ->
       vsep ["fn" <+> pretty name <> parens (withCommas $ map pretty tys)
            , braceBlock body
            ]
-    -- TODO improve function arg
+      <> hardline
     FunctionArg pos -> "FN_ARG" <> brackets (pretty pos)
     DeclareType metadatas ->
       vsep ["declare_type" <+> "Program"
-           , "{"  -- TODO: use braceBlock?
-           , foldMap pretty metadatas
-           , "}"
+           , indentBlock "{" "}" $ vsep $ map pretty metadatas
            ]
+      <> hardline
     FieldAccess ptr pos ->
       pretty ptr <> "." <> pretty pos
     Var v -> pretty v
@@ -85,15 +87,13 @@ instance Pretty EIR where
     FreeProgram ptr ->
       "free_program" <> parens (pretty ptr)
     StackAllocate ty r ->
-      "stack_allocate" <+> pretty ty <+> pretty r
+      "stack_allocate" <+> pretty ty <+> between dquote dquote (pretty r)
     Par stmts ->
-      vsep ["parallel" <+> "{", prettyBlock stmts, "}"]
+      indentBlock ("parallel" <+> "{") "}" $ vsep $ map pretty stmts
     Loop stmts ->
-      vsep ["loop" <+> "{", prettyBlock stmts, "}"]
+      indentBlock ("loop" <+> "{") "}" $ vsep $ map pretty stmts
     If cond body ->
-      vsep [ "if" <+> parens (pretty cond)
-           , braceBlock body
-           ]
+      indentBlock ("if" <+> parens (pretty cond) <+> "{") "}" $ pretty body
     Not bool ->
       "not" <+> pretty bool
     And bool1 bool2 ->

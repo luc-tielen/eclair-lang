@@ -152,17 +152,18 @@ rangeQuery :: Relation
            -> (CodegenM EIR -> CodegenM EIR)
            -> CodegenM EIR
 rangeQuery r relationPtr lbValue ubValue loopAction = do
+  beginIter <- var "begin_iter"
+  endIter <- var "end_iter"
   endLabel <- labelId "range_query.end"
-  -- TODO: introduce vars for iters
-  let beginIter = stackAlloc EIR.Iter r
-      endIter = stackAlloc EIR.Iter r
+  let allocBeginIter = assign beginIter $ stackAlloc EIR.Iter r
+      allocEndIter = assign endIter $ stackAlloc EIR.Iter r
       initLB = call EIR.IterLowerBound [relationPtr, lbValue, beginIter]
       initUB = call EIR.IterUpperBound [relationPtr, ubValue, endIter]
       advanceIter = call EIR.IterNext [beginIter]
       hasNext = not' $ call EIR.IterIsEqual [beginIter, endIter]
       stopIfFinished = if' hasNext (jump endLabel)
       loopStmts = [stopIfFinished, loopAction beginIter, advanceIter]
-  block [beginIter, endIter, initLB, initUB, loop loopStmts, label endLabel]
+  block [allocBeginIter, allocEndIter, initLB, initUB, loop loopStmts, label endLabel]
 
 data Bound
   = LowerBound
@@ -171,8 +172,8 @@ data Bound
 initValue :: Relation -> Bound -> [Column] -> CodegenM EIR
 initValue r bound columns = do
   typeInfo <- typeEnv <$> getLowerState
-  -- TODO: introduce var
-  let value = stackAlloc EIR.Value r
+  value <- var "value"
+  let allocValue = assign value $ stackAlloc EIR.Value r
       columnNrs = take (length typeInfo) [0..]
       valuesWithCols = [(nr, pure x) | nr <- columnNrs, let x = if nr `elem` columns
                                                                 then bounded
@@ -180,7 +181,7 @@ initValue r bound columns = do
       -- TODO: take actual values into account:
       assignStmts = map (\(i, val) -> assign (fieldAccess value i) val) valuesWithCols
   -- TODO: need emit
-  block $ assignStmts ++ [value]
+  block $ allocValue : assignStmts ++ [value]
   where
     -- NOTE: only supports unsigned integers for now!
     bounded = EIR.Lit $ case bound of
