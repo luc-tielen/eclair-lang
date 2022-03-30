@@ -17,13 +17,14 @@ indentation = 2
 
 indentBlock :: Doc ann -> Doc ann -> Doc ann -> Doc ann
 indentBlock begin end blk =
+  -- nest indentation $ vsep [begin, blk, end]
   nest indentation (begin <> hardline <> blk) <> hardline <> end
 
 braceBlock :: Doc ann -> Doc ann
 braceBlock = indentBlock "{" "}"
 
-statementBlock :: Pretty a => Doc ann -> Doc ann -> [a] -> Doc ann
-statementBlock begin end = indentBlock begin end . vsep . map pretty
+statementBlock :: Pretty a => [a] -> Doc ann
+statementBlock = braceBlock . vsep . map pretty
 
 interleaveWith :: Doc ann -> [Doc ann] -> Doc ann
 interleaveWith d = hsep . punctuate d
@@ -64,7 +65,7 @@ instance Pretty LabelId where
 instance Pretty EIR where
   pretty = \case
     Block stmts ->
-      statementBlock "{" "}" stmts
+      statementBlock stmts
     Function name tys body ->
       vsep ["fn" <+> pretty name <> parens (withCommas $ map pretty tys)
            , pretty body -- Note: This is already a Block
@@ -72,7 +73,7 @@ instance Pretty EIR where
     FunctionArg pos -> "FN_ARG" <> brackets (pretty pos)
     DeclareType metadatas ->
       vsep ["declare_type" <+> "Program"
-           , statementBlock "{" "}" metadatas
+           , statementBlock metadatas
            ]
     FieldAccess ptr pos ->
       pretty ptr <> "." <> pretty pos
@@ -88,11 +89,11 @@ instance Pretty EIR where
     StackAllocate ty r ->
       "stack_allocate" <+> pretty ty <+> between dquote dquote (pretty r)
     Par stmts ->
-      statementBlock ("parallel" <+> "{") "}" stmts
+      vsep ["parallel", statementBlock stmts]
     Loop stmts ->
-      statementBlock ("loop" <+> "{") "}" stmts
+      vsep ["loop", statementBlock stmts]
     If cond body ->
-      indentBlock ("if" <+> parens (pretty cond) <+> "{") "}" $ pretty body
+      vsep ["if" <+> parens (pretty cond), braceBlock (pretty body)]
     Not bool ->
       "not" <+> pretty bool
     And bool1 bool2 ->

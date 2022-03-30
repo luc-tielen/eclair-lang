@@ -73,7 +73,6 @@ data EIR
   | Jump LabelId
   | Label LabelId
   | Return EIR
-  | RangeQuery Relation Index LowerBound UpperBound EIR  -- TODO: remove?
   | Lit Number
   deriving (Eq, Show)
 

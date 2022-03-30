@@ -24,19 +24,13 @@ cg path = do
     Left err -> panic $ "Failed to parse " <> T.pack file <> "!"
     Right eir -> pure $ printEIR eir
 
-resultsIn :: IO T.Text -> T.Text -> IO ()
-resultsIn action output = do
-  result <- action
-  result `shouldBe` T.strip output
-
-
 extractDeclTypeSnippet :: Text -> Text
 extractDeclTypeSnippet result = extractedSnippet
   where
-    extractedSnippet = T.strip $ T.unlines $ reAddHeader $ fixIndent $ extract endLineNr
+    extractedSnippet = T.strip $ T.unlines $ reAddHeader $ map dedent $ extract endLineNr
     extract end = take (endLineNr - 3) $ drop 3 lines
     reAddHeader body = ["declare_type Program", "{"] ++ body ++ ["}"]
-    fixIndent = map (("  " <>) . T.stripStart)
+    dedent = T.drop 2
     lines = T.lines result
     lineCount = length lines
     endTypeLineNr = find ((T.isPrefixOf "}" . T.stripStart) . snd) $ zip [0..] lines
@@ -54,12 +48,12 @@ extractFnSnippet result fnSignature =
   uncurry extractSnippet <$> matchingRegion
   where
     extractSnippet begin end =
-      let fnBody = map fixIndent $ stripFnHeader begin end $ T.lines result
+      let fnBody = map dedent $ stripFnHeader begin end $ T.lines result
        in T.strip $ T.unlines $ reAddFnHeader fnBody
     -- 2 and 3 is to strip fn ... + {}
     stripFnHeader begin end = take (end - begin - 3) . drop (begin + 2)
     reAddFnHeader body = ["fn " <> fnSignature, "{"] ++ body ++ ["}"]
-    fixIndent = ("  " <>) . T.stripStart  -- because top most block is stripped off
+    dedent = T.drop 2
     lines = zip [0..] $ T.lines result
     lineCount = length lines
     relevantLines = filter (T.isPrefixOf "fn" . T.stripStart . snd) lines
@@ -70,7 +64,7 @@ extractFnSnippet result fnSignature =
 
 spec :: Spec
 spec = describe "EIR Code Generation" $ parallel $ do
-  fit "generates code for a single fact" $ do
+  it "generates code for a single fact" $ do
     eir <- cg "single_fact"
     extractDeclTypeSnippet eir `shouldBe` [text|
       declare_type Program
@@ -113,23 +107,82 @@ spec = describe "EIR Code Generation" $ parallel $ do
         value.1 = 2
         value.2 = 3
         insert(FN_ARG[0].0, value)
-        value = stack_allocate Value "edge"
-        value.0 = 2
-        value.1 = 3
-        insert(FN_ARG[0].1, value)
-        value = stack_allocate Value "edge"
-        value.0 = 1
-        value.1 = 2
-        insert(FN_ARG[0].1, value)
+        value_1 = stack_allocate Value "edge"
+        value_1.0 = 2
+        value_1.1 = 3
+        insert(FN_ARG[0].1, value_1)
+        value_2 = stack_allocate Value "edge"
+        value_2.0 = 1
+        value_2.1 = 2
+        insert(FN_ARG[0].1, value_2)
         goto the.end
         the.end:
       }
       |]
 
   it "generates code for a single non-recursive rule" $ do
-    cg "single_nonrecursive_rule" `resultsIn` [text|
+    eir <- cg "single_nonrecursive_rule"
+    extractDeclTypeSnippet eir `shouldBe` [text|
+      declare_type Program
+      {
+        btree(num_columns=2, index=[0,1], block_size=256, search_type=linear)
+        btree(num_columns=2, index=[0,1], block_size=256, search_type=linear)
+      }
+      |]
+    extractFnSnippet eir "eclair_program_init()" `shouldBe` Just [text|
+      fn eclair_program_init()
+      {
+        program = heap_allocate_program
+        init_empty(program.0)
+        init_empty(program.1)
+        return program
+      }
+      |]
+    extractFnSnippet eir "eclair_program_destroy(*Program)" `shouldBe` Just [text|
+      fn eclair_program_destroy(*Program)
+      {
+        destroy(FN_ARG[0].0)
+        destroy(FN_ARG[0].1)
+        free_program(FN_ARG[0])
+      }
+      |]
+    extractFnSnippet eir "eclair_program_run(*Program)" `shouldBe` Just [text|
+      fn eclair_program_run(*Program)
+      {
+        value = stack_allocate Value "edge"
+        value.0 = 1
+        value.1 = 2
+        insert(FN_ARG[0].0, value)
+        value_1 = stack_allocate Value "edge"
+        value_1.0 = 0
+        value_1.1 = 0
+        value_2 = stack_allocate Value "edge"
+        value_2.0 = 4294967295
+        value_2.1 = 4294967295
+        begin_iter = stack_allocate Iter "edge"
+        end_iter = stack_allocate Iter "edge"
+        iter_lower_bound(FN_ARG[0].0, value_1, begin_iter)
+        iter_upper_bound(FN_ARG[0].0, value_2, end_iter)
+        loop
+        {
+          if (iter_is_equal(begin_iter, end_iter))
+          {
+            goto range_query.end
+          }
+          current = iter_current(begin_iter)
+          value_3 = stack_allocate Value "path"
+          value_3.0 = current.0
+          value_3.1 = current.1
+          insert(FN_ARG[0].1, value_3)
+          iter_next(begin_iter)
+        }
+        range_query.end:
+        goto the.end
+        the.end:
+      }
       |]
 
+  {-
   it "generates nested searches correctly" $ do
     cg "multiple_rule_clauses" `resultsIn` [text|
       |]
@@ -149,5 +202,5 @@ spec = describe "EIR Code Generation" $ parallel $ do
   it "generates code for mutually recursive rules" $ do
     cg "mutually_recursive_rules" `resultsIn` [text|
       |]
-
+-}
   -- TODO tests for rules with >2 clauses, ...

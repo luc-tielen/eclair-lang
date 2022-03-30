@@ -67,7 +67,7 @@ generateProgramInstructions = zygo constraintsForSearch $ \case
   RA.ProjectF r (map snd -> unresolvedValues) -> do
     -- NOTE: Value type is the same for all (but not the insert function)
     values <- withProjectState r $ sequence unresolvedValues
-    let values' = map pure values  -- TODO refactor, withProjectState can wrap this entire piece of code?
+    let values' = map pure values  -- TODO refactor, withProjectState can wrap this entire piece of code? can be left out?
     indices <- indexesForRelation r
     var <- var "value"
     let allocValue = assign var $ stackAlloc EIR.Value r
@@ -119,7 +119,8 @@ generateProgramInstructions = zygo constraintsForSearch $ \case
           currentAliasValue <- lookupAlias a
           getColumn currentAliasValue col
     Project r ls -> do
-      currentAliasValue <- lookupAlias r
+      -- TODO: is this correct? Maybe Project is not needed and can just be "Normal" (though watch out with refactor)
+      currentAliasValue <- lookupAlias a'
       getColumn currentAliasValue col
     Normal _ ->
       panic "Trying to access column index outside of search or project."
@@ -130,20 +131,28 @@ generateProgramInstructions = zygo constraintsForSearch $ \case
   RA.SearchF r alias clauses (snd -> action) -> do
     (idx, columns) <- idxFromConstraints r (concatMap fst clauses)
     let relationPtr = lookupRelationByIndex r idx
-        lbValue = initValue r LowerBound columns
-        ubValue = initValue r UpperBound columns
         query = List.foldl1' and' $ map snd clauses
-    rangeQuery r relationPtr lbValue ubValue $ \iter -> do
-      let currValue = call EIR.IterCurrent [iter]
-      --  TODO: use non empty?
-      case length clauses of
-        0 -> -- No query to check: always matches
-          withUpdatedAlias alias currValue action
-        _ -> do
-          -- TODO: check if this works, probably not..
-          value <- currValue
-          let isMatch = withSearchState alias value query
-          if' isMatch $ withUpdatedAlias alias currValue action
+    (initLBValue, lbValue) <- initValue r LowerBound columns
+    (initUBValue, ubValue) <- initValue r UpperBound columns
+    block
+      [ initLBValue
+      , initUBValue
+      , rangeQuery r relationPtr lbValue ubValue $ \iter -> do
+          current <- var "current"
+          block
+            [ assign current $ call EIR.IterCurrent [iter]
+            , do
+              currentValue <- current
+              -- TODO: use non empty?
+              case length clauses of
+                0 -> -- No query to check: always matches
+                  withUpdatedAlias alias currentValue action
+                _ -> do
+                  -- TODO: check if this works..
+                  if' (withSearchState alias currentValue query) $
+                    withUpdatedAlias alias currentValue action
+            ]
+      ]
 
 rangeQuery :: Relation
            -> CodegenM EIR
@@ -160,8 +169,8 @@ rangeQuery r relationPtr lbValue ubValue loopAction = do
       initLB = call EIR.IterLowerBound [relationPtr, lbValue, beginIter]
       initUB = call EIR.IterUpperBound [relationPtr, ubValue, endIter]
       advanceIter = call EIR.IterNext [beginIter]
-      hasNext = not' $ call EIR.IterIsEqual [beginIter, endIter]
-      stopIfFinished = if' hasNext (jump endLabel)
+      isAtEnd = call EIR.IterIsEqual [beginIter, endIter]
+      stopIfFinished = if' isAtEnd (jump endLabel)
       loopStmts = [stopIfFinished, loopAction beginIter, advanceIter]
   block [allocBeginIter, allocEndIter, initLB, initUB, loop loopStmts, label endLabel]
 
@@ -169,7 +178,7 @@ data Bound
   = LowerBound
   | UpperBound
 
-initValue :: Relation -> Bound -> [Column] -> CodegenM EIR
+initValue :: Relation -> Bound -> [Column] -> CodegenM (CodegenM EIR, CodegenM EIR)
 initValue r bound columns = do
   typeInfo <- typeEnv <$> getLowerState
   value <- var "value"
@@ -180,8 +189,7 @@ initValue r bound columns = do
                                                                 else dontCare]
       -- TODO: take actual values into account:
       assignStmts = map (\(i, val) -> assign (fieldAccess value i) val) valuesWithCols
-  -- TODO: need emit
-  block $ allocValue : assignStmts ++ [value]
+  pure (block $ allocValue : assignStmts, value)
   where
     -- NOTE: only supports unsigned integers for now!
     bounded = EIR.Lit $ case bound of

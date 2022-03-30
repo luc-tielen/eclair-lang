@@ -126,9 +126,12 @@ getLowerState = asks getLS
 block :: [CodegenM EIR] -> CodegenM EIR
 block ms = do
   actions <- sequence ms
-  pure $ EIR.Block $ flip concatMap actions $ \case
-    EIR.Block stmts -> stmts
-    stmt -> [stmt]
+  pure $ EIR.Block $ flattenBlocks actions
+
+flattenBlocks :: [EIR] -> [EIR]
+flattenBlocks actions = flip concatMap actions $ \case
+  EIR.Block stmts -> stmts
+  stmt -> [stmt]
 
 -- TODO: declareProgram?
 declareType :: [M.Metadata] -> CodegenM EIR
@@ -157,7 +160,9 @@ stackAlloc :: EIR.EIRType -> Relation -> CodegenM EIR
 stackAlloc ty r = pure $ EIR.StackAllocate ty r
 
 loop :: [CodegenM EIR] -> CodegenM EIR
-loop ms = EIR.Loop <$> sequence ms
+loop ms = do
+  actions <- sequence ms
+  pure $ EIR.Loop $ flattenBlocks actions
 
 jump :: EIR.LabelId -> CodegenM EIR
 jump lbl = pure $ EIR.Jump lbl
@@ -169,9 +174,9 @@ jump lbl = pure $ EIR.Jump lbl
 labelId :: Text -> CodegenM EIR.LabelId
 labelId name = do
   mapping <- gets labelMapping
-  (labelId, updatedMapping) <- lookupId name mapping
+  (lblId, updatedMapping) <- lookupId name mapping
   modify $ \s -> s { labelMapping = updatedMapping }
-  pure . EIR.LabelId $ labelId
+  pure . EIR.LabelId $ lblId
 
 label :: EIR.LabelId -> CodegenM EIR
 label = pure . EIR.Label
@@ -193,7 +198,7 @@ var name = do
   mapping <- gets varMapping
   (varId, updatedMapping) <- lookupId name mapping
   modify $ \s -> s { varMapping = updatedMapping }
-  pure . pure . EIR.Var $ name
+  pure . pure . EIR.Var $ varId
 
 assign :: CodegenM EIR -> CodegenM EIR -> CodegenM EIR
 assign var value = EIR.Assign <$> var <*> value
@@ -216,11 +221,13 @@ lit x = pure $ EIR.Lit x
 lookupId :: Text -> IdMapping -> CodegenM (Text, IdMapping)
 lookupId name mapping = do
   let (mValue, updatedMapping) = M.insertLookupWithKey update name defaultValue mapping
-      value = fromMaybe defaultValue mValue
-  pure (name <> "_" <> T.pack (show name), updatedMapping)
+      value = case mValue of
+        Nothing -> name
+        Just val -> name <> "_" <> T.pack (show val)
+  pure (value, updatedMapping)
   where
-    defaultValue = 0
-    update _ newValue = const $ newValue + 1
+    defaultValue = 1
+    update _ _ prevValue = prevValue + 1
 
 getFieldOffset :: Relation -> Index -> CodegenM Int
 getFieldOffset r idx = do
@@ -246,10 +253,8 @@ lookupAlias a = ask >>= \case
     lookupAlias' ls =
       pure $ fromJust $ M.lookup a (aliasMap ls)
 
-withUpdatedAlias :: Alias -> CodegenM EIR -> CodegenM a -> CodegenM a
-withUpdatedAlias a iter m = do
-  -- TODO: emit?
-  curr <- call EIR.IterCurrent [iter]
+withUpdatedAlias :: Alias -> EIR -> CodegenM a -> CodegenM a
+withUpdatedAlias a curr m = do
   state' <- ask <&> \case
     Normal ls -> Normal (updateAlias ls curr)
     Search a v ls -> Search a v (updateAlias ls curr)
@@ -272,11 +277,16 @@ withEndLabel end m = do
 
 idxFromConstraints :: Relation -> [(Relation, Column)] -> CodegenM (Index, [Column])
 idxFromConstraints r constraints = do
-    getIndexForSearch <- idxSelector <$> getLowerState
-    let columns = mapMaybe (columnsForRelation r) constraints
-        signature = SearchSignature $ S.fromList columns
-        idx = getIndexForSearch r signature
-    pure (idx, columns)
+  getIndexForSearch <- idxSelector <$> getLowerState
+  tys <- fromJust . M.lookup r . typeEnv <$> getLowerState
+  let columns
+        -- no constraints -> use index on all columns
+        -- TODO: move this to index selector?
+        | null constraints = zipWith const [0..] tys
+        | otherwise = mapMaybe (columnsForRelation r) constraints
+  let signature = SearchSignature $ S.fromList columns
+      idx = getIndexForSearch r signature
+  pure (idx, columns)
 
 lookupRelationByIndex :: Relation -> Index -> CodegenM EIR
 lookupRelationByIndex r idx = do
