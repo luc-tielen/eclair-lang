@@ -2,8 +2,10 @@
 module Eclair.Lowering.RA ( compileToEIR ) where
 
 import Protolude hiding (Type)
+import Control.Arrow ((&&&))
+import Control.Monad.RWS.Strict
 import Data.Maybe (fromJust)
-import Data.Functor.Foldable
+import Data.Functor.Foldable hiding (fold)
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -56,14 +58,42 @@ compileDestroy = do
 compileRun :: RA -> CodegenM EIR
 compileRun ra = do
   end <- endLabel <$> getLowerState
-  fn "eclair_program_run" [EIR.Pointer EIR.Program] $
-    generateProgramInstructions ra : [ jump end, label end ]
+  fn "eclair_program_run" [EIR.Pointer EIR.Program]
+    [generateProgramInstructions ra]
 
--- TODO: use emit here (and not on top level) to prevent multiple nested blocks?
+-- TODO: remove combine / constraintsForSearch
 generateProgramInstructions :: RA -> CodegenM EIR
-generateProgramInstructions = zygo constraintsForSearch $ \case
+generateProgramInstructions = zygo (combine equalitiesInSearch constraintsForSearch) $ \case
   RA.ModuleF (map snd -> actions) -> block actions
   RA.ParF (map snd -> actions) -> parallel actions
+  RA.SearchF r alias clauses (snd -> action) -> do
+    let eqsInSearch = foldMap (getNormalizedEqualities . fst . fst) clauses
+    let constraints = concatMap (snd . fst) clauses
+    idx <- idxFromConstraints r alias constraints
+    let relationPtr = lookupRelationByIndex r idx
+        query = List.foldl1' and' $ map snd clauses
+    (initLBValue, lbValue) <- initValue r alias LowerBound eqsInSearch
+    (initUBValue, ubValue) <- initValue r alias UpperBound eqsInSearch
+    block
+      [ initLBValue
+      , initUBValue
+      , rangeQuery r relationPtr lbValue ubValue $ \iter -> do
+          current <- var "current"
+          block
+            [ assign current $ call EIR.IterCurrent [iter]
+            , do
+              currentValue <- current
+              -- TODO: use non empty?
+              case length clauses of
+                0 -> -- No query to check: always matches
+                  withUpdatedAlias alias currentValue action
+                _ -> do
+                  -- TODO: check if this works..
+                  withSearchState alias currentValue $
+                    withUpdatedAlias alias currentValue $
+                      if' query action
+            ]
+      ]
   RA.ProjectF r (map snd -> unresolvedValues) -> do
     -- NOTE: Value type is the same for all (but not the insert function)
     values <- withProjectState r $ sequence unresolvedValues
@@ -116,7 +146,7 @@ generateProgramInstructions = zygo constraintsForSearch $ \case
       if a == a'
         then getColumn value col
         else do
-          currentAliasValue <- lookupAlias a
+          currentAliasValue <- lookupAlias a'
           getColumn currentAliasValue col
     Project r ls -> do
       -- TODO: is this correct? Maybe Project is not needed and can just be "Normal" (though watch out with refactor)
@@ -128,31 +158,6 @@ generateProgramInstructions = zygo constraintsForSearch $ \case
       getColumn value col =
         -- TODO: check access, see original code
         fieldAccess (pure value) col
-  RA.SearchF r alias clauses (snd -> action) -> do
-    (idx, columns) <- idxFromConstraints r (concatMap fst clauses)
-    let relationPtr = lookupRelationByIndex r idx
-        query = List.foldl1' and' $ map snd clauses
-    (initLBValue, lbValue) <- initValue r LowerBound columns
-    (initUBValue, ubValue) <- initValue r UpperBound columns
-    block
-      [ initLBValue
-      , initUBValue
-      , rangeQuery r relationPtr lbValue ubValue $ \iter -> do
-          current <- var "current"
-          block
-            [ assign current $ call EIR.IterCurrent [iter]
-            , do
-              currentValue <- current
-              -- TODO: use non empty?
-              case length clauses of
-                0 -> -- No query to check: always matches
-                  withUpdatedAlias alias currentValue action
-                _ -> do
-                  -- TODO: check if this works..
-                  if' (withSearchState alias currentValue query) $
-                    withUpdatedAlias alias currentValue action
-            ]
-      ]
 
 rangeQuery :: Relation
            -> CodegenM EIR
@@ -178,24 +183,65 @@ data Bound
   = LowerBound
   | UpperBound
 
-initValue :: Relation -> Bound -> [Column] -> CodegenM (CodegenM EIR, CodegenM EIR)
-initValue r bound columns = do
-  typeInfo <- typeEnv <$> getLowerState
+-- NOTE: only supports unsigned integers for now!
+initValue :: Relation -> RA.Alias -> Bound -> [NormalizedEquality] -> CodegenM (CodegenM EIR, CodegenM EIR)
+initValue r a bound eqs = do
+  typeInfo <- fromJust . Map.lookup r . typeEnv <$> getLowerState
   value <- var "value"
   let allocValue = assign value $ stackAlloc EIR.Value r
       columnNrs = take (length typeInfo) [0..]
-      valuesWithCols = [(nr, pure x) | nr <- columnNrs, let x = if nr `elem` columns
-                                                                then bounded
-                                                                else dontCare]
-      -- TODO: take actual values into account:
+      valuesWithCols = [(nr, x) | nr <- columnNrs, let x = if isConstrained nr
+                                                              then constrain nr
+                                                              else dontCare]
       assignStmts = map (\(i, val) -> assign (fieldAccess value i) val) valuesWithCols
   pure (block $ allocValue : assignStmts, value)
   where
-    -- NOTE: only supports unsigned integers for now!
-    bounded = EIR.Lit $ case bound of
+    isConstrained col = any (\(Equality a' col' _) -> a == a' && col == col') eqs
+    constrain col =
+      let (Equality _ _ val) = fromJust $ find (\(Equality a' col' _) -> a == a' && col == col') eqs
+       in case val of
+            Constant x -> lit x
+            AliasVal a' col' -> fieldAccess (lookupAlias a') col'
+    dontCare = lit $ case bound of
       LowerBound -> 0
       UpperBound -> 0xffffffff
-    dontCare = EIR.Lit 0
+
+combine :: Functor f => (f a -> a) -> (f b -> b) -> f (a, b) -> (a, b)
+combine f g = f . fmap fst &&& g . fmap snd
+
+data Val
+  = AliasVal RA.Alias Column
+  | Constant Int
+  deriving Show
+
+data NormalizedEquality
+  = Equality RA.Alias Column Val
+  deriving Show
+
+type EqSearchM = RWS () [(Val, Val)] (Maybe Val)
+
+equalitiesInSearch :: RA.RAF (EqSearchM ()) -> EqSearchM ()
+equalitiesInSearch = \case
+  RA.ColumnIndexF a col -> do
+    put $ Just $ AliasVal a col
+  RA.LitF x -> do
+    put $ Just $ Constant x
+  RA.ConstrainF lhs rhs -> do
+    lhsValue <- lhs *> get
+    rhsValue <- rhs *> get
+    forM_ ((,) <$> lhsValue <*> rhsValue) $ \eq' ->
+      tell [eq']
+  raf -> sequence_ raf
+
+getNormalizedEqualities :: EqSearchM a -> [NormalizedEquality]
+getNormalizedEqualities m = foldMap normalizeEquality $ snd $ execRWS m () Nothing
+  where
+    normalizeEquality = \case
+      (lhs@(AliasVal a col), rhs@(AliasVal a' col')) ->
+        [Equality a col rhs, Equality a' col' lhs]
+      (AliasVal a col, x) -> [Equality a col x]
+      (x, AliasVal a col) -> [Equality a col x]
+      _ -> []
 
 forEachRelation :: CodegenM EIR -> (ContainerInfo -> CodegenM EIR -> CodegenM EIR) -> CodegenM [CodegenM EIR]
 forEachRelation program f = do

@@ -63,7 +63,7 @@ extractFnSnippet result fnSignature =
     matchingRegion = (regionBegin &&& regionEnd) <$> find ((== Just fnSignature) . regionName) regions
 
 spec :: Spec
-spec = describe "EIR Code Generation" $ parallel $ do
+spec = fdescribe "EIR Code Generation" $ parallel $ do
   it "generates code for a single fact" $ do
     eir <- cg "single_fact"
     extractDeclTypeSnippet eir `shouldBe` [text|
@@ -115,8 +115,6 @@ spec = describe "EIR Code Generation" $ parallel $ do
         value_2.0 = 1
         value_2.1 = 2
         insert(FN_ARG[0].1, value_2)
-        goto the.end
-        the.end:
       }
       |]
 
@@ -177,16 +175,97 @@ spec = describe "EIR Code Generation" $ parallel $ do
           iter_next(begin_iter)
         }
         range_query.end:
-        goto the.end
-        the.end:
+      }
+      |]
+
+  it "generates nested searches correctly" $ do
+    eir <- cg "multiple_rule_clauses"
+    extractDeclTypeSnippet eir `shouldBe` [text|
+      declare_type Program
+      {
+        btree(num_columns=1, index=[0], block_size=256, search_type=linear)
+        btree(num_columns=2, index=[1,0], block_size=256, search_type=linear)
+        btree(num_columns=2, index=[0,1], block_size=256, search_type=linear)
+      }
+      |]
+    extractFnSnippet eir "eclair_program_init()" `shouldBe` Just [text|
+      fn eclair_program_init()
+      {
+        program = heap_allocate_program
+        init_empty(program.0)
+        init_empty(program.1)
+        init_empty(program.2)
+        return program
+      }
+      |]
+    extractFnSnippet eir "eclair_program_destroy(*Program)" `shouldBe` Just [text|
+      fn eclair_program_destroy(*Program)
+      {
+        destroy(FN_ARG[0].0)
+        destroy(FN_ARG[0].1)
+        destroy(FN_ARG[0].2)
+        free_program(FN_ARG[0])
+      }
+      |]
+    extractFnSnippet eir "eclair_program_run(*Program)" `shouldBe` Just [text|
+      fn eclair_program_run(*Program)
+      {
+        value = stack_allocate Value "second"
+        value.0 = 2
+        value.1 = 3
+        insert(FN_ARG[0].1, value)
+        value_1 = stack_allocate Value "first"
+        value_1.0 = 1
+        insert(FN_ARG[0].0, value_1)
+        value_2 = stack_allocate Value "first"
+        value_2.0 = 0
+        value_3 = stack_allocate Value "first"
+        value_3.0 = 4294967295
+        begin_iter = stack_allocate Iter "first"
+        end_iter = stack_allocate Iter "first"
+        iter_lower_bound(FN_ARG[0].0, value_2, begin_iter)
+        iter_upper_bound(FN_ARG[0].0, value_3, end_iter)
+        loop
+        {
+          if (iter_is_equal(begin_iter, end_iter))
+          {
+            goto range_query.end
+          }
+          current = iter_current(begin_iter)
+          value_4 = stack_allocate Value "second"
+          value_4.0 = 0
+          value_4.1 = current.0
+          value_5 = stack_allocate Value "second"
+          value_5.0 = 4294967295
+          value_5.1 = current.0
+          begin_iter_1 = stack_allocate Iter "second"
+          end_iter_1 = stack_allocate Iter "second"
+          iter_lower_bound(FN_ARG[0].1, value_4, begin_iter_1)
+          iter_upper_bound(FN_ARG[0].1, value_5, end_iter_1)
+          loop
+          {
+            if (iter_is_equal(begin_iter_1, end_iter_1))
+            {
+              goto range_query.end_1
+            }
+            current_1 = iter_current(begin_iter_1)
+            if (current_1.1 == current.0)
+            {
+              value_6 = stack_allocate Value "third"
+              value_6.0 = current_1.0
+              value_6.1 = current.0
+              insert(FN_ARG[0].2, value_6)
+            }
+            iter_next(begin_iter_1)
+          }
+          range_query.end_1:
+          iter_next(begin_iter)
+        }
+        range_query.end:
       }
       |]
 
   {-
-  it "generates nested searches correctly" $ do
-    cg "multiple_rule_clauses" `resultsIn` [text|
-      |]
-
   it "generates code for a rule with 2 clauses of same name" $ do
     cg "multiple_clauses_same_name" `resultsIn` [text|
       |]

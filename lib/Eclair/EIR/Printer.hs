@@ -93,7 +93,10 @@ instance Pretty EIR where
     Loop stmts ->
       vsep ["loop", statementBlock stmts]
     If cond body ->
-      vsep ["if" <+> parens (pretty cond), braceBlock (pretty body)]
+      let wrap = case body of
+            Block stmts -> identity
+            _ -> braceBlock
+       in vsep ["if" <+> parens (pretty cond), wrap (pretty body)]
     Not bool ->
       "not" <+> pretty bool
     And bool1 bool2 ->

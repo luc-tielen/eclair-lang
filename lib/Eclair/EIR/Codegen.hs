@@ -275,18 +275,18 @@ withEndLabel end m = do
       Project r ls -> Project r (set ls)
     set ls = ls { endLabel = end }
 
-idxFromConstraints :: Relation -> [(Relation, Column)] -> CodegenM (Index, [Column])
-idxFromConstraints r constraints = do
+idxFromConstraints :: Relation -> Alias -> [(Relation, Column)] -> CodegenM Index
+idxFromConstraints r a constraints = do
   getIndexForSearch <- idxSelector <$> getLowerState
   tys <- fromJust . M.lookup r . typeEnv <$> getLowerState
   let columns
         -- no constraints -> use index on all columns
         -- TODO: move this to index selector?
         | null constraints = zipWith const [0..] tys
-        | otherwise = mapMaybe (columnsForRelation r) constraints
+        | otherwise = mapMaybe (columnsForRelation a) constraints
   let signature = SearchSignature $ S.fromList columns
       idx = getIndexForSearch r signature
-  pure (idx, columns)
+  pure idx
 
 lookupRelationByIndex :: Relation -> Index -> CodegenM EIR
 lookupRelationByIndex r idx = do
