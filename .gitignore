@@ -1,2 +1,4 @@
 dist-newstyle/
 dist/
+.direnv/
+cabal.project.local*
