@@ -1,6 +1,6 @@
 module Eclair.EIR.Printer ( Pretty, printEIR ) where
 
-import Protolude
+import Protolude hiding (Type)
 import Prettyprinter
 import Prettyprinter.Render.Text
 import Eclair.EIR.IR
@@ -36,14 +36,14 @@ between :: Doc ann -> Doc ann -> Doc ann -> Doc ann
 between begin end doc =
   begin <> doc <> end
 
-instance Pretty EIRType where
+instance Pretty Type where
   pretty = \case
     Program -> "Program"
     Value -> "Value"
     Iter -> "Iter"
     Pointer ty -> "*" <> pretty ty
 
-instance Pretty EIRFunction where
+instance Pretty Function where
   pretty = \case
     InitializeEmpty -> "init_empty"
     Destroy -> "destroy"
@@ -71,7 +71,7 @@ instance Pretty EIR where
            , pretty body -- Note: This is already a Block
            ]
     FunctionArg pos -> "FN_ARG" <> brackets (pretty pos)
-    DeclareType metadatas ->
+    DeclareProgram metadatas ->
       vsep ["declare_type" <+> "Program"
            , statementBlock metadatas
            ]
@@ -110,4 +110,3 @@ instance Pretty EIR where
     Return value ->
       "return" <+> pretty value
     Lit x -> pretty x
-    -- TODO? RangeQuery r idx lb ub loopBody -> undefined

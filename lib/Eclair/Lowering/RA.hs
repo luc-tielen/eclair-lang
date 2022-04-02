@@ -28,7 +28,7 @@ compileToEIR typeInfo ra =
       lowerState = LowerState typeInfo indexMap getIndexForSearch containerInfos end mempty
       moduleStmts :: [CodegenM EIR]
       moduleStmts =
-        [ declareType $ map (\(_, _, m) -> m) containerInfos
+        [ declareProgram $ map (\(_, _, m) -> m) containerInfos
         , compileInit
         , compileDestroy
         , compileRun ra
@@ -61,7 +61,6 @@ compileRun ra = do
   fn "eclair_program_run" [EIR.Pointer EIR.Program]
     [generateProgramInstructions ra]
 
--- TODO: remove combine / constraintsForSearch
 generateProgramInstructions :: RA -> CodegenM EIR
 generateProgramInstructions = zygo (combine equalitiesInSearch constraintsForSearch) $ \case
   RA.ModuleF (map snd -> actions) -> block actions
@@ -248,13 +247,13 @@ forEachRelation program f = do
     doCall fieldOffset ci =
       f ci (fieldAccess program fieldOffset)
 
-relationUnaryFn :: Relation -> EIR.EIRFunction -> CodegenM [CodegenM EIR]
+relationUnaryFn :: Relation -> EIR.Function -> CodegenM [CodegenM EIR]
 relationUnaryFn r fn = forEachIndex r $ \idx -> do
   call fn [lookupRelationByIndex r idx]
 
 -- NOTE: assumes r1 and r2 have same underlying representation
 -- (guaranteed by earlier compiler stages)
-relationBinFn :: Relation -> Relation -> EIR.EIRFunction -> CodegenM [CodegenM EIR]
+relationBinFn :: Relation -> Relation -> EIR.Function -> CodegenM [CodegenM EIR]
 relationBinFn r1 r2 fn = forEachIndex r1 $ \idx -> do
   call fn [ lookupRelationByIndex r1 idx
           , lookupRelationByIndex r2 idx
@@ -289,7 +288,6 @@ indexesForRelation r =
   Set.toList . fromJust . Map.lookup r . idxMap <$> getLowerState
 
 {-
--- TODO: name
 generateFnsForRelations :: IndexMap -> TypeInfo -> ModuleBuilderT IO FunctionsMap
 generateFnsForRelations indexMap typeInfo = do
   results <- flip Map.traverseWithKey indexMap $ \r idxs -> do

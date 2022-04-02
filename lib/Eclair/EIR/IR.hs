@@ -4,12 +4,12 @@ module Eclair.EIR.IR
   ( EIR(..)
   , EIRF(..)
   , Relation
-  , EIRType(..)
-  , EIRFunction(..)
+  , Type(..)
+  , Function(..)
   , LabelId(..)
   ) where
 
-import Protolude hiding (Meta)
+import Protolude hiding (Type,Meta)
 import Data.String (IsString(..))
 import Eclair.Syntax ( Id, Number )
 import Eclair.RA.IndexSelection (Index)
@@ -20,16 +20,14 @@ type Relation = Id
 type LowerBound = EIR
 type UpperBound = EIR
 
--- TODO: remove prefix?
-data EIRType
+data Type
   = Program
   | Value
   | Iter
-  | Pointer EIRType
+  | Pointer Type
   deriving (Eq, Show)
 
--- TODO: remove prefix
-data EIRFunction
+data Function
   = InitializeEmpty
   | Destroy
   | Purge
@@ -54,16 +52,16 @@ instance IsString LabelId where
 
 data EIR
   = Block [EIR]
-  | Function Text [EIRType] EIR
+  | Function Text [Type] EIR
   | FunctionArg Int
-  | DeclareType [Metadata] -- TODO: DeclareProgram?
+  | DeclareProgram [Metadata]
   | FieldAccess EIR Int
   | Var Text
   | Assign EIR EIR
-  | Call EIRFunction [EIR]
+  | Call Function [EIR]
   | HeapAllocateProgram
   | FreeProgram EIR
-  | StackAllocate EIRType Relation -- NOTE: always need to know for which relation
+  | StackAllocate Type Relation -- NOTE: always need to know for which relation
   | Par [EIR]
   | Loop [EIR]
   | If EIR EIR

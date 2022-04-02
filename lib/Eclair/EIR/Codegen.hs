@@ -16,7 +16,7 @@ module Eclair.EIR.Codegen
   , withProjectState
   , withSearchState
   , block
-  , declareType
+  , declareProgram
   , fn
   , fnArg
   , call
@@ -134,16 +134,16 @@ flattenBlocks actions = flip concatMap actions $ \case
   EIR.Block stmts -> stmts
   stmt -> [stmt]
 
-declareType :: [M.Metadata] -> CodegenM EIR
-declareType metas = pure $ EIR.DeclareType metas
+declareProgram :: [M.Metadata] -> CodegenM EIR
+declareProgram metas = pure $ EIR.DeclareProgram metas
 
-fn :: Text -> [EIR.EIRType] -> [CodegenM EIR] -> CodegenM EIR
+fn :: Text -> [EIR.Type] -> [CodegenM EIR] -> CodegenM EIR
 fn name tys body = EIR.Function name tys <$> block body
 
 fnArg :: Int -> CodegenM EIR
 fnArg n = pure $ EIR.FunctionArg n
 
-call :: EIR.EIRFunction -> [CodegenM EIR] -> CodegenM EIR
+call :: EIR.Function -> [CodegenM EIR] -> CodegenM EIR
 call fn args = EIR.Call fn <$> sequence args
 
 fieldAccess :: CodegenM EIR -> Int -> CodegenM EIR
@@ -156,7 +156,7 @@ heapAllocProgram =
 freeProgram :: CodegenM EIR -> CodegenM EIR
 freeProgram ptr = EIR.FreeProgram <$> ptr
 
-stackAlloc :: EIR.EIRType -> Relation -> CodegenM EIR
+stackAlloc :: EIR.Type -> Relation -> CodegenM EIR
 stackAlloc ty r = pure $ EIR.StackAllocate ty (AST.stripIdPrefixes r)
 
 loop :: [CodegenM EIR] -> CodegenM EIR
