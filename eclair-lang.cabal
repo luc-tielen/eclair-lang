@@ -4,7 +4,7 @@ cabal-version: 2.2
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 4fae38ee40a18c6173b97459bcb14283ca65148336193b2a2f381d69781cf143
+-- hash: c811e52aaaaeb70b6b59420970943a63647b804ace2f126890d32d578fe8f583
 
 name:           eclair-lang
 version:        0.1.0.0
@@ -33,6 +33,7 @@ library
       Eclair.Lowering.AST
       Eclair.Lowering.RA
       Eclair.Parser
+      Eclair.Pretty
       Eclair.RA.Codegen
       Eclair.RA.IndexSelection
       Eclair.RA.Interpreter

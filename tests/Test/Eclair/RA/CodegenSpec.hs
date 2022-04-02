@@ -8,6 +8,7 @@ import qualified Data.Text as T
 import Eclair
 import qualified Eclair.RA.IR as RA
 import Eclair.RA.Printer
+import Eclair.Pretty
 import Eclair.Syntax
 import Protolude hiding ((<.>))
 import System.FilePath
@@ -33,7 +34,7 @@ cg path = do
   result <- compileRA' file
   case result of
     Left err -> panic $ "Failed to parse " <> T.pack file <> "!"
-    Right ra -> pure $ printRA ra
+    Right ra -> pure $ printDoc ra
 
 resultsIn :: IO T.Text -> T.Text -> IO ()
 resultsIn action output = do

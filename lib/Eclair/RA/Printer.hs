@@ -1,35 +1,16 @@
-{-# OPTIONS_GHC -Wno-orphans #-}
+module Eclair.RA.Printer ( Pretty ) where
 
-module Eclair.RA.Printer ( Pretty, printRA ) where
-
-import Prettyprinter
-import Prettyprinter.Render.Text
+import Eclair.Pretty
 import Eclair.RA.IR
 import Eclair.Syntax (Id(..))
 import Protolude
 import qualified Data.Text as T
-
-printRA :: RA -> T.Text
-printRA =
-  renderStrict . layoutSmart defaultLayoutOptions . pretty
-
-indentation :: Int
-indentation = 2
 
 prettyBlock :: Pretty a => [a] -> Doc ann
 prettyBlock = indentBlock . vsep . map pretty
 
 indentBlock :: Doc ann -> Doc ann
 indentBlock block = nest indentation (hardline <> block)
-
-interleaveWith :: Doc ann -> [Doc ann] -> Doc ann
-interleaveWith d = hsep . punctuate d
-
-withCommas :: [Doc ann] -> Doc ann
-withCommas = interleaveWith comma
-
-withAnds :: [Doc ann] -> Doc ann
-withAnds = interleaveWith (space <> "and")
 
 instance Pretty RA where
   pretty = \case

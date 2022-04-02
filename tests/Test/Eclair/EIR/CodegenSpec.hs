@@ -10,6 +10,7 @@ import qualified Data.Text as T
 import Eclair
 import qualified Eclair.EIR.IR as EIR
 import Eclair.EIR.Printer
+import Eclair.Pretty
 import Eclair.Syntax
 import System.FilePath
 import Test.Hspec
@@ -22,7 +23,7 @@ cg path = do
   result <- compile file
   case result of
     Left err -> panic $ "Failed to parse " <> T.pack file <> "!"
-    Right eir -> pure $ printEIR eir
+    Right eir -> pure $ printDoc eir
 
 extractDeclTypeSnippet :: Text -> Text
 extractDeclTypeSnippet result = extractedSnippet

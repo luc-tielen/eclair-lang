@@ -1,23 +1,13 @@
-module Eclair.EIR.Printer ( Pretty, printEIR ) where
+module Eclair.EIR.Printer ( Pretty ) where
 
 import Protolude hiding (Type)
-import Prettyprinter
-import Prettyprinter.Render.Text
+import Eclair.Pretty
 import Eclair.EIR.IR
-import Eclair.Runtime.Metadata  -- TODO: declare pretty in that module
+import Eclair.Runtime.Metadata
 import qualified Data.Text as T
-
--- TODO: move to "PrinterUtils", refactor RA printer as well
-
-printEIR :: EIR -> T.Text
-printEIR = renderStrict . layoutSmart defaultLayoutOptions . pretty
-
-indentation :: Int
-indentation = 2
 
 indentBlock :: Doc ann -> Doc ann -> Doc ann -> Doc ann
 indentBlock begin end blk =
-  -- nest indentation $ vsep [begin, blk, end]
   nest indentation (begin <> hardline <> blk) <> hardline <> end
 
 braceBlock :: Doc ann -> Doc ann
@@ -25,16 +15,6 @@ braceBlock = indentBlock "{" "}"
 
 statementBlock :: Pretty a => [a] -> Doc ann
 statementBlock = braceBlock . vsep . map pretty
-
-interleaveWith :: Doc ann -> [Doc ann] -> Doc ann
-interleaveWith d = hsep . punctuate d
-
-withCommas :: [Doc ann] -> Doc ann
-withCommas = interleaveWith comma
-
-between :: Doc ann -> Doc ann -> Doc ann -> Doc ann
-between begin end doc =
-  begin <> doc <> end
 
 instance Pretty Type where
   pretty = \case
