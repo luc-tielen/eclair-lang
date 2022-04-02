@@ -22,10 +22,11 @@ yet).
 - [x] Prettyprinter for RA IR
 - [x] Interpreter for RA IR
 - [x] Add indices to relations
+- [x] Compile to Eclair IR (EIR)
 - [ ] Compile to LLVM
 - [ ] Support other data types than integers (strings, ...)
 - [ ] Add typesystem
-- [ ] Add static analysis for the many edgecases
+- [ ] Add static analysis for edgecases
 - [ ] ...
 
 This roadmap is not set in stone, but it gives an idea on the direction of the
