@@ -1,16 +1,19 @@
 build:
-	stack build --fast
+	@cabal build
+
+configure:
+	@cabal configure -f eclair-debug --enable-tests
 
 clean:
-	stack clean
+	@cabal clean
 
 run:
-	stack run
+	@cabal run
 
 test:
-	stack test --fast --flag eclair-lang:-debug
+	@cabal run eclair-test --flag eclair-lang:-debug
 
 repl:
-	stack ghci
+	@cabal repl
 
-.PHONY: build clean run test repl
+.PHONY: build configure clean run test repl
