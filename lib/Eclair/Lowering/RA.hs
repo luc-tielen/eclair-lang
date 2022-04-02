@@ -83,12 +83,10 @@ generateProgramInstructions = zygo (combine equalitiesInSearch constraintsForSea
             [ assign current $ call EIR.IterCurrent [iter]
             , do
               currentValue <- current
-              -- TODO: use non empty?
               case length clauses of
                 0 -> -- No query to check: always matches
                   withUpdatedAlias alias currentValue action
                 _ -> do
-                  -- TODO: check if this works..
                   withSearchState alias currentValue $
                     withUpdatedAlias alias currentValue $
                       if' query action
@@ -119,10 +117,9 @@ generateProgramInstructions = zygo (combine equalitiesInSearch constraintsForSea
     block [withEndLabel end $ loop actions, label end]
   RA.ExitF rs -> do
     end <- endLabel <$> getLowerState
-    -- TODO: foldl' also possible here?
-    foldr' f (jump end) =<< traverse getFirstFieldOffset rs
+    foldl' f (jump end) =<< traverse getFirstFieldOffset rs
     where
-      f field inner =
+      f inner field =
         let programPtr = fnArg 0
             relationPtr = fieldAccess programPtr field
             isEmpty = call EIR.IsEmpty [relationPtr]
@@ -139,7 +136,7 @@ generateProgramInstructions = zygo (combine equalitiesInSearch constraintsForSea
     let assignActions = zipWith (assign . fieldAccess value) [0..] columnValues
     block $ allocValue : assignActions
          ++ [ assign containsVar $ call EIR.Contains [relationPtr, value]
-            , not' containsVar -- TODO: need emit here
+            , not' containsVar
             ]
   RA.ColumnIndexF a' col -> ask >>= \case
     Search a value ls ->
@@ -156,7 +153,6 @@ generateProgramInstructions = zygo (combine equalitiesInSearch constraintsForSea
       panic "Trying to access column index outside of search or project."
     where
       getColumn value col =
-        -- TODO: check access, see original code
         fieldAccess (pure value) col
 
 rangeQuery :: Relation

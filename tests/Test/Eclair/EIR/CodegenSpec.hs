@@ -63,7 +63,7 @@ extractFnSnippet result fnSignature =
     matchingRegion = (regionBegin &&& regionEnd) <$> find ((== Just fnSignature) . regionName) regions
 
 spec :: Spec
-spec = fdescribe "EIR Code Generation" $ parallel $ do
+spec = describe "EIR Code Generation" $ parallel $ do
   it "generates code for a single fact" $ do
     eir <- cg "single_fact"
     extractDeclTypeSnippet eir `shouldBe` [text|
@@ -640,10 +640,10 @@ spec = fdescribe "EIR Code Generation" $ parallel $ do
             }
             range_query.end_2:
           }
-          condition_6 = is_empty(FN_ARG[0].7)
+          condition_6 = is_empty(FN_ARG[0].6)
           if (condition_6)
           {
-            condition_7 = is_empty(FN_ARG[0].6)
+            condition_7 = is_empty(FN_ARG[0].7)
             if (condition_7)
             {
               goto loop.end

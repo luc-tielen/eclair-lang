@@ -6,6 +6,7 @@ module Eclair.EIR.Codegen
   , CGState(..)
   , getLowerState
   , Relation
+  , Alias
   , getFirstFieldOffset
   , idxFromConstraints
   , lookupRelationByIndex
@@ -133,7 +134,6 @@ flattenBlocks actions = flip concatMap actions $ \case
   EIR.Block stmts -> stmts
   stmt -> [stmt]
 
--- TODO: declareProgram?
 declareType :: [M.Metadata] -> CodegenM EIR
 declareType metas = pure $ EIR.DeclareType metas
 
@@ -301,8 +301,7 @@ idxFromConstraints r a constraints = do
   getIndexForSearch <- idxSelector <$> getLowerState
   tys <- fromJust . M.lookup r . typeEnv <$> getLowerState
   let columns
-        -- no constraints -> use index on all columns
-        -- TODO: move this to index selector?
+        -- NOTE: no constraints -> use index on all columns
         | null constraints = zipWith const [0..] tys
         | otherwise = mapMaybe (columnsForRelation a) constraints
   let signature = SearchSignature $ S.fromList columns
