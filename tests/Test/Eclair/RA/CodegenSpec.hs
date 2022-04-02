@@ -7,21 +7,34 @@ module Test.Eclair.RA.CodegenSpec
 import qualified Data.Text as T
 import Eclair
 import qualified Eclair.RA.IR as RA
-import Eclair.Syntax
 import Eclair.RA.Printer
+import Eclair.Pretty
+import Eclair.Syntax
 import Protolude hiding ((<.>))
 import System.FilePath
 import Test.Hspec
 import NeatInterpolation
+import Eclair.Parser
+import Eclair.TypeSystem
+import Eclair.Lowering.AST
 
+compileRA' :: FilePath -> IO (Either ParseError RA.RA)
+compileRA' path = do
+  parseResult <- parseFile path
+  case parseResult of
+    Left err -> pure $ Left err
+    Right ast -> do
+      let typeInfo = getTypeInfo ast
+          ra = compileRA ast
+      pure $ Right ra
 
 cg :: FilePath -> IO T.Text
 cg path = do
   let file = "tests/fixtures/codegen" </> path <.> "dl"
-  result <- compile file
+  result <- compileRA' file
   case result of
     Left err -> panic $ "Failed to parse " <> T.pack file <> "!"
-    Right ra -> pure $ printRA ra
+    Right ra -> pure $ printDoc ra
 
 resultsIn :: IO T.Text -> T.Text -> IO ()
 resultsIn action output = do

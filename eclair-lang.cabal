@@ -4,7 +4,7 @@ cabal-version: 2.2
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 8b11d5dfe0f830009de9183e70596fb5da6d8ec9ef6d20a1ae21f3b98d70636e
+-- hash: c811e52aaaaeb70b6b59420970943a63647b804ace2f126890d32d578fe8f583
 
 name:           eclair-lang
 version:        0.1.0.0
@@ -27,9 +27,13 @@ flag debug
 library
   exposed-modules:
       Eclair
+      Eclair.EIR.Codegen
+      Eclair.EIR.IR
+      Eclair.EIR.Printer
       Eclair.Lowering.AST
       Eclair.Lowering.RA
       Eclair.Parser
+      Eclair.Pretty
       Eclair.RA.Codegen
       Eclair.RA.IndexSelection
       Eclair.RA.Interpreter
@@ -38,6 +42,7 @@ library
       Eclair.Runtime.BTree
       Eclair.Runtime.Hash
       Eclair.Runtime.LLVM
+      Eclair.Runtime.Metadata
       Eclair.Runtime.Store
       Eclair.Syntax
       Eclair.TypeSystem
@@ -67,7 +72,7 @@ library
       FlexibleContexts
       FlexibleInstances
       ScopedTypeVariables
-  ghc-options: -Wall -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
+  ghc-options: -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__ -Wall
   build-depends:
       algebraic-graphs ==0.*
@@ -130,7 +135,7 @@ executable eclairc
       FlexibleContexts
       FlexibleInstances
       ScopedTypeVariables
-  ghc-options: -Wall -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits -threaded -rtsopts -with-rtsopts=-N
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__
   build-depends:
       algebraic-graphs ==0.*
@@ -168,6 +173,7 @@ test-suite eclair-test
   type: exitcode-stdio-1.0
   main-is: test.hs
   other-modules:
+      Test.Eclair.EIR.CodegenSpec
       Test.Eclair.RA.CodegenSpec
       Test.Eclair.RA.IndexSelectionSpec
       Test.Eclair.RA.InterpreterSpec
@@ -197,7 +203,7 @@ test-suite eclair-test
       FlexibleContexts
       FlexibleInstances
       ScopedTypeVariables
-  ghc-options: -Wall -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
+  ghc-options: -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__
   build-depends:
       algebraic-graphs ==0.*

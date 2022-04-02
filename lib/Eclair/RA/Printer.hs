@@ -1,20 +1,10 @@
-{-# OPTIONS_GHC -Wno-orphans #-}
+module Eclair.RA.Printer ( Pretty ) where
 
-module Eclair.RA.Printer ( Pretty, printRA ) where
-
-import Prettyprinter
-import Prettyprinter.Render.Text
+import Eclair.Pretty
 import Eclair.RA.IR
 import Eclair.Syntax (Id(..))
 import Protolude
 import qualified Data.Text as T
-
-printRA :: RA -> T.Text
-printRA =
-  renderStrict . layoutSmart defaultLayoutOptions . pretty
-
-indentation :: Int
-indentation = 2
 
 prettyBlock :: Pretty a => [a] -> Doc ann
 prettyBlock = indentBlock . vsep . map pretty
@@ -49,12 +39,6 @@ instance Pretty RA where
     Constrain lhs rhs -> pretty lhs <+> "=" <+> pretty rhs
     NotElem r terms -> prettyValues terms <+> "∉" <+> pretty r
     where
-      interleaveWith d = hsep . punctuate d
-      withCommas = interleaveWith comma
-      withAnds = interleaveWith (space <> "and")
       prettyValues terms = parens (withCommas $ map pretty terms)
       formatExitCondition r =
         "counttuples" <> parens (pretty r) <+> "=" <+> "0"
-
-instance Pretty Id where
-  pretty = pretty . unId
