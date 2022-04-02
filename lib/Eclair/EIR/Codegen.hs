@@ -182,7 +182,9 @@ label :: EIR.LabelId -> CodegenM EIR
 label = pure . EIR.Label
 
 parallel :: [CodegenM EIR] -> CodegenM EIR
-parallel ms = EIR.Par <$> sequence ms
+parallel ms = do
+  actions <- sequence ms
+  pure $ EIR.Par $ flattenBlocks actions
 
 ret :: CodegenM EIR -> CodegenM EIR
 ret = map EIR.Return

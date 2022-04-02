@@ -472,10 +472,235 @@ spec = fdescribe "EIR Code Generation" $ parallel $ do
       }
       |]
 
-  {-
   -- TODO variant where one is recursive
   it "generates code for mutually recursive rules" $ do
-    cg "mutually_recursive_rules" `resultsIn` [text|
+    eir <- cg "mutually_recursive_rules"
+    -- NOTE: program for now also contains delta_ and new_ relations,
+    -- probably it's more efficient to move these to the stack (but left out of scope for now)
+    extractDeclTypeSnippet eir `shouldBe` [text|
+      declare_type Program
+      {
+        btree(num_columns=1, index=[0], block_size=256, search_type=linear)
+        btree(num_columns=1, index=[0], block_size=256, search_type=linear)
+        btree(num_columns=1, index=[0], block_size=256, search_type=linear)
+        btree(num_columns=1, index=[0], block_size=256, search_type=linear)
+        btree(num_columns=1, index=[0], block_size=256, search_type=linear)
+        btree(num_columns=1, index=[0], block_size=256, search_type=linear)
+        btree(num_columns=1, index=[0], block_size=256, search_type=linear)
+        btree(num_columns=1, index=[0], block_size=256, search_type=linear)
+      }
       |]
--}
+    extractFnSnippet eir "eclair_program_init()" `shouldBe` Just [text|
+      fn eclair_program_init()
+      {
+        program = heap_allocate_program
+        init_empty(program.0)
+        init_empty(program.1)
+        init_empty(program.2)
+        init_empty(program.3)
+        init_empty(program.4)
+        init_empty(program.5)
+        init_empty(program.6)
+        init_empty(program.7)
+        return program
+      }
+      |]
+    extractFnSnippet eir "eclair_program_destroy(*Program)" `shouldBe` Just [text|
+      fn eclair_program_destroy(*Program)
+      {
+        destroy(FN_ARG[0].0)
+        destroy(FN_ARG[0].1)
+        destroy(FN_ARG[0].2)
+        destroy(FN_ARG[0].3)
+        destroy(FN_ARG[0].4)
+        destroy(FN_ARG[0].5)
+        destroy(FN_ARG[0].6)
+        destroy(FN_ARG[0].7)
+        free_program(FN_ARG[0])
+      }
+      |]
+    extractFnSnippet eir "eclair_program_run(*Program)" `shouldBe` Just [text|
+      fn eclair_program_run(*Program)
+      {
+        value = stack_allocate Value "d"
+        value.0 = 3
+        insert(FN_ARG[0].3, value)
+        value_1 = stack_allocate Value "c"
+        value_1.0 = 2
+        insert(FN_ARG[0].2, value_1)
+        value_2 = stack_allocate Value "b"
+        value_2.0 = 1
+        insert(FN_ARG[0].1, value_2)
+        merge(FN_ARG[0].2, FN_ARG[0].5)
+        merge(FN_ARG[0].1, FN_ARG[0].4)
+        loop
+        {
+          purge(FN_ARG[0].7)
+          purge(FN_ARG[0].6)
+          parallel
+          {
+            value_3 = stack_allocate Value "b"
+            value_3.0 = 0
+            value_4 = stack_allocate Value "b"
+            value_4.0 = 4294967295
+            begin_iter = stack_allocate Iter "b"
+            end_iter = stack_allocate Iter "b"
+            iter_lower_bound(FN_ARG[0].1, value_3, begin_iter)
+            iter_upper_bound(FN_ARG[0].1, value_4, end_iter)
+            loop
+            {
+              condition = iter_is_equal(begin_iter, end_iter)
+              if (condition)
+              {
+                goto range_query.end
+              }
+              current = iter_current(begin_iter)
+              value_5 = stack_allocate Value "d"
+              value_5.0 = current.0
+              value_6 = stack_allocate Value "d"
+              value_6.0 = current.0
+              begin_iter_1 = stack_allocate Iter "d"
+              end_iter_1 = stack_allocate Iter "d"
+              iter_lower_bound(FN_ARG[0].3, value_5, begin_iter_1)
+              iter_upper_bound(FN_ARG[0].3, value_6, end_iter_1)
+              loop
+              {
+                condition_1 = iter_is_equal(begin_iter_1, end_iter_1)
+                if (condition_1)
+                {
+                  goto range_query.end_1
+                }
+                current_1 = iter_current(begin_iter_1)
+                bool = current_1.0 == current.0
+                value_7 = stack_allocate Value "c"
+                value_7.0 = current.0
+                contains_result = contains(FN_ARG[0].2, value_7)
+                bool_1 = not contains_result
+                condition_2 = bool && bool_1
+                if (condition_2)
+                {
+                  value_8 = stack_allocate Value "c"
+                  value_8.0 = current.0
+                  insert(FN_ARG[0].7, value_8)
+                }
+                iter_next(begin_iter_1)
+              }
+              range_query.end_1:
+              iter_next(begin_iter)
+            }
+            range_query.end:
+            value_9 = stack_allocate Value "c"
+            value_9.0 = 0
+            value_10 = stack_allocate Value "c"
+            value_10.0 = 4294967295
+            begin_iter_2 = stack_allocate Iter "c"
+            end_iter_2 = stack_allocate Iter "c"
+            iter_lower_bound(FN_ARG[0].2, value_9, begin_iter_2)
+            iter_upper_bound(FN_ARG[0].2, value_10, end_iter_2)
+            loop
+            {
+              condition_3 = iter_is_equal(begin_iter_2, end_iter_2)
+              if (condition_3)
+              {
+                goto range_query.end_2
+              }
+              current_2 = iter_current(begin_iter_2)
+              value_11 = stack_allocate Value "d"
+              value_11.0 = current_2.0
+              value_12 = stack_allocate Value "d"
+              value_12.0 = current_2.0
+              begin_iter_3 = stack_allocate Iter "d"
+              end_iter_3 = stack_allocate Iter "d"
+              iter_lower_bound(FN_ARG[0].3, value_11, begin_iter_3)
+              iter_upper_bound(FN_ARG[0].3, value_12, end_iter_3)
+              loop
+              {
+                condition_4 = iter_is_equal(begin_iter_3, end_iter_3)
+                if (condition_4)
+                {
+                  goto range_query.end_3
+                }
+                current_3 = iter_current(begin_iter_3)
+                bool_2 = current_3.0 == current_2.0
+                value_13 = stack_allocate Value "b"
+                value_13.0 = current_2.0
+                contains_result_1 = contains(FN_ARG[0].1, value_13)
+                bool_3 = not contains_result_1
+                condition_5 = bool_2 && bool_3
+                if (condition_5)
+                {
+                  value_14 = stack_allocate Value "b"
+                  value_14.0 = current_2.0
+                  insert(FN_ARG[0].6, value_14)
+                }
+                iter_next(begin_iter_3)
+              }
+              range_query.end_3:
+              iter_next(begin_iter_2)
+            }
+            range_query.end_2:
+          }
+          condition_6 = is_empty(FN_ARG[0].7)
+          if (condition_6)
+          {
+            condition_7 = is_empty(FN_ARG[0].6)
+            if (condition_7)
+            {
+              goto loop.end
+            }
+          }
+          merge(FN_ARG[0].7, FN_ARG[0].2)
+          swap(FN_ARG[0].7, FN_ARG[0].5)
+          merge(FN_ARG[0].6, FN_ARG[0].1)
+          swap(FN_ARG[0].6, FN_ARG[0].4)
+        }
+        loop.end:
+        value_15 = stack_allocate Value "b"
+        value_15.0 = 0
+        value_16 = stack_allocate Value "b"
+        value_16.0 = 4294967295
+        begin_iter_4 = stack_allocate Iter "b"
+        end_iter_4 = stack_allocate Iter "b"
+        iter_lower_bound(FN_ARG[0].1, value_15, begin_iter_4)
+        iter_upper_bound(FN_ARG[0].1, value_16, end_iter_4)
+        loop
+        {
+          condition_8 = iter_is_equal(begin_iter_4, end_iter_4)
+          if (condition_8)
+          {
+            goto range_query.end_4
+          }
+          current_4 = iter_current(begin_iter_4)
+          value_17 = stack_allocate Value "c"
+          value_17.0 = current_4.0
+          value_18 = stack_allocate Value "c"
+          value_18.0 = current_4.0
+          begin_iter_5 = stack_allocate Iter "c"
+          end_iter_5 = stack_allocate Iter "c"
+          iter_lower_bound(FN_ARG[0].2, value_17, begin_iter_5)
+          iter_upper_bound(FN_ARG[0].2, value_18, end_iter_5)
+          loop
+          {
+            condition_9 = iter_is_equal(begin_iter_5, end_iter_5)
+            if (condition_9)
+            {
+              goto range_query.end_5
+            }
+            current_5 = iter_current(begin_iter_5)
+            condition_10 = current_5.0 == current_4.0
+            if (condition_10)
+            {
+              value_19 = stack_allocate Value "a"
+              value_19.0 = current_4.0
+              insert(FN_ARG[0].0, value_19)
+            }
+            iter_next(begin_iter_5)
+          }
+          range_query.end_5:
+          iter_next(begin_iter_4)
+        }
+        range_query.end_4:
+      }
+      |]
+
   -- TODO tests for rules with >2 clauses, ...
