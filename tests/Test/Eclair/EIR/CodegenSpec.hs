@@ -163,7 +163,8 @@ spec = fdescribe "EIR Code Generation" $ parallel $ do
         iter_upper_bound(FN_ARG[0].0, value_2, end_iter)
         loop
         {
-          if (iter_is_equal(begin_iter, end_iter))
+          condition = iter_is_equal(begin_iter, end_iter)
+          if (condition)
           {
             goto range_query.end
           }
@@ -227,7 +228,8 @@ spec = fdescribe "EIR Code Generation" $ parallel $ do
         iter_upper_bound(FN_ARG[0].0, value_3, end_iter)
         loop
         {
-          if (iter_is_equal(begin_iter, end_iter))
+          condition = iter_is_equal(begin_iter, end_iter)
+          if (condition)
           {
             goto range_query.end
           }
@@ -244,12 +246,14 @@ spec = fdescribe "EIR Code Generation" $ parallel $ do
           iter_upper_bound(FN_ARG[0].1, value_5, end_iter_1)
           loop
           {
-            if (iter_is_equal(begin_iter_1, end_iter_1))
+            condition_1 = iter_is_equal(begin_iter_1, end_iter_1)
+            if (condition_1)
             {
               goto range_query.end_1
             }
             current_1 = iter_current(begin_iter_1)
-            if (current_1.1 == current.0)
+            condition_2 = current_1.1 == current.0
+            if (condition_2)
             {
               value_6 = stack_allocate Value "third"
               value_6.0 = current_1.0
@@ -265,7 +269,7 @@ spec = fdescribe "EIR Code Generation" $ parallel $ do
       }
       |]
 
-  fit "generates code for a rule with 2 clauses of same name" $ do
+  it "generates code for a rule with 2 clauses of same name" $ do
     eir <- cg "multiple_clauses_same_name"
     extractDeclTypeSnippet eir `shouldBe` [text|
       declare_type Program
@@ -310,7 +314,8 @@ spec = fdescribe "EIR Code Generation" $ parallel $ do
         iter_upper_bound(FN_ARG[0].1, value_2, end_iter)
         loop
         {
-          if (iter_is_equal(begin_iter, end_iter))
+          condition = iter_is_equal(begin_iter, end_iter)
+          if (condition)
           {
             goto range_query.end
           }
@@ -327,12 +332,14 @@ spec = fdescribe "EIR Code Generation" $ parallel $ do
           iter_upper_bound(FN_ARG[0].1, value_4, end_iter_1)
           loop
           {
-            if (iter_is_equal(begin_iter_1, end_iter_1))
+            condition_1 = iter_is_equal(begin_iter_1, end_iter_1)
+            if (condition_1)
             {
               goto range_query.end_1
             }
             current_1 = iter_current(begin_iter_1)
-            if (current_1.0 == current.1)
+            condition_2 = current_1.0 == current.1
+            if (condition_2)
             {
               value_5 = stack_allocate Value "chain"
               value_5.0 = current.0
@@ -349,14 +356,123 @@ spec = fdescribe "EIR Code Generation" $ parallel $ do
       }
       |]
 
-  {-
-  it "generates code for a rule where columns need to equal each other" $
-    pending -- TODO use fixture: rule_equal_columns
+  it "generates code for a rule where columns need to equal each other" $ do
+    pending -- TODO: cg "rule_equal_columns"
 
   it "generates code for a single recursive rule" $ do
-    cg "single_recursive_rule" `resultsIn` [text|
+    eir <- cg "single_recursive_rule"
+    -- NOTE: program for now also contains delta_ and new_ relations,
+    -- probably it's more efficient to move these to the stack (but left out of scope for now)
+    extractDeclTypeSnippet eir `shouldBe` [text|
+      declare_type Program
+      {
+        btree(num_columns=2, index=[0,1], block_size=256, search_type=linear)
+        btree(num_columns=2, index=[0,1], block_size=256, search_type=linear)
+        btree(num_columns=2, index=[0,1], block_size=256, search_type=linear)
+        btree(num_columns=2, index=[0,1], block_size=256, search_type=linear)
+      }
+      |]
+    extractFnSnippet eir "eclair_program_init()" `shouldBe` Just [text|
+      fn eclair_program_init()
+      {
+        program = heap_allocate_program
+        init_empty(program.0)
+        init_empty(program.1)
+        init_empty(program.2)
+        init_empty(program.3)
+        return program
+      }
+      |]
+    extractFnSnippet eir "eclair_program_destroy(*Program)" `shouldBe` Just [text|
+      fn eclair_program_destroy(*Program)
+      {
+        destroy(FN_ARG[0].0)
+        destroy(FN_ARG[0].1)
+        destroy(FN_ARG[0].2)
+        destroy(FN_ARG[0].3)
+        free_program(FN_ARG[0])
+      }
+      |]
+    extractFnSnippet eir "eclair_program_run(*Program)" `shouldBe` Just [text|
+      fn eclair_program_run(*Program)
+      {
+        value = stack_allocate Value "edge"
+        value.0 = 1
+        value.1 = 2
+        insert(FN_ARG[0].1, value)
+        merge(FN_ARG[0].3, FN_ARG[0].0)
+        loop
+        {
+          purge(FN_ARG[0].2)
+          value_1 = stack_allocate Value "edge"
+          value_1.0 = 0
+          value_1.1 = 0
+          value_2 = stack_allocate Value "edge"
+          value_2.0 = 4294967295
+          value_2.1 = 4294967295
+          begin_iter = stack_allocate Iter "edge"
+          end_iter = stack_allocate Iter "edge"
+          iter_lower_bound(FN_ARG[0].1, value_1, begin_iter)
+          iter_upper_bound(FN_ARG[0].1, value_2, end_iter)
+          loop
+          {
+            condition = iter_is_equal(begin_iter, end_iter)
+            if (condition)
+            {
+              goto range_query.end
+            }
+            current = iter_current(begin_iter)
+            value_3 = stack_allocate Value "path"
+            value_3.0 = current.1
+            value_3.1 = 0
+            value_4 = stack_allocate Value "path"
+            value_4.0 = current.1
+            value_4.1 = 4294967295
+            begin_iter_1 = stack_allocate Iter "path"
+            end_iter_1 = stack_allocate Iter "path"
+            iter_lower_bound(FN_ARG[0].0, value_3, begin_iter_1)
+            iter_upper_bound(FN_ARG[0].0, value_4, end_iter_1)
+            loop
+            {
+              condition_1 = iter_is_equal(begin_iter_1, end_iter_1)
+              if (condition_1)
+              {
+                goto range_query.end_1
+              }
+              current_1 = iter_current(begin_iter_1)
+              bool = current_1.0 == current.1
+              value_5 = stack_allocate Value "path"
+              value_5.0 = current.0
+              value_5.1 = current_1.1
+              contains_result = contains(FN_ARG[0].3, value_5)
+              bool_1 = not contains_result
+              condition_2 = bool && bool_1
+              if (condition_2)
+              {
+                value_6 = stack_allocate Value "path"
+                value_6.0 = current.0
+                value_6.1 = current_1.1
+                insert(FN_ARG[0].2, value_6)
+              }
+              iter_next(begin_iter_1)
+            }
+            range_query.end_1:
+            iter_next(begin_iter)
+          }
+          range_query.end:
+          condition_3 = is_empty(FN_ARG[0].2)
+          if (condition_3)
+          {
+            goto loop.end
+          }
+          merge(FN_ARG[0].2, FN_ARG[0].3)
+          swap(FN_ARG[0].2, FN_ARG[0].0)
+        }
+        loop.end:
+      }
       |]
 
+  {-
   -- TODO variant where one is recursive
   it "generates code for mutually recursive rules" $ do
     cg "mutually_recursive_rules" `resultsIn` [text|

@@ -14,7 +14,7 @@ import Eclair.EIR.Codegen
 import Eclair.EIR.IR (EIR)
 import Eclair.RA.IR (RA)
 import Eclair.RA.IndexSelection
-import Eclair.Syntax (Id(..))
+import Eclair.Syntax (Id(..), stripIdPrefixes)
 import Eclair.TypeSystem
 import qualified Eclair.EIR.IR as EIR
 import qualified Eclair.RA.IR as RA
@@ -186,7 +186,8 @@ data Bound
 -- NOTE: only supports unsigned integers for now!
 initValue :: Relation -> RA.Alias -> Bound -> [NormalizedEquality] -> CodegenM (CodegenM EIR, CodegenM EIR)
 initValue r a bound eqs = do
-  typeInfo <- fromJust . Map.lookup r . typeEnv <$> getLowerState
+  let r' = stripIdPrefixes r
+  typeInfo <- fromJust . Map.lookup r' . typeEnv <$> getLowerState
   value <- var "value"
   let allocValue = assign value $ stackAlloc EIR.Value r
       columnNrs = take (length typeInfo) [0..]
@@ -276,7 +277,8 @@ getContainerInfos indexMap typeInfo = containerInfos
     combinations r idxs =
       (r,) <$> Set.toList idxs
     toContainerInfo r idx =
-      let meta = M.mkMeta idx $ fromJust $ Map.lookup r typeInfo
+      let r' = stripIdPrefixes r
+          meta = M.mkMeta idx $ fromJust $ Map.lookup r' typeInfo
        in (r, idx, meta)
     storesList = Map.foldMapWithKey combinations indexMap
     containerInfos = map (uncurry toContainerInfo) storesList

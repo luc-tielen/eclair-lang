@@ -157,7 +157,7 @@ freeProgram :: CodegenM EIR -> CodegenM EIR
 freeProgram ptr = EIR.FreeProgram <$> ptr
 
 stackAlloc :: EIR.EIRType -> Relation -> CodegenM EIR
-stackAlloc ty r = pure $ EIR.StackAllocate ty r
+stackAlloc ty r = pure $ EIR.StackAllocate ty (AST.stripIdPrefixes r)
 
 loop :: [CodegenM EIR] -> CodegenM EIR
 loop ms = do
@@ -201,16 +201,35 @@ var name = do
   pure . pure . EIR.Var $ varId
 
 assign :: CodegenM EIR -> CodegenM EIR -> CodegenM EIR
-assign var value = EIR.Assign <$> var <*> value
+assign var value = do
+  v <- var
+  value >>= \case
+    EIR.Block stmts ->
+      let lastStmt = List.last stmts
+          firstStmts = List.init stmts
+       in block (map pure $ firstStmts ++ [EIR.Assign v lastStmt])
+    val -> pure $ EIR.Assign v val
 
 if' :: CodegenM EIR -> CodegenM EIR -> CodegenM EIR
-if' cond body = EIR.If <$> cond <*> body
+if' cond body = do
+  condition <- var "condition"
+  block
+    [ assign condition cond
+    , EIR.If <$> condition <*> body
+    ]
 
 not' :: CodegenM EIR -> CodegenM EIR
 not' bool = EIR.Not <$> bool
 
 and' :: CodegenM EIR -> CodegenM EIR -> CodegenM EIR
-and' lhs rhs = EIR.And <$> lhs <*> rhs
+and' lhs rhs = do
+  lhsResult <- var "bool"
+  rhsResult <- var "bool"
+  block
+    [ assign lhsResult lhs
+    , assign rhsResult rhs
+    , EIR.And <$> lhsResult <*> rhsResult
+    ]
 
 equals :: CodegenM EIR -> CodegenM EIR -> CodegenM EIR
 equals lhs rhs = EIR.Equals <$> lhs <*> rhs
