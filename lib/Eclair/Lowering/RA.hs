@@ -93,8 +93,8 @@ generateProgramInstructions = zygo (combine equalitiesInSearch constraintsForSea
       ]
   RA.ProjectF r (map snd -> unresolvedValues) -> do
     -- NOTE: Value type is the same for all (but not the insert function)
-    values <- withProjectState r $ sequence unresolvedValues
-    let values' = map pure values  -- TODO refactor, withProjectState can wrap this entire piece of code? can be left out?
+    values <- sequence unresolvedValues
+    let values' = map pure values
     indices <- indexesForRelation r
     var <- var "value"
     let allocValue = assign var $ stackAlloc EIR.Value r
@@ -144,12 +144,9 @@ generateProgramInstructions = zygo (combine equalitiesInSearch constraintsForSea
         else do
           currentAliasValue <- lookupAlias a'
           getColumn currentAliasValue col
-    Project r ls -> do
-      -- TODO: is this correct? Maybe Project is not needed and can just be "Normal" (though watch out with refactor)
+    Normal _ -> do
       currentAliasValue <- lookupAlias a'
       getColumn currentAliasValue col
-    Normal _ ->
-      panic "Trying to access column index outside of search or project."
     where
       getColumn value col =
         fieldAccess (pure value) col

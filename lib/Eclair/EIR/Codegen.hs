@@ -13,7 +13,6 @@ module Eclair.EIR.Codegen
   , lookupAlias
   , withUpdatedAlias
   , withEndLabel
-  , withProjectState
   , withSearchState
   , block
   , declareProgram
@@ -75,7 +74,6 @@ data LowerState
 data CGState
   = Normal LowerState
   | Search Alias EIR LowerState
-  | Project Relation LowerState
 
 type Count = Int
 type IdMapping = Map Text Count
@@ -111,18 +109,12 @@ withSearchState alias value m = do
   ls <- getLowerState
   local (const $ Search alias value ls) m
 
-withProjectState :: Relation -> CodegenM a -> CodegenM a
-withProjectState relation m = do
-  ls <- getLowerState
-  local (const $ Project relation ls) m
-
 getLowerState :: CodegenM LowerState
 getLowerState = asks getLS
   where
     getLS = \case
       Normal ls -> ls
       Search _ _ ls -> ls
-      Project _ ls -> ls
 
 block :: [CodegenM EIR] -> CodegenM EIR
 block ms = do
@@ -269,7 +261,6 @@ lookupAlias :: Alias -> CodegenM EIR
 lookupAlias a = ask >>= \case
   Normal ls -> lookupAlias' ls
   Search _ _ ls -> lookupAlias' ls
-  Project _ ls -> lookupAlias' ls
   where
     lookupAlias' ls =
       pure $ fromJust $ M.lookup a (aliasMap ls)
@@ -279,7 +270,6 @@ withUpdatedAlias a curr m = do
   state' <- ask <&> \case
     Normal ls -> Normal (updateAlias ls curr)
     Search a v ls -> Search a v (updateAlias ls curr)
-    Project r ls -> Project r (updateAlias ls curr)
   local (const state') m
   where
     updateAlias ls curr =
@@ -293,7 +283,6 @@ withEndLabel end m = do
     setLabel = \case
       Normal ls -> Normal (set ls)
       Search a v ls -> Search a v (set ls)
-      Project r ls -> Project r (set ls)
     set ls = ls { endLabel = end }
 
 idxFromConstraints :: Relation -> Alias -> [(Relation, Column)] -> CodegenM Index
