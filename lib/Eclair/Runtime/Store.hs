@@ -58,7 +58,7 @@ data Functions
   , fnIterIsEqual :: Operand
   , fnIterCurrent :: Operand
   , fnIterNext :: Operand
-  , typeObj :: Type  -- TODO: try storing allocator iso type
+  , typeObj :: Type
   , typeIter :: Type
   , typeValue :: Type
   }

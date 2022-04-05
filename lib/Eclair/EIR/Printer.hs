@@ -61,14 +61,14 @@ instance Pretty EIR where
     Var v -> pretty v
     Assign var value ->
       pretty var <+> "=" <+> pretty value
-    Call fn args ->
-      pretty fn <> parens (withCommas $ map pretty args)
+    Call r idx fn args ->
+      pretty r <> parens (pretty idx) <> "." <> pretty fn <> parens (withCommas $ map pretty args)
     HeapAllocateProgram ->
       "heap_allocate_program"
     FreeProgram ptr ->
       "free_program" <> parens (pretty ptr)
-    StackAllocate ty r ->
-      "stack_allocate" <+> pretty ty <+> between dquote dquote (pretty r)
+    StackAllocate r idx ty ->
+      pretty r <> parens (pretty idx) <> "." <> "stack_allocate" <+> pretty ty
     Par stmts ->
       vsep ["parallel", statementBlock stmts]
     Loop stmts ->

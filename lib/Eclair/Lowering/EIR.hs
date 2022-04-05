@@ -9,9 +9,8 @@ import qualified Data.Text as T
 import qualified Data.Map as M
 import Data.List ((!!))
 import Data.Maybe (fromJust)
-import qualified Eclair.EIR.IR as EIR
 import LLVM.AST (Module)
-import LLVM.AST.Operand
+import LLVM.AST.Operand hiding (Metadata)
 import LLVM.AST.Name
 import LLVM.AST.Type
 import qualified LLVM.AST.IntegerPredicate as IP
@@ -20,9 +19,14 @@ import LLVM.IRBuilder.Constant
 import LLVM.IRBuilder.Module
 import LLVM.IRBuilder.Monad
 import LLVM.IRBuilder.Combinators
+import qualified Eclair.EIR.IR as EIR
+import qualified Eclair.Runtime.BTree as BTree
+import Eclair.Runtime.Metadata
+import Eclair.RA.IndexSelection
 
 type EIR = EIR.EIR
 type EIRF = EIR.EIRF
+type Relation = EIR.Relation
 
 type VarMap = Map Text Operand
 
@@ -44,20 +48,26 @@ type CodegenM = ReaderT LowerState (IRBuilderT (ModuleBuilderT IO))
 
 compileEIR :: EIR -> IO Module
 compileEIR = \case
-  EIR.Block stmts -> buildModuleT "eclair_program" $ do
+  EIR.Block (EIR.DeclareProgram metas : decls) -> buildModuleT "eclair_program" $ do
     mallocFn <- extern "malloc" [i32] (ptr i8)
     freeFn <- extern "free" [ptr i8] void
     let externalMap = Externals mallocFn freeFn
-    traverse_ (processDecl externalMap) stmts
+    -- TODO: codegen btree etc from metadatas
+    -- TODO: group Functions + Sizes together with other essential information (Relation + Index?)
+    let mkType :: Text -> [Metadata] -> ModuleBuilderT IO Type
+        mkType name metas = _
+    programType <- mkType "program" metas
+
+    let programType :: Type
+        programType = _
+    traverse_ (processDecl programType externalMap) decls
   _ ->
-    panic "Unexpected module level EIR declaration when compiling to LLVM!"
+    panic "Unexpected top level EIR declarations when compiling to LLVM!"
   where
-    processDecl externalMap = \case
-      EIR.DeclareProgram metas ->
-        _
+    processDecl programType externalMap = \case
       EIR.Function name tys retTy body -> do
-        argTypes <- liftIO $ traverse toLLVMType tys
-        returnType <- liftIO $ toLLVMType retTy
+        argTypes <- liftIO $ traverse (toLLVMType programType) tys
+        returnType <- liftIO $ toLLVMType programType retTy
         let args = zipWith mkArg [0..] argTypes
         function (mkName $ T.unpack name) args returnType $ \args -> do
           runReaderT (fnBodyToLLVM args body) (LowerState mempty externalMap)
@@ -96,13 +106,13 @@ fnBodyToLLVM args = zygo instrToOperand instrToUnit
         a <- lhs
         b <- rhs
         icmp IP.EQ a b
-      EIR.CallF fn args ->
-        doCall fn args
+      EIR.CallF r idx fn args ->
+        doCall r idx fn args
       EIR.HeapAllocateProgramF ->
         -- TODO: call "malloc", return ptr
         -- TODO: lookup size of program type, or do 2x pointer size x number of relation types...
         _
-      EIR.StackAllocateF ty r ->
+      EIR.StackAllocateF r idx ty ->
         -- TODO: use alloca, lookup size info based on relation
         _
       EIR.LitF value ->
@@ -126,8 +136,8 @@ fnBodyToLLVM args = zygo instrToOperand instrToUnit
         freeFn <- asks (extFree . externals)
         program <- programVar
         () <$ call freeFn [(program, [])]
-      EIR.CallF fn args ->
-        () <$ doCall fn args
+      EIR.CallF r idx fn (map fst -> args) ->
+        () <$ doCall r idx fn args
       EIR.LoopF stmts ->
         loop $ traverse_ snd stmts
       EIR.IfF (fst -> cond) (snd -> body) -> do
@@ -142,22 +152,43 @@ fnBodyToLLVM args = zygo instrToOperand instrToUnit
         ret =<< value
       _ ->
         panic "Unhandled pattern match case in 'instrToUnit' while lowering EIR to LLVM!"
-    doCall fn args =
-      -- TODO: look up corresponding fn -> how to know which to select?
-      _
+    doCall :: Relation -> Index -> EIR.Function -> [CodegenM Operand] -> CodegenM Operand
+    doCall r idx fn args = do
+      argOperands <- sequence args
+      func <- lookupFunction r idx fn
+      call func $ (, []) <$> argOperands
+
+lookupFunction :: Relation -> Index -> EIR.Function -> CodegenM Operand
+lookupFunction r idx fn = do
+  -- TODO: lookup function from functions object
+  let extractFn = case fn of
+        EIR.InitializeEmpty -> _
+        EIR.Destroy -> _
+        EIR.Purge -> _
+        EIR.Swap -> _
+        EIR.Merge -> _
+        EIR.IsEmpty -> _
+        EIR.Contains -> _
+        EIR.Insert -> _
+        EIR.IterCurrent -> _
+        EIR.IterNext -> _
+        EIR.IterIsEqual -> _
+        EIR.IterLowerBound -> _
+        EIR.IterUpperBound -> _
+  extractFn <$> _ -- TODO use r+idx to lookup matching functions in LowerState
 
 labelToName :: EIR.LabelId -> Name
 labelToName (EIR.LabelId lbl) =
   mkName $ T.unpack lbl
 
-toLLVMType :: EIR.Type -> IO Type
-toLLVMType = \case
+toLLVMType :: Type -> EIR.Type -> IO Type
+toLLVMType programType = \case
   -- TODO: look up types in the codegen monad..
-  EIR.Program -> _
-  EIR.Iter -> _
-  EIR.Value -> _
+  EIR.Program -> pure programType
+  EIR.Iter -> _  -- TODO: depends on r + idx
+  EIR.Value -> _  -- TODO: depends on r + idx
   EIR.Void -> pure void
-  EIR.Pointer ty -> ptr <$> toLLVMType ty
+  EIR.Pointer ty -> ptr <$> toLLVMType programType ty
 
 mkArg :: Word8 -> Type -> (Type, ParameterName)
 mkArg x ty =

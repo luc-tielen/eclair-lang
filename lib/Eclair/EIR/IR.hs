@@ -59,10 +59,10 @@ data EIR
   | FieldAccess EIR Int
   | Var Text
   | Assign EIR EIR
-  | Call Function [EIR]
+  | Call Relation Index Function [EIR]
   | HeapAllocateProgram
   | FreeProgram EIR
-  | StackAllocate Type Relation -- NOTE: always need to know for which relation
+  | StackAllocate Relation Index Type
   | Par [EIR]
   | Loop [EIR]
   | If EIR EIR

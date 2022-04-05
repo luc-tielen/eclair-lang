@@ -24,6 +24,7 @@ yet for example).
 - [x] Add indices to relations
 - [x] Compile to Eclair IR (EIR)
 - [ ] Compile to LLVM
+- [ ] Clean up rough edges in the MVP
 - [ ] Support other data types than integers (strings, ...)
 - [ ] Add typesystem
 - [ ] Add static analysis for edgecases
