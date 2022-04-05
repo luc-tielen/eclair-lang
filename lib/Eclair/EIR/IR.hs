@@ -25,6 +25,7 @@ data Type
   | Value
   | Iter
   | Pointer Type
+  | Void
   deriving (Eq, Show)
 
 data Function
@@ -52,7 +53,7 @@ instance IsString LabelId where
 
 data EIR
   = Block [EIR]
-  | Function Text [Type] EIR
+  | Function Text [Type] Type EIR
   | FunctionArg Int
   | DeclareProgram [Metadata]
   | FieldAccess EIR Int

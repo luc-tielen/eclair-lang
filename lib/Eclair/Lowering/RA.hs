@@ -41,7 +41,7 @@ compileInit :: CodegenM EIR
 compileInit = do
   program <- var "program"
   initActions <- forEachRelation program (\_ci relationPtr -> call EIR.InitializeEmpty [relationPtr])
-  fn "eclair_program_init" [] $
+  fn "eclair_program_init" [] (EIR.Pointer EIR.Program) $
     assign program heapAllocProgram
     : initActions
     -- Open question: if some facts are known at compile time, search for derived facts up front?
@@ -51,14 +51,14 @@ compileDestroy :: CodegenM EIR
 compileDestroy = do
   let program = fnArg 0
   destroyActions <- forEachRelation program (\_ci relationPtr -> call EIR.Destroy [relationPtr])
-  fn "eclair_program_destroy" [EIR.Pointer EIR.Program] $
+  fn "eclair_program_destroy" [EIR.Pointer EIR.Program] EIR.Void $
     destroyActions
     ++ [ freeProgram program ]
 
 compileRun :: RA -> CodegenM EIR
 compileRun ra = do
   end <- endLabel <$> getLowerState
-  fn "eclair_program_run" [EIR.Pointer EIR.Program]
+  fn "eclair_program_run" [EIR.Pointer EIR.Program] EIR.Void
     [generateProgramInstructions ra]
 
 generateProgramInstructions :: RA -> CodegenM EIR

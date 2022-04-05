@@ -75,16 +75,7 @@ spec = describe "EIR Code Generation" $ parallel $ do
       }
       |]
     extractFnSnippet eir "eclair_program_init()" `shouldBe` Just [text|
-      fn eclair_program_init()
-      {
-        program = heap_allocate_program
-        init_empty(program.0)
-        init_empty(program.1)
-        return program
-      }
-      |]
-    extractFnSnippet eir "eclair_program_init()" `shouldBe` Just [text|
-      fn eclair_program_init()
+      fn eclair_program_init() -> *Program
       {
         program = heap_allocate_program
         init_empty(program.0)
@@ -93,7 +84,7 @@ spec = describe "EIR Code Generation" $ parallel $ do
       }
       |]
     extractFnSnippet eir "eclair_program_destroy(*Program)" `shouldBe` Just [text|
-      fn eclair_program_destroy(*Program)
+      fn eclair_program_destroy(*Program) -> Void
       {
         destroy(FN_ARG[0].0)
         destroy(FN_ARG[0].1)
@@ -101,7 +92,7 @@ spec = describe "EIR Code Generation" $ parallel $ do
       }
       |]
     extractFnSnippet eir "eclair_program_run(*Program)" `shouldBe` Just [text|
-      fn eclair_program_run(*Program)
+      fn eclair_program_run(*Program) -> Void
       {
         value = stack_allocate Value "another"
         value.0 = 1
@@ -129,7 +120,7 @@ spec = describe "EIR Code Generation" $ parallel $ do
       }
       |]
     extractFnSnippet eir "eclair_program_init()" `shouldBe` Just [text|
-      fn eclair_program_init()
+      fn eclair_program_init() -> *Program
       {
         program = heap_allocate_program
         init_empty(program.0)
@@ -138,7 +129,7 @@ spec = describe "EIR Code Generation" $ parallel $ do
       }
       |]
     extractFnSnippet eir "eclair_program_destroy(*Program)" `shouldBe` Just [text|
-      fn eclair_program_destroy(*Program)
+      fn eclair_program_destroy(*Program) -> Void
       {
         destroy(FN_ARG[0].0)
         destroy(FN_ARG[0].1)
@@ -146,7 +137,7 @@ spec = describe "EIR Code Generation" $ parallel $ do
       }
       |]
     extractFnSnippet eir "eclair_program_run(*Program)" `shouldBe` Just [text|
-      fn eclair_program_run(*Program)
+      fn eclair_program_run(*Program) -> Void
       {
         value = stack_allocate Value "edge"
         value.0 = 1
@@ -191,7 +182,7 @@ spec = describe "EIR Code Generation" $ parallel $ do
       }
       |]
     extractFnSnippet eir "eclair_program_init()" `shouldBe` Just [text|
-      fn eclair_program_init()
+      fn eclair_program_init() -> *Program
       {
         program = heap_allocate_program
         init_empty(program.0)
@@ -201,7 +192,7 @@ spec = describe "EIR Code Generation" $ parallel $ do
       }
       |]
     extractFnSnippet eir "eclair_program_destroy(*Program)" `shouldBe` Just [text|
-      fn eclair_program_destroy(*Program)
+      fn eclair_program_destroy(*Program) -> Void
       {
         destroy(FN_ARG[0].0)
         destroy(FN_ARG[0].1)
@@ -210,7 +201,7 @@ spec = describe "EIR Code Generation" $ parallel $ do
       }
       |]
     extractFnSnippet eir "eclair_program_run(*Program)" `shouldBe` Just [text|
-      fn eclair_program_run(*Program)
+      fn eclair_program_run(*Program) -> *Program
       {
         value = stack_allocate Value "second"
         value.0 = 2
@@ -280,7 +271,7 @@ spec = describe "EIR Code Generation" $ parallel $ do
       }
       |]
     extractFnSnippet eir "eclair_program_init()" `shouldBe` Just [text|
-      fn eclair_program_init()
+      fn eclair_program_init() -> *Program
       {
         program = heap_allocate_program
         init_empty(program.0)
@@ -289,7 +280,7 @@ spec = describe "EIR Code Generation" $ parallel $ do
       }
       |]
     extractFnSnippet eir "eclair_program_destroy(*Program)" `shouldBe` Just [text|
-      fn eclair_program_destroy(*Program)
+      fn eclair_program_destroy(*Program) -> Void
       {
         destroy(FN_ARG[0].0)
         destroy(FN_ARG[0].1)
@@ -297,7 +288,7 @@ spec = describe "EIR Code Generation" $ parallel $ do
       }
       |]
     extractFnSnippet eir "eclair_program_run(*Program)" `shouldBe` Just [text|
-      fn eclair_program_run(*Program)
+      fn eclair_program_run(*Program) -> Void
       {
         value = stack_allocate Value "link"
         value.0 = 1
@@ -374,7 +365,7 @@ spec = describe "EIR Code Generation" $ parallel $ do
       }
       |]
     extractFnSnippet eir "eclair_program_init()" `shouldBe` Just [text|
-      fn eclair_program_init()
+      fn eclair_program_init() -> *Program
       {
         program = heap_allocate_program
         init_empty(program.0)
@@ -385,7 +376,7 @@ spec = describe "EIR Code Generation" $ parallel $ do
       }
       |]
     extractFnSnippet eir "eclair_program_destroy(*Program)" `shouldBe` Just [text|
-      fn eclair_program_destroy(*Program)
+      fn eclair_program_destroy(*Program) -> Void
       {
         destroy(FN_ARG[0].0)
         destroy(FN_ARG[0].1)
@@ -395,7 +386,7 @@ spec = describe "EIR Code Generation" $ parallel $ do
       }
       |]
     extractFnSnippet eir "eclair_program_run(*Program)" `shouldBe` Just [text|
-      fn eclair_program_run(*Program)
+      fn eclair_program_run(*Program) -> Void
       {
         value = stack_allocate Value "edge"
         value.0 = 1
@@ -492,7 +483,7 @@ spec = describe "EIR Code Generation" $ parallel $ do
       }
       |]
     extractFnSnippet eir "eclair_program_init()" `shouldBe` Just [text|
-      fn eclair_program_init()
+      fn eclair_program_init() -> *Program
       {
         program = heap_allocate_program
         init_empty(program.0)
@@ -507,7 +498,7 @@ spec = describe "EIR Code Generation" $ parallel $ do
       }
       |]
     extractFnSnippet eir "eclair_program_destroy(*Program)" `shouldBe` Just [text|
-      fn eclair_program_destroy(*Program)
+      fn eclair_program_destroy(*Program) -> Void
       {
         destroy(FN_ARG[0].0)
         destroy(FN_ARG[0].1)
@@ -521,7 +512,7 @@ spec = describe "EIR Code Generation" $ parallel $ do
       }
       |]
     extractFnSnippet eir "eclair_program_run(*Program)" `shouldBe` Just [text|
-      fn eclair_program_run(*Program)
+      fn eclair_program_run(*Program) -> Void
       {
         value = stack_allocate Value "d"
         value.0 = 3

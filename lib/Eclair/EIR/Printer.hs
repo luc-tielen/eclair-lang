@@ -22,6 +22,7 @@ instance Pretty Type where
     Value -> "Value"
     Iter -> "Iter"
     Pointer ty -> "*" <> pretty ty
+    Void -> "Void"
 
 instance Pretty Function where
   pretty = \case
@@ -46,8 +47,8 @@ instance Pretty EIR where
   pretty = \case
     Block stmts ->
       statementBlock stmts
-    Function name tys body ->
-      vsep ["fn" <+> pretty name <> parens (withCommas $ map pretty tys)
+    Function name tys retTy body ->
+      vsep ["fn" <+> pretty name <> parens (withCommas $ map pretty tys) <+> "->" <+> pretty retTy
            , pretty body -- Note: This is already a Block
            ]
     FunctionArg pos -> "FN_ARG" <> brackets (pretty pos)

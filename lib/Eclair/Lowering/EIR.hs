@@ -1,8 +1,10 @@
 module Eclair.Lowering.EIR
-  () where
+  ( compileEIR
+  ) where
 
-import Protolude hiding (and, void)
+import Protolude hiding (Type, and, void)
 import Data.Functor.Foldable hiding (fold)
+import Data.ByteString.Short
 import qualified Data.Text as T
 import qualified Data.Map as M
 import Data.List ((!!))
@@ -53,8 +55,11 @@ compileEIR = \case
     processDecl externalMap = \case
       EIR.DeclareProgram metas ->
         _
-      EIR.Function name tys body ->
-        function (mkName $ T.unpack name) _ _ $ \args -> do
+      EIR.Function name tys retTy body -> do
+        argTypes <- liftIO $ traverse toLLVMType tys
+        returnType <- liftIO $ toLLVMType retTy
+        let args = zipWith mkArg [0..] argTypes
+        function (mkName $ T.unpack name) args returnType $ \args -> do
           runReaderT (fnBodyToLLVM args body) (LowerState mempty externalMap)
       _ ->
         panic "Unexpected top level EIR declaration when compiling to LLVM!"
@@ -144,3 +149,17 @@ fnBodyToLLVM args = zygo instrToOperand instrToUnit
 labelToName :: EIR.LabelId -> Name
 labelToName (EIR.LabelId lbl) =
   mkName $ T.unpack lbl
+
+toLLVMType :: EIR.Type -> IO Type
+toLLVMType = \case
+  -- TODO: look up types in the codegen monad..
+  EIR.Program -> _
+  EIR.Iter -> _
+  EIR.Value -> _
+  EIR.Void -> pure void
+  EIR.Pointer ty -> ptr <$> toLLVMType ty
+
+mkArg :: Word8 -> Type -> (Type, ParameterName)
+mkArg x ty =
+  (ty, ParameterName $ "arg" <> pack [x])
+
