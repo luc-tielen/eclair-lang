@@ -29,7 +29,7 @@ compileToEIR typeInfo ra =
       lowerState = LowerState typeInfo indexMap getIndexForSearch containerInfos end mempty
       moduleStmts :: [CodegenM EIR]
       moduleStmts =
-        [ declareProgram $ map (\(_, _, m) -> m) containerInfos
+        [ declareProgram $ map (\(r, _, m) -> (r, m)) containerInfos
         , compileInit
         , compileDestroy
         , compileRun ra

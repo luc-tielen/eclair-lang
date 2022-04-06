@@ -3,8 +3,9 @@ module Eclair.Lowering.EIR
   ) where
 
 import Protolude hiding (Type, and, void)
+import Control.Arrow ((&&&))
 import Data.Functor.Foldable hiding (fold)
-import Data.ByteString.Short
+import Data.ByteString.Short hiding (index)
 import qualified Data.Text as T
 import qualified Data.Map as M
 import Data.List ((!!))
@@ -13,6 +14,7 @@ import LLVM.AST (Module)
 import LLVM.AST.Operand hiding (Metadata)
 import LLVM.AST.Name
 import LLVM.AST.Type
+import LLVM.AST.Constant hiding (index)
 import qualified LLVM.AST.IntegerPredicate as IP
 import LLVM.IRBuilder.Instruction
 import LLVM.IRBuilder.Constant
@@ -22,14 +24,19 @@ import LLVM.IRBuilder.Combinators
 import qualified Eclair.EIR.IR as EIR
 import qualified Eclair.LLVM.BTree as BTree
 import Eclair.LLVM.Metadata
+import Eclair.LLVM.Codegen
 import Eclair.RA.IndexSelection
+import Eclair.Syntax
 
+
+-- TODO: refactor this entire code, split functionality into multiple modules, ...
 
 type EIR = EIR.EIR
 type EIRF = EIR.EIRF
 type Relation = EIR.Relation
 
 type VarMap = Map Text Operand
+type FunctionsMap = Map (Relation, Index) Functions
 
 data Externals
   = Externals
@@ -39,13 +46,13 @@ data Externals
 
 data LowerState
   = LowerState
-  { varMap :: VarMap
+  { programType :: Type
+  , fnsMap :: FunctionsMap
+  , varMap :: VarMap
   , externals :: Externals
   }
 
 type CodegenM = ReaderT LowerState (IRBuilderT (ModuleBuilderT IO))
-
--- TODO generate LLVM code for all the types, carry around that info in CodegenM
 
 compileEIR :: EIR -> IO Module
 compileEIR = \case
@@ -53,31 +60,27 @@ compileEIR = \case
     mallocFn <- extern "malloc" [i32] (ptr i8)
     freeFn <- extern "free" [ptr i8] void
     let externalMap = Externals mallocFn freeFn
-    -- TODO: codegen btree etc from metadatas
-    -- TODO: group Functions + Sizes together with other essential information (Relation + Index?)
-    let mkType :: Text -> [Metadata] -> ModuleBuilderT IO Type
-        mkType name metas = _
-    programType <- mkType "program" metas
-
-    let programType :: Type
-        programType = _
-    traverse_ (processDecl programType externalMap) decls
+    fnss <- traverse (codegenRuntime . snd) metas
+    let fnsInfo = zip (map (map getIndexFromMeta) metas) fnss
+        fnsMap = M.fromList fnsInfo
+    programTy <- mkType "program" fnss
+    traverse_ (processDecl programTy fnsMap externalMap) decls
   _ ->
     panic "Unexpected top level EIR declarations when compiling to LLVM!"
   where
-    processDecl programType externalMap = \case
+    processDecl programTy fnsMap externalMap = \case
       EIR.Function name tys retTy body -> do
-        argTypes <- liftIO $ traverse (toLLVMType programType) tys
-        returnType <- liftIO $ toLLVMType programType retTy
+        let beginState = LowerState programTy fnsMap mempty externalMap
+            unusedRelation = panic "Unexpected use of relation for function type when lowering EIR to LLVM."
+            unusedIndex = panic "Unexpected use of index for function type when lowering EIR to LLVM."
+            getType ty = runReaderT (toLLVMType unusedRelation unusedIndex ty) beginState
+        argTypes <- liftIO $ traverse getType tys
+        returnType <- liftIO $ getType retTy
         let args = zipWith mkArg [0..] argTypes
         function (mkName $ T.unpack name) args returnType $ \args -> do
-          runReaderT (fnBodyToLLVM args body) (LowerState mempty externalMap)
+          runReaderT (fnBodyToLLVM args body) beginState
       _ ->
         panic "Unexpected top level EIR declaration when compiling to LLVM!"
-
-
--- TODO: no IO
--- TODO: make type more general, remove modulebuilder part
 
 -- NOTE: zygo is kind of abused here, since due to lazyness we can choose what we need
 -- to  compile to LLVM: instructions either return "()" or an "Operand".
@@ -109,13 +112,14 @@ fnBodyToLLVM args = zygo instrToOperand instrToUnit
         icmp IP.EQ a b
       EIR.CallF r idx fn args ->
         doCall r idx fn args
-      EIR.HeapAllocateProgramF ->
-        -- TODO: call "malloc", return ptr
-        -- TODO: lookup size of program type, or do 2x pointer size x number of relation types...
-        _
-      EIR.StackAllocateF r idx ty ->
-        -- TODO: use alloca, lookup size info based on relation
-        _
+      EIR.HeapAllocateProgramF -> do
+        (malloc, programTy) <- asks (extMalloc . externals &&& programType)
+        let programSize = ConstantOperand $ sizeof programTy
+        pointer <- call malloc [(programSize, [])]
+        pointer `bitcast` ptr programTy
+      EIR.StackAllocateF r idx ty -> do
+        theType <- toLLVMType r idx ty
+        alloca theType (Just (int32 1)) 0
       EIR.LitF value ->
         pure $ int32 (fromIntegral value)
       _ ->
@@ -159,41 +163,64 @@ fnBodyToLLVM args = zygo instrToOperand instrToUnit
       func <- lookupFunction r idx fn
       call func $ (, []) <$> argOperands
 
+-- TODO: use caching, return cached compilation?
+codegenRuntime :: Metadata -> ModuleBuilderT IO Functions
+codegenRuntime = \case
+  BTree meta -> BTree.codegen meta
+
 lookupFunction :: Relation -> Index -> EIR.Function -> CodegenM Operand
-lookupFunction r idx fn = do
-  -- TODO: lookup function from functions object
-  let extractFn = case fn of
-        EIR.InitializeEmpty -> _
-        EIR.Destroy -> _
-        EIR.Purge -> _
-        EIR.Swap -> _
-        EIR.InsertRange -> _
-        EIR.IsEmpty -> _
-        EIR.Contains -> _
-        EIR.Insert -> _
-        EIR.IterCurrent -> _
-        EIR.IterNext -> _
-        EIR.IterIsEqual -> _
-        EIR.IterLowerBound -> _
-        EIR.IterUpperBound -> _
-        EIR.IterBegin -> _
-        EIR.IterEnd -> _
-  extractFn <$> _ -- TODO use r+idx to lookup matching functions in LowerState
+lookupFunction r idx fn =
+  extractFn . fromJust . M.lookup (r, idx) <$> asks fnsMap
+  where
+    extractFn = case fn of
+      EIR.InitializeEmpty -> fnInitEmpty
+      EIR.Destroy -> fnDestroy
+      EIR.Purge -> fnPurge
+      EIR.Swap -> fnSwap
+      EIR.InsertRange -> fnInsertRange
+      EIR.IsEmpty -> fnIsEmpty
+      EIR.Contains -> fnContains
+      EIR.Insert -> fnInsert
+      EIR.IterCurrent -> fnIterCurrent
+      EIR.IterNext -> fnIterNext
+      EIR.IterIsEqual -> fnIterIsEqual
+      EIR.IterLowerBound -> fnLowerBound
+      EIR.IterUpperBound -> fnUpperBound
+      EIR.IterBegin -> fnBegin
+      EIR.IterEnd -> fnEnd
+
+-- TODO: add hash?
+mkType :: Name -> [Functions] -> ModuleBuilderT IO Type
+mkType name fnss =
+  typedef name (struct tys)
+  where
+    struct = Just . StructureType False
+    tys = map typeObj fnss
 
 labelToName :: EIR.LabelId -> Name
 labelToName (EIR.LabelId lbl) =
   mkName $ T.unpack lbl
 
-toLLVMType :: Type -> EIR.Type -> IO Type
-toLLVMType programType = \case
-  -- TODO: look up types in the codegen monad..
-  EIR.Program -> pure programType
-  EIR.Iter -> _  -- TODO: depends on r + idx
-  EIR.Value -> _  -- TODO: depends on r + idx
-  EIR.Void -> pure void
-  EIR.Pointer ty -> ptr <$> toLLVMType programType ty
+toLLVMType :: (MonadReader LowerState m, MonadIO m)
+           => Relation -> Index -> EIR.Type -> m Type
+toLLVMType r idx = go
+  where
+    go = \case
+      EIR.Program ->
+        programType <$> ask
+      EIR.Iter ->
+        typeIter . fromJust . M.lookup (r, idx) <$> asks fnsMap
+      EIR.Value ->
+        typeValue . fromJust . M.lookup (r, idx) <$> asks fnsMap
+      EIR.Void ->
+        pure void
+      EIR.Pointer ty ->
+        ptr <$> go ty
 
 mkArg :: Word8 -> Type -> (Type, ParameterName)
 mkArg x ty =
   (ty, ParameterName $ "arg" <> pack [x])
 
+getIndexFromMeta :: Metadata -> Index
+getIndexFromMeta = \case
+  BTree meta -> Index $ BTree.index meta

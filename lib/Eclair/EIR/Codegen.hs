@@ -127,7 +127,7 @@ flattenBlocks actions = flip concatMap actions $ \case
   EIR.Block stmts -> stmts
   stmt -> [stmt]
 
-declareProgram :: [M.Metadata] -> CodegenM EIR
+declareProgram :: [(Relation, M.Metadata)] -> CodegenM EIR
 declareProgram metas = pure $ EIR.DeclareProgram metas
 
 fn :: Text -> [EIR.Type] -> EIR.Type -> [CodegenM EIR] -> CodegenM EIR

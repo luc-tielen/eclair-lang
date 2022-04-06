@@ -57,7 +57,7 @@ data EIR
   = Block [EIR]
   | Function Text [Type] Type EIR
   | FunctionArg Int
-  | DeclareProgram [Metadata]
+  | DeclareProgram [(Relation, Metadata)]
   | FieldAccess EIR Int
   | Var Text
   | Assign EIR EIR
