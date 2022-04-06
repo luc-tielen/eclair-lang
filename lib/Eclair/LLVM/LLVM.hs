@@ -1,8 +1,8 @@
 {-# LANGUAGE RoleAnnotations, PolyKinds #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module Eclair.Runtime.LLVM
-  ( module Eclair.Runtime.LLVM
+module Eclair.LLVM.LLVM
+  ( module Eclair.LLVM.LLVM
   ) where
 
 import Protolude hiding ( Type, (.), bit )
@@ -15,7 +15,7 @@ import qualified LLVM.AST.Constant as Constant
 import LLVM.AST.Operand ( Operand(..) )
 import LLVM.AST.Type
 import LLVM.AST.Name
-import Eclair.Runtime.Hash
+import Eclair.LLVM.Hash
 import LLVM.Internal.EncodeAST
 import LLVM.Internal.Coding hiding (alloca)
 import LLVM.Internal.Type

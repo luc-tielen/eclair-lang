@@ -13,7 +13,7 @@ import Protolude hiding (Type,Meta)
 import Data.String (IsString(..))
 import Eclair.Syntax ( Id, Number )
 import Eclair.RA.IndexSelection (Index)
-import Eclair.Runtime.Metadata
+import Eclair.LLVM.Metadata
 import Data.Functor.Foldable.TH
 
 type Relation = Id
@@ -33,7 +33,7 @@ data Function
   | Destroy
   | Purge
   | Swap
-  | Merge
+  | InsertRange
   | IsEmpty
   | Contains
   | Insert
@@ -42,6 +42,8 @@ data Function
   | IterIsEqual
   | IterLowerBound
   | IterUpperBound
+  | IterBegin
+  | IterEnd
   deriving (Eq, Show)
 
 newtype LabelId

@@ -7,7 +7,7 @@ import LLVM.Context
 import LLVM.Module
 import LLVM.Pretty
 import LLVM.IRBuilder.Module
-import Eclair.Runtime.BTree
+import Eclair.LLVM.BTree
 
 
 {-

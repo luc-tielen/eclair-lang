@@ -19,7 +19,7 @@ import Eclair.Syntax (Id(..), stripIdPrefixes)
 import Eclair.TypeSystem
 import qualified Eclair.EIR.IR as EIR
 import qualified Eclair.RA.IR as RA
-import qualified Eclair.Runtime.Metadata as M
+import qualified Eclair.LLVM.Metadata as M
 
 compileToEIR :: TypeInfo -> RA -> EIR
 compileToEIR typeInfo ra =
@@ -111,10 +111,23 @@ generateProgramInstructions = zygo (combine equalitiesInSearch constraintsForSea
     block $ allocValue : assignStmts ++ insertStmts
   RA.PurgeF r ->
     block =<< relationUnaryFn r EIR.Purge
-  RA.MergeF r1 r2 ->
-    block =<< relationBinFn r1 r2 EIR.Merge
   RA.SwapF r1 r2 ->
     block =<< relationBinFn r1 r2 EIR.Swap
+  RA.MergeF r1 r2 -> do
+    -- NOTE: r1 = from/src, r2 = to/dst, r1 and r2 have same underlying structure
+    indices <- indexesForRelation r1
+    block $ flip map indices $ \idx -> do
+      beginIter <- var "begin_iter"
+      endIter <- var "end_iter"
+      let relation1Ptr = lookupRelationByIndex r1 idx
+          relation2Ptr = lookupRelationByIndex r2 idx
+      block
+        [ assign beginIter $ stackAlloc r1 idx EIR.Iter
+        , assign endIter $ stackAlloc r1 idx EIR.Iter
+        , call r1 idx EIR.IterBegin [relation1Ptr, beginIter]
+        , call r1 idx EIR.IterEnd [relation1Ptr, endIter]
+        , call r1 idx EIR.InsertRange [relation2Ptr, beginIter, endIter]
+        ]
   RA.LoopF (map snd -> actions) -> do
     end <- labelId "loop.end"
     block [withEndLabel end $ loop actions, label end]

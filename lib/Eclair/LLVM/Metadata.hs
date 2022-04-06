@@ -1,4 +1,4 @@
-module Eclair.Runtime.Metadata
+module Eclair.LLVM.Metadata
   ( Metadata(..)
   , mkMeta
   ) where
@@ -6,7 +6,7 @@ module Eclair.Runtime.Metadata
 import Protolude hiding (Type)
 import Eclair.RA.IndexSelection (Index(..))
 import Eclair.TypeSystem
-import qualified Eclair.Runtime.BTree as BTree
+import qualified Eclair.LLVM.BTree as BTree
 import Prettyprinter
 
 newtype Metadata

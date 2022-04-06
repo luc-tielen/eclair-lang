@@ -20,9 +20,10 @@ import LLVM.IRBuilder.Module
 import LLVM.IRBuilder.Monad
 import LLVM.IRBuilder.Combinators
 import qualified Eclair.EIR.IR as EIR
-import qualified Eclair.Runtime.BTree as BTree
-import Eclair.Runtime.Metadata
+import qualified Eclair.LLVM.BTree as BTree
+import Eclair.LLVM.Metadata
 import Eclair.RA.IndexSelection
+
 
 type EIR = EIR.EIR
 type EIRF = EIR.EIRF
@@ -166,7 +167,7 @@ lookupFunction r idx fn = do
         EIR.Destroy -> _
         EIR.Purge -> _
         EIR.Swap -> _
-        EIR.Merge -> _
+        EIR.InsertRange -> _
         EIR.IsEmpty -> _
         EIR.Contains -> _
         EIR.Insert -> _
@@ -175,6 +176,8 @@ lookupFunction r idx fn = do
         EIR.IterIsEqual -> _
         EIR.IterLowerBound -> _
         EIR.IterUpperBound -> _
+        EIR.IterBegin -> _
+        EIR.IterEnd -> _
   extractFn <$> _ -- TODO use r+idx to lookup matching functions in LowerState
 
 labelToName :: EIR.LabelId -> Name

@@ -1,6 +1,6 @@
 {-# LANGUAGE RecursiveDo, FlexibleContexts, ScopedTypeVariables #-}
 
-module Eclair.Runtime.BTree
+module Eclair.LLVM.BTree
   ( Meta(..)
   , SearchIndex
   , SearchType(..)
@@ -21,9 +21,9 @@ import LLVM.IRBuilder.Monad
 import LLVM.IRBuilder.Constant
 import LLVM.IRBuilder.Instruction
 import LLVM.IRBuilder.Combinators
-import Eclair.Runtime.LLVM
-import Eclair.Runtime.Hash
-import Eclair.Runtime.Store (Functions(..))
+import Eclair.LLVM.LLVM
+import Eclair.LLVM.Hash
+import Eclair.LLVM.Codegen (Functions(..))
 import Prettyprinter
 
 

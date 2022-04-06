@@ -3,7 +3,7 @@ module Eclair.EIR.Printer ( Pretty ) where
 import Protolude hiding (Type)
 import Eclair.Pretty
 import Eclair.EIR.IR
-import Eclair.Runtime.Metadata
+import Eclair.LLVM.Metadata
 import qualified Data.Text as T
 
 indentBlock :: Doc ann -> Doc ann -> Doc ann -> Doc ann
@@ -30,7 +30,7 @@ instance Pretty Function where
     Destroy -> "destroy"
     Purge -> "purge"
     Swap -> "swap"
-    Merge -> "merge"
+    InsertRange -> "insert_range"
     IsEmpty -> "is_empty"
     Contains -> "contains"
     Insert -> "insert"
@@ -39,6 +39,8 @@ instance Pretty Function where
     IterIsEqual -> "iter_is_equal"
     IterLowerBound -> "iter_lower_bound"
     IterUpperBound -> "iter_upper_bound"
+    IterBegin -> "iter_begin"
+    IterEnd -> "iter_end"
 
 instance Pretty LabelId where
   pretty (LabelId label) = pretty label

@@ -50,7 +50,7 @@ import Eclair.RA.IndexSelection
 import Eclair.TypeSystem
 import qualified Eclair.EIR.IR as EIR
 import qualified Eclair.RA.IR as RA
-import qualified Eclair.Runtime.Metadata as M
+import qualified Eclair.LLVM.Metadata as M
 import qualified Eclair.Syntax as AST
 
 
