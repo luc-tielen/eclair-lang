@@ -23,7 +23,7 @@ yet for example).
 - [x] Interpreter for RA IR
 - [x] Add indices to relations
 - [x] Compile to Eclair IR (EIR)
-- [ ] Compile to LLVM
+- [x] Compile to LLVM
 - [ ] Clean up rough edges in the MVP
 - [ ] Support other data types than integers (strings, ...)
 - [ ] Add typesystem
