@@ -23,7 +23,7 @@ import LLVM.IRBuilder.Instruction
 import LLVM.IRBuilder.Combinators
 import Eclair.LLVM.LLVM
 import Eclair.LLVM.Hash
-import Eclair.LLVM.Functions
+import Eclair.LLVM.Runtime
 import Prettyprinter
 
 
@@ -72,13 +72,6 @@ data Types
   , columnTy :: Type
   }
 
-data Externals
-  = Externals
-  { extMalloc :: Operand
-  , extFree :: Operand
-  , extMemset :: Operand
-  }
-
 data Sizes
   = Sizes
   { pointerSize :: Word64
@@ -102,21 +95,13 @@ type IRCodegen = IRBuilderT ModuleCodegen
 type ModuleCodegen = ReaderT CGState ModuleBuilder
 
 
-codegen :: Meta -> ModuleBuilderT IO Functions
-codegen settings = do
+codegen :: Externals -> Meta -> ModuleBuilderT IO Functions
+codegen exts settings = do
   sizes <- computeSizes settings
   hoist intoIO $ do
     tys <- runReaderT (generateTypes sizes) settings
-    exts <- mkExternals
     runReaderT generateFunctions $ CGState settings tys sizes exts
   where intoIO = pure . runIdentity
-
-mkExternals :: ModuleBuilder Externals
-mkExternals = do
-  malloc <- extern "malloc" [i32] (ptr i8)
-  free <- extern "free" [ptr i8] void
-  memsetFn <- extern "llvm.memset.p0i8.i64" [ptr i8, i8, i64, i1] void
-  pure $ Externals malloc free memsetFn
 
 computeSizes :: Meta -> ModuleBuilderT IO Sizes
 computeSizes settings = do

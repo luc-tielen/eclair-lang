@@ -19,7 +19,7 @@ import LLVM.AST.Name
 import LLVM.IRBuilder.Module
 import LLVM.IRBuilder.Monad
 import Data.ByteString.Short hiding (index)
-import Eclair.LLVM.Functions
+import Eclair.LLVM.Runtime
 import qualified Eclair.EIR.IR as EIR
 import Eclair.RA.IndexSelection
 
@@ -27,12 +27,6 @@ type Relation = EIR.Relation
 
 type VarMap = Map Text Operand
 type FunctionsMap = Map (Relation, Index) Functions
-
-data Externals
-  = Externals
-  { extMalloc :: Operand
-  , extFree :: Operand
-  }
 
 data LowerState
   = LowerState

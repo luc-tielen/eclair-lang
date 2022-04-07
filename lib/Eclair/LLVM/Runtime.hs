@@ -1,5 +1,6 @@
-module Eclair.LLVM.Functions
+module Eclair.LLVM.Runtime
   ( Functions(..)
+  , Externals(..)
   ) where
 
 import LLVM.AST.Operand
@@ -28,5 +29,13 @@ data Functions
   , typeObj :: Type
   , typeIter :: Type
   , typeValue :: Type
+  }
+
+-- Functions that are defined outside of LLVM
+data Externals
+  = Externals
+  { extMalloc :: Operand
+  , extFree :: Operand
+  , extMemset :: Operand
   }
 

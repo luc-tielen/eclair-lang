@@ -38,14 +38,12 @@ type Relation = EIR.Relation
 compileEIR :: EIR -> IO Module
 compileEIR = \case
   EIR.Block (EIR.DeclareProgram metas : decls) -> buildModuleT "eclair_program" $ do
-    mallocFn <- extern "malloc" [i32] (ptr i8)
-    freeFn <- extern "free" [ptr i8] void
-    let externalMap = Externals mallocFn freeFn
-    fnss <- traverse (codegenRuntime . snd) metas
+    exts <- createExternals
+    fnss <- traverse (codegenRuntime exts . snd) metas
     let fnsInfo = zip (map (map getIndexFromMeta) metas) fnss
         fnsMap = M.fromList fnsInfo
     programTy <- mkType "program" fnss
-    traverse_ (processDecl programTy fnsMap externalMap) decls
+    traverse_ (processDecl programTy fnsMap exts) decls
   _ ->
     panic "Unexpected top level EIR declarations when compiling to LLVM!"
   where
@@ -145,9 +143,9 @@ fnBodyToLLVM args = zygo instrToOperand instrToUnit
       call func $ (, []) <$> argOperands
 
 -- TODO: use caching, return cached compilation?
-codegenRuntime :: Metadata -> ModuleBuilderT IO Functions
-codegenRuntime = \case
-  BTree meta -> BTree.codegen meta
+codegenRuntime :: Externals -> Metadata -> ModuleBuilderT IO Functions
+codegenRuntime exts = \case
+  BTree meta -> BTree.codegen exts meta
 
 -- TODO: add hash?
 mkType :: Name -> [Functions] -> ModuleBuilderT IO Type
@@ -160,4 +158,11 @@ mkType name fnss =
 getIndexFromMeta :: Metadata -> Index
 getIndexFromMeta = \case
   BTree meta -> Index $ BTree.index meta
+
+createExternals :: ModuleBuilderT IO Externals
+createExternals = do
+  mallocFn <- extern "malloc" [i32] (ptr i8)
+  freeFn <- extern "free" [ptr i8] void
+  memsetFn <- extern "llvm.memset.p0i8.i64" [ptr i8, i8, i64, i1] void
+  pure $ Externals mallocFn freeFn memsetFn
 
