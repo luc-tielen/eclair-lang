@@ -31,8 +31,6 @@ import Eclair.RA.IndexSelection
 import Eclair.Syntax
 
 
--- TODO: refactor this entire code, EnvT helper functions to reduce noise..
-
 type EIR = EIR.EIR
 type EIRF = EIR.EIRF
 type Relation = EIR.Relation
@@ -64,15 +62,6 @@ compileToLLVM = \case
       _ ->
         panic "Unexpected top level EIR declaration when compiling to LLVM!"
 
--- NOTE: zygo is kind of abused here, since due to lazyness we can choose what we need
--- to compile to LLVM: instructions either return "()" or an "Operand".
--- para is needed since we need access to the original subtree in the assignment case to check if we are assigning to a variable or not
-lowerM :: (EIRF (CodegenM Operand) -> CodegenM Operand)
-       -> (EIRF (EnvT (CodegenM Operand) ((,) EIR) (CodegenM ())) -> CodegenM ())
-       -> EIR
-       -> CodegenM ()
-lowerM g = gzygo g distPara
-
 fnBodyToLLVM :: [Operand] -> EIR -> CodegenM ()
 fnBodyToLLVM args = lowerM instrToOperand instrToUnit
   where
@@ -86,7 +75,7 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
         -- fields of the value ('addr' does this for us).
         addr (mkPath [int32 $ toInteger pos]) =<< structOrVar
       EIR.VarF v ->
-        gets (fromJust . M.lookup v . varMap)
+        lookupVar v
       EIR.NotF bool ->
         not' =<< bool
       EIR.AndF bool1 bool2 -> do
@@ -114,17 +103,17 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
     instrToUnit :: (EIRF (EnvT (CodegenM Operand) ((,) EIR) (CodegenM ())) -> CodegenM ())
     instrToUnit = \case
       EIR.BlockF stmts -> do
-        traverse_ (snd . Env.lower) stmts
+        traverse_ toInstrs stmts
       EIR.ParF stmts ->
         -- NOTE: this is just sequential evaluation for now
-        traverse_ (snd . Env.lower) stmts
-      EIR.AssignF (Env.runEnvT -> (operand, (eir, _))) (Env.ask -> val) -> do
+        traverse_ toInstrs stmts
+      EIR.AssignF (Env.runEnvT -> (operand, (eir, _))) (toOperand -> val) -> do
         case eir of
           EIR.Var varName -> do
-            -- Assigning to a variable: evaluate the value, and add to the varMap
+            -- Assigning to a variable: evaluate the value, and add to the varMap.
+            -- This allows for future lookups of a variable.
             value <- val `named` toShort (encodeUtf8 varName)
-            -- TODO: helper function to add and lookup var in varMap
-            modify $ \s -> s { varMap = M.insert varName value (varMap s) }
+            addVarBinding varName value
           _ -> do
             -- NOTE: here we assume we are assigning to an operand (of a struct field)
             -- "operand" will contain a pointer, "val" will contain the actual value
@@ -132,15 +121,15 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
             address <- operand
             value <- val
             store value 0 address
-      EIR.FreeProgramF (Env.ask -> programVar) -> do
+      EIR.FreeProgramF (toOperand -> programVar) -> do
         freeFn <- gets (extFree . externals)
         program <- programVar
         () <$ call freeFn [(program, [])]
-      EIR.CallF r idx fn (map Env.ask -> args) ->
+      EIR.CallF r idx fn (map toOperand -> args) ->
         () <$ doCall r idx fn args
       EIR.LoopF stmts ->
-        loop $ traverse_ (snd . Env.lower) stmts
-      EIR.IfF (Env.ask -> cond) (snd . Env.lower -> body) -> do
+        loop $ traverse_ toInstrs stmts
+      EIR.IfF (toOperand -> cond) (toInstrs -> body) -> do
         condition <- cond
         if' condition body
       EIR.JumpF lbl ->
@@ -148,7 +137,7 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
       EIR.LabelF lbl ->
         -- NOTE: the label should be globally unique thanks to the RA -> EIR lowering pass
         emitBlockStart $ labelToName lbl
-      EIR.ReturnF (Env.ask -> value) ->
+      EIR.ReturnF (toOperand -> value) ->
         ret =<< value
       _ ->
         panic "Unhandled pattern match case in 'instrToUnit' while lowering EIR to LLVM!"
@@ -157,6 +146,28 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
       argOperands <- sequence args
       func <- lookupFunction r idx fn
       call func $ (, []) <$> argOperands
+    toOperand = Env.ask
+    toInstrs = snd . Env.lower
+
+-- Only called internally, should always be called on a var that exists.
+lookupVar :: Text -> CodegenM Operand
+lookupVar v = gets (fromJust . M.lookup v . varMap)
+
+addVarBinding :: Text -> Operand -> CodegenM ()
+addVarBinding var value =
+  modify $ \s -> s { varMap = M.insert var value (varMap s) }
+
+
+-- NOTE: zygo is kind of abused here, since due to lazyness we can choose what
+-- we need to compile to LLVM: instructions either return "()" or an "Operand".
+-- para is needed since we need access to the original subtree in the
+-- assignment case to check if we are assigning to a variable or not, allowing
+-- us to easily transform an "expression-oriented" EIR to statement based LLVM IR.
+lowerM :: (EIRF (CodegenM Operand) -> CodegenM Operand)
+       -> (EIRF (EnvT (CodegenM Operand) ((,) EIR) (CodegenM ())) -> CodegenM ())
+       -> EIR
+       -> CodegenM ()
+lowerM f = gzygo f distPara
 
 -- TODO: use caching, return cached compilation?
 codegenRuntime :: Externals -> Metadata -> ModuleBuilderT IO Functions
