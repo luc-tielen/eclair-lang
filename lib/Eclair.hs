@@ -4,14 +4,16 @@ import Protolude hiding (swap)
 import qualified Data.Map as M
 import Eclair.Lowering.AST
 import Eclair.Lowering.RA
+import Eclair.Lowering.EIR
 import Eclair.Parser
 import Eclair.EIR.IR
 import Eclair.RA.Interpreter
 import Eclair.Syntax
 import Eclair.TypeSystem
+import LLVM.AST (Module)
 
 
-compile :: FilePath -> IO (Either ParseError EIR)
+compile :: FilePath -> IO (Either ParseError Module)
 compile path = do
   parseResult <- parseFile path
   case parseResult of
@@ -20,7 +22,8 @@ compile path = do
       let typeInfo = getTypeInfo ast
           ra = compileRA ast
           eir = compileToEIR typeInfo ra
-      pure $ Right eir -- TODO other return value?
+      llvm <- compileToLLVM eir
+      pure $ Right llvm
 
 -- TODO: refactor to use compile
 run :: FilePath -> IO (M.Map Relation [[Number]])

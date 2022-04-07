@@ -1,5 +1,5 @@
 module Eclair.Lowering.EIR
-  ( compileEIR
+  ( compileToLLVM
   ) where
 
 import Protolude hiding (Type, and, void)
@@ -35,8 +35,8 @@ type EIR = EIR.EIR
 type EIRF = EIR.EIRF
 type Relation = EIR.Relation
 
-compileEIR :: EIR -> IO Module
-compileEIR = \case
+compileToLLVM :: EIR -> IO Module
+compileToLLVM = \case
   EIR.Block (EIR.DeclareProgram metas : decls) -> buildModuleT "eclair_program" $ do
     exts <- createExternals
     fnss <- traverse (codegenRuntime exts . snd) metas
