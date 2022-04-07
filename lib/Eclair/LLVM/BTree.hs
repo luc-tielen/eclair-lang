@@ -23,7 +23,7 @@ import LLVM.IRBuilder.Instruction
 import LLVM.IRBuilder.Combinators
 import Eclair.LLVM.LLVM
 import Eclair.LLVM.Hash
-import Eclair.LLVM.Codegen (Functions(..))
+import Eclair.LLVM.Functions
 import Prettyprinter
 
 

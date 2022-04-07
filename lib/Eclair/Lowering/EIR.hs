@@ -29,30 +29,11 @@ import Eclair.RA.IndexSelection
 import Eclair.Syntax
 
 
--- TODO: refactor this entire code, split functionality into multiple modules, ...
+-- TODO: refactor this entire code, ...
 
 type EIR = EIR.EIR
 type EIRF = EIR.EIRF
 type Relation = EIR.Relation
-
-type VarMap = Map Text Operand
-type FunctionsMap = Map (Relation, Index) Functions
-
-data Externals
-  = Externals
-  { extMalloc :: Operand
-  , extFree :: Operand
-  }
-
-data LowerState
-  = LowerState
-  { programType :: Type
-  , fnsMap :: FunctionsMap
-  , varMap :: VarMap
-  , externals :: Externals
-  }
-
-type CodegenM = ReaderT LowerState (IRBuilderT (ModuleBuilderT IO))
 
 compileEIR :: EIR -> IO Module
 compileEIR = \case
@@ -168,27 +149,6 @@ codegenRuntime :: Metadata -> ModuleBuilderT IO Functions
 codegenRuntime = \case
   BTree meta -> BTree.codegen meta
 
-lookupFunction :: Relation -> Index -> EIR.Function -> CodegenM Operand
-lookupFunction r idx fn =
-  extractFn . fromJust . M.lookup (r, idx) <$> asks fnsMap
-  where
-    extractFn = case fn of
-      EIR.InitializeEmpty -> fnInitEmpty
-      EIR.Destroy -> fnDestroy
-      EIR.Purge -> fnPurge
-      EIR.Swap -> fnSwap
-      EIR.InsertRange -> fnInsertRange
-      EIR.IsEmpty -> fnIsEmpty
-      EIR.Contains -> fnContains
-      EIR.Insert -> fnInsert
-      EIR.IterCurrent -> fnIterCurrent
-      EIR.IterNext -> fnIterNext
-      EIR.IterIsEqual -> fnIterIsEqual
-      EIR.IterLowerBound -> fnLowerBound
-      EIR.IterUpperBound -> fnUpperBound
-      EIR.IterBegin -> fnBegin
-      EIR.IterEnd -> fnEnd
-
 -- TODO: add hash?
 mkType :: Name -> [Functions] -> ModuleBuilderT IO Type
 mkType name fnss =
@@ -197,30 +157,7 @@ mkType name fnss =
     struct = Just . StructureType False
     tys = map typeObj fnss
 
-labelToName :: EIR.LabelId -> Name
-labelToName (EIR.LabelId lbl) =
-  mkName $ T.unpack lbl
-
-toLLVMType :: (MonadReader LowerState m, MonadIO m)
-           => Relation -> Index -> EIR.Type -> m Type
-toLLVMType r idx = go
-  where
-    go = \case
-      EIR.Program ->
-        programType <$> ask
-      EIR.Iter ->
-        typeIter . fromJust . M.lookup (r, idx) <$> asks fnsMap
-      EIR.Value ->
-        typeValue . fromJust . M.lookup (r, idx) <$> asks fnsMap
-      EIR.Void ->
-        pure void
-      EIR.Pointer ty ->
-        ptr <$> go ty
-
-mkArg :: Word8 -> Type -> (Type, ParameterName)
-mkArg x ty =
-  (ty, ParameterName $ "arg" <> pack [x])
-
 getIndexFromMeta :: Metadata -> Index
 getIndexFromMeta = \case
   BTree meta -> Index $ BTree.index meta
+
