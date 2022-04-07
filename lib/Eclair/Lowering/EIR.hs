@@ -4,9 +4,11 @@ module Eclair.Lowering.EIR
 
 import Protolude hiding (Type, and, void)
 import Control.Arrow ((&&&))
+import qualified Control.Comonad.Env as Env
 import Data.Functor.Foldable hiding (fold)
 import Data.ByteString.Short hiding (index)
 import qualified Data.Text as T
+import qualified Data.ByteString as BS
 import qualified Data.Map as M
 import Data.List ((!!))
 import Data.Maybe (fromJust)
@@ -29,11 +31,12 @@ import Eclair.RA.IndexSelection
 import Eclair.Syntax
 
 
--- TODO: refactor this entire code, ...
+-- TODO: refactor this entire code, EnvT helper functions to reduce noise..
 
 type EIR = EIR.EIR
 type EIRF = EIR.EIRF
 type Relation = EIR.Relation
+type EnvT = Env.EnvT
 
 compileToLLVM :: EIR -> IO Module
 compileToLLVM = \case
@@ -52,19 +55,26 @@ compileToLLVM = \case
         let beginState = LowerState programTy fnsMap mempty externalMap
             unusedRelation = panic "Unexpected use of relation for function type when lowering EIR to LLVM."
             unusedIndex = panic "Unexpected use of index for function type when lowering EIR to LLVM."
-            getType ty = runReaderT (toLLVMType unusedRelation unusedIndex ty) beginState
+            getType ty = evalStateT (toLLVMType unusedRelation unusedIndex ty) beginState
         argTypes <- liftIO $ traverse getType tys
         returnType <- liftIO $ getType retTy
         let args = zipWith mkArg [0..] argTypes
         function (mkName $ T.unpack name) args returnType $ \args -> do
-          runReaderT (fnBodyToLLVM args body) beginState
+          runCodegenM (fnBodyToLLVM args body) beginState
       _ ->
         panic "Unexpected top level EIR declaration when compiling to LLVM!"
 
 -- NOTE: zygo is kind of abused here, since due to lazyness we can choose what we need
--- to  compile to LLVM: instructions either return "()" or an "Operand".
+-- to compile to LLVM: instructions either return "()" or an "Operand".
+-- para is needed since we need access to the original subtree in the assignment case to check if we are assigning to a variable or not
+lowerM :: (EIRF (CodegenM Operand) -> CodegenM Operand)
+       -> (EIRF (EnvT (CodegenM Operand) ((,) EIR) (CodegenM ())) -> CodegenM ())
+       -> EIR
+       -> CodegenM ()
+lowerM g = gzygo g distPara
+
 fnBodyToLLVM :: [Operand] -> EIR -> CodegenM ()
-fnBodyToLLVM args = zygo instrToOperand instrToUnit
+fnBodyToLLVM args = lowerM instrToOperand instrToUnit
   where
     instrToOperand :: EIRF (CodegenM Operand) -> CodegenM Operand
     instrToOperand = \case
@@ -76,9 +86,7 @@ fnBodyToLLVM args = zygo instrToOperand instrToUnit
         -- fields of the value ('addr' does this for us).
         addr (mkPath [int32 $ toInteger pos]) =<< structOrVar
       EIR.VarF v ->
-        -- TODO: can we use `named` here? will it update everywhere?
-        -- TODO: where do we put a value in the map? do we need "para" effect also?
-        asks (fromJust . M.lookup v . varMap)
+        gets (fromJust . M.lookup v . varMap)
       EIR.NotF bool ->
         not' =<< bool
       EIR.AndF bool1 bool2 -> do
@@ -92,7 +100,7 @@ fnBodyToLLVM args = zygo instrToOperand instrToUnit
       EIR.CallF r idx fn args ->
         doCall r idx fn args
       EIR.HeapAllocateProgramF -> do
-        (malloc, programTy) <- asks (extMalloc . externals &&& programType)
+        (malloc, programTy) <- gets (extMalloc . externals &&& programType)
         let programSize = ConstantOperand $ sizeof programTy
         pointer <- call malloc [(programSize, [])]
         pointer `bitcast` ptr programTy
@@ -103,28 +111,36 @@ fnBodyToLLVM args = zygo instrToOperand instrToUnit
         pure $ int32 (fromIntegral value)
       _ ->
         panic "Unhandled pattern match case in 'instrToOperand' while lowering EIR to LLVM!"
-    instrToUnit :: EIRF (CodegenM Operand, CodegenM ()) -> CodegenM ()
+    instrToUnit :: (EIRF (EnvT (CodegenM Operand) ((,) EIR) (CodegenM ())) -> CodegenM ())
     instrToUnit = \case
-      EIR.BlockF stmts ->
-        traverse_ snd stmts
+      EIR.BlockF stmts -> do
+        traverse_ (snd . Env.lower) stmts
       EIR.ParF stmts ->
         -- NOTE: this is just sequential evaluation for now
-        traverse_ snd stmts
-      EIR.AssignF (fst -> operand) (fst -> val) -> do
-        -- TODO use `named` combinator, store var in varMap
-        -- TODO: what if we are assigning to field in struct? inspect var result?
-        address <- operand
-        value <- val
-        store value 0 address
-      EIR.FreeProgramF (fst -> programVar) -> do
-        freeFn <- asks (extFree . externals)
+        traverse_ (snd . Env.lower) stmts
+      EIR.AssignF (Env.runEnvT -> (operand, (eir, _))) (Env.ask -> val) -> do
+        case eir of
+          EIR.Var varName -> do
+            -- Assigning to a variable: evaluate the value, and add to the varMap
+            value <- val `named` toShort (encodeUtf8 varName)
+            -- TODO: helper function to add and lookup var in varMap
+            modify $ \s -> s { varMap = M.insert varName value (varMap s) }
+          _ -> do
+            -- NOTE: here we assume we are assigning to an operand (of a struct field)
+            -- "operand" will contain a pointer, "val" will contain the actual value
+            -- We need to store the result to the address the pointer is pointing to.
+            address <- operand
+            value <- val
+            store value 0 address
+      EIR.FreeProgramF (Env.ask -> programVar) -> do
+        freeFn <- gets (extFree . externals)
         program <- programVar
         () <$ call freeFn [(program, [])]
-      EIR.CallF r idx fn (map fst -> args) ->
+      EIR.CallF r idx fn (map Env.ask -> args) ->
         () <$ doCall r idx fn args
       EIR.LoopF stmts ->
-        loop $ traverse_ snd stmts
-      EIR.IfF (fst -> cond) (snd -> body) -> do
+        loop $ traverse_ (snd . Env.lower) stmts
+      EIR.IfF (Env.ask -> cond) (snd . Env.lower -> body) -> do
         condition <- cond
         if' condition body
       EIR.JumpF lbl ->
@@ -132,7 +148,7 @@ fnBodyToLLVM args = zygo instrToOperand instrToUnit
       EIR.LabelF lbl ->
         -- NOTE: the label should be globally unique thanks to the RA -> EIR lowering pass
         emitBlockStart $ labelToName lbl
-      EIR.ReturnF (fst -> value) ->
+      EIR.ReturnF (Env.ask -> value) ->
         ret =<< value
       _ ->
         panic "Unhandled pattern match case in 'instrToUnit' while lowering EIR to LLVM!"

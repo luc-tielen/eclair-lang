@@ -34,6 +34,7 @@ dependencies:
   - megaparsec == 9.*
   - souffle-haskell == 3.1.0
   - recursion-schemes == 5.*
+  - comonad == 5.*
   - algebraic-graphs == 0.*
   - llvm-hs == 9.*
   - llvm-hs-pure == 9.*

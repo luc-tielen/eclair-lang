@@ -1,5 +1,6 @@
 module Eclair.LLVM.Codegen
   ( CodegenM(..)
+  , runCodegenM
   , LowerState(..)
   , Externals(..)
   , Functions(..)
@@ -23,6 +24,7 @@ import Eclair.LLVM.Runtime
 import qualified Eclair.EIR.IR as EIR
 import Eclair.RA.IndexSelection
 
+
 type Relation = EIR.Relation
 
 type VarMap = Map Text Operand
@@ -36,7 +38,11 @@ data LowerState
   , externals :: Externals
   }
 
-type CodegenM = ReaderT LowerState (IRBuilderT (ModuleBuilderT IO))
+type CodegenM = StateT LowerState (IRBuilderT (ModuleBuilderT IO))
+
+
+runCodegenM :: CodegenM a -> LowerState -> IRBuilderT (ModuleBuilderT IO) a
+runCodegenM = evalStateT
 
 mkArg :: Word8 -> Type -> (Type, ParameterName)
 mkArg x ty =
@@ -48,7 +54,7 @@ labelToName (EIR.LabelId lbl) =
 
 lookupFunction :: Relation -> Index -> EIR.Function -> CodegenM Operand
 lookupFunction r idx fn =
-  extractFn . fromJust . M.lookup (r, idx) <$> asks fnsMap
+  extractFn . fromJust . M.lookup (r, idx) <$> gets fnsMap
   where
     extractFn = case fn of
       EIR.InitializeEmpty -> fnInitEmpty
@@ -67,17 +73,17 @@ lookupFunction r idx fn =
       EIR.IterBegin -> fnBegin
       EIR.IterEnd -> fnEnd
 
-toLLVMType :: (MonadReader LowerState m, MonadIO m)
+toLLVMType :: (MonadState LowerState m, MonadIO m)
            => Relation -> Index -> EIR.Type -> m Type
 toLLVMType r idx = go
   where
     go = \case
       EIR.Program ->
-        programType <$> ask
+        programType <$> get
       EIR.Iter ->
-        typeIter . fromJust . M.lookup (r, idx) <$> asks fnsMap
+        typeIter . fromJust . M.lookup (r, idx) <$> gets fnsMap
       EIR.Value ->
-        typeValue . fromJust . M.lookup (r, idx) <$> asks fnsMap
+        typeValue . fromJust . M.lookup (r, idx) <$> gets fnsMap
       EIR.Void ->
         pure void
       EIR.Pointer ty ->

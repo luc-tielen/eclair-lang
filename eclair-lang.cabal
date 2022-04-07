@@ -4,7 +4,7 @@ cabal-version: 2.2
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 5bc3cc8d98d0ec57b8e9774b29dcc100d8e4e7f2e195d2a1616d136aa88b563c
+-- hash: 1c9a903649101d3cf700723f8253437e81b1c2b86cbe45909f81c015fc213cc2
 
 name:           eclair-lang
 version:        0.1.0.0
@@ -80,6 +80,7 @@ library
       algebraic-graphs ==0.*
     , base >=4.7 && <5
     , bytestring ==0.10.*
+    , comonad ==5.*
     , containers ==0.*
     , exceptions ==0.10.*
     , extra ==1.*
@@ -144,6 +145,7 @@ executable eclairc
       algebraic-graphs ==0.*
     , base >=4.7 && <5
     , bytestring ==0.10.*
+    , comonad ==5.*
     , containers ==0.*
     , directory ==1.*
     , eclair-lang
@@ -213,6 +215,7 @@ test-suite eclair-test
       algebraic-graphs ==0.*
     , base >=4.7 && <5
     , bytestring ==0.10.*
+    , comonad ==5.*
     , containers ==0.*
     , eclair-lang
     , exceptions ==0.10.*
