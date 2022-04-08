@@ -19,7 +19,7 @@ import LLVM.AST.Name
 import LLVM.AST.Type
 import LLVM.AST.Constant hiding (index)
 import qualified LLVM.AST.IntegerPredicate as IP
-import LLVM.IRBuilder.Instruction
+import LLVM.IRBuilder.Instruction hiding (sizeof)
 import LLVM.IRBuilder.Constant
 import LLVM.IRBuilder.Module
 import LLVM.IRBuilder.Monad
@@ -93,7 +93,8 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
         doCall r idx fn args
       EIR.HeapAllocateProgramF -> do
         (malloc, programTy) <- gets (extMalloc . externals &&& programType)
-        let programSize = ConstantOperand $ sizeof programTy
+        let ptrSizeBits = 64
+            programSize = ConstantOperand $ sizeof ptrSizeBits programTy
         pointer <- call malloc [(programSize, [])]
         pointer `bitcast` ptr programTy
       EIR.StackAllocateF r idx ty -> do

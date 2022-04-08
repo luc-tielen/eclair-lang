@@ -4,7 +4,7 @@ cabal-version: 2.2
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: d33613867cb1c2b7b7a92399a9161625cfdd2b4a7abd5ec297b203a97fd0b4b1
+-- hash: cc44fbf02e62b34f47af12d5edd567e75a3ace75254e05fda163e6d4dd8c2bfb
 
 name:           eclair-lang
 version:        0.1.0.0
@@ -92,7 +92,7 @@ library
     , megaparsec ==9.*
     , mmorph ==1.*
     , mtl ==2.*
-    , prettyprinter ==1.*
+    , prettyprinter ==1.7.*
     , protolude ==0.3.0
     , recursion-schemes ==5.*
     , souffle-haskell ==3.1.0
@@ -159,7 +159,7 @@ executable eclairc
     , megaparsec ==9.*
     , mmorph ==1.*
     , mtl ==2.*
-    , prettyprinter ==1.*
+    , prettyprinter ==1.7.*
     , protolude ==0.3.0
     , recursion-schemes ==5.*
     , souffle-haskell ==3.1.0
@@ -234,7 +234,7 @@ test-suite eclair-test
     , mmorph ==1.*
     , mtl ==2.*
     , neat-interpolation ==0.*
-    , prettyprinter ==1.*
+    , prettyprinter ==1.7.*
     , protolude ==0.3.0
     , recursion-schemes ==5.*
     , souffle-haskell ==3.1.0

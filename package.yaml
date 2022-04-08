@@ -30,7 +30,7 @@ dependencies:
   - mmorph == 1.*
   - exceptions == 0.10.*
   - lens == 4.* # TODO: use microlens?
-  - prettyprinter == 1.*
+  - prettyprinter == 1.7.*
   - megaparsec == 9.*
   - souffle-haskell == 3.1.0
   - recursion-schemes == 5.*
