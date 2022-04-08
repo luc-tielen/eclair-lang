@@ -123,7 +123,7 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
             -- We need to store the result to the address the pointer is pointing to.
             address <- operand
             value <- val
-            store value 0 address
+            store address 0 value
       EIR.FreeProgramF (toOperand -> programVar) -> do
         freeFn <- gets (extFree . externals)
         program <- programVar
