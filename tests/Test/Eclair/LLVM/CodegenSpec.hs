@@ -46,13 +46,14 @@ spec = describe "LLVM Code Generation" $ parallel $ do
     extractDeclTypeSnippet llvmIR `shouldBe` "%program = type {%btree_t_0, %btree_t_1}"
     extractFnSnippet llvmIR "eclair_program_init" `shouldBe` Just [text|
       define external ccc  %program* @eclair_program_init()    {
-        %program_0 =  call ccc  i8*  @malloc(i64  ptrtoint (%program* getelementptr inbounds (%program, %program* inttoptr (i64 0 to %program*), i64 1) to i64))
-        %program_1 = bitcast i8* %program_0 to %program*
-        %1 = getelementptr  %program, %program* %program_1, i32 0, i32 0
+        %byte_count_0 = trunc i64 ptrtoint (%program* getelementptr inbounds (%program, %program* inttoptr (i64 0 to %program*), i64 1) to i64) to i32
+        %memory_0 =  call ccc  i8*  @malloc(i32  %byte_count_0)
+        %program_0 = bitcast i8* %memory_0 to %program*
+        %1 = getelementptr  %program, %program* %program_0, i32 0, i32 0
          call ccc  void  @btree_init_empty_0(%btree_t_0*  %1)
-        %2 = getelementptr  %program, %program* %program_1, i32 0, i32 1
+        %2 = getelementptr  %program, %program* %program_0, i32 0, i32 1
          call ccc  void  @btree_init_empty_1(%btree_t_1*  %2)
-        ret %program* %program_1
+        ret %program* %program_0
       }
       |]
     extractFnSnippet llvmIR "eclair_program_destroy" `shouldBe` Just [text|
@@ -100,13 +101,14 @@ spec = describe "LLVM Code Generation" $ parallel $ do
     extractDeclTypeSnippet llvmIR `shouldBe` "%program = type {%btree_t_0, %btree_t_0}"
     extractFnSnippet llvmIR "eclair_program_init" `shouldBe` Just [text|
       define external ccc  %program* @eclair_program_init()    {
-        %program_0 =  call ccc  i8*  @malloc(i64  ptrtoint (%program* getelementptr inbounds (%program, %program* inttoptr (i64 0 to %program*), i64 1) to i64))
-        %program_1 = bitcast i8* %program_0 to %program*
-        %1 = getelementptr  %program, %program* %program_1, i32 0, i32 0
+        %byte_count_0 = trunc i64 ptrtoint (%program* getelementptr inbounds (%program, %program* inttoptr (i64 0 to %program*), i64 1) to i64) to i32
+        %memory_0 =  call ccc  i8*  @malloc(i32  %byte_count_0)
+        %program_0 = bitcast i8* %memory_0 to %program*
+        %1 = getelementptr  %program, %program* %program_0, i32 0, i32 0
          call ccc  void  @btree_init_empty_0(%btree_t_0*  %1)
-        %2 = getelementptr  %program, %program* %program_1, i32 0, i32 1
+        %2 = getelementptr  %program, %program* %program_0, i32 0, i32 1
          call ccc  void  @btree_init_empty_0(%btree_t_0*  %2)
-        ret %program* %program_1
+        ret %program* %program_0
       }
       |]
     extractFnSnippet llvmIR "eclair_program_destroy" `shouldBe` Just [text|

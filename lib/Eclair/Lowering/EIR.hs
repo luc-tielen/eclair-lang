@@ -95,7 +95,10 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
         (malloc, programTy) <- gets (extMalloc . externals &&& programType)
         let ptrSizeBits = 64
             programSize = ConstantOperand $ sizeof ptrSizeBits programTy
-        pointer <- call malloc [(programSize, [])]
+        memorySize <- flip named "byte_count" $ case ptrSizeBits of
+          32 -> pure programSize
+          64 -> trunc programSize i32
+        pointer <- call malloc [(memorySize, [])] `named` "memory"
         pointer `bitcast` ptr programTy
       EIR.StackAllocateF r idx ty -> do
         theType <- toLLVMType r idx ty
