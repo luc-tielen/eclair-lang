@@ -40,7 +40,7 @@ compileToLLVM :: EIR -> IO Module
 compileToLLVM = \case
   EIR.Block (EIR.DeclareProgram metas : decls) -> buildModuleT "eclair_program" $ do
     exts <- createExternals
-    fnss <- traverse (codegenRuntime exts . snd) metas
+    fnss <- runCacheT $ traverse (codegenRuntime exts . snd) metas
     let fnsInfo = zip (map (map getIndexFromMeta) metas) fnss
         fnsMap = M.fromList fnsInfo
     programTy <- mkType "program" fnss
@@ -169,10 +169,21 @@ lowerM :: (EIRF (CodegenM Operand) -> CodegenM Operand)
        -> CodegenM ()
 lowerM f = gzygo f distPara
 
--- TODO: use caching, return cached compilation?
-codegenRuntime :: Externals -> Metadata -> ModuleBuilderT IO Functions
-codegenRuntime exts = \case
-  BTree meta -> BTree.codegen exts meta
+type CacheT = StateT (Map Metadata Functions)
+
+runCacheT :: Monad m => CacheT m a -> m a
+runCacheT m = evalStateT m mempty
+
+codegenRuntime :: Externals -> Metadata -> CacheT (ModuleBuilderT IO) Functions
+codegenRuntime exts meta = gets (M.lookup meta) >>= \case
+  Nothing -> do
+    fns <- cgRuntime
+    modify $ M.insert meta fns
+    pure fns
+  Just cachedFns -> pure cachedFns
+  where
+    cgRuntime = lift $ case meta of
+      BTree meta -> BTree.codegen exts meta
 
 -- TODO: add hash?
 mkType :: Name -> [Functions] -> ModuleBuilderT IO Type

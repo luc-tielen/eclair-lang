@@ -11,7 +11,7 @@ import Prettyprinter
 
 newtype Metadata
   = BTree BTree.Meta
-  deriving (Eq, Show)
+  deriving (Eq, Ord, Show)
   -- TODO: support other datastructures (Trie, ...)
 
 instance Pretty Metadata where

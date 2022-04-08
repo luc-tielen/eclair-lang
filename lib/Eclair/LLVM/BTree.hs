@@ -34,7 +34,7 @@ data Meta
   , blockSize :: Word64      -- Number of bytes per btree node
   , searchType :: SearchType -- Search strategy used in a single node
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Ord, Show)
   deriving stock Generic
   deriving ToHash via HashWithPrefix "btree" Meta
 
@@ -51,7 +51,7 @@ type Column = Int
 type SearchIndex = [Column]
 
 data SearchType = Linear | Binary
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Ord, Show)
   deriving stock (Generic, Enum)
   deriving ToHash via HashEnum SearchType
 
