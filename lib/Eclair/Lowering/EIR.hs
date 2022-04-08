@@ -76,7 +76,9 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
       EIR.FieldAccessF structOrVar pos -> do
         -- NOTE: structOrVar is always a pointer to a heap-/stack-allocated
         -- value so we need to first deref the pointer, and then index into the
-        -- fields of the value ('addr' does this for us).
+        -- fields of the value ('addr' does this for us). On top of that, we
+        -- can only compute the address here and not do a load as well, since
+        -- sometimes this pointer is used in a "store" instruction.
         addr (mkPath [int32 $ toInteger pos]) =<< structOrVar
       EIR.VarF v ->
         lookupVar v
@@ -87,6 +89,7 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
         b2 <- bool2
         and b1 b2
       EIR.EqualsF lhs rhs -> do
+        -- TODO: add loads if needed (both lhs and rhs)
         a <- lhs
         b <- rhs
         icmp IP.EQ a b
@@ -111,8 +114,9 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
       EIR.ParF stmts ->
         -- NOTE: this is just sequential evaluation for now
         traverse_ toInstrs stmts
-      EIR.AssignF (Env.runEnvT -> (operand, (eir, _))) (toOperand -> val) -> do
-        case eir of
+      EIR.AssignF (toOperandWithContext -> (operand, eirLHS))
+                  (toOperandWithContext -> (val, eirRHS)) -> do
+        case eirLHS of
           EIR.Var varName -> do
             -- Assigning to a variable: evaluate the value, and add to the varMap.
             -- This allows for future lookups of a variable.
@@ -123,7 +127,7 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
             -- "operand" will contain a pointer, "val" will contain the actual value
             -- We need to store the result to the address the pointer is pointing to.
             address <- operand
-            value <- val
+            value <- loadIfNeeded val eirRHS
             store address 0 value
       EIR.FreeProgramF (toOperand -> programVar) -> do
         freeFn <- gets (extFree . externals)
@@ -152,6 +156,9 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
       func <- lookupFunction r idx fn
       call func $ (, []) <$> argOperands
     toOperand = Env.ask
+    toOperandWithContext x =
+      let (operand, (eir, _)) = Env.runEnvT x
+       in (operand, eir)
     toInstrs = snd . Env.lower
 
 
@@ -223,4 +230,3 @@ createExternals = do
   freeFn <- extern "free" [ptr i8] void
   memsetFn <- extern "llvm.memset.p0i8.i64" [ptr i8, i8, i64, i1] void
   pure $ Externals mallocFn freeFn memsetFn
-

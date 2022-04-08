@@ -9,6 +9,7 @@ module Eclair.LLVM.Codegen
   , toLLVMType
   , lookupVar
   , addVarBinding
+  , loadIfNeeded
   ) where
 
 import Protolude hiding (Type, void)
@@ -20,6 +21,7 @@ import LLVM.AST.Type (Type, ptr, void)
 import LLVM.AST.Name
 import LLVM.IRBuilder.Module
 import LLVM.IRBuilder.Monad
+import LLVM.IRBuilder.Instruction
 import Data.ByteString.Short hiding (index)
 import Eclair.LLVM.Runtime
 import qualified Eclair.EIR.IR as EIR
@@ -27,6 +29,7 @@ import Eclair.RA.IndexSelection
 
 
 type Relation = EIR.Relation
+type EIR = EIR.EIR
 
 type VarMap = Map Text Operand
 type FunctionsMap = Map (Relation, Index) Functions
@@ -94,3 +97,10 @@ addVarBinding :: Text -> Operand -> CodegenM ()
 addVarBinding var value =
   modify $ \s -> s { varMap = M.insert var value (varMap s) }
 
+-- NOTE: this is for the case when we are assigning 1 field of a struct/array
+-- to another of the same kind, where the right side needs to be loaded before
+-- storing it to the left side of the equation.
+loadIfNeeded :: CodegenM Operand -> EIR -> CodegenM Operand
+loadIfNeeded operand = \case
+  EIR.FieldAccess _ _ -> flip load 0 =<< operand
+  _ -> operand

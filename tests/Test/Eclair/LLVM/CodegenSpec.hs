@@ -159,12 +159,14 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         %value_3_0 = alloca %value_t_0, i32 1
         %11 = getelementptr  %value_t_0, %value_t_0* %value_3_0, i32 0, i32 0
         %12 = getelementptr  %value_t_0, %value_t_0* %current_0, i32 0, i32 0
-        store   %column_t_0* %12, %column_t_0* %11
-        %13 = getelementptr  %value_t_0, %value_t_0* %value_3_0, i32 0, i32 1
-        %14 = getelementptr  %value_t_0, %value_t_0* %current_0, i32 0, i32 1
-        store   %column_t_0* %14, %column_t_0* %13
-        %15 = getelementptr  %program, %program* %arg_0, i32 0, i32 1
-        %16 =  call ccc  i1  @btree_insert_value_0(%btree_t_0*  %15, %value_t_0*  %value_3_0)
+        %13 = load   %column_t_0, %column_t_0* %12
+        store   %column_t_0 %13, %column_t_0* %11
+        %14 = getelementptr  %value_t_0, %value_t_0* %value_3_0, i32 0, i32 1
+        %15 = getelementptr  %value_t_0, %value_t_0* %current_0, i32 0, i32 1
+        %16 = load   %column_t_0, %column_t_0* %15
+        store   %column_t_0 %16, %column_t_0* %14
+        %17 = getelementptr  %program, %program* %arg_0, i32 0, i32 1
+        %18 =  call ccc  i1  @btree_insert_value_0(%btree_t_0*  %17, %value_t_0*  %value_3_0)
          call ccc  void  @btree_iterator_next_0(%btree_iterator_t_0*  %begin_iter_0)
         br label %loop_0
       range_query.end:
