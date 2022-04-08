@@ -1,4 +1,4 @@
-module Eclair.Lowering.AST ( compileRA ) where
+module Eclair.Lowering.AST ( compileToRA ) where
 
 import Protolude hiding (swap)
 import Eclair.Syntax hiding (Clause)
@@ -9,8 +9,8 @@ import Control.Lens hiding (Equality, Index)
 type RA = RA.RA
 type Relation = RA.Relation
 
-compileRA :: AST -> RA
-compileRA ast = RA.Module $ concatMap processDecls sortedDecls where
+compileToRA :: AST -> RA
+compileToRA ast = RA.Module $ concatMap processDecls sortedDecls where
   sortedDecls = scc ast
 
   processDecls :: [AST] -> [RA]

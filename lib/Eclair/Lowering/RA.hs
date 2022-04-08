@@ -21,6 +21,7 @@ import qualified Eclair.EIR.IR as EIR
 import qualified Eclair.RA.IR as RA
 import qualified Eclair.LLVM.Metadata as M
 
+
 compileToEIR :: TypeInfo -> RA -> EIR
 compileToEIR typeInfo ra =
   let (indexMap, getIndexForSearch) = runIndexSelection ra

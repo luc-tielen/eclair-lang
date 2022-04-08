@@ -56,21 +56,22 @@ instance Pretty EIR where
     FunctionArg pos -> "FN_ARG" <> brackets (pretty pos)
     DeclareProgram metadatas ->
       vsep ["declare_type" <+> "Program"
-           , statementBlock metadatas
+           , braceBlock . vsep $
+             map (\(r, meta) -> pretty r <+> pretty meta) metadatas
            ]
     FieldAccess ptr pos ->
       pretty ptr <> "." <> pretty pos
     Var v -> pretty v
     Assign var value ->
       pretty var <+> "=" <+> pretty value
-    Call r idx fn args ->
-      pretty r <> parens (pretty idx) <> "." <> pretty fn <> parens (withCommas $ map pretty args)
+    Call r _idx fn args ->
+      pretty r <> "." <> pretty fn <> parens (withCommas $ map pretty args)
     HeapAllocateProgram ->
       "heap_allocate_program"
     FreeProgram ptr ->
       "free_program" <> parens (pretty ptr)
-    StackAllocate r idx ty ->
-      pretty r <> parens (pretty idx) <> "." <> "stack_allocate" <+> pretty ty
+    StackAllocate r _idx ty ->
+      pretty r <> "." <> "stack_allocate" <+> pretty ty
     Par stmts ->
       vsep ["parallel", statementBlock stmts]
     Loop stmts ->

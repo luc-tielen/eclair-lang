@@ -18,20 +18,11 @@ import Eclair.Parser
 import Eclair.TypeSystem
 import Eclair.Lowering.AST
 
-compileRA' :: FilePath -> IO (Either ParseError RA.RA)
-compileRA' path = do
-  parseResult <- parseFile path
-  case parseResult of
-    Left err -> pure $ Left err
-    Right ast -> do
-      let typeInfo = getTypeInfo ast
-          ra = compileRA ast
-      pure $ Right ra
 
 cg :: FilePath -> IO T.Text
 cg path = do
   let file = "tests/fixtures/codegen" </> path <.> "dl"
-  result <- compileRA' file
+  result <- compileRA file
   case result of
     Left err -> panic $ "Failed to parse " <> T.pack file <> "!"
     Right ra -> pure $ printDoc ra

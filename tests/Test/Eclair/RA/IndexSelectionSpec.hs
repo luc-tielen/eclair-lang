@@ -7,6 +7,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Test.Hspec
 import System.FilePath
+import Eclair
 import Eclair.Syntax
 import Eclair.Parser
 import Eclair.Lowering.AST
@@ -17,12 +18,11 @@ import qualified Data.Text as T
 idxSel :: FilePath -> IO IndexMap
 idxSel path = do
   let file = "tests/fixtures/codegen" </> path <.> "dl"
-  parseResult <- parseFile file
-  case parseResult of
+  raResult <- compileRA file
+  case raResult of
     Left err -> panic $ "Failed to parse " <> T.pack file <> "!"
-    Right ast -> do
-      let ra = compileRA ast
-          (indexMap, _) = runIndexSelection ra
+    Right ra -> do
+      let (indexMap, _) = runIndexSelection ra
       pure indexMap
 
 resultsIn :: (Show a, Eq a) => IO a -> a -> IO ()
