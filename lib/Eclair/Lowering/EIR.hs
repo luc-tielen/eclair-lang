@@ -127,7 +127,8 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
       EIR.FreeProgramF (toOperand -> programVar) -> do
         freeFn <- gets (extFree . externals)
         program <- programVar
-        () <$ call freeFn [(program, [])]
+        memory <- program `bitcast` ptr i8 `named` "memory"
+        () <$ call freeFn [(memory, [])]
       EIR.CallF r idx fn (map toOperand -> args) ->
         () <$ doCall r idx fn args
       EIR.LoopF stmts ->
