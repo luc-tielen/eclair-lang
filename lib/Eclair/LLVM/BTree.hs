@@ -53,7 +53,11 @@ type SearchIndex = [Column]
 data SearchType = Linear | Binary
   deriving stock (Eq, Ord, Show)
   deriving stock (Generic, Enum)
-  deriving ToHash via HashEnum SearchType
+
+instance ToHash SearchType where
+  getHash = \case
+    Linear -> getHash ("linear" :: Text)
+    Binary -> getHash ("binary" :: Text)
 
 instance Pretty SearchType where
   pretty Linear = "linear"
