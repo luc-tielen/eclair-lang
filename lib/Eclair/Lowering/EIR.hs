@@ -29,6 +29,7 @@ import qualified Eclair.LLVM.BTree as BTree
 import Eclair.LLVM.Metadata
 import Eclair.LLVM.Codegen
 import Eclair.LLVM.Hash
+import Eclair.LLVM.Runtime
 import Eclair.RA.IndexSelection
 import Eclair.Syntax
 
@@ -93,11 +94,7 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
         doCall r idx fn args
       EIR.HeapAllocateProgramF -> do
         (malloc, programTy) <- gets (extMalloc . externals &&& programType)
-        let ptrSizeBits = 64
-            programSize = ConstantOperand $ sizeof ptrSizeBits programTy
-        memorySize <- flip named "byte_count" $ case ptrSizeBits of
-          32 -> pure programSize
-          64 -> trunc programSize i32
+        memorySize <- sizeOfProgram programTy `named` "byte_count"
         pointer <- call malloc [(memorySize, [])] `named` "memory"
         pointer `bitcast` ptr programTy
       EIR.StackAllocateF r idx ty -> do
@@ -157,14 +154,6 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
     toOperand = Env.ask
     toInstrs = snd . Env.lower
 
--- Only called internally, should always be called on a var that exists.
-lookupVar :: Text -> CodegenM Operand
-lookupVar v = gets (fromJust . M.lookup v . varMap)
-
-addVarBinding :: Text -> Operand -> CodegenM ()
-addVarBinding var value =
-  modify $ \s -> s { varMap = M.insert var value (varMap s) }
-
 
 -- NOTE: zygo is kind of abused here, since due to lazyness we can choose what
 -- we need to compile to LLVM: instructions either return "()" or an "Operand".
@@ -177,25 +166,32 @@ lowerM :: (EIRF (CodegenM Operand) -> CodegenM Operand)
        -> CodegenM ()
 lowerM f = gzygo f distPara
 
--- TODO: Map Metadata (Suffix, Functions)?
-type CacheT = StateT [(Metadata, Functions)]
+-- TODO: get cpu arch to make this check dynamically
+sizeOfProgram :: Type -> CodegenM Operand
+sizeOfProgram programTy = do
+  let ptrSizeBits = 64
+      programSize = ConstantOperand $ sizeof ptrSizeBits programTy
+  -- TODO: use ADT to make pattern match exhaustive
+  -- case ptrSizeBits of
+  --   32 -> pure programSize
+  --   64 -> trunc programSize i32
+  trunc programSize i32
 
-runCacheT :: Monad m => CacheT m a -> m (Map Metadata Int, a)
+type CacheT = StateT (Map Metadata (Suffix, Functions))
+
+runCacheT :: Monad m => CacheT m a -> m (Map Metadata Suffix, a)
 runCacheT m = do
   (a, s) <- runStateT m mempty
-  let metas = map fst s
-  pure (M.fromList $ zip metas [0..], a)
+  pure (map fst s, a)
 
 codegenRuntime :: Externals -> Metadata -> CacheT (ModuleBuilderT IO) Functions
-codegenRuntime exts meta = gets (L.lookup meta) >>= \case
+codegenRuntime exts meta = gets (M.lookup meta) >>= \case
   Nothing -> do
     suffix <- gets length
     fns <- cgRuntime suffix
-    -- Append since we need to maintain the order of previous entries for
-    -- hash mapping to stay consistent.
-    modify (++ [(meta, fns)])
+    modify $ M.insert meta (suffix, fns)
     pure fns
-  Just cachedFns -> pure cachedFns
+  Just (_, cachedFns) -> pure cachedFns
   where
     cgRuntime suffix = lift $ case meta of
       BTree meta -> BTree.codegen suffix exts meta

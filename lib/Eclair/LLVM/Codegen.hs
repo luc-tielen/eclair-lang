@@ -7,6 +7,8 @@ module Eclair.LLVM.Codegen
   , labelToName
   , lookupFunction
   , toLLVMType
+  , lookupVar
+  , addVarBinding
   ) where
 
 import Protolude hiding (Type, void)
@@ -83,3 +85,12 @@ toLLVMType r idx = go
         pure void
       EIR.Pointer ty ->
         ptr <$> go ty
+
+-- Only called internally, should always be called on a var that exists.
+lookupVar :: Text -> CodegenM Operand
+lookupVar v = gets (fromJust . M.lookup v . varMap)
+
+addVarBinding :: Text -> Operand -> CodegenM ()
+addVarBinding var value =
+  modify $ \s -> s { varMap = M.insert var value (varMap s) }
+
