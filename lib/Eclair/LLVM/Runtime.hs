@@ -1,8 +1,11 @@
 module Eclair.LLVM.Runtime
   ( Functions(..)
   , Externals(..)
+  , Suffix
+  , HasSuffix(..)
   ) where
 
+import Protolude (Int)
 import LLVM.AST.Operand
 import LLVM.AST.Type
 
@@ -39,3 +42,8 @@ data Externals
   , extMemset :: Operand
   }
 
+-- Appended to every LLVM type and function to make sure no collisions occur during codegen.
+type Suffix = Int
+
+class HasSuffix a where
+  getSuffix :: a -> Suffix

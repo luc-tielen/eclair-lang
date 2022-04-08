@@ -59,6 +59,16 @@ instance Pretty SearchType where
   pretty Linear = "linear"
   pretty Binary = "binary"
 
+-- State only used during generation of types
+data TGState
+  = TGState
+  { tgMeta :: Meta
+  , tgSuffix :: Suffix
+  }
+
+instance HasSuffix TGState where
+  getSuffix = tgSuffix
+
 data Types
   = Types
   { btreeTy :: Type
@@ -81,26 +91,30 @@ data Sizes
   , innerNodeSize :: Word64
   }
 
+-- State used during rest of the btree codegen
 data CGState
   = CGState
-  { meta :: Meta
+  { cgSuffix :: Suffix
+  , meta :: Meta
   , types :: Types
   , typeSizes :: Sizes
   , externals :: Externals
   }
-  deriving ToHash via HashOnly "meta" CGState
+
+instance HasSuffix CGState where
+  getSuffix = cgSuffix
 
 type IRCodegen = IRBuilderT ModuleCodegen
 
 type ModuleCodegen = ReaderT CGState ModuleBuilder
 
 
-codegen :: Externals -> Meta -> ModuleBuilderT IO Functions
-codegen exts settings = do
+codegen :: Suffix -> Externals -> Meta -> ModuleBuilderT IO Functions
+codegen suffix exts settings = do
   sizes <- computeSizes settings
   hoist intoIO $ do
-    tys <- runReaderT (generateTypes sizes) settings
-    runReaderT generateFunctions $ CGState settings tys sizes exts
+    tys <- runReaderT (generateTypes sizes) $ TGState settings suffix
+    runReaderT generateFunctions $ CGState suffix settings tys sizes exts
   where intoIO = pure . runIdentity
 
 computeSizes :: Meta -> ModuleBuilderT IO Sizes
@@ -127,10 +141,11 @@ computeSizes settings = do
   where
     wrap = StructureType False
 
-generateTypes :: (MonadModuleBuilder m, MonadReader Meta m, MonadFix m)
+generateTypes :: (MonadModuleBuilder m, MonadReader TGState m, MonadFix m)
               => Sizes -> m Types
 generateTypes sizes = mdo
-  meta <- ask
+  meta <- asks tgMeta
+  suffix <- asks tgSuffix
   let numKeys' = numKeys meta sizes
 
   columnTy <- mkType "column_t" i32

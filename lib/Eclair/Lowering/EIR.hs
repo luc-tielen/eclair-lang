@@ -6,10 +6,11 @@ import Protolude hiding (Type, and, void)
 import Control.Arrow ((&&&))
 import qualified Control.Comonad.Env as Env
 import Data.Functor.Foldable hiding (fold)
-import Data.ByteString.Short hiding (index)
+import Data.ByteString.Short hiding (index, length)
 import qualified Data.Text as T
 import qualified Data.ByteString as BS
 import qualified Data.Map as M
+import qualified Data.List as L
 import Data.List ((!!))
 import Data.Maybe (fromJust)
 import LLVM.AST (Module)
@@ -27,6 +28,7 @@ import qualified Eclair.EIR.IR as EIR
 import qualified Eclair.LLVM.BTree as BTree
 import Eclair.LLVM.Metadata
 import Eclair.LLVM.Codegen
+import Eclair.LLVM.Hash
 import Eclair.RA.IndexSelection
 import Eclair.Syntax
 
@@ -40,7 +42,8 @@ compileToLLVM :: EIR -> IO Module
 compileToLLVM = \case
   EIR.Block (EIR.DeclareProgram metas : decls) -> buildModuleT "eclair_program" $ do
     exts <- createExternals
-    fnss <- runCacheT $ traverse (codegenRuntime exts . snd) metas
+    (metaMapping, fnss) <- runCacheT $ traverse (codegenRuntime exts . snd) metas
+    codegenDebugInfos metaMapping
     let fnsInfo = zip (map (map getIndexFromMeta) metas) fnss
         fnsMap = M.fromList fnsInfo
     programTy <- mkType "program" fnss
@@ -169,23 +172,39 @@ lowerM :: (EIRF (CodegenM Operand) -> CodegenM Operand)
        -> CodegenM ()
 lowerM f = gzygo f distPara
 
-type CacheT = StateT (Map Metadata Functions)
+-- TODO: Map Metadata (Suffix, Functions)?
+type CacheT = StateT [(Metadata, Functions)]
 
-runCacheT :: Monad m => CacheT m a -> m a
-runCacheT m = evalStateT m mempty
+runCacheT :: Monad m => CacheT m a -> m (Map Metadata Int, a)
+runCacheT m = do
+  (a, s) <- runStateT m mempty
+  let metas = map fst s
+  pure (M.fromList $ zip metas [0..], a)
 
 codegenRuntime :: Externals -> Metadata -> CacheT (ModuleBuilderT IO) Functions
-codegenRuntime exts meta = gets (M.lookup meta) >>= \case
+codegenRuntime exts meta = gets (L.lookup meta) >>= \case
   Nothing -> do
-    fns <- cgRuntime
-    modify $ M.insert meta fns
+    suffix <- gets length
+    fns <- cgRuntime suffix
+    -- Append since we need to maintain the order of previous entries for
+    -- hash mapping to stay consistent.
+    modify (++ [(meta, fns)])
     pure fns
   Just cachedFns -> pure cachedFns
   where
-    cgRuntime = lift $ case meta of
-      BTree meta -> BTree.codegen exts meta
+    cgRuntime suffix = lift $ case meta of
+      BTree meta -> BTree.codegen suffix exts meta
 
--- TODO: add hash?
+codegenDebugInfos :: Monad m => Map Metadata Int -> ModuleBuilderT m ()
+codegenDebugInfos metaMapping =
+  traverse_ (uncurry codegenDebugInfo) $ M.toList metaMapping
+  where
+    codegenDebugInfo meta i =
+      let hash = getHash meta
+          name = mkName $ T.unpack $ ("specialize_debug_info." <>) $ unHash hash
+       in global name i32 (Int 32 $ toInteger i)
+
+-- TODO: add hash based on filepath of the file we're compiling?
 mkType :: Name -> [Functions] -> ModuleBuilderT IO Type
 mkType name fnss =
   typedef name (struct tys)

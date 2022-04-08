@@ -6,12 +6,14 @@ module Eclair.LLVM.Metadata
 import Protolude hiding (Type)
 import Eclair.RA.IndexSelection (Index(..))
 import Eclair.TypeSystem
+import Eclair.LLVM.Hash
 import qualified Eclair.LLVM.BTree as BTree
 import Prettyprinter
 
 newtype Metadata
   = BTree BTree.Meta
   deriving (Eq, Ord, Show)
+  deriving ToHash via BTree.Meta
   -- TODO: support other datastructures (Trie, ...)
 
 instance Pretty Metadata where
