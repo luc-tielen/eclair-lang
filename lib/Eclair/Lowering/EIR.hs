@@ -59,7 +59,7 @@ compileToLLVM = \case
             getType ty = evalStateT (toLLVMType unusedRelation unusedIndex ty) beginState
         argTypes <- liftIO $ traverse getType tys
         returnType <- liftIO $ getType retTy
-        let args = zipWith mkArg [0..] argTypes
+        let args = map (, ParameterName "arg") argTypes
         function (mkName $ T.unpack name) args returnType $ \args -> do
           runCodegenM (fnBodyToLLVM args body) beginState
       _ ->

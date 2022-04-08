@@ -4,7 +4,6 @@ module Eclair.LLVM.Codegen
   , LowerState(..)
   , Externals(..)
   , Functions(..)
-  , mkArg
   , labelToName
   , lookupFunction
   , toLLVMType
@@ -43,10 +42,6 @@ type CodegenM = StateT LowerState (IRBuilderT (ModuleBuilderT IO))
 
 runCodegenM :: CodegenM a -> LowerState -> IRBuilderT (ModuleBuilderT IO) a
 runCodegenM = evalStateT
-
-mkArg :: Word8 -> Type -> (Type, ParameterName)
-mkArg x ty =
-  (ty, ParameterName $ "arg" <> pack [x])
 
 labelToName :: EIR.LabelId -> Name
 labelToName (EIR.LabelId lbl) =
