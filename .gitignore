@@ -4,5 +4,6 @@ dist/
 cabal.project.local*
 
 *.ll
+*.bc
 *.o
 *.s
