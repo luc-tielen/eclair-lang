@@ -106,7 +106,7 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
         pure $ int32 (fromIntegral value)
       _ ->
         panic "Unhandled pattern match case in 'instrToOperand' while lowering EIR to LLVM!"
-    instrToUnit :: (EIRF (EnvT EIR ((,) (CodegenM Operand) ) (CodegenM ())) -> CodegenM ())
+    instrToUnit :: (EIRF (Triple EIR (CodegenM Operand) (CodegenM ())) -> CodegenM ())
     instrToUnit = \case
       EIR.BlockF stmts -> do
         traverse_ toInstrs stmts
@@ -154,14 +154,28 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
       argOperands <- sequence args
       func <- lookupFunction r idx fn
       call func $ (, []) <$> argOperands
-    toOperand :: EnvT a ((,) c) b -> c
-    toOperand = fst . Env.lower
-    toOperandWithContext x =
-      let (eir, (operand, _)) = Env.runEnvT x
-       in (operand, eir)
-    toInstrs :: EnvT a ((,) c) b -> b
-    toInstrs = snd . Env.lower
+    toOperand (Triple _ operand _) = operand
+    toOperandWithContext (Triple eir operand _) =
+      (operand, eir)
+    toInstrs (Triple _ _ instrs) = instrs
 
+-- A tuple of 3 elements, defined as a newtype so a Comonad instance can be added.
+data Triple a b c
+  = Triple
+  { tFst :: a
+  , tSnd :: b
+  , tThd :: c
+  }
+
+instance Functor (Triple a b) where
+  fmap f (Triple a b c) =
+    Triple a b (f c)
+
+instance Env.Comonad (Triple a b) where
+  extract (Triple _ _ c) = c
+
+  duplicate (Triple a b c) =
+    Triple a b (Triple a b c)
 
 -- Here be recursion-schemes dragons...
 --
@@ -175,7 +189,7 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
 -- assignment case to check if we are assigning to a variable or not, allowing
 -- us to easily transform an "expression-oriented" EIR to statement based LLVM IR.
 lowerM :: (EIRF (EIR, CodegenM Operand) -> CodegenM Operand)
-       -> (EIRF (EnvT EIR ((,) (CodegenM Operand)) (CodegenM ())) -> CodegenM ())
+       -> (EIRF (Triple EIR (CodegenM Operand) (CodegenM ())) -> CodegenM ())
        -> EIR
        -> CodegenM ()
 lowerM f = gcata (distParaZygo f)
@@ -183,13 +197,12 @@ lowerM f = gcata (distParaZygo f)
     distParaZygo
       :: Corecursive t
       => (Base t (t, b) -> b)
-      -> (Base t (EnvT t ((,) b) a) -> EnvT t ((,) b) (Base t a))
+      -> (Base t (Triple t b a) -> Triple t b (Base t a))
     distParaZygo g m =
-      let env = map Env.runEnvT m
-          t = map fst env
-          tb = map (fst &&& fst . snd) env
-          ta = map (snd . snd) env
-      in Env.EnvT (embed t) (g tb, ta)
+      let base_t_t = map tFst m
+          base_t_tb = map (tFst &&& tSnd) m
+          base_t_a = map tThd m
+       in Triple (embed base_t_t) (g base_t_tb) base_t_a
 
 -- TODO: get cpu arch to make this check dynamically
 sizeOfProgram :: Type -> CodegenM Operand
