@@ -69,11 +69,11 @@ compileToLLVM = \case
 fnBodyToLLVM :: [Operand] -> EIR -> CodegenM ()
 fnBodyToLLVM args = lowerM instrToOperand instrToUnit
   where
-    instrToOperand :: EIRF (CodegenM Operand) -> CodegenM Operand
+    instrToOperand :: EIRF (EIR, CodegenM Operand) -> CodegenM Operand
     instrToOperand = \case
       EIR.FunctionArgF pos ->
         pure $ args !! pos
-      EIR.FieldAccessF structOrVar pos -> do
+      EIR.FieldAccessF (snd -> structOrVar) pos -> do
         -- NOTE: structOrVar is always a pointer to a heap-/stack-allocated
         -- value so we need to first deref the pointer, and then index into the
         -- fields of the value ('addr' does this for us). On top of that, we
@@ -82,18 +82,17 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
         addr (mkPath [int32 $ toInteger pos]) =<< structOrVar
       EIR.VarF v ->
         lookupVar v
-      EIR.NotF bool ->
+      EIR.NotF (snd -> bool) ->
         not' =<< bool
-      EIR.AndF bool1 bool2 -> do
+      EIR.AndF (snd -> bool1) (snd -> bool2) -> do
         b1 <- bool1
         b2 <- bool2
         and b1 b2
-      EIR.EqualsF lhs rhs -> do
-        -- TODO: add loads if needed (both lhs and rhs)
-        a <- lhs
-        b <- rhs
-        icmp IP.EQ a b
-      EIR.CallF r idx fn args ->
+      EIR.EqualsF (a, lhs) (b, rhs) -> do
+        valueA <- loadIfNeeded lhs a
+        valueB <- loadIfNeeded rhs b
+        icmp IP.EQ valueA valueB
+      EIR.CallF r idx fn (map snd -> args) ->
         doCall r idx fn args
       EIR.HeapAllocateProgramF -> do
         (malloc, programTy) <- gets (extMalloc . externals &&& programType)
@@ -107,7 +106,7 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
         pure $ int32 (fromIntegral value)
       _ ->
         panic "Unhandled pattern match case in 'instrToOperand' while lowering EIR to LLVM!"
-    instrToUnit :: (EIRF (EnvT (CodegenM Operand) ((,) EIR) (CodegenM ())) -> CodegenM ())
+    instrToUnit :: (EIRF (EnvT EIR ((,) (CodegenM Operand) ) (CodegenM ())) -> CodegenM ())
     instrToUnit = \case
       EIR.BlockF stmts -> do
         traverse_ toInstrs stmts
@@ -155,23 +154,42 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
       argOperands <- sequence args
       func <- lookupFunction r idx fn
       call func $ (, []) <$> argOperands
-    toOperand = Env.ask
+    toOperand :: EnvT a ((,) c) b -> c
+    toOperand = fst . Env.lower
     toOperandWithContext x =
-      let (operand, (eir, _)) = Env.runEnvT x
+      let (eir, (operand, _)) = Env.runEnvT x
        in (operand, eir)
+    toInstrs :: EnvT a ((,) c) b -> b
     toInstrs = snd . Env.lower
 
 
--- NOTE: zygo is kind of abused here, since due to lazyness we can choose what
+-- Here be recursion-schemes dragons...
+--
+-- lowerM is a recursion-scheme that behaves like a zygomorphism, but it is
+-- enhanced in the sense that both functions passed to the zygomorphism have
+-- access to the original subtree.
+--
+-- NOTE: zygo effect is kind of abused here, since due to lazyness we can choose what
 -- we need to compile to LLVM: instructions either return "()" or an "Operand".
--- para is needed since we need access to the original subtree in the
+-- para effect is needed since we need access to the original subtree in the
 -- assignment case to check if we are assigning to a variable or not, allowing
 -- us to easily transform an "expression-oriented" EIR to statement based LLVM IR.
-lowerM :: (EIRF (CodegenM Operand) -> CodegenM Operand)
-       -> (EIRF (EnvT (CodegenM Operand) ((,) EIR) (CodegenM ())) -> CodegenM ())
+lowerM :: (EIRF (EIR, CodegenM Operand) -> CodegenM Operand)
+       -> (EIRF (EnvT EIR ((,) (CodegenM Operand)) (CodegenM ())) -> CodegenM ())
        -> EIR
        -> CodegenM ()
-lowerM f = gzygo f distPara
+lowerM f = gcata (distParaZygo f)
+  where
+    distParaZygo
+      :: Corecursive t
+      => (Base t (t, b) -> b)
+      -> (Base t (EnvT t ((,) b) a) -> EnvT t ((,) b) (Base t a))
+    distParaZygo g m =
+      let env = map Env.runEnvT m
+          t = map fst env
+          tb = map (fst &&& fst . snd) env
+          ta = map (snd . snd) env
+      in Env.EnvT (embed t) (g tb, ta)
 
 -- TODO: get cpu arch to make this check dynamically
 sizeOfProgram :: Type -> CodegenM Operand
