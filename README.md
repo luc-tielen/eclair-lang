@@ -24,6 +24,7 @@ yet for example).
 - [x] Add indices to relations
 - [x] Compile to Eclair IR (EIR)
 - [x] Compile to LLVM
+- [ ] Add functions for sending data back and forth between Eclair and the host language
 - [ ] Clean up rough edges in the MVP
 - [ ] Support other data types than integers (strings, ...)
 - [ ] Add typesystem
