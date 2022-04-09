@@ -4,7 +4,7 @@ module Eclair.Lowering.EIR
 
 import Protolude hiding (Type, and, void)
 import Control.Arrow ((&&&))
-import qualified Control.Comonad.Env as Env
+import Control.Comonad
 import Data.Functor.Foldable hiding (fold)
 import Data.ByteString.Short hiding (index, length)
 import qualified Data.Text as T
@@ -37,7 +37,6 @@ import Eclair.Syntax
 type EIR = EIR.EIR
 type EIRF = EIR.EIRF
 type Relation = EIR.Relation
-type EnvT = Env.EnvT
 
 compileToLLVM :: EIR -> IO Module
 compileToLLVM = \case
@@ -165,13 +164,9 @@ data Triple a b c
   { tFst :: a
   , tSnd :: b
   , tThd :: c
-  }
+  } deriving Functor
 
-instance Functor (Triple a b) where
-  fmap f (Triple a b c) =
-    Triple a b (f c)
-
-instance Env.Comonad (Triple a b) where
+instance Comonad (Triple a b) where
   extract (Triple _ _ c) = c
 
   duplicate (Triple a b c) =

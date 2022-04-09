@@ -297,18 +297,129 @@ spec = describe "LLVM Code Generation" $ parallel $ do
       }
       |]
 
-  {-
   it "generates code for a rule with 2 clauses of same name" $ do
     llvmIR <- cg "multiple_clauses_same_name"
-    extractDeclTypeSnippet llvmIR `shouldBe` [text|
-      |]
+    extractDeclTypeSnippet llvmIR `shouldBe` "%program = type {%btree_t_0, %btree_t_1}"
     extractFnSnippet llvmIR "eclair_program_init" `shouldBe` Just [text|
+      define external ccc  %program* @eclair_program_init()    {
+        %byte_count_0 = trunc i64 ptrtoint (%program* getelementptr inbounds (%program, %program* inttoptr (i64 0 to %program*), i64 1) to i64) to i32
+        %memory_0 =  call ccc  i8*  @malloc(i32  %byte_count_0)
+        %program_0 = bitcast i8* %memory_0 to %program*
+        %1 = getelementptr  %program, %program* %program_0, i32 0, i32 0
+         call ccc  void  @btree_init_empty_0(%btree_t_0*  %1)
+        %2 = getelementptr  %program, %program* %program_0, i32 0, i32 1
+         call ccc  void  @btree_init_empty_1(%btree_t_1*  %2)
+        ret %program* %program_0
+      }
       |]
     extractFnSnippet llvmIR "eclair_program_destroy" `shouldBe` Just [text|
+      define external ccc  void @eclair_program_destroy(%program*  %arg_0)    {
+        %1 = getelementptr  %program, %program* %arg_0, i32 0, i32 0
+         call ccc  void  @btree_destroy_0(%btree_t_0*  %1)
+        %2 = getelementptr  %program, %program* %arg_0, i32 0, i32 1
+         call ccc  void  @btree_destroy_1(%btree_t_1*  %2)
+        %memory_0 = bitcast %program* %arg_0 to i8*
+         call ccc  void  @free(i8*  %memory_0)
+        ret void
+      }
       |]
     extractFnSnippet llvmIR "eclair_program_run" `shouldBe` Just [text|
+      define external ccc  void @eclair_program_run(%program*  %arg_0)    {
+      ; <label>:0:
+        %value_0 = alloca %value_t_1, i32 1
+        %1 = getelementptr  %value_t_1, %value_t_1* %value_0, i32 0, i32 0
+        store   i32 1, %column_t_1* %1
+        %2 = getelementptr  %value_t_1, %value_t_1* %value_0, i32 0, i32 1
+        store   i32 2, %column_t_1* %2
+        %3 = getelementptr  %program, %program* %arg_0, i32 0, i32 1
+        %4 =  call ccc  i1  @btree_insert_value_1(%btree_t_1*  %3, %value_t_1*  %value_0)
+        %value_1_0 = alloca %value_t_1, i32 1
+        %5 = getelementptr  %value_t_1, %value_t_1* %value_1_0, i32 0, i32 0
+        store   i32 0, %column_t_1* %5
+        %6 = getelementptr  %value_t_1, %value_t_1* %value_1_0, i32 0, i32 1
+        store   i32 0, %column_t_1* %6
+        %value_2_0 = alloca %value_t_1, i32 1
+        %7 = getelementptr  %value_t_1, %value_t_1* %value_2_0, i32 0, i32 0
+        store   i32 4294967295, %column_t_1* %7
+        %8 = getelementptr  %value_t_1, %value_t_1* %value_2_0, i32 0, i32 1
+        store   i32 4294967295, %column_t_1* %8
+        %begin_iter_0 = alloca %btree_iterator_t_1, i32 1
+        %end_iter_0 = alloca %btree_iterator_t_1, i32 1
+        %9 = getelementptr  %program, %program* %arg_0, i32 0, i32 1
+         call ccc  void  @btree_lower_bound_1(%btree_t_1*  %9, %value_t_1*  %value_1_0, %btree_iterator_t_1*  %begin_iter_0)
+        %10 = getelementptr  %program, %program* %arg_0, i32 0, i32 1
+         call ccc  void  @btree_upper_bound_1(%btree_t_1*  %10, %value_t_1*  %value_2_0, %btree_iterator_t_1*  %end_iter_0)
+        br label %loop_0
+      loop_0:
+        %condition_0 =  call ccc  i1  @btree_iterator_is_equal_1(%btree_iterator_t_1*  %begin_iter_0, %btree_iterator_t_1*  %end_iter_0)
+        br i1 %condition_0, label %if_0, label %end_if_0
+      if_0:
+        br label %range_query.end
+      end_if_0:
+        %current_0 =  call ccc  %value_t_1*  @btree_iterator_current_1(%btree_iterator_t_1*  %begin_iter_0)
+        %value_3_0 = alloca %value_t_1, i32 1
+        %11 = getelementptr  %value_t_1, %value_t_1* %value_3_0, i32 0, i32 0
+        %12 = getelementptr  %value_t_1, %value_t_1* %current_0, i32 0, i32 1
+        %13 = load   %column_t_1, %column_t_1* %12
+        store   %column_t_1 %13, %column_t_1* %11
+        %14 = getelementptr  %value_t_1, %value_t_1* %value_3_0, i32 0, i32 1
+        store   i32 0, %column_t_1* %14
+        %value_4_0 = alloca %value_t_1, i32 1
+        %15 = getelementptr  %value_t_1, %value_t_1* %value_4_0, i32 0, i32 0
+        %16 = getelementptr  %value_t_1, %value_t_1* %current_0, i32 0, i32 1
+        %17 = load   %column_t_1, %column_t_1* %16
+        store   %column_t_1 %17, %column_t_1* %15
+        %18 = getelementptr  %value_t_1, %value_t_1* %value_4_0, i32 0, i32 1
+        store   i32 4294967295, %column_t_1* %18
+        %begin_iter_1_0 = alloca %btree_iterator_t_1, i32 1
+        %end_iter_1_0 = alloca %btree_iterator_t_1, i32 1
+        %19 = getelementptr  %program, %program* %arg_0, i32 0, i32 1
+         call ccc  void  @btree_lower_bound_1(%btree_t_1*  %19, %value_t_1*  %value_3_0, %btree_iterator_t_1*  %begin_iter_1_0)
+        %20 = getelementptr  %program, %program* %arg_0, i32 0, i32 1
+         call ccc  void  @btree_upper_bound_1(%btree_t_1*  %20, %value_t_1*  %value_4_0, %btree_iterator_t_1*  %end_iter_1_0)
+        br label %loop_1
+      loop_1:
+        %condition_1_0 =  call ccc  i1  @btree_iterator_is_equal_1(%btree_iterator_t_1*  %begin_iter_1_0, %btree_iterator_t_1*  %end_iter_1_0)
+        br i1 %condition_1_0, label %if_1, label %end_if_1
+      if_1:
+        br label %range_query.end_1
+      end_if_1:
+        %current_1_0 =  call ccc  %value_t_1*  @btree_iterator_current_1(%btree_iterator_t_1*  %begin_iter_1_0)
+        %condition_2_0 = getelementptr  %value_t_1, %value_t_1* %current_1_0, i32 0, i32 0
+        %condition_2_1 = load   %column_t_1, %column_t_1* %condition_2_0
+        %condition_2_2 = getelementptr  %value_t_1, %value_t_1* %current_0, i32 0, i32 1
+        %condition_2_3 = load   %column_t_1, %column_t_1* %condition_2_2
+        %condition_2_4 = icmp eq %column_t_1 %condition_2_1, %condition_2_3
+        br i1 %condition_2_4, label %if_2, label %end_if_2
+      if_2:
+        %value_5_0 = alloca %value_t_0, i32 1
+        %21 = getelementptr  %value_t_0, %value_t_0* %value_5_0, i32 0, i32 0
+        %22 = getelementptr  %value_t_1, %value_t_1* %current_0, i32 0, i32 0
+        %23 = load   %column_t_1, %column_t_1* %22
+        store   %column_t_1 %23, %column_t_0* %21
+        %24 = getelementptr  %value_t_0, %value_t_0* %value_5_0, i32 0, i32 1
+        %25 = getelementptr  %value_t_1, %value_t_1* %current_0, i32 0, i32 1
+        %26 = load   %column_t_1, %column_t_1* %25
+        store   %column_t_1 %26, %column_t_0* %24
+        %27 = getelementptr  %value_t_0, %value_t_0* %value_5_0, i32 0, i32 2
+        %28 = getelementptr  %value_t_1, %value_t_1* %current_1_0, i32 0, i32 1
+        %29 = load   %column_t_1, %column_t_1* %28
+        store   %column_t_1 %29, %column_t_0* %27
+        %30 = getelementptr  %program, %program* %arg_0, i32 0, i32 0
+        %31 =  call ccc  i1  @btree_insert_value_0(%btree_t_0*  %30, %value_t_0*  %value_5_0)
+        br label %end_if_2
+      end_if_2:
+         call ccc  void  @btree_iterator_next_1(%btree_iterator_t_1*  %begin_iter_1_0)
+        br label %loop_1
+      range_query.end_1:
+         call ccc  void  @btree_iterator_next_1(%btree_iterator_t_1*  %begin_iter_0)
+        br label %loop_0
+      range_query.end:
+        ret void
+      }
       |]
 
+  {-
   it "generates code for a rule where columns need to equal each other" $ do
     pending -- TODO: cg "rule_equal_columns"
 
