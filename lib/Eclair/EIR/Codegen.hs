@@ -8,6 +8,7 @@ module Eclair.EIR.Codegen
   , Relation
   , Alias
   , getFirstFieldOffset
+  , getContainerInfoByOffset
   , idxFromConstraints
   , lookupRelationByIndex
   , lookupAlias
@@ -49,7 +50,7 @@ import Eclair.RA.IndexSelection
 import Eclair.TypeSystem
 import qualified Eclair.EIR.IR as EIR
 import qualified Eclair.RA.IR as RA
-import qualified Eclair.Runtime.Metadata as M
+import qualified Eclair.LLVM.Metadata as M
 import qualified Eclair.Syntax as AST
 
 
@@ -126,17 +127,17 @@ flattenBlocks actions = flip concatMap actions $ \case
   EIR.Block stmts -> stmts
   stmt -> [stmt]
 
-declareProgram :: [M.Metadata] -> CodegenM EIR
+declareProgram :: [(Relation, M.Metadata)] -> CodegenM EIR
 declareProgram metas = pure $ EIR.DeclareProgram metas
 
-fn :: Text -> [EIR.Type] -> [CodegenM EIR] -> CodegenM EIR
-fn name tys body = EIR.Function name tys <$> block body
+fn :: Text -> [EIR.Type] -> EIR.Type -> [CodegenM EIR] -> CodegenM EIR
+fn name tys retTy body = EIR.Function name tys retTy <$> block body
 
 fnArg :: Int -> CodegenM EIR
 fnArg n = pure $ EIR.FunctionArg n
 
-call :: EIR.Function -> [CodegenM EIR] -> CodegenM EIR
-call fn args = EIR.Call fn <$> sequence args
+call :: Relation -> Index -> EIR.Function -> [CodegenM EIR] -> CodegenM EIR
+call r idx fn args = EIR.Call r idx fn <$> sequence args
 
 fieldAccess :: CodegenM EIR -> Int -> CodegenM EIR
 fieldAccess struct n = flip EIR.FieldAccess n <$> struct
@@ -148,8 +149,9 @@ heapAllocProgram =
 freeProgram :: CodegenM EIR -> CodegenM EIR
 freeProgram ptr = EIR.FreeProgram <$> ptr
 
-stackAlloc :: EIR.Type -> Relation -> CodegenM EIR
-stackAlloc ty r = pure $ EIR.StackAllocate ty (AST.stripIdPrefixes r)
+stackAlloc :: Relation -> Index -> EIR.Type -> CodegenM EIR
+stackAlloc r idx ty =
+  pure $ EIR.StackAllocate (AST.stripIdPrefixes r) idx ty
 
 loop :: [CodegenM EIR] -> CodegenM EIR
 loop ms = do
@@ -256,6 +258,10 @@ getFirstFieldOffset r = do
   pure $ fromJust $ List.findIndex sameRelation cis
   where
     sameRelation (r', _, _) = r == r'
+
+getContainerInfoByOffset :: Int -> CodegenM ContainerInfo
+getContainerInfoByOffset offset =
+  (List.!! offset) . containerInfos <$> getLowerState
 
 lookupAlias :: Alias -> CodegenM EIR
 lookupAlias a = ask >>= \case

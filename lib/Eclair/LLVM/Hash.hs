@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeApplications, UndecidableInstances, TypeOperators, DefaultSignatures #-}
 
-module Eclair.Runtime.Hash
+module Eclair.LLVM.Hash
   ( Hash
   , unHash
   , HashEnum(..)

@@ -1,6 +1,6 @@
 {-# LANGUAGE RecursiveDo, FlexibleContexts, ScopedTypeVariables #-}
 
-module Eclair.Runtime.BTree
+module Eclair.LLVM.BTree
   ( Meta(..)
   , SearchIndex
   , SearchType(..)
@@ -21,9 +21,9 @@ import LLVM.IRBuilder.Monad
 import LLVM.IRBuilder.Constant
 import LLVM.IRBuilder.Instruction
 import LLVM.IRBuilder.Combinators
-import Eclair.Runtime.LLVM
-import Eclair.Runtime.Hash
-import Eclair.Runtime.Store (Functions(..))
+import Eclair.LLVM.LLVM
+import Eclair.LLVM.Hash
+import Eclair.LLVM.Runtime
 import Prettyprinter
 
 
@@ -34,7 +34,7 @@ data Meta
   , blockSize :: Word64      -- Number of bytes per btree node
   , searchType :: SearchType -- Search strategy used in a single node
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Ord, Show)
   deriving stock Generic
   deriving ToHash via HashWithPrefix "btree" Meta
 
@@ -51,13 +51,27 @@ type Column = Int
 type SearchIndex = [Column]
 
 data SearchType = Linear | Binary
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Ord, Show)
   deriving stock (Generic, Enum)
-  deriving ToHash via HashEnum SearchType
+
+instance ToHash SearchType where
+  getHash = \case
+    Linear -> getHash ("linear" :: Text)
+    Binary -> getHash ("binary" :: Text)
 
 instance Pretty SearchType where
   pretty Linear = "linear"
   pretty Binary = "binary"
+
+-- State only used during generation of types
+data TGState
+  = TGState
+  { tgMeta :: Meta
+  , tgSuffix :: Suffix
+  }
+
+instance HasSuffix TGState where
+  getSuffix = tgSuffix
 
 data Types
   = Types
@@ -72,13 +86,6 @@ data Types
   , columnTy :: Type
   }
 
-data Externals
-  = Externals
-  { extMalloc :: Operand
-  , extFree :: Operand
-  , extMemset :: Operand
-  }
-
 data Sizes
   = Sizes
   { pointerSize :: Word64
@@ -88,35 +95,31 @@ data Sizes
   , innerNodeSize :: Word64
   }
 
+-- State used during rest of the btree codegen
 data CGState
   = CGState
-  { meta :: Meta
+  { cgSuffix :: Suffix
+  , meta :: Meta
   , types :: Types
   , typeSizes :: Sizes
   , externals :: Externals
   }
-  deriving ToHash via HashOnly "meta" CGState
+
+instance HasSuffix CGState where
+  getSuffix = cgSuffix
 
 type IRCodegen = IRBuilderT ModuleCodegen
 
 type ModuleCodegen = ReaderT CGState ModuleBuilder
 
 
-codegen :: Meta -> ModuleBuilderT IO Functions
-codegen settings = do
+codegen :: Suffix -> Externals -> Meta -> ModuleBuilderT IO Functions
+codegen suffix exts settings = do
   sizes <- computeSizes settings
   hoist intoIO $ do
-    tys <- runReaderT (generateTypes sizes) settings
-    exts <- mkExternals
-    runReaderT generateFunctions $ CGState settings tys sizes exts
+    tys <- runReaderT (generateTypes sizes) $ TGState settings suffix
+    runReaderT generateFunctions $ CGState suffix settings tys sizes exts
   where intoIO = pure . runIdentity
-
-mkExternals :: ModuleBuilder Externals
-mkExternals = do
-  malloc <- extern "malloc" [i32] (ptr i8)
-  free <- extern "free" [ptr i8] void
-  memsetFn <- extern "llvm.memset.p0i8.i64" [ptr i8, i8, i64, i1] void
-  pure $ Externals malloc free memsetFn
 
 computeSizes :: Meta -> ModuleBuilderT IO Sizes
 computeSizes settings = do
@@ -142,10 +145,11 @@ computeSizes settings = do
   where
     wrap = StructureType False
 
-generateTypes :: (MonadModuleBuilder m, MonadReader Meta m, MonadFix m)
+generateTypes :: (MonadModuleBuilder m, MonadReader TGState m, MonadFix m)
               => Sizes -> m Types
 generateTypes sizes = mdo
-  meta <- ask
+  meta <- asks tgMeta
+  suffix <- asks tgSuffix
   let numKeys' = numKeys meta sizes
 
   columnTy <- mkType "column_t" i32
@@ -252,14 +256,14 @@ mkCompare = do
   (tys, settings) <- asks (types &&& meta)
   let column = columnTy tys
       value = valueTy tys
-  compare <- def "compare" [(column, "lhs"), (column, "rhs")] i8 $ \[lhs, rhs] -> mdo
+  compare <- def "btree_value_compare" [(column, "lhs"), (column, "rhs")] i8 $ \[lhs, rhs] -> mdo
     result1 <- lhs `ult` rhs
     if' result1 $
       ret $ int8 (-1)
     result2 <- lhs `ugt` rhs
     ret =<< select result2 (int8 1) (int8 0)
 
-  def "compare_values" [(ptr value, "lhs"), (ptr value, "rhs")] i8 $ \[lhs, rhs] -> mdo
+  def "btree_value_compare_values" [(ptr value, "lhs"), (ptr value, "rhs")] i8 $ \[lhs, rhs] -> mdo
     let columns = map fromIntegral $ index settings
     results <- flip execStateT mempty $ flip (zygo endCheck) columns $ \case
       Nil -> pure ()
@@ -305,7 +309,7 @@ mkNodeNew = mdo
 
   malloc <- asks (extMalloc . externals)
 
-  def "node_new" [(nodeType, "type")] (ptr node) $ \[ty] -> mdo
+  def "btree_node_new" [(nodeType, "type")] (ptr node) $ \[ty] -> mdo
     structSize <- select ty leafSize innerSize
     memory <- call malloc [(structSize, [])]
     n <- memory `bitcast` ptr node
@@ -333,7 +337,7 @@ mkNodeDelete = mdo
   innerNode <- typeOf InnerNode
   free <- asks (extFree . externals)
 
-  nodeDelete <- def "node_delete" [(ptr node, "node")] void $ \[n] -> mdo
+  nodeDelete <- def "btree_node_delete" [(ptr node, "node")] void $ \[n] -> mdo
     nodeTy <- deref (metaOf ->> nodeTypeOf) n
     isInner <- nodeTy `eq` innerNodeTypeVal
     if' isInner $ do  -- Delete children of inner node
@@ -357,7 +361,7 @@ mkNodeSplitPoint = mdo
   nodeSize <- typeOf NodeSize
   numberOfKeys <- numKeysAsOperand
 
-  def "node_split_point" [] nodeSize $ \_ -> mdo
+  def "btree_node_split_point" [] nodeSize $ \_ -> mdo
     a' <- mul (int16 3) numberOfKeys
     a <- udiv a' (int16 4)
     b <- sub numberOfKeys (int16 2)
@@ -369,7 +373,7 @@ mkSplit nodeNew nodeSplitPoint growParent = mdo
   innerNode <- typeOf InnerNode
   numberOfKeys <- numKeysAsOperand
 
-  def "node_split" [(ptr node, "node"), (ptr (ptr node), "root")] void $ \[n, root] -> mdo
+  def "btree_node_split" [(ptr node, "node"), (ptr (ptr node), "root")] void $ \[n, root] -> mdo
     -- TODO: how to do assertions in LLVM?
     -- assert(n->meta.num_elements == NUM_KEYS);
     splitPoint <- call nodeSplitPoint []
@@ -409,7 +413,7 @@ mkGrowParent nodeNew insertInner = mdo
   node <- typeOf Node
   innerNode <- typeOf InnerNode
 
-  def "node_grow_parent" [(ptr node, "node"), (ptr (ptr node), "root"), (ptr node, "sibling")] void $
+  def "btree_node_grow_parent" [(ptr node, "node"), (ptr (ptr node), "root"), (ptr node, "sibling")] void $
     \[n, root, sibling] -> mdo
     parent <- deref (metaOf ->> parentOf) n
     isNull <- parent `eq` nullPtr node
@@ -452,7 +456,7 @@ mkInsertInner rebalanceOrSplit = mdo
              ]
   numberOfKeys <- numKeysAsOperand
 
-  insertInner <- def "node_insert_inner" args void $
+  insertInner <- def "btree_node_insert_inner" args void $
     \[n, root, pos, predecessor, key, newNode] -> mdo
     -- Need to allocate pos on the stack, otherwise pos updates are
     -- not visible later on!
@@ -512,7 +516,7 @@ mkRebalanceOrSplit splitFn = mdo
   numberOfKeys <- numKeysAsOperand
 
   let args = [(ptr node, "node"), (ptr (ptr node), "root"), (nodeSize, "idx")]
-  def "node_rebalance_or_split" args nodeSize $ \[n, root, idx] -> mdo
+  def "btree_node_rebalance_or_split" args nodeSize $ \[n, root, idx] -> mdo
     -- TODO assert(n->meta.num_elements == NUM_KEYS);
 
     parent <- deref (metaOf ->> parentOf) n >>= (`bitcast` ptr innerNode)
@@ -602,7 +606,7 @@ mkIteratorInit = do
   nodeSize <- typeOf NodeSize
   let args = [(ptr iter, "iter"), (ptr node, "cur"), (nodeSize, "pos")]
 
-  def "iterator_init" args void $ \[it, cur, pos] -> do
+  def "btree_iterator_init" args void $ \[it, cur, pos] -> do
     assign currentPtrOf it cur
     assign valuePosOf it pos
 
@@ -611,7 +615,7 @@ mkIteratorInitEnd iterInit = do
   iter <- typeOf Iterator
   node <- typeOf Node
 
-  def "iterator_end_init" [(ptr iter, "iter")] void $ \[it] -> do
+  def "btree_iterator_end_init" [(ptr iter, "iter")] void $ \[it] -> do
     _ <- call iterInit $ (,[]) <$> [it, nullPtr node, int16 0]
     retVoid
 
@@ -619,7 +623,7 @@ mkIteratorIsEqual :: ModuleCodegen Operand
 mkIteratorIsEqual = do
   iter <- typeOf Iterator
 
-  def "iterator_is_equal" [(ptr iter, "lhs"), (ptr iter, "rhs")] i1 $ \[lhs, rhs] -> mdo
+  def "btree_iterator_is_equal" [(ptr iter, "lhs"), (ptr iter, "rhs")] i1 $ \[lhs, rhs] -> mdo
     currentLhs <- deref currentPtrOf lhs
     currentRhs <- deref currentPtrOf rhs
 
@@ -636,7 +640,7 @@ mkIteratorCurrent = do
   iter <- typeOf Iterator
   value <- typeOf Value
 
-  def "iterator_current" [(ptr iter, "iter")] (ptr value) $ \[it] -> mdo
+  def "btree_iterator_current" [(ptr iter, "iter")] (ptr value) $ \[it] -> mdo
     valuePos <- deref valuePosOf it
     currentNode <- deref currentPtrOf it
     ret =<< addr (valueAt valuePos) currentNode
@@ -645,7 +649,7 @@ mkIteratorNext :: ModuleCodegen Operand
 mkIteratorNext = do
   iter <- typeOf Iterator
 
-  def "iterator_next" [(ptr iter, "iter")] void $ \[it] -> mdo
+  def "btree_iterator_next" [(ptr iter, "iter")] void $ \[it] -> mdo
     current <- deref currentPtrOf it
     isLeaf <- deref (metaOf ->> nodeTypeOf) current >>= (`eq` leafNodeTypeVal)
     if' isLeaf $ do
@@ -700,7 +704,7 @@ mkLinearSearchLowerBound compareValues = do
   value <- typeOf Value
   let args = [(ptr value, "val"), (ptr value, "current"), (ptr value, "end")]
 
-  def "linear_search_lower_bound" args (ptr value) $ \[val, curr, end] -> mdo
+  def "btree_linear_search_lower_bound" args (ptr value) $ \[val, curr, end] -> mdo
     -- Finds an iterator to first element not less than given value.
     currentPtr <- allocate (ptr value) curr
     let loopCondition = do
@@ -723,7 +727,7 @@ mkLinearSearchUpperBound compareValues = do
   value <- typeOf Value
   let args = [(ptr value, "val"), (ptr value, "current"), (ptr value, "end")]
 
-  def "linear_search_upper_bound" args (ptr value) $ \[val, curr, end] -> mdo
+  def "btree_linear_search_upper_bound" args (ptr value) $ \[val, curr, end] -> mdo
     -- Finds an iterator to first element that is greater than given value.
     currentPtr <- allocate (ptr value) curr
     let loopCondition = do

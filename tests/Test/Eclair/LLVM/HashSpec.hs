@@ -1,11 +1,11 @@
-module Test.Eclair.Runtime.HashSpec
-  ( module Test.Eclair.Runtime.HashSpec
+module Test.Eclair.LLVM.HashSpec
+  ( module Test.Eclair.LLVM.HashSpec
   ) where
 
 import Protolude
 import Prelude (String)
 import qualified Data.Set as Set
-import Eclair.Runtime.Hash
+import Eclair.LLVM.Hash
 import Test.Hspec
 
 

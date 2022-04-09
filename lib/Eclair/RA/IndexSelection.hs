@@ -15,6 +15,7 @@ module Eclair.RA.IndexSelection
 import Protolude
 import Data.Maybe (fromJust)
 import Eclair.RA.IR
+import Eclair.Pretty
 import Algebra.Graph.Bipartite.AdjacencyMap
 import Algebra.Graph.Bipartite.AdjacencyMap.Algorithm hiding (matching)
 import Data.Functor.Foldable hiding (fold)
@@ -31,6 +32,10 @@ newtype SearchSignature
 
 newtype Index = Index [Column]  -- TODO: use NonEmpty
   deriving (Eq, Ord, Show)
+
+instance Pretty Index where
+  pretty (Index columns) =
+    brackets $ withCommas $ map pretty columns
 
 type SearchSet = Set SearchSignature
 type SearchChain = [SearchSignature]  -- TODO: NonEmpty

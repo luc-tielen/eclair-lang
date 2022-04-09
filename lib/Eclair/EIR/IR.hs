@@ -13,7 +13,7 @@ import Protolude hiding (Type,Meta)
 import Data.String (IsString(..))
 import Eclair.Syntax ( Id, Number )
 import Eclair.RA.IndexSelection (Index)
-import Eclair.Runtime.Metadata
+import Eclair.LLVM.Metadata
 import Data.Functor.Foldable.TH
 
 type Relation = Id
@@ -25,6 +25,7 @@ data Type
   | Value
   | Iter
   | Pointer Type
+  | Void
   deriving (Eq, Show)
 
 data Function
@@ -32,7 +33,7 @@ data Function
   | Destroy
   | Purge
   | Swap
-  | Merge
+  | InsertRange
   | IsEmpty
   | Contains
   | Insert
@@ -41,6 +42,8 @@ data Function
   | IterIsEqual
   | IterLowerBound
   | IterUpperBound
+  | IterBegin
+  | IterEnd
   deriving (Eq, Show)
 
 newtype LabelId
@@ -52,16 +55,16 @@ instance IsString LabelId where
 
 data EIR
   = Block [EIR]
-  | Function Text [Type] EIR
+  | Function Text [Type] Type EIR
   | FunctionArg Int
-  | DeclareProgram [Metadata]
+  | DeclareProgram [(Relation, Metadata)]
   | FieldAccess EIR Int
   | Var Text
   | Assign EIR EIR
-  | Call Function [EIR]
+  | Call Relation Index Function [EIR]
   | HeapAllocateProgram
   | FreeProgram EIR
-  | StackAllocate Type Relation -- NOTE: always need to know for which relation
+  | StackAllocate Relation Index Type
   | Par [EIR]
   | Loop [EIR]
   | If EIR EIR

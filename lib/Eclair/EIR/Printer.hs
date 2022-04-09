@@ -3,7 +3,7 @@ module Eclair.EIR.Printer ( Pretty ) where
 import Protolude hiding (Type)
 import Eclair.Pretty
 import Eclair.EIR.IR
-import Eclair.Runtime.Metadata
+import Eclair.LLVM.Metadata
 import qualified Data.Text as T
 
 indentBlock :: Doc ann -> Doc ann -> Doc ann -> Doc ann
@@ -22,6 +22,7 @@ instance Pretty Type where
     Value -> "Value"
     Iter -> "Iter"
     Pointer ty -> "*" <> pretty ty
+    Void -> "Void"
 
 instance Pretty Function where
   pretty = \case
@@ -29,7 +30,7 @@ instance Pretty Function where
     Destroy -> "destroy"
     Purge -> "purge"
     Swap -> "swap"
-    Merge -> "merge"
+    InsertRange -> "insert_range"
     IsEmpty -> "is_empty"
     Contains -> "contains"
     Insert -> "insert"
@@ -38,6 +39,8 @@ instance Pretty Function where
     IterIsEqual -> "iter_is_equal"
     IterLowerBound -> "iter_lower_bound"
     IterUpperBound -> "iter_upper_bound"
+    IterBegin -> "iter_begin"
+    IterEnd -> "iter_end"
 
 instance Pretty LabelId where
   pretty (LabelId label) = pretty label
@@ -46,28 +49,29 @@ instance Pretty EIR where
   pretty = \case
     Block stmts ->
       statementBlock stmts
-    Function name tys body ->
-      vsep ["fn" <+> pretty name <> parens (withCommas $ map pretty tys)
+    Function name tys retTy body ->
+      vsep ["fn" <+> pretty name <> parens (withCommas $ map pretty tys) <+> "->" <+> pretty retTy
            , pretty body -- Note: This is already a Block
            ]
     FunctionArg pos -> "FN_ARG" <> brackets (pretty pos)
     DeclareProgram metadatas ->
       vsep ["declare_type" <+> "Program"
-           , statementBlock metadatas
+           , braceBlock . vsep $
+             map (\(r, meta) -> pretty r <+> pretty meta) metadatas
            ]
     FieldAccess ptr pos ->
       pretty ptr <> "." <> pretty pos
     Var v -> pretty v
     Assign var value ->
       pretty var <+> "=" <+> pretty value
-    Call fn args ->
-      pretty fn <> parens (withCommas $ map pretty args)
+    Call r _idx fn args ->
+      pretty r <> "." <> pretty fn <> parens (withCommas $ map pretty args)
     HeapAllocateProgram ->
       "heap_allocate_program"
     FreeProgram ptr ->
       "free_program" <> parens (pretty ptr)
-    StackAllocate ty r ->
-      "stack_allocate" <+> pretty ty <+> between dquote dquote (pretty r)
+    StackAllocate r _idx ty ->
+      pretty r <> "." <> "stack_allocate" <+> pretty ty
     Par stmts ->
       vsep ["parallel", statementBlock stmts]
     Loop stmts ->

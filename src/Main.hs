@@ -1,30 +1,23 @@
 module Main (main) where
 
 import Protolude hiding ( Meta )
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Text.Lazy.IO as T
 import LLVM.Analysis
 import LLVM.Context
 import LLVM.Module
 import LLVM.Pretty
 import LLVM.IRBuilder.Module
-import Eclair.Runtime.BTree
+import Eclair
 
-
-{-
-main =
-  compile "tests/fixtures/codegen/index_selection.dl" >>= \case
-    Left _ -> panic "Failed to compile to RA"
-    Right ra -> putStrLn $ printRA ra
--}
 
 main :: IO ()
 main = do
-  let meta = Meta { numColumns = 4
-                  , index = [1, 3]
-                  , blockSize = 256
-                  , searchType = Linear
-                  }
-  moduleIR <- buildModuleT "btree" (codegen meta)
-  withContext $ \ctx -> withModuleFromAST ctx moduleIR verify
-  let output = ppllvm moduleIR
-  T.putStrLn output
+  arguments <- getArgs
+  case nonEmpty arguments of
+    Nothing -> panic "Expected usage: 'eclairc FILE'"
+    Just args -> do
+      let filePath = NE.head args
+      compile filePath >>= \case
+        Left _ -> panic "Failed to compile the Datalog code!"
+        Right llvmModule -> putStrLn $ ppllvm llvmModule

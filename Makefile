@@ -11,7 +11,7 @@ run:
 	@cabal run
 
 test:
-	@cabal run eclair-test --flag eclair-lang:-debug
+	@cabal run eclair-test
 
 repl:
 	@cabal repl

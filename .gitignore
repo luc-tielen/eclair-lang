@@ -2,3 +2,8 @@ dist-newstyle/
 dist/
 .direnv/
 cabal.project.local*
+
+*.ll
+*.bc
+*.o
+*.s
