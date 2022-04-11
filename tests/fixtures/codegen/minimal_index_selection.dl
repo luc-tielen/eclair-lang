@@ -1,3 +1,9 @@
+@def first(u32, u32, u32).
+@def second(u32).
+@def third(u32).
+@def fourth(u32).
+@def fifth(u32).
+
 // [1,0,2] ([0,1,2] re-ordered)
 first(1, 2, 3).
 second(1).

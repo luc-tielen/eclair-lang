@@ -14,7 +14,7 @@ import Data.Char
 import Data.Vector as V
 import Data.Void
 import Eclair.Syntax
-import Protolude
+import Protolude hiding (Type)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import qualified Data.Text.Read as TR
@@ -52,9 +52,9 @@ declParser = do
     '@' -> typedefParser
     _ -> factOrRuleParser
 
-typeParser :: Parser DLType
+typeParser :: Parser Type
 typeParser = lexeme $
-  UInt32 <$ P.chunk "u32"
+  U32 <$ P.chunk "u32"
 
 typedefParser :: Parser AST
 typedefParser = do

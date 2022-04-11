@@ -1,3 +1,5 @@
+@def fact(u32).
+@def product(u32, u32).
 
 fact(1).
 fact(2).

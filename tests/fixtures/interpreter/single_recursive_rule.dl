@@ -1,3 +1,5 @@
+@def edge(u32, u32).
+@def path(u32, u32).
 
 edge(1,2).
 edge(2,3).

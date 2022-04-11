@@ -1,3 +1,10 @@
+@def a(u32, u32).
+@def b(u32, u32).
+@def c(u32).
+@def d(u32).
+@def e(u32).
+@def f(u32).
+
 a(1,2).
 
 b(x,y) :- a(x,y).

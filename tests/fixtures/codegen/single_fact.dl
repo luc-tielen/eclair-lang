@@ -1,3 +1,6 @@
+@def edge(u32, u32).
+@def another(u32, u32, u32).
+
 edge(1, 2).
 edge(2, 3).
 

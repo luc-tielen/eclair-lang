@@ -16,7 +16,8 @@ import Data.Maybe (fromJust)
 import LLVM.AST (Module)
 import LLVM.AST.Operand hiding (Metadata)
 import LLVM.AST.Name
-import LLVM.AST.Type
+import qualified LLVM.AST.Type as LLVM (Type)
+import LLVM.AST.Type hiding (Type)
 import LLVM.AST.Constant hiding (index)
 import qualified LLVM.AST.IntegerPredicate as IP
 import LLVM.IRBuilder.Instruction hiding (sizeof)
@@ -200,7 +201,7 @@ lowerM f = gcata (distParaZygo f)
        in Triple (embed base_t_t) (g base_t_tb) base_t_a
 
 -- TODO: get cpu arch to make this check dynamically
-sizeOfProgram :: Type -> CodegenM Operand
+sizeOfProgram :: LLVM.Type -> CodegenM Operand
 sizeOfProgram programTy = do
   let ptrSizeBits = 64
       programSize = ConstantOperand $ sizeof ptrSizeBits programTy
@@ -239,7 +240,7 @@ codegenDebugInfos metaMapping =
        in global name i32 (Int 32 $ toInteger i)
 
 -- TODO: add hash based on filepath of the file we're compiling?
-mkType :: Name -> [Functions] -> ModuleBuilderT IO Type
+mkType :: Name -> [Functions] -> ModuleBuilderT IO LLVM.Type
 mkType name fnss =
   typedef name (struct tys)
   where

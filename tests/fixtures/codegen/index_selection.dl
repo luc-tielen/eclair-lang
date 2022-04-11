@@ -1,3 +1,10 @@
+@def a(u32).
+@def b(u32).
+@def c(u32, u32, u32).
+@def d(u32).
+@def triple(u32, u32, u32).
+
+
 a(1).
 b(1).
 c(1, 2, 3).
