@@ -12,6 +12,7 @@ module Eclair.Syntax
   , Clause
   , Decl
   , Number
+  , DLType(..)
   , Id(..)
   , prependToId
   , appendToId
@@ -70,11 +71,16 @@ type Value = AST
 type Clause = AST
 type Decl = AST
 
+data DLType
+  = UInt32
+  deriving (Eq, Show)
+
 data AST
   = Lit Number
   | Var Id
   | Atom Id [Value]
   | Rule Id [Value] [Clause]
+  | DeclareType Id [DLType]
   | Module [Decl]
   deriving (Eq, Show)
 

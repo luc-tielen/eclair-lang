@@ -2,6 +2,7 @@
 
 module Eclair.Parser
   ( parseFile
+  , parseText
   , printParseError
   , Parser
   , ParseError
@@ -28,7 +29,11 @@ type Parser = P.Parsec ParseErr Text
 parseFile :: FilePath -> IO (Either ParseError AST)
 parseFile path = do
   contents <- TIO.readFile path
-  pure $ P.runParser astParser path contents
+  pure $ parseText path contents
+
+parseText :: FilePath -> Text -> Either ParseError AST
+parseText =
+  P.runParser astParser
 
 printParseError :: ParseError -> IO ()
 printParseError err = putStrLn $ P.errorBundlePretty err
@@ -40,18 +45,37 @@ astParser = do
   P.eof
   pure $ Module decls
 
-data DeclType = AtomType | RuleType
-
 declParser :: Parser AST
 declParser = do
+  c <- P.lookAhead P.anySingle
+  case c of
+    '@' -> typedefParser
+    _ -> factOrRuleParser
+
+typeParser :: Parser DLType
+typeParser = lexeme $
+  UInt32 <$ P.chunk "u32"
+
+typedefParser :: Parser AST
+typedefParser = do
+  void $ lexeme $ P.chunk "@def"
+  name <- lexeme identifier
+  tys <- betweenParens $ typeParser `P.sepBy1` lexeme comma
+  void $ P.char '.'
+  pure $ DeclareType name tys
+
+data FactOrRule = FactType | RuleType
+
+factOrRuleParser :: Parser AST
+factOrRuleParser = do
   name <- lexeme identifier
   args <- lexeme $ betweenParens $ valueParser `P.sepBy1` comma
-  declType <- lexeme $ (RuleType <$ P.chunk ":-") <|> (AtomType <$ P.chunk ".")
+  declType <- lexeme $ (RuleType <$ P.chunk ":-") <|> (FactType <$ P.chunk ".")
   case declType of
     RuleType -> do
       body <- atomParser `P.sepBy1` comma <* period
       pure $ Rule name args body
-    AtomType -> pure $ Atom name args
+    FactType -> pure $ Atom name args
   where period = lexeme $ P.char '.'
 
 comma :: Parser Char
