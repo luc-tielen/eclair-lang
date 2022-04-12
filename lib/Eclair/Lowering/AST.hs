@@ -1,10 +1,13 @@
 module Eclair.Lowering.AST ( compileToRA ) where
 
 import Protolude hiding (swap)
-import Eclair.Syntax hiding (Clause)
-import Eclair.RA.Codegen
-import qualified Eclair.RA.IR as RA
 import Control.Lens hiding (Equality, Index)
+import qualified Data.Graph as G
+import qualified Data.Map as M
+import Data.Maybe (fromJust)
+import Eclair.RA.Codegen
+import Eclair.Syntax hiding (Clause)
+import qualified Eclair.RA.IR as RA
 
 type RA = RA.RA
 type Relation = RA.Relation
@@ -23,6 +26,27 @@ compileToRA ast = RA.Module $ concatMap processDecls sortedDecls where
       in runCodegen $ processSingleRule name terms clauses'
     rules ->  -- case for multiple mutually recursive rules
       runCodegen $ processMultipleRules rules
+
+  scc :: AST -> [[AST]]
+  scc = \case
+    Module decls -> map G.flattenSCC sortedDecls
+      where
+        relevantDecls = filter isRuleOrAtom decls
+        sortedDecls = G.stronglyConnComp $ zipWith (\i d -> (d, i, refersTo d)) [0..] relevantDecls
+        declLineMapping = M.fromListWith (++) $ zipWith (\i d -> (nameFor d, [i])) [0..] relevantDecls
+        isRuleOrAtom = \case
+          Atom {} -> True
+          Rule {} -> True
+          _ -> False
+        refersTo = \case
+          Rule _ _ clauses -> concatMap (fromJust . flip M.lookup declLineMapping . nameFor) clauses
+          _ -> []
+        nameFor = \case
+          Atom name _ -> name
+          Rule name _ _ -> name
+          _ ->  unreachable  -- Because of 'isRuleOrAtom'
+    _ -> unreachable         -- Because rejected by parser
+    where unreachable = panic "Unreachable code in 'scc'"
 
 -- NOTE: These rules can all be evaluated in parallel inside the fixpoint loop
 processMultipleRules :: [AST] -> CodegenM ()

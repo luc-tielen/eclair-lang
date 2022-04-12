@@ -21,16 +21,12 @@ module Eclair.Syntax
   , startsWithIdPrefix
   , deltaPrefix
   , newPrefix
-  , scc
   ) where
 
 import Protolude hiding (Type, fold)
-import Data.Maybe (fromJust)
 import Control.Lens
 import Data.Functor.Foldable
 import Data.Functor.Foldable.TH
-import qualified Data.Graph as G
-import qualified Data.Map as M
 import qualified Data.Text as T
 import Prettyprinter
 
@@ -87,27 +83,3 @@ data AST
 
 makePrisms ''AST
 makeBaseFunctor ''AST
-
--- TODO better name, move to Lowering of AST module
-scc :: AST -> [[AST]]
-scc = \case
-  Module decls -> map G.flattenSCC sortedDecls
-    where
-      sortedDecls = G.stronglyConnComp $ zipWith (\i d -> (d, i, refersTo d)) [0..] relevantDecls
-      declLineMapping = M.fromListWith (++) $ zipWith (\i d -> (nameFor d, [i])) [0..] relevantDecls
-      relevantDecls = filter isRuleOrAtom decls
-      isRuleOrAtom = \case
-        Atom {} -> True
-        Rule {} -> True
-        _ -> False
-      -- TODO: use zygo
-      refersTo = \case
-        Rule _ _ clauses -> concatMap (fromJust . flip M.lookup declLineMapping . nameFor) clauses
-        _ -> []
-      nameFor = \case
-        Atom name _ -> name
-        Rule name _ _ -> name
-        _ ->  unreachable  -- Because of 'isRuleOrAtom'
-  _ -> unreachable         -- Because rejected by parser
-  where unreachable = panic "Unreachable code in 'scc'"
-
