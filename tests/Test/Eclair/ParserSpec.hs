@@ -13,7 +13,6 @@ import NeatInterpolation
 shouldParseText :: Text -> IO ()
 shouldParseText txt = do
   let parseResult = parseText "test.dl" txt
-  print parseResult
   isRight parseResult `shouldBe` True
 
 shouldParseFile :: FilePath -> IO ()

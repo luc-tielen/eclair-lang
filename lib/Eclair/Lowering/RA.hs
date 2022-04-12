@@ -4,8 +4,8 @@ module Eclair.Lowering.RA ( compileToEIR ) where
 import Protolude hiding (Type)
 import Protolude.Unsafe (unsafeHead)
 import Control.Arrow ((&&&))
-import Control.Comonad.Env as Env
-import Control.Monad.RWS.Strict
+import Control.Comonad
+import Control.Monad.Writer
 import Data.Maybe (fromJust)
 import Data.Functor.Foldable hiding (fold)
 import qualified Data.List as List
@@ -66,118 +66,139 @@ compileRun ra = do
   fn "eclair_program_run" [EIR.Pointer EIR.Program] EIR.Void
     [generateProgramInstructions ra]
 
--- TODO: Quad comonad to cleanup recursion scheme
+data Quad a b c d
+  = Quad
+  { qFirst :: a
+  , qSecond :: b
+  , qThird :: c
+  , qFourth :: d
+  } deriving Functor
+
+instance Comonad (Quad a b c) where
+  extract (Quad _ _ _ d) = d
+
+  duplicate (Quad a b c d) =
+    Quad a b c (Quad a b c d)
+
 generateProgramInstructions :: RA -> CodegenM EIR
-generateProgramInstructions = gzygo (combine equalitiesInSearch constraintsForSearch) distPara g
-  where
-    g :: RA.RAF (EnvT (EqSearchM (), [(Relation, Column)]) ((,) RA) (CodegenM EIR)) -> CodegenM EIR
-    g = \case
-      RA.ModuleF (map extract -> actions) -> block actions
-      RA.ParF (map extract -> actions) -> parallel actions
-      RA.SearchF r alias clauses (extract -> action) -> do
-        let eqsInSearch = foldMap (getNormalizedEqualities . fst . Env.ask) clauses
-        let constraints = concatMap (snd . Env.ask) clauses
-        idx <- idxFromConstraints r alias constraints
-        let relationPtr = lookupRelationByIndex r idx
-            isConstrain = \case
-              RA.Constrain _ _ -> True
-              _ -> False
-            queryClauses = map extract $ filter ((not . isConstrain) . fst . snd . Env.runEnvT) clauses
-            query = List.foldl1' and' queryClauses
-        (initLBValue, lbValue) <- initValue r idx alias LowerBound eqsInSearch
-        (initUBValue, ubValue) <- initValue r idx alias UpperBound eqsInSearch
-        block
-          [ initLBValue
-          , initUBValue
-          , rangeQuery r idx relationPtr lbValue ubValue $ \iter -> do
-              current <- var "current"
-              block
-                [ assign current $ call r idx EIR.IterCurrent [iter]
-                , do
-                  currentValue <- current
-                  case length queryClauses of
-                    0 -> -- No query to check: always matches
-                      withUpdatedAlias alias currentValue action
-                    _ -> do
-                      withSearchState alias currentValue $
-                        withUpdatedAlias alias currentValue $
-                          if' query action
-                ]
-          ]
-      RA.ProjectF r (map extract -> unresolvedValues) -> do
-        values <- sequence unresolvedValues
-        let values' = map pure values
-        indices <- indexesForRelation r
-        var <- var "value"
-        let -- NOTE: for allocating a value, the index does not matter
-            -- (a value is always represented as [N x i32] internally)
-            -- This saves us doing a few stack allocations.
-            firstIdx = unsafeHead indices
-            allocValue = assign var $ stackAlloc r firstIdx EIR.Value
-            assignStmts = zipWith (assign . fieldAccess var) [0..] values'
-            insertStmts = flip map indices $ \idx ->
-              -- NOTE: The insert function is different for each r + idx combination though!
-              call r idx EIR.Insert [lookupRelationByIndex r idx, var]
-        block $ allocValue : assignStmts ++ insertStmts
-      RA.PurgeF r ->
-        block =<< relationUnaryFn r EIR.Purge
-      RA.SwapF r1 r2 ->
-        block =<< relationBinFn r1 r2 EIR.Swap
-      RA.MergeF r1 r2 -> do
-        -- NOTE: r1 = from/src, r2 = to/dst, r1 and r2 have same underlying structure
-        indices <- indexesForRelation r1
-        block $ flip map indices $ \idx -> do
-          beginIter <- var "begin_iter"
-          endIter <- var "end_iter"
-          let relation1Ptr = lookupRelationByIndex r1 idx
-              relation2Ptr = lookupRelationByIndex r2 idx
+generateProgramInstructions = gcata (distribute constraintsForSearch extractEqualities) $ \case
+  RA.ModuleF (map extract -> actions) -> block actions
+  RA.ParF (map extract -> actions) -> parallel actions
+  RA.SearchF r alias clauses (extract -> action) -> do
+    let eqsInSearch = foldMap (execWriter . qThird) clauses
+    let constraints = concatMap qSecond clauses
+    idx <- idxFromConstraints r alias constraints
+    let relationPtr = lookupRelationByIndex r idx
+        isConstrain = \case
+          RA.Constrain _ _ -> True
+          _ -> False
+        queryClauses = map extract $ filter ((not . isConstrain) . qFirst) clauses
+        query = List.foldl1' and' queryClauses
+    (initLBValue, lbValue) <- initValue r idx alias LowerBound eqsInSearch
+    (initUBValue, ubValue) <- initValue r idx alias UpperBound eqsInSearch
+    block
+      [ initLBValue
+      , initUBValue
+      , rangeQuery r idx relationPtr lbValue ubValue $ \iter -> do
+          current <- var "current"
           block
-            [ assign beginIter $ stackAlloc r1 idx EIR.Iter
-              , assign endIter $ stackAlloc r1 idx EIR.Iter
-              , call r1 idx EIR.IterBegin [relation1Ptr, beginIter]
-              , call r1 idx EIR.IterEnd [relation1Ptr, endIter]
-              , call r1 idx EIR.InsertRange [relation2Ptr, beginIter, endIter]
+            [ assign current $ call r idx EIR.IterCurrent [iter]
+            , do
+              currentValue <- current
+              case length queryClauses of
+                0 -> -- No query to check: always matches
+                  withUpdatedAlias alias currentValue action
+                _ -> do
+                  withSearchState alias currentValue $
+                    withUpdatedAlias alias currentValue $
+                      if' query action
             ]
-      RA.LoopF (map extract -> actions) -> do
-        end <- labelId "loop.end"
-        block [withEndLabel end $ loop actions, label end]
-      RA.ExitF rs -> do
-        end <- endLabel <$> getLowerState
-        foldl' f (jump end) =<< traverse getFirstFieldOffset rs
-        where
-          f inner field = do
-            (r, idx, _) <- getContainerInfoByOffset field
-            let programPtr = fnArg 0
-                relationPtr = fieldAccess programPtr field
-                isEmpty = call r idx EIR.IsEmpty [relationPtr]
-            if' isEmpty inner
-      RA.LitF x -> lit x
-      RA.ConstrainF (extract -> lhs) (extract -> rhs) ->
-        equals lhs rhs
-      RA.NotElemF r (map extract -> columnValues) -> do
-        value <- var "value"
-        let idx = mkFindIndex columnValues
-            relationPtr = lookupRelationByIndex r idx
-            allocValue = assign value $ stackAlloc r idx EIR.Value
-        containsVar <- var "contains_result"
-        let assignActions = zipWith (assign . fieldAccess value) [0..] columnValues
-        block $ allocValue : assignActions
-            ++ [ assign containsVar $ call r idx EIR.Contains [relationPtr, value]
-               , not' containsVar
-               ]
-      RA.ColumnIndexF a' col -> Control.Monad.RWS.Strict.ask >>= \case
-        Search a value ls ->
-          if a == a'
-            then getColumn value col
-            else do
-              currentAliasValue <- lookupAlias a'
-              getColumn currentAliasValue col
-        Normal _ -> do
+      ]
+  RA.ProjectF r (map extract -> unresolvedValues) -> do
+    values <- sequence unresolvedValues
+    let values' = map pure values
+    indices <- indexesForRelation r
+    var <- var "value"
+    let -- NOTE: for allocating a value, the index does not matter
+        -- (a value is always represented as [N x i32] internally)
+        -- This saves us doing a few stack allocations.
+        firstIdx = unsafeHead indices
+        allocValue = assign var $ stackAlloc r firstIdx EIR.Value
+        assignStmts = zipWith (assign . fieldAccess var) [0..] values'
+        insertStmts = flip map indices $ \idx ->
+          -- NOTE: The insert function is different for each r + idx combination though!
+          call r idx EIR.Insert [lookupRelationByIndex r idx, var]
+    block $ allocValue : assignStmts ++ insertStmts
+  RA.PurgeF r ->
+    block =<< relationUnaryFn r EIR.Purge
+  RA.SwapF r1 r2 ->
+    block =<< relationBinFn r1 r2 EIR.Swap
+  RA.MergeF r1 r2 -> do
+    -- NOTE: r1 = from/src, r2 = to/dst, r1 and r2 have same underlying structure
+    indices <- indexesForRelation r1
+    block $ flip map indices $ \idx -> do
+      beginIter <- var "begin_iter"
+      endIter <- var "end_iter"
+      let relation1Ptr = lookupRelationByIndex r1 idx
+          relation2Ptr = lookupRelationByIndex r2 idx
+      block
+        [ assign beginIter $ stackAlloc r1 idx EIR.Iter
+          , assign endIter $ stackAlloc r1 idx EIR.Iter
+          , call r1 idx EIR.IterBegin [relation1Ptr, beginIter]
+          , call r1 idx EIR.IterEnd [relation1Ptr, endIter]
+          , call r1 idx EIR.InsertRange [relation2Ptr, beginIter, endIter]
+        ]
+  RA.LoopF (map extract -> actions) -> do
+    end <- labelId "loop.end"
+    block [withEndLabel end $ loop actions, label end]
+  RA.ExitF rs -> do
+    end <- endLabel <$> getLowerState
+    foldl' f (jump end) =<< traverse getFirstFieldOffset rs
+    where
+      f inner field = do
+        (r, idx, _) <- getContainerInfoByOffset field
+        let programPtr = fnArg 0
+            relationPtr = fieldAccess programPtr field
+            isEmpty = call r idx EIR.IsEmpty [relationPtr]
+        if' isEmpty inner
+  RA.LitF x -> lit x
+  RA.ConstrainF (extract -> lhs) (extract -> rhs) ->
+    equals lhs rhs
+  RA.NotElemF r (map extract -> columnValues) -> do
+    value <- var "value"
+    let idx = mkFindIndex columnValues
+        relationPtr = lookupRelationByIndex r idx
+        allocValue = assign value $ stackAlloc r idx EIR.Value
+    containsVar <- var "contains_result"
+    let assignActions = zipWith (assign . fieldAccess value) [0..] columnValues
+    block $ allocValue : assignActions
+        ++ [ assign containsVar $ call r idx EIR.Contains [relationPtr, value]
+            , not' containsVar
+            ]
+  RA.ColumnIndexF a' col -> ask >>= \case
+    Search a value ls ->
+      if a == a'
+        then getColumn value col
+        else do
           currentAliasValue <- lookupAlias a'
           getColumn currentAliasValue col
-        where
-          getColumn value col =
-            fieldAccess (pure value) col
+    Normal _ -> do
+      currentAliasValue <- lookupAlias a'
+      getColumn currentAliasValue col
+    where
+      getColumn value col =
+        fieldAccess (pure value) col
+  where
+    distribute :: Corecursive t
+               => (Base t a -> a)
+               -> (Base t (t, b) -> b)
+               -> (Base t (Quad t a b c) -> Quad t a b (Base t c))
+    distribute f g m =
+      let base_t_t = map qFirst m
+          base_t_a = map qSecond m
+          base_t_tb = map (qFirst &&& qThird) m
+          base_t_c = map qFourth m
+      in Quad (embed base_t_t) (f base_t_a) (g base_t_tb) base_t_c
 
 rangeQuery :: Relation
            -> Index
@@ -228,9 +249,6 @@ initValue r idx a bound eqs = do
       LowerBound -> 0
       UpperBound -> 0xffffffff
 
-combine :: Functor f => (f a -> a) -> (f b -> b) -> f (a, b) -> (a, b)
-combine f g = f . fmap fst &&& g . fmap snd
-
 data Val
   = AliasVal RA.Alias Column
   | Constant Int
@@ -240,30 +258,22 @@ data NormalizedEquality
   = Equality RA.Alias Column Val
   deriving Show
 
-type EqSearchM = RWS () [(Val, Val)] (Maybe Val)
-
-equalitiesInSearch :: RA.RAF (EqSearchM ()) -> EqSearchM ()
-equalitiesInSearch = \case
-  RA.ColumnIndexF a col -> do
-    put $ Just $ AliasVal a col
-  RA.LitF x -> do
-    put $ Just $ Constant x
-  RA.ConstrainF lhs rhs -> do
-    lhsValue <- lhs *> get
-    rhsValue <- rhs *> get
-    forM_ ((,) <$> lhsValue <*> rhsValue) $ \eq' ->
-      tell [eq']
-  raf -> sequence_ raf
-
-getNormalizedEqualities :: EqSearchM a -> [NormalizedEquality]
-getNormalizedEqualities m = foldMap normalizeEquality $ snd $ execRWS m () Nothing
-  where
-    normalizeEquality = \case
-      (lhs@(AliasVal a col), rhs@(AliasVal a' col')) ->
-        [Equality a col rhs, Equality a' col' lhs]
-      (AliasVal a col, x) -> [Equality a col x]
-      (x, AliasVal a col) -> [Equality a col x]
-      _ -> []
+extractEqualities :: RA.RAF (RA, Writer [NormalizedEquality] ()) -> Writer [NormalizedEquality] ()
+extractEqualities = \case
+  RA.ConstrainF (lhs, _) (rhs, _) -> do
+    case (lhs, rhs) of
+      (RA.ColumnIndex lA lCol, RA.ColumnIndex rA rCol) ->
+        tell [ Equality lA lCol (AliasVal rA rCol)
+             , Equality rA rCol (AliasVal lA lCol)
+             ]
+      (RA.ColumnIndex lA lCol, RA.Lit r) ->
+        tell [Equality lA lCol (Constant r)]
+      (RA.Lit l, RA.ColumnIndex rA rCol) ->
+        tell [Equality rA rCol (Constant l)]
+      _ ->
+        pure ()
+  raf ->
+    traverse_ snd raf
 
 forEachRelation :: CodegenM EIR -> (ContainerInfo -> CodegenM EIR -> CodegenM EIR) -> CodegenM [CodegenM EIR]
 forEachRelation program f = do
