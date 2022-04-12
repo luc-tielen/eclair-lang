@@ -74,7 +74,7 @@ type Decl = AST
 
 data Type
   = U32
-  deriving (Eq, Show)
+  deriving (Eq, Ord, Show)
 
 data AST
   = Lit Number

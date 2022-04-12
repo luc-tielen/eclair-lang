@@ -5,7 +5,8 @@ module Eclair.TypeSystem
   , typeCheck
   ) where
 
-import Protolude hiding (Type, TypeError, fold)
+import Protolude hiding (Type, TypeError, fold, head)
+import Data.List (head)
 import Control.Monad.Writer.Strict
 import Data.Functor.Foldable
 import Eclair.Syntax
@@ -19,7 +20,7 @@ data TypeError
   = UnknownAtom Id
   | ArgCountMismatch Id Int Int
   | DuplicateTypeDeclaration Id
-  deriving Show
+  deriving (Eq, Ord, Show)
 
 
 typeCheck :: AST -> Either [TypeError] TypeInfo
@@ -27,8 +28,15 @@ typeCheck ast
   | null errors = pure typeInfo
   | otherwise   = throwError errors
   where
-    typeInfo = getTypeInfo ast
-    errors = execWriter $ flip cata ast $ \case
+    typeInfo = Map.fromList typeDefs
+    errors = typeErrors ++ duplicateErrors
+    duplicateErrors =
+        sort typeDefs
+      & groupBy ((==) `on` fst)
+      & filter (\xs -> length xs /= 1)
+      & map (DuplicateTypeDeclaration . fst . head)
+    typeDefs = extractTypeDefs ast
+    typeErrors = execWriter $ flip cata ast $ \case
       AtomF name args -> do
         case lookupType name of
           Nothing ->
@@ -43,7 +51,8 @@ typeCheck ast
 
           Just types -> do
             checkArgCount name types args
-            sequence_ clauses
+
+        sequence_ clauses
 
       astf -> sequence_ astf
 
@@ -55,12 +64,6 @@ typeCheck ast
           expectedArgCount = length types
       when (actualArgCount /= expectedArgCount) $ do
         tell [ArgCountMismatch name expectedArgCount actualArgCount]
-
--- TODO: check for duplicates
-getTypeInfo :: AST -> TypeInfo
-getTypeInfo ast =
-  let typeDefs = extractTypeDefs ast
-   in Map.fromList typeDefs
 
 extractTypeDefs :: AST -> [(Id, [Type])]
 extractTypeDefs = cata $ \case
