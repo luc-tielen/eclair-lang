@@ -12,6 +12,7 @@ module Eclair.Syntax
   , Clause
   , Decl
   , Number
+  , Type(..)
   , Id(..)
   , prependToId
   , appendToId
@@ -20,15 +21,12 @@ module Eclair.Syntax
   , startsWithIdPrefix
   , deltaPrefix
   , newPrefix
-  , scc
   ) where
 
-import Protolude
-import Data.Maybe (fromJust)
+import Protolude hiding (Type, fold)
 import Control.Lens
+import Data.Functor.Foldable
 import Data.Functor.Foldable.TH
-import qualified Data.Graph as G
-import qualified Data.Map as M
 import qualified Data.Text as T
 import Prettyprinter
 
@@ -70,31 +68,18 @@ type Value = AST
 type Clause = AST
 type Decl = AST
 
+data Type
+  = U32
+  deriving (Eq, Ord, Show)
+
 data AST
   = Lit Number
   | Var Id
   | Atom Id [Value]
   | Rule Id [Value] [Clause]
+  | DeclareType Id [Type]
   | Module [Decl]
   deriving (Eq, Show)
 
 makePrisms ''AST
 makeBaseFunctor ''AST
-
-
-scc :: AST -> [[AST]]
-scc = \case
-  Module decls -> map G.flattenSCC sortedDecls where
-    -- TODO: fix issue when loose atom does not appear
-    sortedDecls = G.stronglyConnComp $ zipWith (\i d -> (d, i, refersTo d)) [0..] decls
-    declLineMapping = M.fromListWith (++) $ zipWith (\i d -> (nameFor d, [i])) [0 :: Int ..] decls
-    refersTo = \case
-      Rule _ _ clauses -> concatMap (fromJust . flip M.lookup declLineMapping . nameFor) clauses
-      _ -> []
-    -- TODO use traversals?
-    nameFor = \case
-      Atom name _ -> name
-      Rule name _ _ -> name
-      _ -> Id ""  -- TODO how to handle?
-  _ -> panic "Unreachable code in 'scc'"
-

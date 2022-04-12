@@ -1,33 +1,73 @@
 module Eclair.TypeSystem
   ( Type(..)
+  , TypeError(..)
   , TypeInfo
-  , getTypeInfo
+  , typeCheck
   ) where
 
-import Protolude hiding (Type, fold)
+import Protolude hiding (Type, TypeError, fold, head)
+import Data.List (head)
+import Control.Monad.Writer.Strict
 import Data.Functor.Foldable
 import Eclair.Syntax
 import qualified Data.Map as Map
 
-data Type
-  = IntType
-  deriving (Eq, Show)
 
 type TypeInfo = Map Id [Type]
 
--- TODO: fix this hack by adding support for type declarations.
--- TODO: add proper typesystem / semantic analysis checks.
-getTypeInfo :: AST -> TypeInfo
-getTypeInfo = cata $ \case
-  AtomF name args ->
-    Map.singleton name $ toTypes args
-  RuleF name args mappings ->
-    Map.union (Map.singleton name $ toTypes args) $ combine mappings
-  mappings ->
-    combine mappings
+-- NOTE: for now, no actual types are checked since everything is a u32.
+data TypeError
+  = UnknownAtom Id
+  | ArgCountMismatch Id Int Int
+  | DuplicateTypeDeclaration Id
+  deriving (Eq, Ord, Show)
+
+
+typeCheck :: AST -> Either [TypeError] TypeInfo
+typeCheck ast
+  | null errors = pure typeInfo
+  | otherwise   = throwError errors
   where
-    combine :: Foldable f => f TypeInfo -> TypeInfo
-    combine = foldr Map.union mempty
-    -- Right now Eclair only supports integers.
-    toTypes :: [a] -> [Type]
-    toTypes = map (const IntType)
+    typeInfo = Map.fromList typeDefs
+    errors = typeErrors ++ duplicateErrors
+    duplicateErrors =
+        sort typeDefs
+      & groupBy ((==) `on` fst)
+      & filter (\xs -> length xs /= 1)
+      & map (DuplicateTypeDeclaration . fst . head)
+    typeDefs = extractTypeDefs ast
+    typeErrors = execWriter $ flip cata ast $ \case
+      AtomF name args -> do
+        case lookupType name of
+          Nothing ->
+            tell [UnknownAtom name]
+          Just types ->
+            checkArgCount name types args
+
+      RuleF name args clauses -> do
+        case lookupType name of
+          Nothing ->
+            tell [UnknownAtom name]
+
+          Just types -> do
+            checkArgCount name types args
+
+        sequence_ clauses
+
+      astf -> sequence_ astf
+
+    lookupType name =
+      Map.lookup name typeInfo
+
+    checkArgCount name types args = do
+      let actualArgCount = length args
+          expectedArgCount = length types
+      when (actualArgCount /= expectedArgCount) $ do
+        tell [ArgCountMismatch name expectedArgCount actualArgCount]
+
+extractTypeDefs :: AST -> [(Id, [Type])]
+extractTypeDefs = cata $ \case
+  DeclareTypeF name tys -> [(name, tys)]
+  AtomF {} -> mempty
+  RuleF {} -> mempty
+  astf -> foldMap identity astf

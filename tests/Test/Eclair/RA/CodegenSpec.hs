@@ -24,7 +24,8 @@ cg path = do
   let file = "tests/fixtures/codegen" </> path <.> "dl"
   result <- compileRA file
   case result of
-    Left err -> panic $ "Failed to parse " <> T.pack file <> "!"
+    Left (ParseErr _) -> panic $ "Failed to parse " <> T.pack file <> "!"
+    Left (TypeErr _) -> panic $ "Failed to typecheck " <> T.pack file <> "!"
     Right ra -> pure $ printDoc ra
 
 resultsIn :: IO T.Text -> T.Text -> IO ()

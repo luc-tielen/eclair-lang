@@ -1,3 +1,5 @@
+@def link(u32, u32).
+@def chain(u32, u32, u32).
 
 link(1,2).
 link(2,3).
