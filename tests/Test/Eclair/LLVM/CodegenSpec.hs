@@ -269,13 +269,6 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         br label %range_query.end_1
       end_if_1:
         %current_1_0 =  call ccc  %value_t_1*  @btree_iterator_current_1(%btree_iterator_t_1*  %begin_iter_1_0)
-        %condition_2_0 = getelementptr  %value_t_1, %value_t_1* %current_1_0, i32 0, i32 1
-        %condition_2_1 = load   %column_t_1, %column_t_1* %condition_2_0
-        %condition_2_2 = getelementptr  %value_t_0, %value_t_0* %current_0, i32 0, i32 0
-        %condition_2_3 = load   %column_t_0, %column_t_0* %condition_2_2
-        %condition_2_4 = icmp eq %column_t_1 %condition_2_1, %condition_2_3
-        br i1 %condition_2_4, label %if_2, label %end_if_2
-      if_2:
         %value_6_0 = alloca %value_t_2, i32 1
         %22 = getelementptr  %value_t_2, %value_t_2* %value_6_0, i32 0, i32 0
         %23 = getelementptr  %value_t_1, %value_t_1* %current_1_0, i32 0, i32 0
@@ -287,8 +280,6 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         store   %column_t_0 %27, %column_t_2* %25
         %28 = getelementptr  %program, %program* %arg_0, i32 0, i32 2
         %29 =  call ccc  i1  @btree_insert_value_2(%btree_t_2*  %28, %value_t_2*  %value_6_0)
-        br label %end_if_2
-      end_if_2:
          call ccc  void  @btree_iterator_next_1(%btree_iterator_t_1*  %begin_iter_1_0)
         br label %loop_1
       range_query.end_1:
@@ -387,13 +378,6 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         br label %range_query.end_1
       end_if_1:
         %current_1_0 =  call ccc  %value_t_1*  @btree_iterator_current_1(%btree_iterator_t_1*  %begin_iter_1_0)
-        %condition_2_0 = getelementptr  %value_t_1, %value_t_1* %current_1_0, i32 0, i32 0
-        %condition_2_1 = load   %column_t_1, %column_t_1* %condition_2_0
-        %condition_2_2 = getelementptr  %value_t_1, %value_t_1* %current_0, i32 0, i32 1
-        %condition_2_3 = load   %column_t_1, %column_t_1* %condition_2_2
-        %condition_2_4 = icmp eq %column_t_1 %condition_2_1, %condition_2_3
-        br i1 %condition_2_4, label %if_2, label %end_if_2
-      if_2:
         %value_5_0 = alloca %value_t_0, i32 1
         %21 = getelementptr  %value_t_0, %value_t_0* %value_5_0, i32 0, i32 0
         %22 = getelementptr  %value_t_1, %value_t_1* %current_0, i32 0, i32 0
@@ -409,8 +393,6 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         store   %column_t_1 %29, %column_t_0* %27
         %30 = getelementptr  %program, %program* %arg_0, i32 0, i32 0
         %31 =  call ccc  i1  @btree_insert_value_0(%btree_t_0*  %30, %value_t_0*  %value_5_0)
-        br label %end_if_2
-      end_if_2:
          call ccc  void  @btree_iterator_next_1(%btree_iterator_t_1*  %begin_iter_1_0)
         br label %loop_1
       range_query.end_1:
@@ -532,11 +514,6 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         br label %range_query.end_1
       end_if_1:
         %current_1_0 =  call ccc  %value_t_0*  @btree_iterator_current_0(%btree_iterator_t_0*  %begin_iter_2_0)
-        %bool_0 = getelementptr  %value_t_0, %value_t_0* %current_1_0, i32 0, i32 0
-        %bool_1 = load   %column_t_0, %column_t_0* %bool_0
-        %bool_2 = getelementptr  %value_t_0, %value_t_0* %current_0, i32 0, i32 1
-        %bool_3 = load   %column_t_0, %column_t_0* %bool_2
-        %bool_4 = icmp eq %column_t_0 %bool_1, %bool_3
         %value_5_0 = alloca %value_t_0, i32 1
         %25 = getelementptr  %value_t_0, %value_t_0* %value_5_0, i32 0, i32 0
         %26 = getelementptr  %value_t_0, %value_t_0* %current_0, i32 0, i32 0
@@ -548,8 +525,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         store   %column_t_0 %30, %column_t_0* %28
         %contains_result_0 = getelementptr  %program, %program* %arg_0, i32 0, i32 3
         %contains_result_1 =  call ccc  i1  @btree_contains_0(%btree_t_0*  %contains_result_0, %value_t_0*  %value_5_0)
-        %bool_1_0 = select i1 %contains_result_1, i1 0, i1 1
-        %condition_2_0 = and i1 %bool_4, %bool_1_0
+        %condition_2_0 = select i1 %contains_result_1, i1 0, i1 1
         br i1 %condition_2_0, label %if_2, label %end_if_2
       if_2:
         %value_6_0 = alloca %value_t_0, i32 1
@@ -730,11 +706,6 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         br label %range_query.end_1
       end_if_1:
         %current_1_0 =  call ccc  %value_t_0*  @btree_iterator_current_0(%btree_iterator_t_0*  %begin_iter_3_0)
-        %bool_0 = getelementptr  %value_t_0, %value_t_0* %current_1_0, i32 0, i32 0
-        %bool_1 = load   %column_t_0, %column_t_0* %bool_0
-        %bool_2 = getelementptr  %value_t_0, %value_t_0* %current_0, i32 0, i32 0
-        %bool_3 = load   %column_t_0, %column_t_0* %bool_2
-        %bool_4 = icmp eq %column_t_0 %bool_1, %bool_3
         %value_7_0 = alloca %value_t_0, i32 1
         %30 = getelementptr  %value_t_0, %value_t_0* %value_7_0, i32 0, i32 0
         %31 = getelementptr  %value_t_0, %value_t_0* %current_0, i32 0, i32 0
@@ -742,8 +713,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         store   %column_t_0 %32, %column_t_0* %30
         %contains_result_0 = getelementptr  %program, %program* %arg_0, i32 0, i32 2
         %contains_result_1 =  call ccc  i1  @btree_contains_0(%btree_t_0*  %contains_result_0, %value_t_0*  %value_7_0)
-        %bool_1_0 = select i1 %contains_result_1, i1 0, i1 1
-        %condition_2_0 = and i1 %bool_4, %bool_1_0
+        %condition_2_0 = select i1 %contains_result_1, i1 0, i1 1
         br i1 %condition_2_0, label %if_2, label %end_if_2
       if_2:
         %value_8_0 = alloca %value_t_0, i32 1
@@ -805,11 +775,6 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         br label %range_query.end_3
       end_if_4:
         %current_3_0 =  call ccc  %value_t_0*  @btree_iterator_current_0(%btree_iterator_t_0*  %begin_iter_5_0)
-        %bool_2_0 = getelementptr  %value_t_0, %value_t_0* %current_3_0, i32 0, i32 0
-        %bool_2_1 = load   %column_t_0, %column_t_0* %bool_2_0
-        %bool_2_2 = getelementptr  %value_t_0, %value_t_0* %current_2_0, i32 0, i32 0
-        %bool_2_3 = load   %column_t_0, %column_t_0* %bool_2_2
-        %bool_2_4 = icmp eq %column_t_0 %bool_2_1, %bool_2_3
         %value_13_0 = alloca %value_t_0, i32 1
         %50 = getelementptr  %value_t_0, %value_t_0* %value_13_0, i32 0, i32 0
         %51 = getelementptr  %value_t_0, %value_t_0* %current_2_0, i32 0, i32 0
@@ -817,8 +782,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         store   %column_t_0 %52, %column_t_0* %50
         %contains_result_1_0 = getelementptr  %program, %program* %arg_0, i32 0, i32 1
         %contains_result_1_1 =  call ccc  i1  @btree_contains_0(%btree_t_0*  %contains_result_1_0, %value_t_0*  %value_13_0)
-        %bool_3_0 = select i1 %contains_result_1_1, i1 0, i1 1
-        %condition_5_0 = and i1 %bool_2_4, %bool_3_0
+        %condition_5_0 = select i1 %contains_result_1_1, i1 0, i1 1
         br i1 %condition_5_0, label %if_5, label %end_if_5
       if_5:
         %value_14_0 = alloca %value_t_0, i32 1
@@ -916,13 +880,6 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         br label %range_query.end_5
       end_if_9:
         %current_5_0 =  call ccc  %value_t_0*  @btree_iterator_current_0(%btree_iterator_t_0*  %begin_iter_9_0)
-        %condition_10_0 = getelementptr  %value_t_0, %value_t_0* %current_5_0, i32 0, i32 0
-        %condition_10_1 = load   %column_t_0, %column_t_0* %condition_10_0
-        %condition_10_2 = getelementptr  %value_t_0, %value_t_0* %current_4_0, i32 0, i32 0
-        %condition_10_3 = load   %column_t_0, %column_t_0* %condition_10_2
-        %condition_10_4 = icmp eq %column_t_0 %condition_10_1, %condition_10_3
-        br i1 %condition_10_4, label %if_10, label %end_if_10
-      if_10:
         %value_19_0 = alloca %value_t_0, i32 1
         %80 = getelementptr  %value_t_0, %value_t_0* %value_19_0, i32 0, i32 0
         %81 = getelementptr  %value_t_0, %value_t_0* %current_4_0, i32 0, i32 0
@@ -930,8 +887,6 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         store   %column_t_0 %82, %column_t_0* %80
         %83 = getelementptr  %program, %program* %arg_0, i32 0, i32 0
         %84 =  call ccc  i1  @btree_insert_value_0(%btree_t_0*  %83, %value_t_0*  %value_19_0)
-        br label %end_if_10
-      end_if_10:
          call ccc  void  @btree_iterator_next_0(%btree_iterator_t_0*  %begin_iter_9_0)
         br label %loop_6
       range_query.end_5:

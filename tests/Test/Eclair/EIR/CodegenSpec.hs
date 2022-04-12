@@ -245,14 +245,10 @@ spec = describe "EIR Code Generation" $ parallel $ do
               goto range_query.end_1
             }
             current_1 = second.iter_current(begin_iter_1)
-            condition_2 = current_1.1 == current.0
-            if (condition_2)
-            {
-              value_6 = third.stack_allocate Value
-              value_6.0 = current_1.0
-              value_6.1 = current.0
-              third.insert(FN_ARG[0].2, value_6)
-            }
+            value_6 = third.stack_allocate Value
+            value_6.0 = current_1.0
+            value_6.1 = current.0
+            third.insert(FN_ARG[0].2, value_6)
             second.iter_next(begin_iter_1)
           }
           range_query.end_1:
@@ -331,15 +327,11 @@ spec = describe "EIR Code Generation" $ parallel $ do
               goto range_query.end_1
             }
             current_1 = link.iter_current(begin_iter_1)
-            condition_2 = current_1.0 == current.1
-            if (condition_2)
-            {
-              value_5 = chain.stack_allocate Value
-              value_5.0 = current.0
-              value_5.1 = current.1
-              value_5.2 = current_1.1
-              chain.insert(FN_ARG[0].0, value_5)
-            }
+            value_5 = chain.stack_allocate Value
+            value_5.0 = current.0
+            value_5.1 = current.1
+            value_5.2 = current_1.1
+            chain.insert(FN_ARG[0].0, value_5)
             link.iter_next(begin_iter_1)
           }
           range_query.end_1:
@@ -437,13 +429,11 @@ spec = describe "EIR Code Generation" $ parallel $ do
                 goto range_query.end_1
               }
               current_1 = delta_path.iter_current(begin_iter_2)
-              bool = current_1.0 == current.1
               value_5 = path.stack_allocate Value
               value_5.0 = current.0
               value_5.1 = current_1.1
               contains_result = path.contains(FN_ARG[0].3, value_5)
-              bool_1 = not contains_result
-              condition_2 = bool && bool_1
+              condition_2 = not contains_result
               if (condition_2)
               {
                 value_6 = path.stack_allocate Value
@@ -580,12 +570,10 @@ spec = describe "EIR Code Generation" $ parallel $ do
                   goto range_query.end_1
                 }
                 current_1 = d.iter_current(begin_iter_3)
-                bool = current_1.0 == current.0
                 value_7 = c.stack_allocate Value
                 value_7.0 = current.0
                 contains_result = c.contains(FN_ARG[0].2, value_7)
-                bool_1 = not contains_result
-                condition_2 = bool && bool_1
+                condition_2 = not contains_result
                 if (condition_2)
                 {
                   value_8 = c.stack_allocate Value
@@ -630,12 +618,10 @@ spec = describe "EIR Code Generation" $ parallel $ do
                   goto range_query.end_3
                 }
                 current_3 = d.iter_current(begin_iter_5)
-                bool_2 = current_3.0 == current_2.0
                 value_13 = b.stack_allocate Value
                 value_13.0 = current_2.0
                 contains_result_1 = b.contains(FN_ARG[0].1, value_13)
-                bool_3 = not contains_result_1
-                condition_5 = bool_2 && bool_3
+                condition_5 = not contains_result_1
                 if (condition_5)
                 {
                   value_14 = b.stack_allocate Value
@@ -704,13 +690,9 @@ spec = describe "EIR Code Generation" $ parallel $ do
               goto range_query.end_5
             }
             current_5 = c.iter_current(begin_iter_9)
-            condition_10 = current_5.0 == current_4.0
-            if (condition_10)
-            {
-              value_19 = a.stack_allocate Value
-              value_19.0 = current_4.0
-              a.insert(FN_ARG[0].0, value_19)
-            }
+            value_19 = a.stack_allocate Value
+            value_19.0 = current_4.0
+            a.insert(FN_ARG[0].0, value_19)
             c.iter_next(begin_iter_9)
           }
           range_query.end_5:
