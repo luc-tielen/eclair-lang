@@ -14,6 +14,7 @@ import Data.Char
 import Data.Vector as V
 import Data.Void
 import Eclair.AST.IR
+import Eclair.Id
 import Protolude hiding (Type)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO

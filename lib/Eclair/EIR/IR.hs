@@ -11,7 +11,8 @@ module Eclair.EIR.IR
 
 import Protolude hiding (Type,Meta)
 import Data.String (IsString(..))
-import Eclair.AST.IR (Id, Number)
+import Eclair.AST.IR (Number)
+import Eclair.Id
 import Eclair.RA.IndexSelection (Index)
 import Eclair.LLVM.Metadata
 import Data.Functor.Foldable.TH

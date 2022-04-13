@@ -27,9 +27,9 @@ import qualified Data.Map as M
 import qualified Data.Text as T
 import qualified Eclair.RA.IR as RA
 import qualified Eclair.AST.IR as AST
+import Eclair.Id
 
 
-type Id = AST.Id
 type Relation = RA.Relation
 type RA = RA.RA
 
@@ -120,7 +120,7 @@ search r ts inner = do
 
 relationToAlias :: Relation -> Row -> RA.Alias
 relationToAlias r row =
-  AST.appendToId r (T.pack . show $ unRow row)
+  appendToId r (T.pack . show $ unRow row)
 
 loop :: [CodegenM RA] -> CodegenM RA
 loop ms = RA.Loop <$> sequence ms

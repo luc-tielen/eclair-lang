@@ -10,6 +10,7 @@ import Data.List (head)
 import Control.Monad.Writer.Strict
 import Data.Functor.Foldable
 import Eclair.AST.IR
+import Eclair.Id
 import qualified Data.Map as Map
 
 

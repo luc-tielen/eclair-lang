@@ -2,7 +2,7 @@ module Eclair.RA.Printer ( Pretty ) where
 
 import Eclair.Pretty
 import Eclair.RA.IR
-import Eclair.AST.IR (Id(..))
+import Eclair.Id
 import Protolude
 import qualified Data.Text as T
 

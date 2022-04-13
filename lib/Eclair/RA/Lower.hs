@@ -16,7 +16,7 @@ import Eclair.EIR.Codegen
 import Eclair.EIR.IR (EIR)
 import Eclair.RA.IR (RA)
 import Eclair.RA.IndexSelection
-import Eclair.AST.IR (Id(..), stripIdPrefixes)
+import Eclair.Id
 import Eclair.TypeSystem
 import qualified Eclair.EIR.IR as EIR
 import qualified Eclair.RA.IR as RA
@@ -143,10 +143,10 @@ generateProgramInstructions = gcata (distribute constraintsForSearch extractEqua
           relation2Ptr = lookupRelationByIndex r2 idx
       block
         [ assign beginIter $ stackAlloc r1 idx EIR.Iter
-          , assign endIter $ stackAlloc r1 idx EIR.Iter
-          , call r1 idx EIR.IterBegin [relation1Ptr, beginIter]
-          , call r1 idx EIR.IterEnd [relation1Ptr, endIter]
-          , call r1 idx EIR.InsertRange [relation2Ptr, beginIter, endIter]
+        , assign endIter $ stackAlloc r1 idx EIR.Iter
+        , call r1 idx EIR.IterBegin [relation1Ptr, beginIter]
+        , call r1 idx EIR.IterEnd [relation1Ptr, endIter]
+        , call r1 idx EIR.InsertRange [relation2Ptr, beginIter, endIter]
         ]
   RA.LoopF (map extract -> actions) -> do
     end <- labelId "loop.end"

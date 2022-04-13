@@ -7,6 +7,7 @@ import qualified Data.Map as M
 import Data.Maybe (fromJust)
 import Eclair.RA.Codegen
 import Eclair.AST.IR hiding (Clause)
+import Eclair.Id
 import qualified Eclair.RA.IR as RA
 
 type RA = RA.RA
