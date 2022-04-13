@@ -48,7 +48,7 @@
                     sha256 =
                       "0kqb8n40zzv6jgcfi4wr40axz7r2q18rwzpq6qhpjnxwgg9qix0j";
                   }) "" { inherit llvm-hs llvm-hs-pure; })
-                  (_: { patches = [ ./patches/1-llvm-hs-pretty.patch ]; }));
+                  (_: { patches = [ ./nix/patches/1-llvm-hs-pretty.patch ]; }));
 
               llvm-hs-combinators = with final;
                 callCabal2nixWithOptions "llvm-hs-combinators"

@@ -8,16 +8,16 @@ import qualified Data.Set as Set
 import Test.Hspec
 import System.FilePath
 import Eclair
-import Eclair.Syntax
+import Eclair.Id
 import Eclair.Parser
-import Eclair.Lowering.AST
+import Eclair.AST.Lower
 import Eclair.RA.IndexSelection
 import qualified Data.Text as T
 
 
 idxSel :: FilePath -> IO IndexMap
 idxSel path = do
-  let file = "tests/fixtures/codegen" </> path <.> "dl"
+  let file = "tests/fixtures" </> path <.> "dl"
   raResult <- compileRA file
   case raResult of
     Left err -> panic $ "Failed to parse " <> T.pack file <> "!"

@@ -48,13 +48,13 @@ import qualified Data.Set as S
 import qualified Data.Text as T
 import Eclair.RA.IndexSelection
 import Eclair.TypeSystem
+import Eclair.Id
 import qualified Eclair.EIR.IR as EIR
 import qualified Eclair.RA.IR as RA
+import qualified Eclair.AST.IR as AST
 import qualified Eclair.LLVM.Metadata as M
-import qualified Eclair.Syntax as AST
 
 
-type Id = AST.Id
 type Alias = RA.Alias
 type Relation = EIR.Relation
 type EIR = EIR.EIR
@@ -151,7 +151,7 @@ freeProgram ptr = EIR.FreeProgram <$> ptr
 
 stackAlloc :: Relation -> Index -> EIR.Type -> CodegenM EIR
 stackAlloc r idx ty =
-  pure $ EIR.StackAllocate (AST.stripIdPrefixes r) idx ty
+  pure $ EIR.StackAllocate (stripIdPrefixes r) idx ty
 
 loop :: [CodegenM EIR] -> CodegenM EIR
 loop ms = do

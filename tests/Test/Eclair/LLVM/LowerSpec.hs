@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeFamilies, RankNTypes, QuasiQuotes #-}
 
-module Test.Eclair.LLVM.CodegenSpec
-  ( module Test.Eclair.LLVM.CodegenSpec
+module Test.Eclair.LLVM.LowerSpec
+  ( module Test.Eclair.LLVM.LowerSpec
   ) where
 
 import Protolude hiding ((<.>))
@@ -12,7 +12,6 @@ import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import Eclair
 import Eclair.Pretty
-import Eclair.Syntax
 import System.FilePath
 import Test.Hspec
 import NeatInterpolation
@@ -23,7 +22,7 @@ import LLVM.Pretty
 
 cg :: FilePath -> IO T.Text
 cg path = do
-  let file = "tests/fixtures/codegen" </> path <.> "dl"
+  let file = "tests/fixtures" </> path <.> "dl"
   result <- compileLLVM file
   case result of
     Left err -> panic $ "Failed to parse " <> T.pack file <> "!"

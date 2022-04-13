@@ -9,11 +9,12 @@ module Eclair
 
 import Protolude hiding (TypeError, swap)
 import qualified Data.Map as M
-import Eclair.Lowering.AST
-import Eclair.Lowering.RA
-import Eclair.Lowering.EIR
+import Eclair.AST.Lower
+import Eclair.RA.Lower
+import Eclair.EIR.Lower
 import Eclair.Parser
-import Eclair.Syntax
+import Eclair.Id
+import Eclair.AST.IR
 import qualified Eclair.RA.IR as RA
 import qualified Eclair.EIR.IR as EIR
 import Eclair.RA.Interpreter
@@ -21,7 +22,7 @@ import qualified Eclair.TypeSystem as TS
 import LLVM.AST (Module)
 
 
-type Relation = Id
+type Relation = RA.Relation
 type RA = RA.RA
 type EIR = EIR.EIR
 

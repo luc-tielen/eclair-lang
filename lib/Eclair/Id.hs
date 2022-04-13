@@ -1,19 +1,5 @@
-{-# LANGUAGE TemplateHaskell, OverloadedStrings #-}
-
-module Eclair.Syntax
-  ( AST(..)
-  , ASTF(..)
-  , _Lit
-  , _Var
-  , _Atom
-  , _Rule
-  , _Module
-  , Value
-  , Clause
-  , Decl
-  , Number
-  , Type(..)
-  , Id(..)
+module Eclair.Id
+  ( Id(..)
   , prependToId
   , appendToId
   , startsWithId
@@ -23,21 +9,17 @@ module Eclair.Syntax
   , newPrefix
   ) where
 
-import Protolude hiding (Type, fold)
-import Control.Lens
-import Data.Functor.Foldable
-import Data.Functor.Foldable.TH
+import Protolude
 import qualified Data.Text as T
 import Prettyprinter
 
-
-type Number = Int
 
 newtype Id = Id { unId :: Text }
   deriving (Eq, Ord, Show)
 
 instance Pretty Id where
   pretty = pretty . unId
+
 
 appendToId :: Id -> Text -> Id
 appendToId (Id x) y = Id (x <> y)
@@ -62,24 +44,3 @@ newPrefix = "new_"
 startsWithIdPrefix :: Id -> Bool
 startsWithIdPrefix (Id x) =
   any (`T.isPrefixOf` x) [deltaPrefix, newPrefix]
-
-
-type Value = AST
-type Clause = AST
-type Decl = AST
-
-data Type
-  = U32
-  deriving (Eq, Ord, Show)
-
-data AST
-  = Lit Number
-  | Var Id
-  | Atom Id [Value]
-  | Rule Id [Value] [Clause]
-  | DeclareType Id [Type]
-  | Module [Decl]
-  deriving (Eq, Show)
-
-makePrisms ''AST
-makeBaseFunctor ''AST

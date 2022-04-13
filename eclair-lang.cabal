@@ -4,7 +4,7 @@ cabal-version: 2.2
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 4b0f80f80bde2f779319be909b6fb87224e01decabb732a7c8b1428c3fce7176
+-- hash: 35c72198e88733324c4573f4c738f0a503ce8ca5552f3b1612c6ae134b814901
 
 name:           eclair-lang
 version:        0.1.0.0
@@ -27,26 +27,25 @@ flag debug
 library
   exposed-modules:
       Eclair
+      Eclair.AST.IR
+      Eclair.AST.Lower
       Eclair.EIR.Codegen
       Eclair.EIR.IR
-      Eclair.EIR.Printer
+      Eclair.EIR.Lower
+      Eclair.Id
       Eclair.LLVM.BTree
       Eclair.LLVM.Codegen
       Eclair.LLVM.Hash
       Eclair.LLVM.LLVM
       Eclair.LLVM.Metadata
       Eclair.LLVM.Runtime
-      Eclair.Lowering.AST
-      Eclair.Lowering.EIR
-      Eclair.Lowering.RA
       Eclair.Parser
       Eclair.Pretty
       Eclair.RA.Codegen
       Eclair.RA.IndexSelection
       Eclair.RA.Interpreter
       Eclair.RA.IR
-      Eclair.RA.Printer
-      Eclair.Syntax
+      Eclair.RA.Lower
       Eclair.TypeSystem
   other-modules:
       Paths_eclair_lang
@@ -179,13 +178,13 @@ test-suite eclair-test
   type: exitcode-stdio-1.0
   main-is: test.hs
   other-modules:
-      Test.Eclair.EIR.CodegenSpec
-      Test.Eclair.LLVM.CodegenSpec
+      Test.Eclair.EIR.LowerSpec
       Test.Eclair.LLVM.HashSpec
+      Test.Eclair.LLVM.LowerSpec
       Test.Eclair.ParserSpec
-      Test.Eclair.RA.CodegenSpec
       Test.Eclair.RA.IndexSelectionSpec
       Test.Eclair.RA.InterpreterSpec
+      Test.Eclair.RA.LowerSpec
       Test.Eclair.TypeSystemSpec
       Paths_eclair_lang
   autogen-modules:

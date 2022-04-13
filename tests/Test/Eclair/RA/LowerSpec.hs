@@ -1,27 +1,25 @@
 
 {-# LANGUAGE TypeFamilies, RankNTypes, QuasiQuotes #-}
-module Test.Eclair.RA.CodegenSpec
-  ( module Test.Eclair.RA.CodegenSpec
+module Test.Eclair.RA.LowerSpec
+  ( module Test.Eclair.RA.LowerSpec
   ) where
 
 import qualified Data.Text as T
 import Eclair
 import qualified Eclair.RA.IR as RA
-import Eclair.RA.Printer
 import Eclair.Pretty
-import Eclair.Syntax
 import Protolude hiding ((<.>))
 import System.FilePath
 import Test.Hspec
 import NeatInterpolation
 import Eclair.Parser
 import Eclair.TypeSystem
-import Eclair.Lowering.AST
+import Eclair.AST.Lower
 
 
 cg :: FilePath -> IO T.Text
 cg path = do
-  let file = "tests/fixtures/codegen" </> path <.> "dl"
+  let file = "tests/fixtures" </> path <.> "dl"
   result <- compileRA file
   case result of
     Left (ParseErr _) -> panic $ "Failed to parse " <> T.pack file <> "!"

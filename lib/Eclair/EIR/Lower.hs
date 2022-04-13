@@ -1,4 +1,4 @@
-module Eclair.Lowering.EIR
+module Eclair.EIR.Lower
   ( compileToLLVM
   ) where
 
@@ -32,7 +32,7 @@ import Eclair.LLVM.Codegen
 import Eclair.LLVM.Hash
 import Eclair.LLVM.Runtime
 import Eclair.RA.IndexSelection
-import Eclair.Syntax
+import Eclair.AST.IR
 
 
 type EIR = EIR.EIR

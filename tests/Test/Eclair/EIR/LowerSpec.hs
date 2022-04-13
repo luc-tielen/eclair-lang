@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeFamilies, RankNTypes, QuasiQuotes #-}
 
-module Test.Eclair.EIR.CodegenSpec
-  ( module Test.Eclair.EIR.CodegenSpec
+module Test.Eclair.EIR.LowerSpec
+  ( module Test.Eclair.EIR.LowerSpec
   ) where
 
 import Protolude hiding ((<.>))
@@ -9,9 +9,7 @@ import Control.Arrow ((&&&))
 import qualified Data.Text as T
 import Eclair
 import qualified Eclair.EIR.IR as EIR
-import Eclair.EIR.Printer
 import Eclair.Pretty
-import Eclair.Syntax
 import System.FilePath
 import Test.Hspec
 import NeatInterpolation
@@ -19,7 +17,7 @@ import NeatInterpolation
 
 cg :: FilePath -> IO T.Text
 cg path = do
-  let file = "tests/fixtures/codegen" </> path <.> "dl"
+  let file = "tests/fixtures" </> path <.> "dl"
   result <- compileEIR file
   case result of
     Left err -> panic $ "Failed to parse " <> T.pack file <> "!"
