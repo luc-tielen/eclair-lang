@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell, OverloadedStrings #-}
 
-module Eclair.Syntax
+module Eclair.AST.IR
   ( AST(..)
   , ASTF(..)
   , _Lit

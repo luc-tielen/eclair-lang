@@ -26,7 +26,7 @@ import Data.Maybe (fromJust)
 import qualified Data.Map as M
 import qualified Data.Text as T
 import qualified Eclair.RA.IR as RA
-import qualified Eclair.Syntax as AST
+import qualified Eclair.AST.IR as AST
 
 
 type Id = AST.Id

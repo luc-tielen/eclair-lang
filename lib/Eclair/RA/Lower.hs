@@ -1,5 +1,5 @@
 
-module Eclair.Lowering.RA ( compileToEIR ) where
+module Eclair.RA.Lower ( compileToEIR ) where
 
 import Protolude hiding (Type)
 import Protolude.Unsafe (unsafeHead)
@@ -16,7 +16,7 @@ import Eclair.EIR.Codegen
 import Eclair.EIR.IR (EIR)
 import Eclair.RA.IR (RA)
 import Eclair.RA.IndexSelection
-import Eclair.Syntax (Id(..), stripIdPrefixes)
+import Eclair.AST.IR (Id(..), stripIdPrefixes)
 import Eclair.TypeSystem
 import qualified Eclair.EIR.IR as EIR
 import qualified Eclair.RA.IR as RA

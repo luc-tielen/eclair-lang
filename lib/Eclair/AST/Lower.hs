@@ -1,4 +1,4 @@
-module Eclair.Lowering.AST ( compileToRA ) where
+module Eclair.AST.Lower ( compileToRA ) where
 
 import Protolude hiding (swap)
 import Control.Lens hiding (Equality, Index)
@@ -6,7 +6,7 @@ import qualified Data.Graph as G
 import qualified Data.Map as M
 import Data.Maybe (fromJust)
 import Eclair.RA.Codegen
-import Eclair.Syntax hiding (Clause)
+import Eclair.AST.IR hiding (Clause)
 import qualified Eclair.RA.IR as RA
 
 type RA = RA.RA

@@ -13,7 +13,7 @@ import Control.Monad.Fail
 import Data.Char
 import Data.Vector as V
 import Data.Void
-import Eclair.Syntax
+import Eclair.AST.IR
 import Protolude hiding (Type)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO

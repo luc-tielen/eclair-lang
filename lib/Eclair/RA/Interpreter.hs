@@ -12,7 +12,7 @@ import Data.List ((!!))
 import Control.Monad.Catch
 import Control.Monad.Extra
 import Eclair.RA.IR
-import Eclair.Syntax (Id(..), Number, startsWithId)
+import Eclair.AST.IR (Id(..), Number, startsWithId)
 import qualified Data.Map as M
 
 type Record = [Number]
