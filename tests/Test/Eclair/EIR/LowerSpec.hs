@@ -17,7 +17,7 @@ import NeatInterpolation
 
 cg :: FilePath -> IO T.Text
 cg path = do
-  let file = "tests/fixtures/codegen" </> path <.> "dl"
+  let file = "tests/fixtures" </> path <.> "dl"
   result <- compileEIR file
   case result of
     Left err -> panic $ "Failed to parse " <> T.pack file <> "!"

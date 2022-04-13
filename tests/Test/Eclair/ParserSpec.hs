@@ -17,7 +17,7 @@ shouldParseText txt = do
 
 shouldParseFile :: FilePath -> IO ()
 shouldParseFile file = do
-  let path = "./tests/fixtures/codegen/" <> file
+  let path = "./tests/fixtures/" <> file
   result <- parseFile path
   isRight result `shouldBe` True
 

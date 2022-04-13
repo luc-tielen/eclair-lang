@@ -22,7 +22,7 @@ import LLVM.Pretty
 
 cg :: FilePath -> IO T.Text
 cg path = do
-  let file = "tests/fixtures/codegen" </> path <.> "dl"
+  let file = "tests/fixtures" </> path <.> "dl"
   result <- compileLLVM file
   case result of
     Left err -> panic $ "Failed to parse " <> T.pack file <> "!"

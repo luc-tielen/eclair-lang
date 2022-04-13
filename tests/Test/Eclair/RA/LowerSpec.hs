@@ -19,7 +19,7 @@ import Eclair.AST.Lower
 
 cg :: FilePath -> IO T.Text
 cg path = do
-  let file = "tests/fixtures/codegen" </> path <.> "dl"
+  let file = "tests/fixtures" </> path <.> "dl"
   result <- compileRA file
   case result of
     Left (ParseErr _) -> panic $ "Failed to parse " <> T.pack file <> "!"
