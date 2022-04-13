@@ -8,9 +8,9 @@ import qualified Data.Set as Set
 import Test.Hspec
 import System.FilePath
 import Eclair
-import Eclair.Syntax
+import Eclair.Id
 import Eclair.Parser
-import Eclair.Lowering.AST
+import Eclair.AST.Lower
 import Eclair.RA.IndexSelection
 import qualified Data.Text as T
 

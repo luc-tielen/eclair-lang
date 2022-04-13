@@ -8,7 +8,7 @@ import Protolude hiding (TypeError)
 import Test.Hspec
 import Eclair.TypeSystem
 import Eclair.Parser
-import Eclair.Syntax
+import Eclair.Id
 import NeatInterpolation
 
 

@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeFamilies, RankNTypes, QuasiQuotes #-}
 
-module Test.Eclair.EIR.CodegenSpec
-  ( module Test.Eclair.EIR.CodegenSpec
+module Test.Eclair.EIR.LowerSpec
+  ( module Test.Eclair.EIR.LowerSpec
   ) where
 
 import Protolude hiding ((<.>))
@@ -9,9 +9,7 @@ import Control.Arrow ((&&&))
 import qualified Data.Text as T
 import Eclair
 import qualified Eclair.EIR.IR as EIR
-import Eclair.EIR.Printer
 import Eclair.Pretty
-import Eclair.Syntax
 import System.FilePath
 import Test.Hspec
 import NeatInterpolation

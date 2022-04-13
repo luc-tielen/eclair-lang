@@ -4,7 +4,8 @@ module Test.Eclair.RA.InterpreterSpec
 
 
 import qualified Eclair as E
-import Eclair.Syntax
+import Eclair.Id
+import Eclair.AST.IR
 import Eclair.RA.IR
 import Protolude hiding ((<.>))
 import Test.Hspec
