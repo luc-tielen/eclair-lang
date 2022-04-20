@@ -4,7 +4,6 @@ module Test.Eclair.TypeSystemSpec
   ( module Test.Eclair.TypeSystemSpec
   ) where
 
-import Protolude hiding (TypeError)
 import Test.Hspec
 import Eclair.TypeSystem
 import Eclair.Parser

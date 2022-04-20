@@ -4,8 +4,6 @@ module Test.Eclair.LLVM.LowerSpec
   ( module Test.Eclair.LLVM.LowerSpec
   ) where
 
-import Protolude hiding ((<.>))
-import Control.Arrow ((&&&))
 import Data.Maybe (fromJust)
 import qualified Data.List as L
 import qualified Data.Text as T

@@ -8,7 +8,6 @@ import qualified Data.Text as T
 import Eclair
 import qualified Eclair.RA.IR as RA
 import Eclair.Pretty
-import Protolude hiding ((<.>))
 import System.FilePath
 import Test.Hspec
 import NeatInterpolation

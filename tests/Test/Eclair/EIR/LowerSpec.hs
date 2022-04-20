@@ -4,8 +4,6 @@ module Test.Eclair.EIR.LowerSpec
   ( module Test.Eclair.EIR.LowerSpec
   ) where
 
-import Protolude hiding ((<.>))
-import Control.Arrow ((&&&))
 import qualified Data.Text as T
 import Eclair
 import qualified Eclair.EIR.IR as EIR

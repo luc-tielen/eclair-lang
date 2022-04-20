@@ -5,9 +5,7 @@ module Eclair.TypeSystem
   , typeCheck
   ) where
 
-import Prelude hiding (Type, TypeError, fold, head)
-import Data.List (head)
-import Control.Monad.Writer.Strict
+import qualified Data.List as List (head)
 import Data.Functor.Foldable
 import Eclair.AST.IR
 import Eclair.Id
@@ -35,7 +33,7 @@ typeCheck ast
         sort typeDefs
       & groupBy ((==) `on` fst)
       & filter (\xs -> length xs /= 1)
-      & map (DuplicateTypeDeclaration . fst . head)
+      & map (DuplicateTypeDeclaration . fst . List.head)
     typeDefs = extractTypeDefs ast
     typeErrors = execWriter $ flip cata ast $ \case
       AtomF name args -> do

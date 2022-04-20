@@ -12,7 +12,6 @@ import Eclair.AST.Lower
 import Eclair.RA.IR
 import Eclair.RA.Interpreter
 import Eclair.TypeSystem
-import Protolude hiding ((<.>))
 import Test.Hspec
 import qualified Data.Map as M
 import System.FilePath

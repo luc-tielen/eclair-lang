@@ -2,8 +2,6 @@ module Test.Eclair.LLVM.HashSpec
   ( module Test.Eclair.LLVM.HashSpec
   ) where
 
-import Protolude
-import Prelude (String)
 import qualified Data.Set as Set
 import Eclair.LLVM.Hash
 import Test.Hspec

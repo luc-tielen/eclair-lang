@@ -3,7 +3,6 @@ module Eclair.LLVM.Metadata
   , mkMeta
   ) where
 
-import Prelude hiding (Type)
 import Eclair.RA.IndexSelection (Index(..))
 import Eclair.TypeSystem
 import Eclair.LLVM.Hash

@@ -7,7 +7,6 @@ module Eclair
   , EclairError(..)
   ) where
 
-import Protolude hiding (TypeError, swap)
 import qualified Data.Map as M
 import Eclair.AST.Lower
 import Eclair.RA.Lower

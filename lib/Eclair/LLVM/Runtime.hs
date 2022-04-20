@@ -5,7 +5,6 @@ module Eclair.LLVM.Runtime
   , HasSuffix(..)
   ) where
 
-import Prelude hiding (Type)
 import LLVM.AST.Operand
 import LLVM.AST.Type
 

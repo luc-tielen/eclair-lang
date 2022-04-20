@@ -39,8 +39,6 @@ module Eclair.EIR.Codegen
   , lit
   ) where
 
-import Control.Monad.RWS.Strict
-import Protolude hiding (Constraint, swap, from, to)
 import Data.Maybe (fromJust)
 import qualified Data.List as List
 import qualified Data.Map as M

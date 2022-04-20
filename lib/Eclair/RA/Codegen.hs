@@ -20,8 +20,6 @@ module Eclair.RA.Codegen
   , noElemOf
   ) where
 
-import Prelude hiding (Constraint, swap, from, to)
-import Control.Monad.RWS.Strict
 import Data.Maybe (fromJust)
 import qualified Data.Map as M
 import qualified Data.Text as T

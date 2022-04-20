@@ -2,7 +2,6 @@ module Test.Eclair.RA.IndexSelectionSpec
   ( module Test.Eclair.RA.IndexSelectionSpec
   ) where
 
-import Protolude hiding ((<.>))
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Test.Hspec

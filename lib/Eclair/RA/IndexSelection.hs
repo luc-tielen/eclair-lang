@@ -12,7 +12,7 @@ module Eclair.RA.IndexSelection
 -- Based on the paper "Automatic Index Selection for Large-Scale Datalog Computation"
 -- http://www.vldb.org/pvldb/vol12/p141-subotic.pdf
 
-import Protolude
+import Data.Foldable (fold)
 import Data.Maybe (fromJust)
 import Eclair.RA.IR
 import Eclair.Pretty

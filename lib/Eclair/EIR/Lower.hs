@@ -2,10 +2,8 @@ module Eclair.EIR.Lower
   ( compileToLLVM
   ) where
 
-import Prelude hiding (Type, and, void)
-import Control.Arrow ((&&&))
-import Control.Comonad
-import Data.Functor.Foldable hiding (fold)
+import Prelude hiding (void)
+import Data.Functor.Foldable
 import Data.ByteString.Short hiding (index, length)
 import qualified Data.Text as T
 import qualified Data.ByteString as BS

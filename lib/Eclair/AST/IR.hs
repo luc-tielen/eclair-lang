@@ -15,11 +15,8 @@ module Eclair.AST.IR
   , Type(..)
   ) where
 
-import Prelude hiding (Type, fold)
 import Control.Lens
-import Data.Functor.Foldable
 import Data.Functor.Foldable.TH
-import qualified Data.Text as T
 import Prettyprinter
 import Eclair.Id
 

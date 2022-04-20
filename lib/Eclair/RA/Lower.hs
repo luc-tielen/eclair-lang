@@ -1,13 +1,9 @@
 
 module Eclair.RA.Lower ( compileToEIR ) where
 
-import Protolude hiding (Type)
 import Protolude.Unsafe (unsafeHead)
-import Control.Arrow ((&&&))
-import Control.Comonad
-import Control.Monad.Writer
 import Data.Maybe (fromJust)
-import Data.Functor.Foldable hiding (fold)
+import Data.Functor.Foldable
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set

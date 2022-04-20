@@ -125,3 +125,7 @@ tests:
       - filepath == 1.*
       - neat-interpolation == 0.*
       - eclair-lang
+      - name: base
+        version: ">= 4.7 && < 5"
+        mixin:
+          - hiding (Prelude)
