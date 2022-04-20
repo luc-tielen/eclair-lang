@@ -186,6 +186,6 @@ resolveExtraClauses = do
 
 findBestMatchingConstraint :: Constraints -> Id -> Maybe Constraint
 findBestMatchingConstraint (Constraints _ cs) var =
-  headMay . sortOn ascendingClauseRow =<< M.lookup var cs
+  viaNonEmpty head . sortOn ascendingClauseRow =<< M.lookup var cs
   where ascendingClauseRow (Constraint _ row _ _) = row
 

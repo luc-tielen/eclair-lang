@@ -1,8 +1,9 @@
 
 module Eclair.RA.Lower ( compileToEIR ) where
 
-import Protolude.Unsafe (unsafeHead)
+import Prelude hiding (head)
 import Data.Maybe (fromJust)
+import Data.List (head)
 import Data.Functor.Foldable
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -118,7 +119,7 @@ generateProgramInstructions = gcata (distribute constraintsForSearch extractEqua
     let -- NOTE: for allocating a value, the index does not matter
         -- (a value is always represented as [N x i32] internally)
         -- This saves us doing a few stack allocations.
-        firstIdx = unsafeHead indices
+        firstIdx = head indices
         allocValue = assign var $ stackAlloc r firstIdx EIR.Value
         assignStmts = zipWith (assign . fieldAccess var) [0..] values'
         insertStmts = flip map indices $ \idx ->

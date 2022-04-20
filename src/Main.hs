@@ -1,6 +1,7 @@
 module Main (main) where
 
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Text.Lazy.IO as T
 import LLVM.Pretty
 import Eclair
 
@@ -15,4 +16,4 @@ main = do
       compile filePath >>= \case
         Left _ -> panic "Failed to compile the Datalog code!"
         Right llvmModule -> do
-          putStrLn $ ppllvm llvmModule
+          T.putStrLn $ ppllvm llvmModule

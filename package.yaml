@@ -22,7 +22,7 @@ dependencies:
     version: ">= 4.7 && < 5"
     mixin:
       - hiding (Prelude)
-  - protolude == 0.3.0
+  - relude == 1.0.*
   - extra == 1.*
   - text == 1.*
   - bytestring == 0.10.*
@@ -106,7 +106,7 @@ executables:
         version: ">= 4.7 && < 5"
         mixin:
           - hiding (Prelude)
-      - protolude == 0.3.0
+      - relude == 1.0.*
       - directory == 1.*
     ghc-options:
       - -threaded

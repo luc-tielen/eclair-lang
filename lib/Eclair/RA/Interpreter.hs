@@ -6,10 +6,8 @@ module Eclair.RA.Interpreter
 -- but can be used to evaluate the resulting RA data.
 
 import Data.Maybe (fromJust)
-import Data.IORef
 import Data.List ((!!))
 import Control.Monad.Catch
-import Control.Monad.Extra
 import Eclair.RA.IR
 import Eclair.AST.IR (Number)
 import Eclair.Id
