@@ -4,7 +4,7 @@ cabal-version: 2.2
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 3df5c158dbea838f82709fce29db2e646fbaba04b9bcbc750e9e1ccfb26bb782
+-- hash: bd3160e55aa36b2f0f8341d4dec61c9e9f7a354584232bbcb8a2e9084225db4f
 
 name:           eclair-lang
 version:        0.1.0.0
@@ -47,10 +47,7 @@ library
       Eclair.RA.IR
       Eclair.RA.Lower
       Eclair.TypeSystem
-  other-modules:
-      Paths_eclair_lang
-  autogen-modules:
-      Paths_eclair_lang
+      Prelude
   hs-source-dirs:
       lib
   default-extensions:
@@ -99,8 +96,6 @@ library
     , vector ==0.12.*
   mixins:
       base hiding (Prelude)
-    , protolude (Protolude as Prelude)
-    , protolude 
   if os(darwin)
     extra-libraries:
         c++
@@ -169,8 +164,6 @@ executable eclairc
     , vector ==0.12.*
   mixins:
       base hiding (Prelude)
-    , protolude (Protolude as Prelude)
-    , protolude 
   if os(darwin)
     extra-libraries:
         c++
@@ -249,8 +242,6 @@ test-suite eclair-test
     , vector ==0.12.*
   mixins:
       base hiding (Prelude)
-    , protolude (Protolude as Prelude)
-    , protolude 
   if os(darwin)
     extra-libraries:
         c++

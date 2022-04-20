@@ -22,11 +22,7 @@ dependencies:
     version: ">= 4.7 && < 5"
     mixin:
       - hiding (Prelude)
-  - name: protolude
-    version: "== 0.3.0"
-    mixin:
-      - (Protolude as Prelude)
-      - ""
+  - protolude == 0.3.0
   - extra == 1.*
   - text == 1.*
   - bytestring == 0.10.*
@@ -97,6 +93,8 @@ library:
   when:
     - condition: os(linux)
       extra-libraries: stdc++
+    - condition: false
+      other-modules: Paths_eclair_lang
 
 executables:
   eclairc:
@@ -108,11 +106,7 @@ executables:
         version: ">= 4.7 && < 5"
         mixin:
           - hiding (Prelude)
-      - name: protolude
-        version: "== 0.3.0"
-        mixin:
-          - (Protolude as Prelude)
-          - ""
+      - protolude == 0.3.0
       - directory == 1.*
     ghc-options:
       - -threaded
