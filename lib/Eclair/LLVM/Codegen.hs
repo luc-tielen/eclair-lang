@@ -50,7 +50,7 @@ runCodegenM = evalStateT
 
 labelToName :: EIR.LabelId -> Name
 labelToName (EIR.LabelId lbl) =
-  mkName $ T.unpack lbl
+  mkName $ toString lbl
 
 lookupFunction :: Relation -> Index -> EIR.Function -> CodegenM Operand
 lookupFunction r idx fn =

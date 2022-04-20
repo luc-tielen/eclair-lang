@@ -58,11 +58,11 @@ interpretRA ra = removeInternals <$> runInterpreter (interpret ra) where
       let values = map (`lookupOrInit` database) rs
       if all null values
         then throwM ExitLoop
-        else pure ()
+        else pass
     _ ->
       panic "Unexpected case in 'interpret'!"
   loopExitError :: InterpretError -> InterpreterM ()
-  loopExitError = const $ pure ()
+  loopExitError = const pass
   removeInternals =
     M.mapMaybeWithKey (\k v -> if isInternalKey k then Nothing else Just v)
   isInternalKey k =

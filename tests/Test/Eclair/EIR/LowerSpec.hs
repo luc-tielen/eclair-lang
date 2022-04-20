@@ -18,19 +18,19 @@ cg path = do
   let file = "tests/fixtures" </> path <.> "dl"
   result <- compileEIR file
   case result of
-    Left err -> panic $ "Failed to parse " <> T.pack file <> "!"
+    Left err -> panic $ "Failed to parse " <> toText file <> "!"
     Right eir -> pure $ printDoc eir
 
 extractDeclTypeSnippet :: Text -> Text
 extractDeclTypeSnippet result = extractedSnippet
   where
-    extractedSnippet = T.strip $ T.unlines $ reAddHeader $ map dedent $ extract endLineNr
-    extract end = take (endLineNr - 3) $ drop 3 lines
+    extractedSnippet = T.strip $ unlines $ reAddHeader $ map dedent $ extract endLineNr
+    extract end = take (endLineNr - 3) $ drop 3 ls
     reAddHeader body = ["declare_type Program", "{"] ++ body ++ ["}"]
     dedent = T.drop 2
-    lines = T.lines result
-    lineCount = length lines
-    endTypeLineNr = find ((T.isPrefixOf "}" . T.stripStart) . snd) $ zip [0..] lines
+    ls = lines result
+    lineCount = length ls
+    endTypeLineNr = find ((T.isPrefixOf "}" . T.stripStart) . snd) $ zip [0..] ls
     endLineNr = fromMaybe lineCount (map fst endTypeLineNr)
 
 data Region
@@ -45,16 +45,16 @@ extractFnSnippet result fnSignature =
   uncurry extractSnippet <$> matchingRegion
   where
     extractSnippet begin end =
-      let fnBody = map dedent $ stripFnHeader begin end $ T.lines result
-       in T.strip $ T.unlines $ reAddFnHeader fnBody
+      let fnBody = map dedent $ stripFnHeader begin end $ lines result
+       in T.strip $ unlines $ reAddFnHeader fnBody
     -- 2 and 3 is to strip fn ... + {}
     stripFnHeader begin end = take (end - begin - 3) . drop (begin + 2)
     reAddFnHeader body = ["fn " <> fnSignature, "{"] ++ body ++ ["}"]
     dedent = T.drop 2
-    lines = zip [0..] $ T.lines result
-    lineCount = length lines
-    relevantLines = filter (T.isPrefixOf "fn" . T.stripStart . snd) lines
-    fnName = viaNonEmpty head . drop 1 . T.words
+    ls = zip [0..] $ lines result
+    lineCount = length ls
+    relevantLines = filter (T.isPrefixOf "fn" . T.stripStart . snd) ls
+    fnName = viaNonEmpty head . drop 1 . words
     parsedLines = map (map fnName) relevantLines
     endLineNrs = drop 1 (map fst parsedLines) ++ [lineCount - 1]
     regions = zipWith (\(start, fn) end -> Region fn start end) parsedLines endLineNrs

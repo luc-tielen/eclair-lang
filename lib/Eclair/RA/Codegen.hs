@@ -118,7 +118,7 @@ search r ts inner = do
 
 relationToAlias :: Relation -> Row -> RA.Alias
 relationToAlias r row =
-  appendToId r (T.pack . show $ unRow row)
+  appendToId r (show $ unRow row)
 
 loop :: [CodegenM RA] -> CodegenM RA
 loop ms = RA.Loop <$> sequence ms

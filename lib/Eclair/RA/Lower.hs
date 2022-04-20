@@ -268,7 +268,7 @@ extractEqualities = \case
       (RA.Lit l, RA.ColumnIndex rA rCol) ->
         tell [Equality rA rCol (Constant l)]
       _ ->
-        pure ()
+        pass
   raf ->
     traverse_ snd raf
 

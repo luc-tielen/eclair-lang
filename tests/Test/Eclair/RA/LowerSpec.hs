@@ -21,8 +21,8 @@ cg path = do
   let file = "tests/fixtures" </> path <.> "dl"
   result <- compileRA file
   case result of
-    Left (ParseErr _) -> panic $ "Failed to parse " <> T.pack file <> "!"
-    Left (TypeErr _) -> panic $ "Failed to typecheck " <> T.pack file <> "!"
+    Left (ParseErr _) -> panic $ "Failed to parse " <> toText file <> "!"
+    Left (TypeErr _) -> panic $ "Failed to typecheck " <> toText file <> "!"
     Right ra -> pure $ printDoc ra
 
 resultsIn :: IO T.Text -> T.Text -> IO ()
@@ -63,7 +63,7 @@ spec = describe "RA Code Generation" $ parallel $ do
           project (link0[0], link0[1], link1[1]) into chain
       |]
 
-  it "generates code for a rule where columns need to equal each other" $
+  it "generates code for a rule where columns need to equal each other"
     pending -- TODO use fixture: rule_equal_columns
 
   it "generates code for a single recursive rule" $ do

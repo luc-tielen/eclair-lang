@@ -236,7 +236,7 @@ lookupId name mapping = do
   let (mValue, updatedMapping) = M.insertLookupWithKey update name defaultValue mapping
       value = case mValue of
         Nothing -> name
-        Just val -> name <> "_" <> T.pack (show val)
+        Just val -> name <> "_" <> show val
   pure (value, updatedMapping)
   where
     defaultValue = 1

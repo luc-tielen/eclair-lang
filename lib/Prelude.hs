@@ -14,12 +14,12 @@ module Prelude
   , groupBy
   ) where
 
-import Relude hiding ( Type, Constraint, swap, and, pass, id, (.), map)
+import Relude hiding ( Type, Constraint, swap, and, id, (.), map)
 import Data.String (IsString(..))
 import Control.Comonad
 import Control.Category
-import Control.Monad.Writer.Strict
-import Control.Monad.RWS.Strict
+import Control.Monad.Writer.Strict hiding (pass)
+import Control.Monad.RWS.Strict hiding (pass)
 import Control.Monad.Except
 import GHC.TypeLits (KnownSymbol, Symbol, symbolVal)
 import GHC.Generics (Rep, K1(..), U1(..), M1(..), (:*:)(..), from, to)

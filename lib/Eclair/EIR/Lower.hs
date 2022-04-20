@@ -4,7 +4,6 @@ module Eclair.EIR.Lower
 
 import Prelude hiding (void)
 import Data.Functor.Foldable
-import Data.ByteString.Short hiding (index, length)
 import qualified Data.Text as T
 import qualified Data.ByteString as BS
 import qualified Data.Map as M
@@ -59,7 +58,7 @@ compileToLLVM = \case
         argTypes <- liftIO $ traverse getType tys
         returnType <- liftIO $ getType retTy
         let args = map (, ParameterName "arg") argTypes
-        function (mkName $ T.unpack name) args returnType $ \args -> do
+        function (mkName $ toString name) args returnType $ \args -> do
           runCodegenM (fnBodyToLLVM args body) beginState
       _ ->
         panic "Unexpected top level EIR declaration when compiling to LLVM!"
@@ -234,7 +233,7 @@ codegenDebugInfos metaMapping =
   where
     codegenDebugInfo meta i =
       let hash = getHash meta
-          name = mkName $ T.unpack $ ("specialize_debug_info." <>) $ unHash hash
+          name = mkName $ toString $ ("specialize_debug_info." <>) $ unHash hash
        in global name i32 (Int 32 $ toInteger i)
 
 -- TODO: add hash based on filepath of the file we're compiling?

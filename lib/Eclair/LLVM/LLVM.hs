@@ -40,15 +40,15 @@ def :: (MonadModuleBuilder m, MonadReader r m, HasSuffix r)
     -> ([Operand] -> IRBuilderT m ())
     -> m Operand
 def funcName args retTy body = do
-  s <- asks (T.pack . show . getSuffix)
-  let funcNameWithHash = mkName $ T.unpack $ funcName <> "_" <> s
+  s <- asks (show . getSuffix)
+  let funcNameWithHash = mkName $ toString $ funcName <> "_" <> s
   function funcNameWithHash args retTy body
 
 mkType :: (MonadModuleBuilder m, MonadReader r m, HasSuffix r)
        => Text -> Type -> m Type
 mkType typeName ty = do
-  s <- asks (T.pack . show . getSuffix)
-  let typeNameWithHash = mkName $ T.unpack $ typeName <> "_" <> s
+  s <- asks (show . getSuffix)
+  let typeNameWithHash = mkName $ toString $ typeName <> "_" <> s
   typedef typeNameWithHash (Just ty)
 
 sizeOfType :: (Name, Type) -> ModuleBuilderT IO Word64
