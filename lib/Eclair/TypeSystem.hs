@@ -33,7 +33,7 @@ typeCheck ast
         sort typeDefs
       & groupBy ((==) `on` fst)
       & filter (\xs -> length xs /= 1)
-      & map (DuplicateTypeDeclaration . fst . List.head)
+      & map (DuplicateTypeDeclaration . fst . head)
     typeDefs = extractTypeDefs ast
     typeErrors = execWriter $ flip cata ast $ \case
       AtomF name args -> do

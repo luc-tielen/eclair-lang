@@ -14,8 +14,7 @@ module Prelude
   , groupBy
   ) where
 
--- TODO: cleanup
-import Relude hiding (Meta, Type, TypeError, typeOf, Constraint, swap, bit, and, fold, pass, id, (.), handle, (<.>), map)
+import Relude hiding ( Type, Constraint, swap, and, pass, id, (.), map)
 import Data.String (IsString(..))
 import Control.Comonad
 import Control.Category
@@ -28,13 +27,14 @@ import GHC.Records (HasField(..))
 
 map :: Functor f => (a -> b) -> f a -> f b
 map = fmap
+{-# INLINABLE map #-}
 
--- TODO
+panic :: Text -> a
 panic = error
 
--- TODO: return [NonEmpty a]
-groupBy                 :: (a -> a -> Bool) -> [a] -> [[a]]
-groupBy _  []           =  []
-groupBy eq (x:xs)       =  (x:ys) : groupBy eq zs
-                           where (ys,zs) = span (eq x) xs
+groupBy :: (a -> a -> Bool) -> [a] -> [NonEmpty a]
+groupBy eq  = \case
+  [] -> []
+  (x:xs) ->  (x :| ys) : groupBy eq zs
+    where (ys,zs) = span (eq x) xs
 
