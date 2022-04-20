@@ -9,6 +9,7 @@ module Eclair.Parser
   , ParseErr
   ) where
 
+import Prelude hiding (Type)
 import Control.Monad.Fail
 import Data.Char
 import Data.Vector as V

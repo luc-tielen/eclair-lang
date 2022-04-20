@@ -5,7 +5,7 @@ module Eclair.TypeSystem
   , typeCheck
   ) where
 
-import Protolude hiding (Type, TypeError, fold, head)
+import Prelude hiding (Type, TypeError, fold, head)
 import Data.List (head)
 import Control.Monad.Writer.Strict
 import Data.Functor.Foldable

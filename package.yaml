@@ -18,8 +18,15 @@ flags:
     default: no
 
 dependencies:
-  - base >= 4.7 && < 5
-  - protolude == 0.3.0
+  - name: base
+    version: ">= 4.7 && < 5"
+    mixin:
+      - hiding (Prelude)
+  - name: protolude
+    version: "== 0.3.0"
+    mixin:
+      - (Protolude as Prelude)
+      - ""
   - extra == 1.*
   - text == 1.*
   - bytestring == 0.10.*
@@ -42,7 +49,6 @@ dependencies:
   - llvm-hs-combinators == 0.1.*
 
 default-extensions:
-  - NoImplicitPrelude
   - OverloadedStrings
   - LambdaCase
   - ViewPatterns
@@ -98,8 +104,15 @@ executables:
     source-dirs: src
     dependencies:
       - eclair-lang
-      - base >= 4.7 && < 5
-      - protolude == 0.3.0
+      - name: base
+        version: ">= 4.7 && < 5"
+        mixin:
+          - hiding (Prelude)
+      - name: protolude
+        version: "== 0.3.0"
+        mixin:
+          - (Protolude as Prelude)
+          - ""
       - directory == 1.*
     ghc-options:
       - -threaded

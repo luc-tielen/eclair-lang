@@ -9,7 +9,6 @@ module Eclair.LLVM.Hash
   , ToHash(..)
   ) where
 
-import Protolude
 import qualified Data.Text as T
 
 

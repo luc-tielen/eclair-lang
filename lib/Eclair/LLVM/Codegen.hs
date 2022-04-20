@@ -12,7 +12,7 @@ module Eclair.LLVM.Codegen
   , loadIfNeeded
   ) where
 
-import Protolude hiding (Type, void)
+import Prelude hiding (Type, void)
 import Data.Maybe (fromJust)
 import qualified Data.Text as T
 import qualified Data.Map as M

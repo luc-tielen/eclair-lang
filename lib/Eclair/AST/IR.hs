@@ -15,7 +15,7 @@ module Eclair.AST.IR
   , Type(..)
   ) where
 
-import Protolude hiding (Type, fold)
+import Prelude hiding (Type, fold)
 import Control.Lens
 import Data.Functor.Foldable
 import Data.Functor.Foldable.TH

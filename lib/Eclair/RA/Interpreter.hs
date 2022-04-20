@@ -5,7 +5,7 @@ module Eclair.RA.Interpreter
 -- NOTE: this is a "simple" interpreter, not meant to be performant in any way,
 -- but can be used to evaluate the resulting RA data.
 
-import Protolude hiding (handle, swap)
+import Prelude hiding (handle, swap)
 import Data.Maybe (fromJust)
 import Data.IORef
 import Data.List ((!!))

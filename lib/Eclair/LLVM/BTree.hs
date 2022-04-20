@@ -7,7 +7,7 @@ module Eclair.LLVM.BTree
   , codegen
   ) where
 
-import Protolude hiding (Type, Meta, compare, swap, void, bit, typeOf, and)
+import Prelude hiding (Type, Meta, compare, swap, void, bit, typeOf, and)
 import Control.Arrow ((&&&))
 import Control.Monad.Morph
 import Control.Monad.Fix
@@ -42,7 +42,7 @@ instance Pretty Meta where
   pretty meta =
     "num_columns=" <> pretty (numColumns meta) <> comma <+>
     -- TODO: use "withCommas"
-    "index=" <> brackets (Protolude.fold $ intersperse comma $ map pretty (index meta)) <> comma <+>
+    "index=" <> brackets (Prelude.fold $ intersperse comma $ map pretty (index meta)) <> comma <+>
     "block_size=" <> pretty (blockSize meta) <> comma <+>
     "search_type=" <> pretty (searchType meta)
 

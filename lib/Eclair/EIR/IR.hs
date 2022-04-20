@@ -9,7 +9,7 @@ module Eclair.EIR.IR
   , LabelId(..)
   ) where
 
-import Protolude hiding (Type,Meta)
+import Prelude hiding (Type,Meta)
 import Data.String (IsString(..))
 import Data.Functor.Foldable.TH
 import Eclair.Id

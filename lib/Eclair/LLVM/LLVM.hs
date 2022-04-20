@@ -5,7 +5,7 @@ module Eclair.LLVM.LLVM
   ( module Eclair.LLVM.LLVM
   ) where
 
-import Protolude hiding ( Type, (.), bit )
+import Prelude hiding ( Type, (.), bit )
 import Control.Category
 import Control.Monad.Morph
 import qualified Data.Text as T

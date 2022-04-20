@@ -4,7 +4,6 @@ module Eclair.Pretty
   , module Prettyprinter.Render.Text
   ) where
 
-import Protolude
 import Prettyprinter
 import Prettyprinter.Render.Text
 

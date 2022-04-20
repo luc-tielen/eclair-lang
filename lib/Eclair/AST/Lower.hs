@@ -1,6 +1,6 @@
 module Eclair.AST.Lower ( compileToRA ) where
 
-import Protolude hiding (swap)
+import Prelude hiding (swap)
 import Control.Lens hiding (Equality, Index)
 import qualified Data.Graph as G
 import qualified Data.Map as M

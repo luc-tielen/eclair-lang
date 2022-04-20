@@ -4,7 +4,7 @@ cabal-version: 2.2
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 35c72198e88733324c4573f4c738f0a503ce8ca5552f3b1612c6ae134b814901
+-- hash: 3df5c158dbea838f82709fce29db2e646fbaba04b9bcbc750e9e1ccfb26bb782
 
 name:           eclair-lang
 version:        0.1.0.0
@@ -54,7 +54,6 @@ library
   hs-source-dirs:
       lib
   default-extensions:
-      NoImplicitPrelude
       OverloadedStrings
       LambdaCase
       ViewPatterns
@@ -98,6 +97,10 @@ library
     , text ==1.*
     , transformers ==0.*
     , vector ==0.12.*
+  mixins:
+      base hiding (Prelude)
+    , protolude (Protolude as Prelude)
+    , protolude 
   if os(darwin)
     extra-libraries:
         c++
@@ -119,7 +122,6 @@ executable eclairc
   hs-source-dirs:
       src
   default-extensions:
-      NoImplicitPrelude
       OverloadedStrings
       LambdaCase
       ViewPatterns
@@ -165,6 +167,10 @@ executable eclairc
     , text ==1.*
     , transformers ==0.*
     , vector ==0.12.*
+  mixins:
+      base hiding (Prelude)
+    , protolude (Protolude as Prelude)
+    , protolude 
   if os(darwin)
     extra-libraries:
         c++
@@ -192,7 +198,6 @@ test-suite eclair-test
   hs-source-dirs:
       tests
   default-extensions:
-      NoImplicitPrelude
       OverloadedStrings
       LambdaCase
       ViewPatterns
@@ -242,6 +247,10 @@ test-suite eclair-test
     , text ==1.*
     , transformers ==0.*
     , vector ==0.12.*
+  mixins:
+      base hiding (Prelude)
+    , protolude (Protolude as Prelude)
+    , protolude 
   if os(darwin)
     extra-libraries:
         c++

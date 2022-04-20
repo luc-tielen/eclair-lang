@@ -2,7 +2,7 @@ module Eclair.EIR.Lower
   ( compileToLLVM
   ) where
 
-import Protolude hiding (Type, and, void)
+import Prelude hiding (Type, and, void)
 import Control.Arrow ((&&&))
 import Control.Comonad
 import Data.Functor.Foldable hiding (fold)
