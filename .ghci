@@ -1,4 +1,1 @@
-:set -XNoImplicitPrelude
-:m - Prelude
-:m + Protolude
 :set prompt >
