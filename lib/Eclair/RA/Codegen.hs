@@ -20,8 +20,6 @@ module Eclair.RA.Codegen
   , noElemOf
   ) where
 
-import Control.Monad.RWS.Strict
-import Protolude hiding (Constraint, swap, from, to)
 import Data.Maybe (fromJust)
 import qualified Data.Map as M
 import qualified Data.Text as T
@@ -120,7 +118,7 @@ search r ts inner = do
 
 relationToAlias :: Relation -> Row -> RA.Alias
 relationToAlias r row =
-  appendToId r (T.pack . show $ unRow row)
+  appendToId r (show $ unRow row)
 
 loop :: [CodegenM RA] -> CodegenM RA
 loop ms = RA.Loop <$> sequence ms
@@ -188,6 +186,6 @@ resolveExtraClauses = do
 
 findBestMatchingConstraint :: Constraints -> Id -> Maybe Constraint
 findBestMatchingConstraint (Constraints _ cs) var =
-  headMay . sortOn ascendingClauseRow =<< M.lookup var cs
+  viaNonEmpty head . sortOn ascendingClauseRow =<< M.lookup var cs
   where ascendingClauseRow (Constraint _ row _ _) = row
 

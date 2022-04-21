@@ -4,7 +4,6 @@ module Test.Eclair.ParserSpec
   ( module Test.Eclair.ParserSpec
   ) where
 
-import Protolude
 import Test.Hspec
 import Eclair.Parser
 import NeatInterpolation

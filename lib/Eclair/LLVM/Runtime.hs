@@ -5,7 +5,6 @@ module Eclair.LLVM.Runtime
   , HasSuffix(..)
   ) where
 
-import Protolude (Int)
 import LLVM.AST.Operand
 import LLVM.AST.Type
 

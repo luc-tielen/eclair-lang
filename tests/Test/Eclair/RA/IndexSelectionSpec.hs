@@ -2,7 +2,6 @@ module Test.Eclair.RA.IndexSelectionSpec
   ( module Test.Eclair.RA.IndexSelectionSpec
   ) where
 
-import Protolude hiding ((<.>))
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Test.Hspec
@@ -20,7 +19,7 @@ idxSel path = do
   let file = "tests/fixtures" </> path <.> "dl"
   raResult <- compileRA file
   case raResult of
-    Left err -> panic $ "Failed to parse " <> T.pack file <> "!"
+    Left err -> panic $ "Failed to parse " <> toText file <> "!"
     Right ra -> do
       let (indexMap, _) = runIndexSelection ra
       pure indexMap

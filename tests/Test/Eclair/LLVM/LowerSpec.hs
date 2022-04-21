@@ -4,8 +4,6 @@ module Test.Eclair.LLVM.LowerSpec
   ( module Test.Eclair.LLVM.LowerSpec
   ) where
 
-import Protolude hiding ((<.>))
-import Control.Arrow ((&&&))
 import Data.Maybe (fromJust)
 import qualified Data.List as L
 import qualified Data.Text as T
@@ -25,18 +23,18 @@ cg path = do
   let file = "tests/fixtures" </> path <.> "dl"
   result <- compileLLVM file
   case result of
-    Left err -> panic $ "Failed to parse " <> T.pack file <> "!"
-    Right llvm -> pure $ TL.toStrict $ ppllvm llvm
+    Left err -> panic $ "Failed to parse " <> toText file <> "!"
+    Right llvm -> pure $ toStrict $ ppllvm llvm
 
 extractDeclTypeSnippet :: Text -> Text
 extractDeclTypeSnippet result =
-  fromJust $ find (T.isPrefixOf "%program =") $ T.lines result
+  fromJust $ find (T.isPrefixOf "%program =") $ lines result
 
 extractFnSnippet :: Text -> Text -> Maybe Text
 extractFnSnippet result fnSignature = do
-  let lines = T.lines result
-  startLine <- L.findIndex (T.isInfixOf fnSignature) lines
-  pure $ T.strip $ T.unlines $ map T.stripEnd $ takeWhile (/= "") $ drop startLine lines
+  let ls = lines result
+  startLine <- L.findIndex (T.isInfixOf fnSignature) ls
+  pure $ T.strip $ unlines $ map T.stripEnd $ takeWhile (/= "") $ drop startLine ls
 
 -- TODO add tests for caching mechanism (e.g. single_nonrecursive_rule test)
 

@@ -15,7 +15,6 @@ import Data.Vector as V
 import Data.Void
 import Eclair.AST.IR
 import Eclair.Id
-import Protolude hiding (Type)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import qualified Data.Text.Read as TR
@@ -29,7 +28,7 @@ type Parser = P.Parsec ParseErr Text
 
 parseFile :: FilePath -> IO (Either ParseError AST)
 parseFile path = do
-  contents <- TIO.readFile path
+  contents <- readFileText path
   pure $ parseText path contents
 
 parseText :: FilePath -> Text -> Either ParseError AST
@@ -97,7 +96,7 @@ identifier = Id <$> do
   rest <- P.takeWhileP (Just "rest of identifier") isIdentifierChar
   let parsed = T.cons firstLetter rest
   when (parsed `V.elem` reserved) $ do
-    fail . T.unpack $ "Reserved keyword: " <> parsed
+    fail . toString $ "Reserved keyword: " <> parsed
   pure parsed
   where isIdentifierChar c = isAlphaNum c || c == '_'
         reserved = []
@@ -109,7 +108,7 @@ number = do
   P.notFollowedBy P.letterChar
   case TR.decimal $ T.cons firstDigit digits of
     Right (result, _) -> pure result
-    Left err -> panic . T.pack $ "Error occurred during parsing of decimal number: " <> err
+    Left err -> panic . toText $ "Error occurred during parsing of decimal number: " <> err
 
 lexeme :: Parser a -> Parser a
 lexeme = L.lexeme whitespace

@@ -5,12 +5,9 @@ module Eclair.RA.Interpreter
 -- NOTE: this is a "simple" interpreter, not meant to be performant in any way,
 -- but can be used to evaluate the resulting RA data.
 
-import Protolude hiding (handle, swap)
 import Data.Maybe (fromJust)
-import Data.IORef
 import Data.List ((!!))
 import Control.Monad.Catch
-import Control.Monad.Extra
 import Eclair.RA.IR
 import Eclair.AST.IR (Number)
 import Eclair.Id
@@ -61,11 +58,11 @@ interpretRA ra = removeInternals <$> runInterpreter (interpret ra) where
       let values = map (`lookupOrInit` database) rs
       if all null values
         then throwM ExitLoop
-        else pure ()
+        else pass
     _ ->
       panic "Unexpected case in 'interpret'!"
   loopExitError :: InterpretError -> InterpreterM ()
-  loopExitError = const $ pure ()
+  loopExitError = const pass
   removeInternals =
     M.mapMaybeWithKey (\k v -> if isInternalKey k then Nothing else Just v)
   isInternalKey k =

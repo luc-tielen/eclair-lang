@@ -9,7 +9,6 @@ module Eclair.Id
   , newPrefix
   ) where
 
-import Protolude
 import qualified Data.Text as T
 import Prettyprinter
 

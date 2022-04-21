@@ -1,13 +1,10 @@
 
 module Eclair.RA.Lower ( compileToEIR ) where
 
-import Protolude hiding (Type)
-import Protolude.Unsafe (unsafeHead)
-import Control.Arrow ((&&&))
-import Control.Comonad
-import Control.Monad.Writer
+import Prelude hiding (head)
 import Data.Maybe (fromJust)
-import Data.Functor.Foldable hiding (fold)
+import Data.List (head)
+import Data.Functor.Foldable
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -122,7 +119,7 @@ generateProgramInstructions = gcata (distribute constraintsForSearch extractEqua
     let -- NOTE: for allocating a value, the index does not matter
         -- (a value is always represented as [N x i32] internally)
         -- This saves us doing a few stack allocations.
-        firstIdx = unsafeHead indices
+        firstIdx = head indices
         allocValue = assign var $ stackAlloc r firstIdx EIR.Value
         assignStmts = zipWith (assign . fieldAccess var) [0..] values'
         insertStmts = flip map indices $ \idx ->
@@ -271,7 +268,7 @@ extractEqualities = \case
       (RA.Lit l, RA.ColumnIndex rA rCol) ->
         tell [Equality rA rCol (Constant l)]
       _ ->
-        pure ()
+        pass
   raf ->
     traverse_ snd raf
 

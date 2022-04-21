@@ -4,7 +4,7 @@ cabal-version: 2.2
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 35c72198e88733324c4573f4c738f0a503ce8ca5552f3b1612c6ae134b814901
+-- hash: b4f43b65b41cca4649128c110106c7abaf94f355ab72634eb9bdb3300aaf8c33
 
 name:           eclair-lang
 version:        0.1.0.0
@@ -47,14 +47,10 @@ library
       Eclair.RA.IR
       Eclair.RA.Lower
       Eclair.TypeSystem
-  other-modules:
-      Paths_eclair_lang
-  autogen-modules:
-      Paths_eclair_lang
+      Prelude
   hs-source-dirs:
       lib
   default-extensions:
-      NoImplicitPrelude
       OverloadedStrings
       LambdaCase
       ViewPatterns
@@ -92,12 +88,14 @@ library
     , mmorph ==1.*
     , mtl ==2.*
     , prettyprinter ==1.7.*
-    , protolude ==0.3.0
     , recursion-schemes ==5.*
+    , relude ==1.0.*
     , souffle-haskell ==3.1.0
     , text ==1.*
     , transformers ==0.*
     , vector ==0.12.*
+  mixins:
+      base hiding (Prelude)
   if os(darwin)
     extra-libraries:
         c++
@@ -119,7 +117,6 @@ executable eclairc
   hs-source-dirs:
       src
   default-extensions:
-      NoImplicitPrelude
       OverloadedStrings
       LambdaCase
       ViewPatterns
@@ -159,12 +156,14 @@ executable eclairc
     , mmorph ==1.*
     , mtl ==2.*
     , prettyprinter ==1.7.*
-    , protolude ==0.3.0
     , recursion-schemes ==5.*
+    , relude ==1.0.*
     , souffle-haskell ==3.1.0
     , text ==1.*
     , transformers ==0.*
     , vector ==0.12.*
+  mixins:
+      base hiding (Prelude)
   if os(darwin)
     extra-libraries:
         c++
@@ -192,7 +191,6 @@ test-suite eclair-test
   hs-source-dirs:
       tests
   default-extensions:
-      NoImplicitPrelude
       OverloadedStrings
       LambdaCase
       ViewPatterns
@@ -236,12 +234,14 @@ test-suite eclair-test
     , mtl ==2.*
     , neat-interpolation ==0.*
     , prettyprinter ==1.7.*
-    , protolude ==0.3.0
     , recursion-schemes ==5.*
+    , relude ==1.0.*
     , souffle-haskell ==3.1.0
     , text ==1.*
     , transformers ==0.*
     , vector ==0.12.*
+  mixins:
+      base hiding (Prelude)
   if os(darwin)
     extra-libraries:
         c++

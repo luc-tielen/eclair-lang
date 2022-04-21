@@ -7,8 +7,8 @@ module Eclair.LLVM.BTree
   , codegen
   ) where
 
-import Protolude hiding (Type, Meta, compare, swap, void, bit, typeOf, and)
-import Control.Arrow ((&&&))
+import Prelude hiding (void)
+import qualified Data.Foldable as F
 import Control.Monad.Morph
 import Control.Monad.Fix
 import qualified Data.Map as Map
@@ -42,7 +42,7 @@ instance Pretty Meta where
   pretty meta =
     "num_columns=" <> pretty (numColumns meta) <> comma <+>
     -- TODO: use "withCommas"
-    "index=" <> brackets (Protolude.fold $ intersperse comma $ map pretty (index meta)) <> comma <+>
+    "index=" <> brackets (F.fold $ intersperse comma $ map pretty (index meta)) <> comma <+>
     "block_size=" <> pretty (blockSize meta) <> comma <+>
     "search_type=" <> pretty (searchType meta)
 
@@ -266,7 +266,7 @@ mkCompare = do
   def "btree_value_compare_values" [(ptr value, "lhs"), (ptr value, "rhs")] i8 $ \[lhs, rhs] -> mdo
     let columns = map fromIntegral $ index settings
     results <- flip execStateT mempty $ flip (zygo endCheck) columns $ \case
-      Nil -> pure ()
+      Nil -> pass
       Cons col (atEnd, asm) -> do
         blk <- block `named` "comparison"
         let indices = [int32 0, int32 col]
@@ -283,7 +283,7 @@ mkCompare = do
             condBr isEqual continue end
             asm
             continue <- currentBlock
-            pure ()
+            pass
     end <- block `named` "end"
     ret =<< phi (Map.toList results)
   where
@@ -352,7 +352,7 @@ mkNodeDelete = mdo
 
     memory <- n `bitcast` ptr i8
     _ <- call free [(memory, [])]
-    pure ()
+    pass
 
   pure nodeDelete
 
@@ -406,7 +406,7 @@ mkSplit nodeNew nodeSplitPoint growParent = mdo
     assign (metaOf ->> numElemsOf) sibling siblingNumKeys
 
     _ <- call growParent [(n, []), (root, []), (sibling, [])]
-    pure ()
+    pass
 
 mkGrowParent :: Operand -> Operand -> ModuleCodegen Operand
 mkGrowParent nodeNew insertInner = mdo
@@ -762,7 +762,7 @@ mkBtreeInit btreeInsertRange = do
 
   def "btree_init" args void $ \[t, start, end] -> mdo
     _ <- call btreeInsertRange $ (,[]) <$> [t, start, end]
-    pure ()
+    pass
 
 mkBtreeDestroy :: Operand -> ModuleCodegen Operand
 mkBtreeDestroy btreeClear = do
@@ -770,7 +770,7 @@ mkBtreeDestroy btreeClear = do
 
   def "btree_destroy" [(ptr tree, "tree")] void $ \[t] -> do
     _ <- call btreeClear [(t, [])]
-    pure ()
+    pass
 
 mkBtreeIsEmpty :: ModuleCodegen Operand
 mkBtreeIsEmpty = do
@@ -924,7 +924,7 @@ mkBtreeEnd iteratorInitEnd = do
 
   def "btree_end" [(ptr tree, "tree"), (ptr iter, "result")] void $ \[_t, result] -> do
     _ <- call iteratorInitEnd [(result, [])]
-    pure ()
+    pass
 
 mkBtreeContains :: Operand -> Operand -> Operand -> ModuleCodegen Operand
 mkBtreeContains iterIsEqual btreeFind btreeEnd = do
@@ -1218,7 +1218,7 @@ memset p val byteCount = do
                      , (int64 (fromIntegral byteCount), [])
                      , (bit 0, [])
                      ]
-  pure ()
+  pass
 
 -- NOTE: this only allocates on stack, but doesn't initialize it,
 -- this still needs to happen in rest of the code

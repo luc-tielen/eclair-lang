@@ -18,8 +18,11 @@ flags:
     default: no
 
 dependencies:
-  - base >= 4.7 && < 5
-  - protolude == 0.3.0
+  - name: base
+    version: ">= 4.7 && < 5"
+    mixin:
+      - hiding (Prelude)
+  - relude == 1.0.*
   - extra == 1.*
   - text == 1.*
   - bytestring == 0.10.*
@@ -42,7 +45,6 @@ dependencies:
   - llvm-hs-combinators == 0.1.*
 
 default-extensions:
-  - NoImplicitPrelude
   - OverloadedStrings
   - LambdaCase
   - ViewPatterns
@@ -91,6 +93,8 @@ library:
   when:
     - condition: os(linux)
       extra-libraries: stdc++
+    - condition: false
+      other-modules: Paths_eclair_lang
 
 executables:
   eclairc:
@@ -98,8 +102,11 @@ executables:
     source-dirs: src
     dependencies:
       - eclair-lang
-      - base >= 4.7 && < 5
-      - protolude == 0.3.0
+      - name: base
+        version: ">= 4.7 && < 5"
+        mixin:
+          - hiding (Prelude)
+      - relude == 1.0.*
       - directory == 1.*
     ghc-options:
       - -threaded
@@ -118,3 +125,7 @@ tests:
       - filepath == 1.*
       - neat-interpolation == 0.*
       - eclair-lang
+      - name: base
+        version: ">= 4.7 && < 5"
+        mixin:
+          - hiding (Prelude)

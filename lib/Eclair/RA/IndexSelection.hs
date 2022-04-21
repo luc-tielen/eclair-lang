@@ -12,7 +12,6 @@ module Eclair.RA.IndexSelection
 -- Based on the paper "Automatic Index Selection for Large-Scale Datalog Computation"
 -- http://www.vldb.org/pvldb/vol12/p141-subotic.pdf
 
-import Protolude
 import Data.Maybe (fromJust)
 import Eclair.RA.IR
 import Eclair.Pretty
@@ -57,7 +56,7 @@ runIndexSelection ra =
             chains = getChainsFromMatching graph matching
             indices = indicesFromChains searchSet chains
          in (r, indices):acc) mempty searchMap
-      combineIdxs idxs idx = idxs <> Set.singleton idx
+      combineIdxs idxs idx = idxs <> one idx
       indexMap = foldl' combineIdxs mempty <$> Map.fromList indexSelection
       indexSelector r s = fromJust $ do
         indexMapping <- snd <$> List.find ((== r) . fst) indexSelection
@@ -111,7 +110,7 @@ solve facts = execState (traverse solveOne $ sort facts) mempty
   where
     solveOne = \case
       SearchOn r signature ->
-        modify (Map.insertWith (<>) r (Set.singleton signature))
+        modify (Map.insertWith (<>) r (one signature))
       Related r1 r2 -> do
         signatures1 <- gets (Map.findWithDefault mempty r1)
         signatures2 <- gets (Map.findWithDefault mempty r2)
@@ -132,7 +131,7 @@ buildGraph searchSet =
 getChainsFromMatching :: SearchGraph -> SearchMatching -> Set SearchChain
 getChainsFromMatching g m =
   let (covered, uncovered) = List.partition (`leftCovered` m) $ leftVertexList g
-      uncoveredChains = map (:[]) uncovered
+      uncoveredChains = map one uncovered
       coveredChains = map (\n -> getChain [n] n) covered
    in Set.fromList $ uncoveredChains <> coveredChains
   where

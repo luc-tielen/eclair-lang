@@ -39,8 +39,6 @@ module Eclair.EIR.Codegen
   , lit
   ) where
 
-import Control.Monad.RWS.Strict
-import Protolude hiding (Constraint, swap, from, to)
 import Data.Maybe (fromJust)
 import qualified Data.List as List
 import qualified Data.Map as M
@@ -238,7 +236,7 @@ lookupId name mapping = do
   let (mValue, updatedMapping) = M.insertLookupWithKey update name defaultValue mapping
       value = case mValue of
         Nothing -> name
-        Just val -> name <> "_" <> T.pack (show val)
+        Just val -> name <> "_" <> show val
   pure (value, updatedMapping)
   where
     defaultValue = 1

@@ -5,8 +5,6 @@ module Eclair.LLVM.LLVM
   ( module Eclair.LLVM.LLVM
   ) where
 
-import Protolude hiding ( Type, (.), bit )
-import Control.Category
 import Control.Monad.Morph
 import qualified Data.Text as T
 import LLVM.IRBuilder.Module
@@ -15,7 +13,6 @@ import qualified LLVM.AST.Constant as Constant
 import LLVM.AST.Operand ( Operand(..) )
 import LLVM.AST.Type
 import LLVM.AST.Name
-import Eclair.LLVM.Runtime
 import LLVM.Internal.EncodeAST
 import LLVM.Internal.Coding hiding (alloca)
 import LLVM.Internal.Type
@@ -26,6 +23,7 @@ import qualified LLVM.CodeGenOpt as CG
 import qualified LLVM.CodeModel as CM
 import qualified LLVM.Relocation as Rel
 import LLVM.Target
+import Eclair.LLVM.Runtime
 
 
 -- TODO: remove, import directly from llvm-hs
@@ -42,15 +40,15 @@ def :: (MonadModuleBuilder m, MonadReader r m, HasSuffix r)
     -> ([Operand] -> IRBuilderT m ())
     -> m Operand
 def funcName args retTy body = do
-  s <- asks (T.pack . show . getSuffix)
-  let funcNameWithHash = mkName $ T.unpack $ funcName <> "_" <> s
+  s <- asks (show . getSuffix)
+  let funcNameWithHash = mkName $ toString $ funcName <> "_" <> s
   function funcNameWithHash args retTy body
 
 mkType :: (MonadModuleBuilder m, MonadReader r m, HasSuffix r)
        => Text -> Type -> m Type
 mkType typeName ty = do
-  s <- asks (T.pack . show . getSuffix)
-  let typeNameWithHash = mkName $ T.unpack $ typeName <> "_" <> s
+  s <- asks (show . getSuffix)
+  let typeNameWithHash = mkName $ toString $ typeName <> "_" <> s
   typedef typeNameWithHash (Just ty)
 
 sizeOfType :: (Name, Type) -> ModuleBuilderT IO Word64

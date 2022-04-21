@@ -12,7 +12,7 @@ module Eclair.LLVM.Codegen
   , loadIfNeeded
   ) where
 
-import Protolude hiding (Type, void)
+import Prelude hiding (void)
 import Data.Maybe (fromJust)
 import qualified Data.Text as T
 import qualified Data.Map as M
@@ -50,7 +50,7 @@ runCodegenM = evalStateT
 
 labelToName :: EIR.LabelId -> Name
 labelToName (EIR.LabelId lbl) =
-  mkName $ T.unpack lbl
+  mkName $ toString lbl
 
 lookupFunction :: Relation -> Index -> EIR.Function -> CodegenM Operand
 lookupFunction r idx fn =
