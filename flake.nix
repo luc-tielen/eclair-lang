@@ -79,7 +79,7 @@
             }); {
               inherit algebraic-graphs llvm-config llvm-hs llvm-hs-pure
                 llvm-hs-combinators llvm-hs-pretty souffle-haskell;
-              eclair-lang = callCabal2nix "eclair-lang" ./. { };
+              eclair-lang = callCabal2nix "eclair-lang" ./. { relude = haskellPackages.relude_1_0_0_1; };
             };
         overlays = [ overlay hls.overlay ] ++ shs.overlays."${system}";
       in with (import np { inherit system config overlays; });
