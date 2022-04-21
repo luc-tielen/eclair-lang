@@ -92,6 +92,7 @@
                 with p; [
                   eclair-lang
                   algebraic-graphs
+                  hspec-discover
                   llvm-hs
                   llvm-hs-pure
                   llvm-hs-pretty
