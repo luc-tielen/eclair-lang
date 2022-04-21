@@ -107,14 +107,22 @@ executables:
       - -with-rtsopts=-N
       # - -Wall
 
+_common-test-dependencies: &test-deps
+  dependencies:
+    - hspec >= 2.6.1 && < 3.0.0
+    - hspec-hedgehog == 0.*
+    - hedgehog == 1.*
+    - filepath == 1.*
+    - neat-interpolation == 0.*
+    - libffi == 0.*
+    - eclair-lang
+
 tests:
   eclair-test:
     main: test.hs
     source-dirs: tests
-    dependencies:
-      - hspec >= 2.6.1 && < 3.0.0
-      - hspec-hedgehog == 0.*
-      - hedgehog == 1.*
-      - filepath == 1.*
-      - neat-interpolation == 0.*
-      - eclair-lang
+    <<: *test-deps
+  eclair-runtime-test:
+    main: Main.hs
+    source-dirs: runtime-tests
+    <<: *test-deps

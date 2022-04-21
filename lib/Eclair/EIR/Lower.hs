@@ -222,7 +222,7 @@ codegenRuntime :: Externals -> Metadata -> CacheT (ModuleBuilderT IO) Functions
 codegenRuntime exts meta = gets (M.lookup meta) >>= \case
   Nothing -> do
     suffix <- gets length
-    fns <- cgRuntime suffix
+    fns <- fst <$> cgRuntime suffix
     modify $ M.insert meta (suffix, fns)
     pure fns
   Just (_, cachedFns) -> pure cachedFns

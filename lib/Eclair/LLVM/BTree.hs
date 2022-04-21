@@ -2,6 +2,7 @@
 
 module Eclair.LLVM.BTree
   ( Meta(..)
+  , Sizes(..)
   , SearchIndex
   , SearchType(..)
   , codegen
@@ -89,6 +90,8 @@ data Types
 data Sizes
   = Sizes
   { pointerSize :: Word64
+  , treeSize :: Word64
+  , iterSize :: Word64
   , valueSize :: Word64
   , nodeDataSize :: Word64
   , leafNodeSize :: Word64
@@ -113,12 +116,13 @@ type IRCodegen = IRBuilderT ModuleCodegen
 type ModuleCodegen = ReaderT CGState ModuleBuilder
 
 
-codegen :: Suffix -> Externals -> Meta -> ModuleBuilderT IO Functions
+codegen :: Suffix -> Externals -> Meta -> ModuleBuilderT IO (Functions, Sizes)
 codegen suffix exts settings = do
   sizes <- computeSizes settings
   hoist intoIO $ do
     tys <- runReaderT (generateTypes sizes) $ TGState settings suffix
-    runReaderT generateFunctions $ CGState suffix settings tys sizes exts
+    fns <- runReaderT generateFunctions $ CGState suffix settings tys sizes exts
+    pure (fns, sizes)
   where intoIO = pure . runIdentity
 
 computeSizes :: Meta -> ModuleBuilderT IO Sizes
@@ -137,11 +141,14 @@ computeSizes settings = do
   valueSz <- sizeOfType ("value_t", valueType)
   nodeDataSz <- sizeOfType ("node_data_t", nodeDataTy)
   let numKeys' = numKeysHelper settings nodeDataSz valueSz
-      nodeType = wrap [nodeDataTy, ArrayType numKeys' valueType]
-      innerNodeType = wrap [nodeType, ArrayType (numKeys' + 1) (ptr nodeType)]
-  leafNodeSz <- sizeOfType ("leaf_node_t", nodeType)
-  innerNodeSz <- sizeOfType ("inner_node_t", innerNodeType)
-  pure $ Sizes ptrSize valueSz nodeDataSz leafNodeSz innerNodeSz
+      nodeTy = wrap [nodeDataTy, ArrayType numKeys' valueType]
+      innerNodeTy = wrap [nodeTy, ArrayType (numKeys' + 1) (ptr nodeTy)]
+  leafNodeSz <- sizeOfType ("leaf_node_t", nodeTy)
+  innerNodeSz <- sizeOfType ("inner_node_t", innerNodeTy)
+  let positionTy = i16
+  iterSize <- sizeOfType ("btree_iterator_t", wrap [ptr nodeTy, positionTy])
+  treeSize <- sizeOfType ("btree_t", wrap [ptr nodeTy, ptr nodeTy])
+  pure $ Sizes ptrSize treeSize iterSize valueSz nodeDataSz leafNodeSz innerNodeSz
   where
     wrap = StructureType False
 
@@ -521,7 +528,7 @@ mkRebalanceOrSplit splitFn = mdo
 
     parent <- deref (metaOf ->> parentOf) n >>= (`bitcast` ptr innerNode)
     pos <- deref (metaOf ->> posInParentOf) n
-    hasParent <- parent `ne` nullPtr node
+    hasParent <- parent `ne` nullPtr innerNode
     posGTZero <- pos `ugt` int16 0
     shouldRebalance <- and hasParent posGTZero
     condBr shouldRebalance rebalance split
