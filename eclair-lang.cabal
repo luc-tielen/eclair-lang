@@ -1,10 +1,10 @@
 cabal-version: 2.2
 
--- This file has been generated from package.yaml by hpack version 0.34.7.
+-- This file has been generated from package.yaml by hpack version 0.34.6.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 976f9b783e0f1b664e167c05260b7f90ce12389a2e48f68cf22c4f22d5181992
+-- hash: b4f43b65b41cca4649128c110106c7abaf94f355ab72634eb9bdb3300aaf8c33
 
 name:           eclair-lang
 version:        0.1.0.0
@@ -79,7 +79,7 @@ library
     , containers ==0.*
     , exceptions ==0.10.*
     , extra ==1.*
-    , lens
+    , lens ==4.*
     , llvm-hs ==9.*
     , llvm-hs-combinators ==0.1.*
     , llvm-hs-pretty ==0.9.0.0
@@ -147,7 +147,7 @@ executable eclairc
     , eclair-lang
     , exceptions ==0.10.*
     , extra ==1.*
-    , lens
+    , lens ==4.*
     , llvm-hs ==9.*
     , llvm-hs-combinators ==0.1.*
     , llvm-hs-pretty ==0.9.0.0
@@ -224,7 +224,7 @@ test-suite eclair-test
     , hedgehog ==1.*
     , hspec >=2.6.1 && <3.0.0
     , hspec-hedgehog ==0.*
-    , lens
+    , lens ==4.*
     , llvm-hs ==9.*
     , llvm-hs-combinators ==0.1.*
     , llvm-hs-pretty ==0.9.0.0
