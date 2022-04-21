@@ -41,6 +41,8 @@
 
                     llvm-config = final.llvmPackages_9.llvm;
 
+                    llvm-config-dev = final.llvmPackages_9.llvm.dev;
+
                     llvm-hs-pure = with hf;
                       (callCabal2nix "llvm-hs-pure"
                         "${inputs.llvm-hs}/llvm-hs-pure" { });
@@ -83,8 +85,9 @@
           name = "ECLAIR-LANG";
           imports = [ (pkgs.devshell.importTOML ./devshell.toml) ];
           packages = with pkgs;
-            with haskellPackages;
-            [
+            with haskellPackages; [
+              pkgs.ghcid
+              pkgs.llvmPackages_9.llvm.dev
               (ghcWithPackages (p:
                 with p; [
                   eclair-lang
@@ -93,13 +96,11 @@
                   llvm-hs-pure
                   llvm-hs-pretty
                   llvm-hs-combinators
-                  llvm-config
                   souffle-haskell
                   ghc
                   cabal-install
                   hsc2hs
                   hpack
-                  pkgs.ghcid
                   haskell-language-server
                 ]))
             ];
