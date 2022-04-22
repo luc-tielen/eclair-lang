@@ -19,5 +19,7 @@ main = do
     Just args -> do
       let filePath = NE.head args
       compile filePath >>= \case
-        Left _ -> panic "Failed to compile the Datalog code!"
+        Left err -> do
+          print err
+          panic "Failed to compile the Datalog code!"
         Right llvmModule -> putStrLn $ ppllvm llvmModule

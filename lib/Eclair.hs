@@ -29,6 +29,7 @@ type EIR = EIR.EIR
 data EclairError
   = ParseErr ParseError
   | TypeErr [TS.TypeError]
+  deriving Show
 
 -- TODO: refactor all these helper functions to be more composable
 

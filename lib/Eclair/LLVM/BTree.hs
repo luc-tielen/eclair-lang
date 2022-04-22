@@ -159,11 +159,12 @@ generateTypes sizes = mdo
   suffix <- asks tgSuffix
   let numKeys' = numKeys meta sizes
 
-  columnTy <- mkType "column_t" i32
-  valueTy <- mkType "value_t" $ ArrayType (fromIntegral $ numColumns meta) columnTy
-  positionTy <- mkType "position_t" i16
-  nodeSizeTy <- mkType "node_size_t" i16  -- Note: used to be size_t/i64
-  nodeTypeTy <- mkType "node_type_t" i1
+  -- TODO: try to use mkType here again, fails when using with jit compiler?
+  let columnTy = i32
+      valueTy = ArrayType (fromIntegral $ numColumns meta) columnTy
+      positionTy = i16
+      nodeSizeTy = i16  -- Note: used to be size_t/i64
+      nodeTypeTy = i1
   let nodeDataName = "node_data_t"
   nodeDataTy <- mkType nodeDataName $
     mkStruct [ ptr nodeTy  -- parent
@@ -175,7 +176,7 @@ generateTypes sizes = mdo
     mkStruct [ nodeDataTy                  -- meta
              , ArrayType numKeys' valueTy  -- values
              ]
-  leafNodeTy <- mkType "leaf_node_t" nodeTy
+  let leafNodeTy = nodeTy -- TODO: try to use mkType here again for clarity in the code
   innerNodeTy <- mkType "inner_node_t" $
     mkStruct [ nodeTy                                 -- base
              , ArrayType (numKeys' + 1) (ptr nodeTy)  -- children

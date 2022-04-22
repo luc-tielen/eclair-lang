@@ -123,9 +123,9 @@ jitCompile action = jit cg $ \compileLayer (_, sizes) -> do
   fnLowerBound <- importSymbol @(Ptr Tree -> Ptr Value -> Ptr Iter -> IO ()) compileLayer "btree_lower_bound"
   fnUpperBound <- importSymbol @(Ptr Tree -> Ptr Value -> Ptr Iter -> IO ()) compileLayer "btree_upper_bound"
   fnContains <- importSymbol compileLayer "btree_contains"
-  fnIterIsEqual <- importSymbol compileLayer "iterator_is_equal"
-  fnIterCurrent <- importSymbol compileLayer "iterator_current"
-  fnIterNext <- importSymbol compileLayer "iterator_next"
+  fnIterIsEqual <- importSymbol compileLayer "btree_iterator_is_equal"
+  fnIterCurrent <- importSymbol compileLayer "btree_iterator_current"
+  fnIterNext <- importSymbol compileLayer "btree_iterator_next"
   let ffi = FFI { ffiWithEmptyTree = withResource (treeSize sizes) fnInitEmpty fnDestroy
                 , ffiPurge = fnPurge
                 , ffiSwap = fnSwap
@@ -145,12 +145,13 @@ jitCompile action = jit cg $ \compileLayer (_, sizes) -> do
 
 importSymbol :: (Import a, MonadIO m) => CompileLayer l => l -> Text -> m a
 importSymbol compileLayer symbol = liftIO $ do
-  let hash = getHash settings
-      hashedSymbol = symbol <> "_" <> unHash hash
-      hashedSymbol' = toShort $ TE.encodeUtf8 hashedSymbol
-  mangled <- mangleSymbol compileLayer hashedSymbol'
-  Right (JITSymbol symbolPtr _) <- CL.findSymbol compileLayer mangled True
-  wrap $ castPtrToFunPtr $ wordPtrToPtr symbolPtr
+  let suffix = "_0"
+      encodedSymbol = toShort $ TE.encodeUtf8 $ symbol <> suffix
+  mangled <- mangleSymbol compileLayer encodedSymbol
+  CL.findSymbol compileLayer mangled True >>= \case
+    Right (JITSymbol symbolPtr _) ->
+      wrap $ castPtrToFunPtr $ wordPtrToPtr symbolPtr
+    Left err -> panic $ show (symbol, err)
 
 class Import a where
   wrap :: FunPtr a -> IO a
