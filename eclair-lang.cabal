@@ -1,10 +1,8 @@
 cabal-version: 2.2
 
--- This file has been generated from package.yaml by hpack version 0.34.6.
+-- This file has been generated from package.yaml by hpack version 0.34.5.
 --
 -- see: https://github.com/sol/hpack
---
--- hash: b4f43b65b41cca4649128c110106c7abaf94f355ab72634eb9bdb3300aaf8c33
 
 name:           eclair-lang
 version:        0.1.0.0
@@ -27,6 +25,7 @@ flag debug
 library
   exposed-modules:
       Eclair
+      Eclair.AST.Codegen
       Eclair.AST.IR
       Eclair.AST.Lower
       Eclair.EIR.Codegen
@@ -34,7 +33,6 @@ library
       Eclair.EIR.Lower
       Eclair.Id
       Eclair.LLVM.BTree
-      Eclair.LLVM.Codegen
       Eclair.LLVM.Hash
       Eclair.LLVM.LLVM
       Eclair.LLVM.Metadata
@@ -112,8 +110,6 @@ executable eclairc
   main-is: Main.hs
   other-modules:
       Paths_eclair_lang
-  autogen-modules:
-      Paths_eclair_lang
   hs-source-dirs:
       src
   default-extensions:
@@ -185,8 +181,6 @@ test-suite eclair-test
       Test.Eclair.RA.InterpreterSpec
       Test.Eclair.RA.LowerSpec
       Test.Eclair.TypeSystemSpec
-      Paths_eclair_lang
-  autogen-modules:
       Paths_eclair_lang
   hs-source-dirs:
       tests

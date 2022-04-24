@@ -24,8 +24,8 @@ import LLVM.IRBuilder.Monad
 import LLVM.IRBuilder.Combinators
 import qualified Eclair.EIR.IR as EIR
 import qualified Eclair.LLVM.BTree as BTree
+import Eclair.EIR.Codegen
 import Eclair.LLVM.Metadata
-import Eclair.LLVM.Codegen
 import Eclair.LLVM.Hash
 import Eclair.LLVM.Runtime
 import Eclair.RA.IndexSelection
