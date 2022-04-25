@@ -1,6 +1,8 @@
 module Eclair.LLVM.Metadata
   ( Metadata(..)
   , mkMeta
+  , getIndex
+  , getNumColumns
   ) where
 
 import Eclair.RA.IndexSelection (Index(..))
@@ -27,3 +29,13 @@ mkMeta (Index columns) ts =
     , BTree.blockSize = 256
     , BTree.searchType = BTree.Linear
     }
+
+getIndex :: Metadata -> Index
+getIndex = \case
+  BTree meta ->
+    Index $ BTree.index meta
+
+getNumColumns :: Metadata -> Int
+getNumColumns = \case
+  BTree meta ->
+    BTree.numColumns meta
