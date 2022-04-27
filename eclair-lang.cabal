@@ -1,6 +1,6 @@
 cabal-version: 2.2
 
--- This file has been generated from package.yaml by hpack version 0.34.5.
+-- This file has been generated from package.yaml by hpack version 0.34.6.
 --
 -- see: https://github.com/sol/hpack
 
@@ -110,6 +110,8 @@ executable eclairc
   main-is: Main.hs
   other-modules:
       Paths_eclair_lang
+  autogen-modules:
+      Paths_eclair_lang
   hs-source-dirs:
       src
   default-extensions:
@@ -173,14 +175,16 @@ test-suite eclair-test
   type: exitcode-stdio-1.0
   main-is: test.hs
   other-modules:
+      Test.Eclair.AST.LowerSpec
       Test.Eclair.EIR.LowerSpec
       Test.Eclair.LLVM.HashSpec
-      Test.Eclair.LLVM.LowerSpec
       Test.Eclair.ParserSpec
       Test.Eclair.RA.IndexSelectionSpec
       Test.Eclair.RA.InterpreterSpec
       Test.Eclair.RA.LowerSpec
       Test.Eclair.TypeSystemSpec
+      Paths_eclair_lang
+  autogen-modules:
       Paths_eclair_lang
   hs-source-dirs:
       tests
