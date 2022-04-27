@@ -5,6 +5,7 @@ module Eclair.EIR.Codegen
   , Externals(..)
   , Functions(..)
   , labelToName
+  , lsLookupFunction
   , lookupFunction
   , toLLVMType
   , lookupVar
@@ -26,6 +27,7 @@ import Data.ByteString.Short hiding (index)
 import Eclair.LLVM.Runtime
 import qualified Eclair.EIR.IR as EIR
 import Eclair.RA.IndexSelection
+import Eclair.Id
 
 
 type Relation = EIR.Relation
@@ -52,9 +54,10 @@ labelToName :: EIR.LabelId -> Name
 labelToName (EIR.LabelId lbl) =
   mkName $ toString lbl
 
-lookupFunction :: Relation -> Index -> EIR.Function -> CodegenM Operand
-lookupFunction r idx fn =
-  extractFn . fromJust . M.lookup (r, idx) <$> gets fnsMap
+-- This is a function mostly used by `lookupFunction`, but also for calling functions during fact IO
+lsLookupFunction :: Relation -> Index -> EIR.Function -> LowerState -> Operand
+lsLookupFunction r idx fn lowerState =
+  extractFn . fromJust . M.lookup (r, idx) $ fnsMap lowerState
   where
     extractFn = case fn of
       EIR.InitializeEmpty -> fnInitEmpty
@@ -63,6 +66,7 @@ lookupFunction r idx fn =
       EIR.Swap -> fnSwap
       EIR.InsertRange -> fnInsertRange
       EIR.IsEmpty -> fnIsEmpty
+      EIR.Size -> fnSize
       EIR.Contains -> fnContains
       EIR.Insert -> fnInsert
       EIR.IterCurrent -> fnIterCurrent
@@ -73,8 +77,11 @@ lookupFunction r idx fn =
       EIR.IterBegin -> fnBegin
       EIR.IterEnd -> fnEnd
 
-toLLVMType :: (MonadState LowerState m, MonadIO m)
-           => Relation -> Index -> EIR.Type -> m Type
+lookupFunction :: Relation -> Index -> EIR.Function -> CodegenM Operand
+lookupFunction r idx fn =
+  gets (lsLookupFunction r idx fn)
+
+toLLVMType :: (MonadState LowerState m) => Relation -> Index -> EIR.Type -> m Type
 toLLVMType r idx = go
   where
     go = \case

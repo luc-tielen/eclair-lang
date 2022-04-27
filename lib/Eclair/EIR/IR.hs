@@ -36,6 +36,7 @@ data Function
   | Swap
   | InsertRange
   | IsEmpty
+  | Size
   | Contains
   | Insert
   | IterCurrent

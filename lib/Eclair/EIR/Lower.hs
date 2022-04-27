@@ -1,8 +1,11 @@
+{-# LANGUAGE RecursiveDo #-}
+
 module Eclair.EIR.Lower
   ( compileToLLVM
   ) where
 
 import Prelude hiding (void)
+import Data.Traversable (for)
 import Data.Functor.Foldable
 import qualified Data.Text as T
 import qualified Data.ByteString as BS
@@ -28,8 +31,10 @@ import Eclair.EIR.Codegen
 import Eclair.LLVM.Metadata
 import Eclair.LLVM.Hash
 import Eclair.LLVM.Runtime
+import Eclair.LLVM.LLVM (nullPtr)
 import Eclair.RA.IndexSelection
 import Eclair.AST.IR
+import Eclair.Id
 
 
 type EIR = EIR.EIR
@@ -38,28 +43,32 @@ type Relation = EIR.Relation
 
 compileToLLVM :: EIR -> IO Module
 compileToLLVM = \case
-  EIR.Block (EIR.DeclareProgram metas : decls) -> buildModuleT "eclair_program" $ do
+  EIR.Block (EIR.DeclareProgram metas : decls) -> buildModuleT "eclair_code" $ do
     exts <- createExternals
     (metaMapping, fnss) <- runCacheT $ traverse (codegenRuntime exts . snd) metas
     codegenDebugInfos metaMapping
     let fnsInfo = zip (map (map getIndexFromMeta) metas) fnss
         fnsMap = M.fromList fnsInfo
     programTy <- mkType "program" fnss
-    traverse_ (processDecl programTy fnsMap exts) decls
+    let lowerState = LowerState programTy fnsMap mempty exts
+    traverse_ (processDecl lowerState) decls
+    addFactsFn <- generateAddFactsFn metas lowerState
+    generateAddFact addFactsFn lowerState
+    generateGetFactsFn metas lowerState
+    generateFreeBufferFn lowerState
   _ ->
     panic "Unexpected top level EIR declarations when compiling to LLVM!"
   where
-    processDecl programTy fnsMap externalMap = \case
+    processDecl lowerState = \case
       EIR.Function name tys retTy body -> do
-        let beginState = LowerState programTy fnsMap mempty externalMap
-            unusedRelation = panic "Unexpected use of relation for function type when lowering EIR to LLVM."
+        let unusedRelation = panic "Unexpected use of relation for function type when lowering EIR to LLVM."
             unusedIndex = panic "Unexpected use of index for function type when lowering EIR to LLVM."
-            getType ty = evalStateT (toLLVMType unusedRelation unusedIndex ty) beginState
+            getType ty = evalStateT (toLLVMType unusedRelation unusedIndex ty) lowerState
         argTypes <- liftIO $ traverse getType tys
         returnType <- liftIO $ getType retTy
         let args = map (, ParameterName "arg") argTypes
         function (mkName $ toString name) args returnType $ \args -> do
-          runCodegenM (fnBodyToLLVM args body) beginState
+          runCodegenM (fnBodyToLLVM args body) lowerState
       _ ->
         panic "Unexpected top level EIR declaration when compiling to LLVM!"
 
@@ -146,15 +155,16 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
         ret =<< value
       _ ->
         panic "Unhandled pattern match case in 'instrToUnit' while lowering EIR to LLVM!"
-    doCall :: Relation -> Index -> EIR.Function -> [CodegenM Operand] -> CodegenM Operand
-    doCall r idx fn args = do
-      argOperands <- sequence args
-      func <- lookupFunction r idx fn
-      call func $ (, []) <$> argOperands
     toOperand (Triple _ operand _) = operand
     toOperandWithContext (Triple eir operand _) =
       (operand, eir)
     toInstrs (Triple _ _ instrs) = instrs
+
+doCall :: Relation -> Index -> EIR.Function -> [CodegenM Operand] -> CodegenM Operand
+doCall r idx fn args = do
+  argOperands <- sequence args
+  func <- lookupFunction r idx fn
+  call func $ (, []) <$> argOperands
 
 -- A tuple of 3 elements, defined as a newtype so a Comonad instance can be added.
 data Triple a b c
@@ -254,3 +264,147 @@ createExternals = do
   freeFn <- extern "free" [ptr i8] void
   memsetFn <- extern "llvm.memset.p0i8.i64" [ptr i8, i8, i64, i1] void
   pure $ Externals mallocFn freeFn memsetFn
+
+
+generateAddFact :: Operand -> LowerState -> ModuleBuilderT IO Operand
+generateAddFact addFactsFn lowerState = do
+  let args = [ (ptr (programType lowerState), ParameterName "eclair_program")
+             , (i16, ParameterName "fact_type")
+             , (ptr i32, ParameterName "memory")
+             ]
+      returnType = void
+
+  function "eclair_add_fact" args returnType $ \[program, factType, memory] -> do
+    call addFactsFn $ (, []) <$> [program, factType, memory, int32 1]
+    retVoid
+
+generateAddFactsFn :: MonadFix m => [(Relation, Metadata)] -> LowerState -> ModuleBuilderT m Operand
+generateAddFactsFn metas lowerState = do
+  let relations = getRelations metas
+      mapping = getFactTypeMapping metas
+
+  -- NOTE: this assumes there are no more than 65536 facts in a single Datalog program
+  let args = [ (ptr (programType lowerState), ParameterName "eclair_program")
+             , (i16, ParameterName "fact_type")
+             , (ptr i32, ParameterName "memory")
+             , (i32, ParameterName "fact_count")
+             ]
+      returnType = void
+  function "eclair_add_facts" args returnType $ \[program, factType, memory, factCount] -> mdo
+
+    switch factType end caseBlocks
+    caseBlocks <- for mapping $ \(r, factNum) -> do
+      let indexes = indexesFor lowerState r
+
+      caseBlock <- block `named` toShort (encodeUtf8 $ unId r)
+      for_ indexes $ \idx -> do
+        let numCols = fromIntegral $ factNumColumns r metas
+            treeOffset = int32 $ toInteger $ getContainerOffset metas r idx
+        relationPtr <- gep program [int32 0, treeOffset]
+        -- TODO: don't re-calculate this type, do this based on value datatype created in each runtime data structure
+        arrayPtr <- memory `bitcast` ptr (ArrayType numCols i32)
+
+        loopFor (int32 0) (\i -> icmp IP.ULT i factCount) (add (int32 1)) $ \i -> do
+          valuePtr <- gep arrayPtr [i]
+          call (lsLookupFunction r idx EIR.Insert lowerState) [(relationPtr, []), (valuePtr, [])]
+
+      pure (Int 16 factNum, caseBlock)
+
+    end <- block `named` "eclair_add_facts.end"
+    retVoid
+
+generateGetFactsFn :: MonadFix m => [(Relation, Metadata)] -> LowerState -> ModuleBuilderT m Operand
+generateGetFactsFn metas lowerState = do
+  let args = [ (ptr (programType lowerState), ParameterName "eclair_program")
+             , (i16, ParameterName "fact_type")
+             ]
+      returnType = ptr i32
+  function "eclair_get_facts" args returnType $ \[program, factType] -> mdo
+    switch factType end caseBlocks
+
+    caseBlocks <- for mapping $ \(r, factNum) -> do
+      let indexes = indexesFor lowerState r
+          idx = fromJust $ viaNonEmpty head indexes  -- TODO: which idx? just select first matching?
+          lookupFn fn = lsLookupFunction r idx fn lowerState
+          doCall fn args = call (lookupFn fn) $ (,[]) <$> args
+          numCols = factNumColumns r metas
+          valueSize = 4 * numCols  -- TODO: should use LLVM "valueSize" instead of re-calculating here
+          treeOffset = int32 $ toInteger $ getContainerOffset metas r idx
+
+      caseBlock <- block `named` toShort (encodeUtf8 $ unId r)
+      relationPtr <- gep program [int32 0, treeOffset]
+      relationSize <- (doCall EIR.Size [relationPtr] >>= (`trunc` i32)) `named` "fact_count"
+      memorySize <- mul relationSize (int32 $ toInteger valueSize) `named` "byte_count"
+      memory <- call mallocFn [(memorySize, [])] `named` "memory"
+      arrayPtr <- memory `bitcast` ptr (ArrayType (fromIntegral numCols) i32) `named` "array"
+
+      iPtr <- alloca i32 (Just (int32 1)) 0 `named` "i"
+      let iterTy = evalState (toLLVMType r idx EIR.Iter) lowerState
+      currIter <- alloca iterTy (Just (int32 1)) 0 `named` "current_iter"
+      endIter <- alloca iterTy (Just (int32 1)) 0 `named` "end_iter"
+      doCall EIR.IterBegin [relationPtr, currIter]
+      doCall EIR.IterEnd [relationPtr, endIter]
+      let loopCondition = do
+            isEqual <- doCall EIR.IterIsEqual [currIter, endIter]
+            not' isEqual
+      loopWhile loopCondition $ do
+        i <- load iPtr 0
+        valuePtr <- gep arrayPtr [i] `named` "value"
+        currentVal <- doCall EIR.IterCurrent [currIter] `named` "current"
+        -- TODO: maybe need to do manual load and store? copy does an additional gep on currentVal?
+        copy (mkPath []) currentVal valuePtr
+        i' <- add i (int32 1)
+        store iPtr 0 i'
+        doCall EIR.IterNext [currIter]
+
+      ret =<< memory `bitcast` ptr i32
+      pure (Int 16 factNum, caseBlock)
+
+    end <- block `named` "eclair_get_facts.end"
+    ret $ nullPtr i32
+  where
+    relations = getRelations metas
+    mapping = getFactTypeMapping metas
+    mallocFn = extMalloc $ externals lowerState
+
+generateFreeBufferFn :: Monad m => LowerState -> ModuleBuilderT m Operand
+generateFreeBufferFn lowerState = do
+  let freeFn = extFree $ externals lowerState
+      args = [(ptr i32, ParameterName "buffer")]
+      returnType = void
+  function "eclair_free_buffer" args returnType $ \[buf] -> mdo
+    memory <- buf `bitcast` ptr i8 `named` "memory"
+    call freeFn [(memory, [])]
+    retVoid
+
+-- TODO: move all lower level code below to Codegen.hs to keep high level overview here!
+
+factNumColumns :: Relation -> [(Relation, Metadata)] -> Int
+factNumColumns r metas =
+  getNumColumns (snd $ fromJust $ L.find ((== r) . fst) metas)
+
+-- NOTE: disregards all "special" relations, since they should not be visible to the end user!
+getRelations :: [(Relation, metadata)] -> [Relation]
+getRelations metas =
+  ordNub $ filter (not . startsWithIdPrefix) $ map fst metas
+
+getFactTypeMapping :: [(Relation, metadata)] -> [(Relation, Integer)]
+getFactTypeMapping metas =
+  zip (getRelations metas) [0..]
+
+getContainerOffset :: [(Relation, Metadata)] -> Relation -> Index -> Int
+getContainerOffset metas r idx =
+  fromJust $ L.findIndex (sameRelationAndIndex r idx) $ map (map getIndex) metas
+
+sameRelationAndIndex :: Relation -> Index -> (Relation, Index) -> Bool
+sameRelationAndIndex r idx (r', idx') =
+  r == r' && idx == idx'
+
+indexesFor :: LowerState -> Relation -> [Index]
+indexesFor ls r =
+  map snd $ filter ((== r) . fst) $ M.keys $ fnsMap ls
+
+-- TODO: why not found in llvm-hs-pure? are we pointing to an older llvm-9 branch?
+int16 :: Integer -> Operand
+int16 = ConstantOperand . Int 16
+

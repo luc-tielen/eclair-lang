@@ -20,6 +20,7 @@ data Functions
   , fnBegin :: Operand
   , fnEnd :: Operand
   , fnIsEmpty :: Operand
+  , fnSize :: Operand
   , fnLowerBound :: Operand
   , fnUpperBound :: Operand
   , fnContains :: Operand
