@@ -72,12 +72,7 @@ data SearchFact
 searchesForProgram :: TypeInfo -> RA -> SearchMap
 searchesForProgram typeInfo ra =
   let searchFacts = execState (zygo constraintsForSearch constraintsForRA ra) mempty
-      additionalSearchFacts = [ SearchOn r $ SearchSignature $ Set.fromList $ columnsFor $ fromJust $ Map.lookup r typeInfo
-                              | let rs = map (\(SearchOn r _) -> r) $ filter (\case SearchOn {} -> True; _ -> False) searchFacts
-                              , r <- Map.keys typeInfo
-                              ,  r `notElem` rs
-                              ]
-      facts = searchFacts ++ additionalSearchFacts
+      facts = searchFacts ++ getAdditionalSearchFacts typeInfo searchFacts
    in solve facts
   where
     addFact fact = modify (fact:)
@@ -103,6 +98,23 @@ searchesForProgram typeInfo ra =
       MergeF r1 r2 -> addFact $ Related r1 r2
       SwapF r1 r2  -> addFact $ Related r1 r2
       raf -> traverse_ snd raf
+
+-- Finds all facts that didn't have any searches,
+-- and defaults those to a search that makes use of all columns.
+getAdditionalSearchFacts :: TypeInfo -> [SearchFact] -> [SearchFact]
+getAdditionalSearchFacts typeInfo searchFacts =
+  [ SearchOn r . toSearchSignature $ unsafeLookup r
+  | r <- Map.keys typeInfo
+  , r `notElem` rs
+  ]
+  where
+    rs = mapMaybe searchedOnRelation searchFacts
+    unsafeLookup r = fromJust $ Map.lookup r typeInfo
+    toSearchSignature = SearchSignature . Set.fromList . columnsFor
+    searchedOnRelation = \case
+      SearchOn r _ -> Just r
+      _ -> Nothing
+
 
 constraintsForSearch :: RAF [(Relation, Column)] -> [(Relation, Column)]
 constraintsForSearch = \case
