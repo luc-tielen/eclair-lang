@@ -1,5 +1,6 @@
 module Eclair
-  ( compileRA
+  ( parse
+  , compileRA
   , compileEIR
   , compileLLVM
   , compile

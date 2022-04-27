@@ -15,6 +15,7 @@ module Eclair.RA.IndexSelection
 import Data.Maybe (fromJust)
 import Eclair.RA.IR
 import Eclair.Pretty
+import Eclair.TypeSystem (TypeInfo)
 import Algebra.Graph.Bipartite.AdjacencyMap
 import Algebra.Graph.Bipartite.AdjacencyMap.Algorithm hiding (matching)
 import Data.Functor.Foldable hiding (fold)
@@ -46,9 +47,9 @@ type IndexSelection = [(Relation, Map SearchSignature Index)]
 type IndexMap = Map Relation (Set Index)
 type IndexSelector = Relation -> SearchSignature -> Index
 
-runIndexSelection :: RA -> (IndexMap, IndexSelector)
-runIndexSelection ra =
-  let searchMap = searchesForProgram ra
+runIndexSelection :: TypeInfo -> RA -> (IndexMap, IndexSelector)
+runIndexSelection typeInfo ra =
+  let searchMap = searchesForProgram typeInfo ra
       indexSelection :: IndexSelection
       indexSelection = Map.foldrWithKey (\r searchSet acc ->
         let graph = buildGraph searchSet
@@ -68,8 +69,11 @@ data SearchFact
   | Related Relation Relation
   deriving (Eq, Ord)
 
-searchesForProgram :: RA -> SearchMap
-searchesForProgram ra = solve $ execState (zygo constraintsForSearch constraintsForRA ra) mempty
+searchesForProgram :: TypeInfo -> RA -> SearchMap
+searchesForProgram typeInfo ra =
+  let searchFacts = execState (zygo constraintsForSearch constraintsForRA ra) mempty
+      facts = searchFacts ++ getAdditionalSearchFacts typeInfo searchFacts
+   in solve facts
   where
     addFact fact = modify (fact:)
     constraintsForRA = \case
@@ -94,6 +98,23 @@ searchesForProgram ra = solve $ execState (zygo constraintsForSearch constraints
       MergeF r1 r2 -> addFact $ Related r1 r2
       SwapF r1 r2  -> addFact $ Related r1 r2
       raf -> traverse_ snd raf
+
+-- Finds all facts that didn't have any searches,
+-- and defaults those to a search that makes use of all columns.
+getAdditionalSearchFacts :: TypeInfo -> [SearchFact] -> [SearchFact]
+getAdditionalSearchFacts typeInfo searchFacts =
+  [ SearchOn r . toSearchSignature $ unsafeLookup r
+  | r <- Map.keys typeInfo
+  , r `notElem` rs
+  ]
+  where
+    rs = mapMaybe searchedOnRelation searchFacts
+    unsafeLookup r = fromJust $ Map.lookup r typeInfo
+    toSearchSignature = SearchSignature . Set.fromList . columnsFor
+    searchedOnRelation = \case
+      SearchOn r _ -> Just r
+      _ -> Nothing
+
 
 constraintsForSearch :: RAF [(Relation, Column)] -> [(Relation, Column)]
 constraintsForSearch = \case

@@ -22,7 +22,7 @@ import qualified Eclair.LLVM.Metadata as M
 
 compileToEIR :: TypeInfo -> RA -> EIR
 compileToEIR typeInfo ra =
-  let (indexMap, getIndexForSearch) = runIndexSelection ra
+  let (indexMap, getIndexForSearch) = runIndexSelection typeInfo ra
       containerInfos = getContainerInfos indexMap typeInfo
       end = "the.end"
       lowerState = LowerState typeInfo indexMap getIndexForSearch containerInfos end mempty

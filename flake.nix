@@ -90,7 +90,6 @@
               pkgs.llvmPackages_9.llvm.dev
               (ghcWithPackages (p:
                 with p; [
-                  eclair-lang
                   algebraic-graphs
                   hspec-discover
                   llvm-hs
