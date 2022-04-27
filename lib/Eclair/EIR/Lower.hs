@@ -351,6 +351,7 @@ generateGetFactsFn metas lowerState = do
         i <- load iPtr 0
         valuePtr <- gep arrayPtr [i] `named` "value"
         currentVal <- doCall EIR.IterCurrent [currIter] `named` "current"
+        -- TODO: maybe need to do manual load and store? copy does an additional gep on currentVal?
         copy (mkPath []) currentVal valuePtr
         i' <- add i (int32 1)
         store iPtr 0 i'
