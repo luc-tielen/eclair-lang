@@ -62,6 +62,30 @@ extractFnSnippet result fnSignature =
 
 spec :: Spec
 spec = describe "EIR Code Generation" $ parallel $ do
+  it "generates empty run function for empty program" $ do
+    eir <- cg "empty"
+    eir `shouldBe` [text|
+      {
+        declare_type Program
+        {
+
+        }
+        fn eclair_program_init() -> *Program
+        {
+          program = heap_allocate_program
+          return program
+        }
+        fn eclair_program_destroy(*Program) -> Void
+        {
+          free_program(FN_ARG[0])
+        }
+        fn eclair_program_run(*Program) -> Void
+        {
+
+        }
+      }
+      |]
+
   it "generates code for a single fact" $ do
     eir <- cg "single_fact"
     extractDeclTypeSnippet eir `shouldBe` [text|
@@ -699,3 +723,144 @@ spec = describe "EIR Code Generation" $ parallel $ do
       |]
 
   -- TODO tests for rules with >2 clauses, ...
+
+  it "generates code for program without top level facts" $ do
+    eir <- cg "no_top_level_facts"
+    -- NOTE: program for now also contains delta_ and new_ relations,
+    -- probably it's more efficient to move these to the stack (but left out of scope for now)
+    extractDeclTypeSnippet eir `shouldBe` [text|
+      declare_type Program
+      {
+        delta_path btree(num_columns=2, index=[0,1], block_size=256, search_type=linear)
+        edge btree(num_columns=2, index=[0,1], block_size=256, search_type=linear)
+        new_path btree(num_columns=2, index=[0,1], block_size=256, search_type=linear)
+        path btree(num_columns=2, index=[0,1], block_size=256, search_type=linear)
+      }
+      |]
+    extractFnSnippet eir "eclair_program_init() -> *Program" `shouldBe` Just [text|
+      fn eclair_program_init() -> *Program
+      {
+        program = heap_allocate_program
+        delta_path.init_empty(program.0)
+        edge.init_empty(program.1)
+        new_path.init_empty(program.2)
+        path.init_empty(program.3)
+        return program
+      }
+      |]
+    extractFnSnippet eir "eclair_program_destroy(*Program) -> Void" `shouldBe` Just [text|
+      fn eclair_program_destroy(*Program) -> Void
+      {
+        delta_path.destroy(FN_ARG[0].0)
+        edge.destroy(FN_ARG[0].1)
+        new_path.destroy(FN_ARG[0].2)
+        path.destroy(FN_ARG[0].3)
+        free_program(FN_ARG[0])
+      }
+      |]
+    extractFnSnippet eir "eclair_program_run(*Program) -> Void" `shouldBe` Just [text|
+      fn eclair_program_run(*Program) -> Void
+      {
+        value = edge.stack_allocate Value
+        value.0 = 0
+        value.1 = 0
+        value_1 = edge.stack_allocate Value
+        value_1.0 = 4294967295
+        value_1.1 = 4294967295
+        begin_iter = edge.stack_allocate Iter
+        end_iter = edge.stack_allocate Iter
+        edge.iter_lower_bound(FN_ARG[0].1, value, begin_iter)
+        edge.iter_upper_bound(FN_ARG[0].1, value_1, end_iter)
+        loop
+        {
+          condition = edge.iter_is_equal(begin_iter, end_iter)
+          if (condition)
+          {
+            goto range_query.end
+          }
+          current = edge.iter_current(begin_iter)
+          value_2 = path.stack_allocate Value
+          value_2.0 = current.0
+          value_2.1 = current.1
+          path.insert(FN_ARG[0].3, value_2)
+          edge.iter_next(begin_iter)
+        }
+        range_query.end:
+        begin_iter_1 = path.stack_allocate Iter
+        end_iter_1 = path.stack_allocate Iter
+        path.iter_begin(FN_ARG[0].3, begin_iter_1)
+        path.iter_end(FN_ARG[0].3, end_iter_1)
+        path.insert_range(FN_ARG[0].0, begin_iter_1, end_iter_1)
+        loop
+        {
+          new_path.purge(FN_ARG[0].2)
+          value_3 = edge.stack_allocate Value
+          value_3.0 = 0
+          value_3.1 = 0
+          value_4 = edge.stack_allocate Value
+          value_4.0 = 4294967295
+          value_4.1 = 4294967295
+          begin_iter_2 = edge.stack_allocate Iter
+          end_iter_2 = edge.stack_allocate Iter
+          edge.iter_lower_bound(FN_ARG[0].1, value_3, begin_iter_2)
+          edge.iter_upper_bound(FN_ARG[0].1, value_4, end_iter_2)
+          loop
+          {
+            condition_1 = edge.iter_is_equal(begin_iter_2, end_iter_2)
+            if (condition_1)
+            {
+              goto range_query.end_1
+            }
+            current_1 = edge.iter_current(begin_iter_2)
+            value_5 = path.stack_allocate Value
+            value_5.0 = current_1.1
+            value_5.1 = 0
+            value_6 = path.stack_allocate Value
+            value_6.0 = current_1.1
+            value_6.1 = 4294967295
+            begin_iter_3 = path.stack_allocate Iter
+            end_iter_3 = path.stack_allocate Iter
+            delta_path.iter_lower_bound(FN_ARG[0].0, value_5, begin_iter_3)
+            delta_path.iter_upper_bound(FN_ARG[0].0, value_6, end_iter_3)
+            loop
+            {
+              condition_2 = delta_path.iter_is_equal(begin_iter_3, end_iter_3)
+              if (condition_2)
+              {
+                goto range_query.end_2
+              }
+              current_2 = delta_path.iter_current(begin_iter_3)
+              value_7 = path.stack_allocate Value
+              value_7.0 = current_1.0
+              value_7.1 = current_2.1
+              contains_result = path.contains(FN_ARG[0].3, value_7)
+              condition_3 = not contains_result
+              if (condition_3)
+              {
+                value_8 = path.stack_allocate Value
+                value_8.0 = current_1.0
+                value_8.1 = current_2.1
+                new_path.insert(FN_ARG[0].2, value_8)
+              }
+              delta_path.iter_next(begin_iter_3)
+            }
+            range_query.end_2:
+            edge.iter_next(begin_iter_2)
+          }
+          range_query.end_1:
+          condition_4 = new_path.is_empty(FN_ARG[0].2)
+          if (condition_4)
+          {
+            goto loop.end
+          }
+          begin_iter_4 = path.stack_allocate Iter
+          end_iter_4 = path.stack_allocate Iter
+          new_path.iter_begin(FN_ARG[0].2, begin_iter_4)
+          new_path.iter_end(FN_ARG[0].2, end_iter_4)
+          new_path.insert_range(FN_ARG[0].3, begin_iter_4, end_iter_4)
+          new_path.swap(FN_ARG[0].2, FN_ARG[0].0)
+        }
+        loop.end:
+      }
+      |]
+

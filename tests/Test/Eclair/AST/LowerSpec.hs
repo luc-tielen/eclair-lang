@@ -32,6 +32,9 @@ resultsIn action output = do
 
 spec :: Spec
 spec = describe "RA Code Generation" $ parallel $ do
+  it "generates nothing for empty file" $ do
+    cg "empty" `resultsIn` ""
+
   it "generates code for a single fact" $ do
     cg "single_fact" `resultsIn` [text|
       project (1, 2, 3) into another
@@ -109,3 +112,18 @@ spec = describe "RA Code Generation" $ parallel $ do
       |]
 
   -- TODO tests for rules with >2 clauses, ...
+
+  it "generates code for program without top level facts" $
+    cg "no_top_level_facts" `resultsIn` [text|
+      search edge as edge0 do
+        project (edge0[0], edge0[1]) into path
+      merge path delta_path
+      loop do
+        purge new_path
+        search edge as edge0 do
+          search delta_path as delta_path1 where (delta_path1[0] = edge0[1] and (edge0[0], delta_path1[1]) ∉ path) do
+            project (edge0[0], delta_path1[1]) into new_path
+        exit if counttuples(new_path) = 0
+        merge new_path path
+        swap new_path delta_path
+      |]
