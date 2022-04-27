@@ -120,3 +120,11 @@ spec = describe "Index selection" $ parallel $ do
       toSelection [ ("a", [[0,1,2,3,4], [4,2,3]])
                   , ("b", [[0]])
                   ]
+
+  it "calculates indexes correctly for programs with no top level facts" $ do
+    idxSel "no_top_level_facts" `resultsIn`
+      toSelection [ ("delta_path", [[0,1]])
+                  , ("new_path", [[0,1]])
+                  , ("path", [[0,1]])
+                  , ("edge", [[0,1]])
+                  ]
