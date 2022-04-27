@@ -3,7 +3,6 @@ module Eclair.AST.Lower ( compileToRA ) where
 import Control.Lens hiding (Equality, Index)
 import qualified Data.Graph as G
 import qualified Data.Map as M
-import Data.Maybe (fromJust)
 import Eclair.AST.Codegen
 import Eclair.AST.IR hiding (Clause)
 import Eclair.Id
@@ -39,7 +38,9 @@ compileToRA ast = RA.Module $ concatMap processDecls sortedDecls where
           Rule {} -> True
           _ -> False
         refersTo = \case
-          Rule _ _ clauses -> concatMap (fromJust . flip M.lookup declLineMapping . nameFor) clauses
+          Rule _ _ clauses ->
+            -- If no top level facts are defined, no entry exists in declLine mapping -> default to -1
+            concatMap (fromMaybe [-1] . flip M.lookup declLineMapping . nameFor) clauses
           _ -> []
         nameFor = \case
           Atom name _ -> name
