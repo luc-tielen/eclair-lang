@@ -31,6 +31,7 @@ import Eclair.EIR.Codegen
 import Eclair.LLVM.Metadata
 import Eclair.LLVM.Hash
 import Eclair.LLVM.Runtime
+import Eclair.LLVM.LLVM (nullPtr)
 import Eclair.RA.IndexSelection
 import Eclair.AST.IR
 import Eclair.Id
@@ -53,6 +54,8 @@ compileToLLVM = \case
     traverse_ (processDecl lowerState) decls
     addFactsFn <- generateAddFactsFn metas lowerState
     generateAddFact addFactsFn lowerState
+    generateGetFactsFn metas lowerState
+    generateFreeBufferFn lowerState
   _ ->
     panic "Unexpected top level EIR declarations when compiling to LLVM!"
   where
@@ -275,7 +278,7 @@ generateAddFact addFactsFn lowerState = do
     call addFactsFn $ (, []) <$> [program, factType, memory, int32 1]
     retVoid
 
-generateAddFactsFn :: [(Relation, Metadata)] -> LowerState -> ModuleBuilderT IO Operand
+generateAddFactsFn :: MonadFix m => [(Relation, Metadata)] -> LowerState -> ModuleBuilderT m Operand
 generateAddFactsFn metas lowerState = do
   let relations = getRelations metas
       mapping = getFactTypeMapping metas
@@ -295,27 +298,90 @@ generateAddFactsFn metas lowerState = do
 
       caseBlock <- block `named` toShort (encodeUtf8 $ unId r)
       for_ indexes $ \idx -> do
-        let factSize = int32 $ toInteger $ getValueSize r metas
+        let numCols = fromIntegral $ factNumColumns r metas
             treeOffset = int32 $ toInteger $ getContainerOffset metas r idx
-        treePtr <- gep program [int32 0, treeOffset]
+        relationPtr <- gep program [int32 0, treeOffset]
+        -- TODO: don't re-calculate this type, do this based on value datatype created in each runtime data structure
+        arrayPtr <- memory `bitcast` ptr (ArrayType numCols i32)
 
         loopFor (int32 0) (\i -> icmp IP.ULT i factCount) (add (int32 1)) $ \i -> do
-          offset <- mul i factSize
-          valuePtr <- gep memory [offset]
-          call (lsLookupFunction r idx EIR.Insert lowerState) [(treePtr, []), (valuePtr, [])]
+          valuePtr <- gep arrayPtr [i]
+          call (lsLookupFunction r idx EIR.Insert lowerState) [(relationPtr, []), (valuePtr, [])]
 
       pure (Int 16 factNum, caseBlock)
 
     end <- block `named` "eclair_add_facts.end"
     retVoid
 
+generateGetFactsFn :: MonadFix m => [(Relation, Metadata)] -> LowerState -> ModuleBuilderT m Operand
+generateGetFactsFn metas lowerState = do
+  let args = [ (ptr (programType lowerState), ParameterName "eclair_program")
+             , (i16, ParameterName "fact_type")
+             ]
+      returnType = ptr i32
+  function "eclair_get_facts" args returnType $ \[program, factType] -> mdo
+    switch factType end caseBlocks
+
+    caseBlocks <- for mapping $ \(r, factNum) -> do
+      let indexes = indexesFor lowerState r
+          idx = fromJust $ viaNonEmpty head indexes  -- TODO: which idx? just select first matching?
+          lookupFn fn = lsLookupFunction r idx fn lowerState
+          doCall fn args = call (lookupFn fn) $ (,[]) <$> args
+          numCols = factNumColumns r metas
+          valueSize = 4 * numCols  -- TODO: should use LLVM "valueSize" instead of re-calculating here
+          treeOffset = int32 $ toInteger $ getContainerOffset metas r idx
+
+      caseBlock <- block `named` toShort (encodeUtf8 $ unId r)
+      relationPtr <- gep program [int32 0, treeOffset]
+      -- TODO EIR.Size
+      relationSize <- (doCall _ [relationPtr] >>= (`trunc` i32)) `named` "fact_count"
+      memorySize <- mul relationSize (int32 $ toInteger valueSize) `named` "byte_count"
+      memory <- call mallocFn [(memorySize, [])] `named` "memory"
+      arrayPtr <- memory `bitcast` ptr (ArrayType (fromIntegral numCols) i32) `named` "array"
+
+      iPtr <- alloca i32 (Just (int32 1)) 0 `named` "i"
+      let iterTy = evalState (toLLVMType r idx EIR.Iter) lowerState
+      currIter <- alloca iterTy (Just (int32 1)) 0 `named` "current_iter"
+      endIter <- alloca iterTy (Just (int32 1)) 0 `named` "end_iter"
+      doCall EIR.IterBegin [relationPtr, currIter]
+      doCall EIR.IterEnd [relationPtr, endIter]
+      let loopCondition = do
+            isEqual <- doCall EIR.IterIsEqual [currIter, endIter]
+            not' isEqual
+      loopWhile loopCondition $ do
+        i <- load iPtr 0
+        valuePtr <- gep arrayPtr [i] `named` "value"
+        currentVal <- doCall EIR.IterCurrent [currIter] `named` "current"
+        assign (mkPath []) valuePtr currentVal
+        i' <- add i (int32 1)
+        store iPtr 0 i'
+        doCall EIR.IterNext [currIter]
+
+      ret =<< memory `bitcast` ptr i32
+      pure (Int 16 factNum, caseBlock)
+
+    end <- block `named` "eclair_get_facts.end"
+    ret $ nullPtr i32
+  where
+    relations = getRelations metas
+    mapping = getFactTypeMapping metas
+    mallocFn = extMalloc $ externals lowerState
+
+generateFreeBufferFn :: Monad m => LowerState -> ModuleBuilderT m Operand
+generateFreeBufferFn lowerState = do
+  let freeFn = extFree $ externals lowerState
+      args = [(ptr i32, ParameterName "buffer")]
+      returnType = void
+  function "eclair_free_buffer" args returnType $ \[buf] -> mdo
+    memory <- buf `bitcast` ptr i8 `named` "memory"
+    call freeFn [(memory, [])]
+    retVoid
 
 -- TODO: move all lower level code below to Codegen.hs to keep high level overview here!
 
--- TODO: don't re-calculate this, do this based on `Sizes` datatype created in each runtime data structure
-getValueSize :: Relation -> [(Relation, Metadata)] -> Int
-getValueSize r metas =
-  4 * getNumColumns (snd $ fromJust $ L.find ((== r) . fst) metas)
+factNumColumns :: Relation -> [(Relation, Metadata)] -> Int
+factNumColumns r metas =
+  getNumColumns (snd $ fromJust $ L.find ((== r) . fst) metas)
 
 -- NOTE: disregards all "special" relations, since they should not be visible to the end user!
 getRelations :: [(Relation, metadata)] -> [Relation]

@@ -80,8 +80,7 @@ lookupFunction :: Relation -> Index -> EIR.Function -> CodegenM Operand
 lookupFunction r idx fn =
   gets (lsLookupFunction r idx fn)
 
-toLLVMType :: (MonadState LowerState m, MonadIO m)
-           => Relation -> Index -> EIR.Type -> m Type
+toLLVMType :: (MonadState LowerState m) => Relation -> Index -> EIR.Type -> m Type
 toLLVMType r idx = go
   where
     go = \case
