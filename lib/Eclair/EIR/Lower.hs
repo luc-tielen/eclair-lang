@@ -333,8 +333,7 @@ generateGetFactsFn metas lowerState = do
 
       caseBlock <- block `named` toShort (encodeUtf8 $ unId r)
       relationPtr <- gep program [int32 0, treeOffset]
-      -- TODO EIR.Size
-      relationSize <- (doCall _ [relationPtr] >>= (`trunc` i32)) `named` "fact_count"
+      relationSize <- (doCall EIR.Size [relationPtr] >>= (`trunc` i32)) `named` "fact_count"
       memorySize <- mul relationSize (int32 $ toInteger valueSize) `named` "byte_count"
       memory <- call mallocFn [(memorySize, [])] `named` "memory"
       arrayPtr <- memory `bitcast` ptr (ArrayType (fromIntegral numCols) i32) `named` "array"
@@ -352,7 +351,7 @@ generateGetFactsFn metas lowerState = do
         i <- load iPtr 0
         valuePtr <- gep arrayPtr [i] `named` "value"
         currentVal <- doCall EIR.IterCurrent [currIter] `named` "current"
-        assign (mkPath []) valuePtr currentVal
+        copy (mkPath []) currentVal valuePtr
         i' <- add i (int32 1)
         store iPtr 0 i'
         doCall EIR.IterNext [currIter]

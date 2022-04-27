@@ -66,6 +66,7 @@ lsLookupFunction r idx fn lowerState =
       EIR.Swap -> fnSwap
       EIR.InsertRange -> fnInsertRange
       EIR.IsEmpty -> fnIsEmpty
+      EIR.Size -> fnSize
       EIR.Contains -> fnContains
       EIR.Insert -> fnInsert
       EIR.IterCurrent -> fnIterCurrent
