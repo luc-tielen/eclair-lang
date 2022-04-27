@@ -11,18 +11,23 @@ import Eclair.Id
 import Eclair.Parser
 import Eclair.AST.Lower
 import Eclair.RA.IndexSelection
+import qualified Eclair.TypeSystem as TS
 import qualified Data.Text as T
 
 
 idxSel :: FilePath -> IO IndexMap
 idxSel path = do
   let file = "tests/fixtures" </> path <.> "dl"
-  raResult <- compileRA file
-  case raResult of
+  parseResult <- parse file
+  case parseResult of
     Left err -> panic $ "Failed to parse " <> toText file <> "!"
-    Right ra -> do
-      let (indexMap, _) = runIndexSelection ra
-      pure indexMap
+    Right ast -> do
+      case TS.typeCheck ast of
+        Left err -> panic $ "Failed to typecheck " <> toText file <> "!"
+        Right typeInfo -> do
+          let ra = compileToRA ast
+              (indexMap, _) = runIndexSelection typeInfo ra
+          pure indexMap
 
 resultsIn :: (Show a, Eq a) => IO a -> a -> IO ()
 resultsIn action expected = do

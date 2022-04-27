@@ -15,6 +15,7 @@ module Eclair.RA.IndexSelection
 import Data.Maybe (fromJust)
 import Eclair.RA.IR
 import Eclair.Pretty
+import Eclair.TypeSystem (TypeInfo)
 import Algebra.Graph.Bipartite.AdjacencyMap
 import Algebra.Graph.Bipartite.AdjacencyMap.Algorithm hiding (matching)
 import Data.Functor.Foldable hiding (fold)
@@ -46,9 +47,9 @@ type IndexSelection = [(Relation, Map SearchSignature Index)]
 type IndexMap = Map Relation (Set Index)
 type IndexSelector = Relation -> SearchSignature -> Index
 
-runIndexSelection :: RA -> (IndexMap, IndexSelector)
-runIndexSelection ra =
-  let searchMap = searchesForProgram ra
+runIndexSelection :: TypeInfo -> RA -> (IndexMap, IndexSelector)
+runIndexSelection typeInfo ra =
+  let searchMap = searchesForProgram typeInfo ra
       indexSelection :: IndexSelection
       indexSelection = Map.foldrWithKey (\r searchSet acc ->
         let graph = buildGraph searchSet
@@ -68,8 +69,16 @@ data SearchFact
   | Related Relation Relation
   deriving (Eq, Ord)
 
-searchesForProgram :: RA -> SearchMap
-searchesForProgram ra = solve $ execState (zygo constraintsForSearch constraintsForRA ra) mempty
+searchesForProgram :: TypeInfo -> RA -> SearchMap
+searchesForProgram typeInfo ra =
+  let searchFacts = execState (zygo constraintsForSearch constraintsForRA ra) mempty
+      additionalSearchFacts = [ SearchOn r $ SearchSignature $ Set.fromList $ columnsFor $ fromJust $ Map.lookup r typeInfo
+                              | let rs = map (\(SearchOn r _) -> r) $ filter (\case SearchOn {} -> True; _ -> False) searchFacts
+                              , r <- Map.keys typeInfo
+                              ,  r `notElem` rs
+                              ]
+      facts = searchFacts ++ additionalSearchFacts
+   in solve facts
   where
     addFact fact = modify (fact:)
     constraintsForRA = \case
