@@ -831,7 +831,7 @@ mkBtreeSize nodeCountEntries = do
   tree <- typeOf BTree
   node <- typeOf Node
 
-  function "btree_size" [(ptr tree, "tree")] i64 $ \[t] -> mdo
+  def "btree_size" [(ptr tree, "tree")] i64 $ \[t] -> mdo
     root <- deref rootPtrOf t
     isNull <- root `eq` nullPtr node
     condBr isNull nullBlock notNullBlock

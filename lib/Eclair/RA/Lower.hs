@@ -32,8 +32,6 @@ compileToEIR typeInfo ra =
         , compileInit
         , compileDestroy
         , compileRun ra
-        -- TODO: functions to read/write values,
-        -- for each relation? "generateFnsForRelations"
         ]
    in EIR.Block $ map (runCodegen lowerState) moduleStmts
 
@@ -59,7 +57,6 @@ compileDestroy = do
 
 compileRun :: RA -> CodegenM EIR
 compileRun ra = do
-  end <- endLabel <$> getLowerState
   fn "eclair_program_run" [EIR.Pointer EIR.Program] EIR.Void
     [generateProgramInstructions ra]
 
@@ -320,16 +317,3 @@ mkFindIndex =
 indexesForRelation :: Relation -> CodegenM [Index]
 indexesForRelation r =
   Set.toList . fromJust . Map.lookup r . idxMap <$> getLowerState
-
-{-
-generateFnsForRelations :: IndexMap -> TypeInfo -> ModuleBuilderT IO FunctionsMap
-generateFnsForRelations indexMap typeInfo = do
-  results <- flip Map.traverseWithKey indexMap $ \r idxs -> do
-    -- TODO: cache functions if possible?
-    -- TODO: avoid codegen collisions between relations
-    for (toList idxs) $ \idx -> do
-      let meta = mkMeta idx (fromJust $ Map.lookup r typeInfo)
-      (idx,) <$> BTree.codegen meta
-
-  pure $ map Map.fromList results
--}
