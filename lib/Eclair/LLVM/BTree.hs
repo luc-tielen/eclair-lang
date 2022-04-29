@@ -931,10 +931,11 @@ mkBtreeInsertValue nodeNew rebalanceOrSplit compareValues searchLowerBound searc
       store idxPtr 0 idx'
 
       -- Insert in right fragment if needed
-      shouldInsertRight <- idx' `ugt` numElems
+      numElems' <- deref (metaOf ->> numElemsOf) current  -- NOTE: numElems' modified after rebalanceOrSplit
+      shouldInsertRight <- idx' `ugt` numElems'
       if' shouldInsertRight $ do
-        numElems' <- add numElems (int16 1)
-        idx'' <- sub idx' numElems'
+        numElems'' <- add numElems' (int16 1)
+        idx'' <- sub idx' numElems''
         store idxPtr 0 idx''
         parent <- deref (metaOf ->> parentOf) current >>= (`bitcast` ptr innerNode)
         nextPos <- deref (metaOf ->> posInParentOf) current >>= add (int16 1)
@@ -945,8 +946,8 @@ mkBtreeInsertValue nodeNew rebalanceOrSplit compareValues searchLowerBound searc
       noSplit <- block `named` "no_split"
       -- No split -> move keys and insert new element
       idx''' <- load idxPtr 0
-      numElems'' <- deref (metaOf ->> numElemsOf) current  -- Might've been updated in the meantime
-      loopFor numElems'' (`ugt` idx''') (`sub` int16 1) $ \j -> do
+      numElems''' <- deref (metaOf ->> numElemsOf) current  -- NOTE: Might've been updated in the meantime
+      loopFor numElems''' (`ugt` idx''') (`sub` int16 1) $ \j -> do
         -- TODO: memmove possible?
         j' <- sub j (int16 1)
         assign (valueAt j) current =<< deref (valueAt j') current
