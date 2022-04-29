@@ -706,13 +706,22 @@ mkIteratorNext = do
         retVoid
 
       -- Case 2: at right-most element -> go to next inner node
-      let loopCondition = do
-            isNotNull <- deref currentPtrOf iter >>= (`ne` nullPtr node)
+      let loopCondition = mdo
+            isNull <- deref currentPtrOf iter >>= (`eq` nullPtr node)
+            condBr isNull nullBlock notNullBlock
+            nullBlock <- block `named` "leaf.no_parent"
+            br endLoopCondition
+
+            notNullBlock <- block `named` "leaf.has_parent"
             pos' <- deref valuePosOf iter
             current' <- deref currentPtrOf iter
             numElems' <- deref (metaOf ->> numElemsOf) current'
             atEnd <- pos' `eq` numElems'
-            isNotNull `and` atEnd
+
+            br endLoopCondition
+
+            endLoopCondition <- block `named` "loop.condition.end"
+            phi [(bit 0, nullBlock), (atEnd, notNullBlock)]
       loopWhile loopCondition $ do
         current' <- deref currentPtrOf iter
         assign valuePosOf iter =<< deref (metaOf ->> posInParentOf) current'
