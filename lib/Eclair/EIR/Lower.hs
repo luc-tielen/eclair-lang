@@ -339,6 +339,7 @@ generateGetFactsFn metas lowerState = do
       arrayPtr <- memory `bitcast` ptr (ArrayType (fromIntegral numCols) i32) `named` "array"
 
       iPtr <- alloca i32 (Just (int32 1)) 0 `named` "i"
+      store iPtr 0 (int32 0)
       let iterTy = evalState (toLLVMType r idx EIR.Iter) lowerState
       currIter <- alloca iterTy (Just (int32 1)) 0 `named` "current_iter"
       endIter <- alloca iterTy (Just (int32 1)) 0 `named` "end_iter"
@@ -351,7 +352,6 @@ generateGetFactsFn metas lowerState = do
         i <- load iPtr 0
         valuePtr <- gep arrayPtr [i] `named` "value"
         currentVal <- doCall EIR.IterCurrent [currIter] `named` "current"
-        -- TODO: maybe need to do manual load and store? copy does an additional gep on currentVal?
         copy (mkPath []) currentVal valuePtr
         i' <- add i (int32 1)
         store iPtr 0 i'
