@@ -1,7 +1,6 @@
 # eclair
 
-An experimental and minimal Datalog implementation, for better understanding of
-certain compiler algorithms.
+An experimental and minimal Datalog implementation that compiles down to LLVM.
 
 ## Features
 
@@ -11,10 +10,9 @@ Eclair is a very minimal Datalog (for now). It only supports the following featu
 - Rules consisting of one or more clauses.
 - Rules can be non-recursive, recursive or mutually recursive.
 
-It's **extremely alpha** software, not ready for real use. Right now it only
-compiles down to an intermediate representation and is not end-to-end yet.
-Many edgecases are not checked yet (there is no semantic analysis / typesystem
-yet for example).
+It's **extremely alpha** software, not ready for real use. Right now it compiles
+to LLVM but still contains some bugs. Many edgecases are not checked yet (there
+is no semantic analysis yet for example).
 
 ## Roadmap
 
@@ -24,7 +22,7 @@ yet for example).
 - [x] Add indices to relations
 - [x] Compile to Eclair IR (EIR)
 - [x] Compile to LLVM
-- [ ] Add functions for sending data back and forth between Eclair and the host language
+- [x] Add functions for sending data back and forth between Eclair and the host language
 - [ ] Clean up rough edges in the MVP
 - [ ] Support other data types than integers (strings, ...)
 - [ ] Add typesystem

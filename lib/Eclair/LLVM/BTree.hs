@@ -706,13 +706,22 @@ mkIteratorNext = do
         retVoid
 
       -- Case 2: at right-most element -> go to next inner node
-      let loopCondition = do
-            isNotNull <- deref currentPtrOf iter >>= (`ne` nullPtr node)
+      let loopCondition = mdo
+            isNull <- deref currentPtrOf iter >>= (`eq` nullPtr node)
+            condBr isNull nullBlock notNullBlock
+            nullBlock <- block `named` "leaf.no_parent"
+            br endLoopCondition
+
+            notNullBlock <- block `named` "leaf.has_parent"
             pos' <- deref valuePosOf iter
             current' <- deref currentPtrOf iter
             numElems' <- deref (metaOf ->> numElemsOf) current'
             atEnd <- pos' `eq` numElems'
-            isNotNull `and` atEnd
+
+            br endLoopCondition
+
+            endLoopCondition <- block `named` "loop.condition.end"
+            phi [(bit 0, nullBlock), (atEnd, notNullBlock)]
       loopWhile loopCondition $ do
         current' <- deref currentPtrOf iter
         assign valuePosOf iter =<< deref (metaOf ->> posInParentOf) current'
@@ -822,7 +831,7 @@ mkBtreeSize nodeCountEntries = do
   tree <- typeOf BTree
   node <- typeOf Node
 
-  function "btree_size" [(ptr tree, "tree")] i64 $ \[t] -> mdo
+  def "btree_size" [(ptr tree, "tree")] i64 $ \[t] -> mdo
     root <- deref rootPtrOf t
     isNull <- root `eq` nullPtr node
     condBr isNull nullBlock notNullBlock
@@ -877,12 +886,13 @@ mkBtreeInsertValue nodeNew rebalanceOrSplit compareValues searchLowerBound searc
   where
     insertInNonEmptyInnerNode loopBlock noInsert currentPtr current val = mdo
       innerNode <- typeOf InnerNode
+      valSize <- asks (valueSize . typeSizes)
 
       numElems <- deref (metaOf ->> numElemsOf) current
       first <- addr (valueAt (int16 0)) current
       last <- addr (valueAt numElems) current
       pos <- call searchLowerBound $ (,[]) <$> [val, first, last]
-      idx <- pointerDiff i16 pos first
+      idx <- pointerDiff i16 pos first >>= (`udiv` int32 (toInteger valSize))
       notLast <- pos `ne` last
       valueAtPos <- gep pos [int32 0]
       isEqual <- (int8 0 `eq`) =<< call compareValues ((,[]) <$> [valueAtPos, val])  -- Can we do a weak compare just by using pointers here?
@@ -897,13 +907,15 @@ mkBtreeInsertValue nodeNew rebalanceOrSplit compareValues searchLowerBound searc
     insertInNonEmptyLeafNode noInsert inserted t currentPtr current val numberOfKeys = mdo
       -- Rest is for leaf nodes
       innerNode <- typeOf InnerNode
+      valSize <- asks (valueSize . typeSizes)
 
       -- TODO: assert(current->meta.type == LEAF_NODE);
       numElems <- deref (metaOf ->> numElemsOf) current
       first <- addr (valueAt (int16 0)) current
       last <- addr (valueAt numElems) current
       pos <- call searchUpperBound $ (,[]) <$> [val, first, last]
-      idxPtr <- allocate i16 =<< pointerDiff i16 pos first
+      distance <- pointerDiff i16 pos first >>= (`udiv` int32 (toInteger valSize))
+      idxPtr <- allocate i16 distance
       notFirst <- pos `ne` first
       valueAtPrevPos <- gep pos [int32 (-1)]
       isEqual <- (int8 0 `eq`) =<< call compareValues ((,[]) <$> [valueAtPrevPos, val])  -- Can we do a weak compare just by using pointers here?
@@ -922,10 +934,11 @@ mkBtreeInsertValue nodeNew rebalanceOrSplit compareValues searchLowerBound searc
       store idxPtr 0 idx'
 
       -- Insert in right fragment if needed
-      shouldInsertRight <- idx' `ugt` numElems
+      numElems' <- deref (metaOf ->> numElemsOf) current  -- NOTE: numElems' modified after rebalanceOrSplit
+      shouldInsertRight <- idx' `ugt` numElems'
       if' shouldInsertRight $ do
-        numElems' <- add numElems (int16 1)
-        idx'' <- sub idx' numElems'
+        numElems'' <- add numElems' (int16 1)
+        idx'' <- sub idx' numElems''
         store idxPtr 0 idx''
         parent <- deref (metaOf ->> parentOf) current >>= (`bitcast` ptr innerNode)
         nextPos <- deref (metaOf ->> posInParentOf) current >>= add (int16 1)
@@ -936,8 +949,8 @@ mkBtreeInsertValue nodeNew rebalanceOrSplit compareValues searchLowerBound searc
       noSplit <- block `named` "no_split"
       -- No split -> move keys and insert new element
       idx''' <- load idxPtr 0
-      numElems'' <- deref (metaOf ->> numElemsOf) current  -- Might've been updated in the meantime
-      loopFor numElems'' (`ugt` idx''') (`sub` int16 1) $ \j -> do
+      numElems''' <- deref (metaOf ->> numElemsOf) current  -- NOTE: Might've been updated in the meantime
+      loopFor numElems''' (`ugt` idx''') (`sub` int16 1) $ \j -> do
         -- TODO: memmove possible?
         j' <- sub j (int16 1)
         assign (valueAt j) current =<< deref (valueAt j') current
@@ -999,6 +1012,8 @@ mkBtreeFind isEmptyTree searchLowerBound compareValues iterInit iterInitEnd = do
   node <- typeOf Node
   innerNode <- typeOf InnerNode
   value <- typeOf Value
+  valSize <- asks (valueSize . typeSizes)
+
   let args = [(ptr tree, "tree"), (ptr value, "val"), (ptr iter, "result")]
 
   def "btree_find" args void $ \[t, val, result] -> mdo
@@ -1015,7 +1030,7 @@ mkBtreeFind isEmptyTree searchLowerBound compareValues iterInit iterInitEnd = do
       first <- addr (valueAt (int16 0)) current
       last <- addr (valueAt numElems) current
       pos <- call searchLowerBound $ (,[]) <$> [val, first, last]
-      idx <- pointerDiff i16 pos first
+      idx <- pointerDiff i16 pos first >>= (`udiv` int32 (toInteger valSize))
 
       -- Can the following equality check be done using just pointers?
       foundMatch <- pos `ult` last
@@ -1041,6 +1056,7 @@ mkBtreeLowerBound isEmptyTree iterInit iterInitEnd searchLowerBound compareValue
   node <- typeOf Node
   innerNode <- typeOf InnerNode
   value <- typeOf Value
+  valSize <- asks (valueSize . typeSizes)
   let args = [(ptr tree, "tree"), (ptr value, "val"), (ptr iter, "result")]
 
   def "btree_lower_bound" args void $ \[t, val, result] -> mdo
@@ -1059,7 +1075,7 @@ mkBtreeLowerBound isEmptyTree iterInit iterInitEnd searchLowerBound compareValue
       first <- addr (valueAt (int16 0)) current
       last <- addr (valueAt numElems) current
       pos <- call searchLowerBound $ (,[]) <$> [val, first, last]
-      idx <- pointerDiff i16 pos first
+      idx <- pointerDiff i16 pos first >>= (`udiv` int32 (toInteger valSize))
       isLeaf <- deref (metaOf ->> nodeTypeOf) current >>= (`eq` leafNodeTypeVal)
       if' isLeaf $ mdo
         isLast <- pos `eq` last
@@ -1095,6 +1111,7 @@ mkBtreeUpperBound isEmptyTree iterInit iterInitEnd searchUpperBound = do
   node <- typeOf Node
   innerNode <- typeOf InnerNode
   value <- typeOf Value
+  valSize <- asks (valueSize . typeSizes)
   let args = [(ptr tree, "tree"), (ptr value, "val"), (ptr iter, "result")]
 
   def "btree_upper_bound" args void $ \[t, val, result] -> mdo
@@ -1113,7 +1130,7 @@ mkBtreeUpperBound isEmptyTree iterInit iterInitEnd searchUpperBound = do
       first <- addr (valueAt (int16 0)) current
       last <- addr (valueAt numElems) current
       pos <- call searchUpperBound $ (,[]) <$> [val, first, last]
-      idx <- pointerDiff i16 pos first
+      idx <- pointerDiff i16 pos first >>= (`udiv` int32 (toInteger valSize))
       isLeaf <- deref (metaOf ->> nodeTypeOf) current >>= (`eq` leafNodeTypeVal)
       if' isLeaf $ mdo
         isLast <- pos `eq` last
