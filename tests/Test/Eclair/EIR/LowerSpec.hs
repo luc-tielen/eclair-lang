@@ -1185,12 +1185,13 @@ spec = describe "LLVM Code Generation" $ parallel $ do
           switch i16 %fact_type_0, label %eclair_get_facts.end_0 [i16 0, label %edge_0 i16 1, label %path_0]
         edge_0:
           %1 = getelementptr  %program, %program* %eclair_program_0, i32 0, i32 1
-          %fact_count_0 =  call ccc  i64  @btree_size(%btree_t_0*  %1)
+          %fact_count_0 =  call ccc  i64  @btree_size_0(%btree_t_0*  %1)
           %fact_count_1 = trunc i64 %fact_count_0 to i32
           %byte_count_0 = mul   i32 %fact_count_1, 8
           %memory_0 =  call ccc  i8*  @malloc(i32  %byte_count_0)
           %array_0 = bitcast i8* %memory_0 to [2 x i32]*
           %i_0 = alloca i32, i32 1
+          store   i32 0, i32* %i_0
           %current_iter_0 = alloca %btree_iterator_t_0, i32 1
           %end_iter_0 = alloca %btree_iterator_t_0, i32 1
            call ccc  void  @btree_begin_0(%btree_t_0*  %1, %btree_iterator_t_0*  %current_iter_0)
@@ -1217,12 +1218,13 @@ spec = describe "LLVM Code Generation" $ parallel $ do
           ret i32* %9
         path_0:
           %10 = getelementptr  %program, %program* %eclair_program_0, i32 0, i32 3
-          %fact_count_2 =  call ccc  i64  @btree_size(%btree_t_0*  %10)
+          %fact_count_2 =  call ccc  i64  @btree_size_0(%btree_t_0*  %10)
           %fact_count_3 = trunc i64 %fact_count_2 to i32
           %byte_count_1 = mul   i32 %fact_count_3, 8
           %memory_1 =  call ccc  i8*  @malloc(i32  %byte_count_1)
           %array_1 = bitcast i8* %memory_1 to [2 x i32]*
           %i_1 = alloca i32, i32 1
+          store   i32 0, i32* %i_1
           %current_iter_1 = alloca %btree_iterator_t_0, i32 1
           %end_iter_1 = alloca %btree_iterator_t_0, i32 1
            call ccc  void  @btree_begin_0(%btree_t_0*  %10, %btree_iterator_t_0*  %current_iter_1)
@@ -1298,12 +1300,13 @@ spec = describe "LLVM Code Generation" $ parallel $ do
           switch i16 %fact_type_0, label %eclair_get_facts.end_0 [i16 0, label %a_0 i16 1, label %b_0]
         a_0:
           %1 = getelementptr  %program, %program* %eclair_program_0, i32 0, i32 0
-          %fact_count_0 =  call ccc  i64  @btree_size(%btree_t_0*  %1)
+          %fact_count_0 =  call ccc  i64  @btree_size_0(%btree_t_0*  %1)
           %fact_count_1 = trunc i64 %fact_count_0 to i32
           %byte_count_0 = mul   i32 %fact_count_1, 4
           %memory_0 =  call ccc  i8*  @malloc(i32  %byte_count_0)
           %array_0 = bitcast i8* %memory_0 to [1 x i32]*
           %i_0 = alloca i32, i32 1
+          store   i32 0, i32* %i_0
           %current_iter_0 = alloca %btree_iterator_t_0, i32 1
           %end_iter_0 = alloca %btree_iterator_t_0, i32 1
            call ccc  void  @btree_begin_0(%btree_t_0*  %1, %btree_iterator_t_0*  %current_iter_0)
@@ -1330,12 +1333,13 @@ spec = describe "LLVM Code Generation" $ parallel $ do
           ret i32* %9
         b_0:
           %10 = getelementptr  %program, %program* %eclair_program_0, i32 0, i32 1
-          %fact_count_2 =  call ccc  i64  @btree_size(%btree_t_1*  %10)
+          %fact_count_2 =  call ccc  i64  @btree_size_1(%btree_t_1*  %10)
           %fact_count_3 = trunc i64 %fact_count_2 to i32
           %byte_count_1 = mul   i32 %fact_count_3, 12
           %memory_1 =  call ccc  i8*  @malloc(i32  %byte_count_1)
           %array_1 = bitcast i8* %memory_1 to [3 x i32]*
           %i_1 = alloca i32, i32 1
+          store   i32 0, i32* %i_1
           %current_iter_1 = alloca %btree_iterator_t_1, i32 1
           %end_iter_1 = alloca %btree_iterator_t_1, i32 1
            call ccc  void  @btree_begin_1(%btree_t_1*  %10, %btree_iterator_t_1*  %current_iter_1)
@@ -1364,4 +1368,3 @@ spec = describe "LLVM Code Generation" $ parallel $ do
           ret i32* zeroinitializer
         }
         |]
-
