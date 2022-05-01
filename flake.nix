@@ -7,7 +7,7 @@
     ds.url = "github:numtide/devshell?ref=master";
     hls.url = "github:haskell/haskell-language-server?ref=master";
     shs.url =
-      "github:luc-tielen/souffle-haskell?rev=7bfa29f52f2056459d160e795d2e7b8f36af801a";
+      "github:luc-tielen/souffle-haskell?rev=4ece8507a1e3276f828a1d7ec96e3d5dc9eac34f";
     llvm-hs.url =
       "github:luc-tielen/llvm-hs?rev=69ae96c9eea8531c750c9d81f9813286ef5ced81";
     llvm-hs.flake = false;
@@ -75,7 +75,7 @@
 
         pkgs = import np {
           inherit system config;
-          overlays = [ overlay ds.overlay ] ++ shs.overlays."${system}";
+          overlays = [ overlay ds.overlay ];
         };
       in with pkgs.lib; rec {
         inherit overlay;

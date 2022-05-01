@@ -88,7 +88,7 @@ library
     , prettyprinter ==1.7.*
     , recursion-schemes ==5.*
     , relude ==1.0.*
-    , souffle-haskell ==3.1.0
+    , souffle-haskell ==3.3.0
     , text ==1.*
     , transformers ==0.*
     , vector ==0.12.*
@@ -156,7 +156,7 @@ executable eclairc
     , prettyprinter ==1.7.*
     , recursion-schemes ==5.*
     , relude ==1.0.*
-    , souffle-haskell ==3.1.0
+    , souffle-haskell ==3.3.0
     , text ==1.*
     , transformers ==0.*
     , vector ==0.12.*
@@ -234,7 +234,7 @@ test-suite eclair-test
     , prettyprinter ==1.7.*
     , recursion-schemes ==5.*
     , relude ==1.0.*
-    , souffle-haskell ==3.1.0
+    , souffle-haskell ==3.3.0
     , text ==1.*
     , transformers ==0.*
     , vector ==0.12.*
