@@ -291,12 +291,8 @@ generateAddFactsFn metas lowerState = do
              ]
       returnType = void
   function "eclair_add_facts" args returnType $ \[program, factType, memory, factCount] -> mdo
-
-    switch factType end caseBlocks
-    caseBlocks <- for mapping $ \(r, factNum) -> do
+    switchOnFactType metas retVoid factType $ \r -> do
       let indexes = indexesFor lowerState r
-
-      caseBlock <- block `named` toShort (encodeUtf8 $ unId r)
       for_ indexes $ \idx -> do
         let numCols = fromIntegral $ factNumColumns r metas
             treeOffset = int32 $ toInteger $ getContainerOffset metas r idx
@@ -308,8 +304,6 @@ generateAddFactsFn metas lowerState = do
           valuePtr <- gep arrayPtr [i]
           call (lsLookupFunction r idx EIR.Insert lowerState) [(relationPtr, []), (valuePtr, [])]
 
-      pure (Int 16 factNum, caseBlock)
-
     end <- block `named` "eclair_add_facts.end"
     retVoid
 
@@ -319,10 +313,9 @@ generateGetFactsFn metas lowerState = do
              , (i16, ParameterName "fact_type")
              ]
       returnType = ptr i32
+      mallocFn = extMalloc $ externals lowerState
   function "eclair_get_facts" args returnType $ \[program, factType] -> mdo
-    switch factType end caseBlocks
-
-    caseBlocks <- for mapping $ \(r, factNum) -> do
+    switchOnFactType metas (ret $ nullPtr i32) factType $ \r -> do
       let indexes = indexesFor lowerState r
           idx = fromJust $ viaNonEmpty head indexes  -- TODO: which idx? just select first matching?
           lookupFn fn = lsLookupFunction r idx fn lowerState
@@ -330,8 +323,6 @@ generateGetFactsFn metas lowerState = do
           numCols = factNumColumns r metas
           valueSize = 4 * numCols  -- TODO: should use LLVM "valueSize" instead of re-calculating here
           treeOffset = int32 $ toInteger $ getContainerOffset metas r idx
-
-      caseBlock <- block `named` toShort (encodeUtf8 $ unId r)
       relationPtr <- gep program [int32 0, treeOffset]
       relationSize <- (doCall EIR.Size [relationPtr] >>= (`trunc` i32)) `named` "fact_count"
       memorySize <- mul relationSize (int32 $ toInteger valueSize) `named` "byte_count"
@@ -358,14 +349,6 @@ generateGetFactsFn metas lowerState = do
         doCall EIR.IterNext [currIter]
 
       ret =<< memory `bitcast` ptr i32
-      pure (Int 16 factNum, caseBlock)
-
-    end <- block `named` "eclair_get_facts.end"
-    ret $ nullPtr i32
-  where
-    relations = getRelations metas
-    mapping = getFactTypeMapping metas
-    mallocFn = extMalloc $ externals lowerState
 
 generateFreeBufferFn :: Monad m => LowerState -> ModuleBuilderT m Operand
 generateFreeBufferFn lowerState = do
@@ -383,27 +366,36 @@ generateFactCountFn metas lowerState = do
              , (i16, ParameterName "fact_type")
              ]
       returnType = i64
-  function "eclair_fact_count" args returnType $ \[program, factType] -> mdo
-    switch factType end caseBlocks
-    caseBlocks <- for mapping $ \(r, factNum) -> do
+  function "eclair_fact_count" args returnType $ \[program, factType] -> do
+    switchOnFactType metas (ret $ int64 0) factType $ \r -> do
       let indexes = indexesFor lowerState r
           idx = fromJust $ viaNonEmpty head indexes  -- TODO: which idx? just select first matching?
           lookupFn fn = lsLookupFunction r idx fn lowerState
           doCall fn args = call (lookupFn fn) $ (,[]) <$> args
           treeOffset = int32 $ toInteger $ getContainerOffset metas r idx
-
-      caseBlock <- block `named` toShort (encodeUtf8 $ unId r)
       relationPtr <- gep program [int32 0, treeOffset]
       relationSize <- doCall EIR.Size [relationPtr]
       ret relationSize
-      pure (Int 16 factNum, caseBlock)
-
-    end <- block `named` "eclair_fact_count.end"
-    ret $ int64 0
-  where
-    mapping = getFactTypeMapping metas
 
 -- TODO: move all lower level code below to Codegen.hs to keep high level overview here!
+
+switchOnFactType :: MonadFix m
+                 => [(Relation, metadata)]
+                 -> IRBuilderT m ()
+                 -> Operand
+                 -> (Relation -> IRBuilderT m ())
+                 -> IRBuilderT m ()
+switchOnFactType metas defaultCase factType generateCase = mdo
+    switch factType end caseBlocks
+    caseBlocks <- for mapping $ \(r, factNum) -> do
+      caseBlock <- block `named` toShort (encodeUtf8 $ unId r)
+      generateCase r
+      pure (Int 16 factNum, caseBlock)
+
+    end <- block `named` "switch.default"
+    defaultCase
+  where
+    mapping = getFactTypeMapping metas
 
 factNumColumns :: Relation -> [(Relation, Metadata)] -> Int
 factNumColumns r metas =

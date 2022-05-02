@@ -7,3 +7,5 @@ cabal.project.local*
 *.bc
 *.o
 *.s
+
+result
