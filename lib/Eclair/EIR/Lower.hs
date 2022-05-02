@@ -56,6 +56,7 @@ compileToLLVM = \case
     generateAddFact addFactsFn lowerState
     generateGetFactsFn metas lowerState
     generateFreeBufferFn lowerState
+    generateFactCountFn metas lowerState
   _ ->
     panic "Unexpected top level EIR declarations when compiling to LLVM!"
   where
@@ -159,12 +160,11 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
     toOperandWithContext (Triple eir operand _) =
       (operand, eir)
     toInstrs (Triple _ _ instrs) = instrs
-
-doCall :: Relation -> Index -> EIR.Function -> [CodegenM Operand] -> CodegenM Operand
-doCall r idx fn args = do
-  argOperands <- sequence args
-  func <- lookupFunction r idx fn
-  call func $ (, []) <$> argOperands
+    doCall :: Relation -> Index -> EIR.Function -> [CodegenM Operand] -> CodegenM Operand
+    doCall r idx fn args = do
+      argOperands <- sequence args
+      func <- lookupFunction r idx fn
+      call func $ (, []) <$> argOperands
 
 -- A tuple of 3 elements, defined as a newtype so a Comonad instance can be added.
 data Triple a b c
@@ -376,6 +376,32 @@ generateFreeBufferFn lowerState = do
     memory <- buf `bitcast` ptr i8 `named` "memory"
     call freeFn [(memory, [])]
     retVoid
+
+generateFactCountFn :: MonadFix m => [(Relation, Metadata)] -> LowerState -> ModuleBuilderT m Operand
+generateFactCountFn metas lowerState = do
+  let args = [ (ptr (programType lowerState), ParameterName "eclair_program")
+             , (i16, ParameterName "fact_type")
+             ]
+      returnType = i64
+  function "eclair_fact_count" args returnType $ \[program, factType] -> mdo
+    switch factType end caseBlocks
+    caseBlocks <- for mapping $ \(r, factNum) -> do
+      let indexes = indexesFor lowerState r
+          idx = fromJust $ viaNonEmpty head indexes  -- TODO: which idx? just select first matching?
+          lookupFn fn = lsLookupFunction r idx fn lowerState
+          doCall fn args = call (lookupFn fn) $ (,[]) <$> args
+          treeOffset = int32 $ toInteger $ getContainerOffset metas r idx
+
+      caseBlock <- block `named` toShort (encodeUtf8 $ unId r)
+      relationPtr <- gep program [int32 0, treeOffset]
+      relationSize <- doCall EIR.Size [relationPtr]
+      ret relationSize
+      pure (Int 16 factNum, caseBlock)
+
+    end <- block `named` "eclair_fact_count.end"
+    ret $ int64 0
+  where
+    mapping = getFactTypeMapping metas
 
 -- TODO: move all lower level code below to Codegen.hs to keep high level overview here!
 
