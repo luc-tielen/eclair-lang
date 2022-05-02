@@ -35,7 +35,7 @@ dependencies:
   - lens == 4.* # TODO: use microlens? or Optics?
   - prettyprinter == 1.7.*
   - megaparsec == 9.*
-  - souffle-haskell == 3.3.0
+  - souffle-haskell == 3.1.0
   - recursion-schemes == 5.*
   - comonad == 5.*
   - algebraic-graphs == 0.*
