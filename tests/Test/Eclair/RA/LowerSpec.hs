@@ -16,10 +16,8 @@ import NeatInterpolation
 cg :: FilePath -> IO T.Text
 cg path = do
   let file = "tests/fixtures" </> path <.> "dl"
-  result <- compileEIR file
-  case result of
-    Left err -> panic $ "Failed to parse " <> toText file <> "!"
-    Right eir -> pure $ printDoc eir
+  eir <- compileEIR file
+  pure $ printDoc eir
 
 extractDeclTypeSnippet :: Text -> Text
 extractDeclTypeSnippet result = extractedSnippet

@@ -120,6 +120,6 @@ handleErrors = \case
     printParseError err
     panic "Failed to parse file."
   TypeErr errs -> do
-    print errs
+    traverse_ print errs
     panic "Failed to type-check file."
 

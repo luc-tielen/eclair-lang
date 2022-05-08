@@ -19,11 +19,8 @@ import Eclair.AST.Lower
 cg :: FilePath -> IO T.Text
 cg path = do
   let file = "tests/fixtures" </> path <.> "dl"
-  result <- compileRA file
-  case result of
-    Left (ParseErr _) -> panic $ "Failed to parse " <> toText file <> "!"
-    Left (TypeErr _) -> panic $ "Failed to typecheck " <> toText file <> "!"
-    Right ra -> pure $ printDoc ra
+  ra <- compileRA file
+  pure $ printDoc ra
 
 resultsIn :: IO T.Text -> T.Text -> IO ()
 resultsIn action output = do
