@@ -20,6 +20,8 @@ import qualified Eclair.EIR.IR as EIR
 import Eclair.RA.Interpreter
 import qualified Eclair.TypeSystem as TS
 import LLVM.AST (Module)
+import Control.Exception
+import LLVM.Pretty
 
 
 type Relation = RA.Relation
@@ -29,59 +31,50 @@ type EIR = EIR.EIR
 data EclairError
   = ParseErr ParseError
   | TypeErr [TS.TypeError]
+  deriving (Show, Exception)
 
 -- TODO: refactor all these helper functions to be more composable
 
-parse :: FilePath -> IO (Either EclairError AST)
+parse :: FilePath -> IO AST
 parse path =
-  map (mapError ParseErr) $ parseFile path
+  parseFile path >>= either (throwIO . ParseErr) pure
 
-typeCheck :: FilePath -> IO (Either EclairError TS.TypeInfo)
+typeCheck :: FilePath -> IO TS.TypeInfo
 typeCheck path = do
-  parseResult <- parse path
-  pure $ do
-    ast <- parseResult
-    mapError TypeErr $ TS.typeCheck ast
+  ast <- parse path
+  either (throwIO . TypeErr) pure $ TS.typeCheck ast
 
-compileRA :: FilePath -> IO (Either EclairError RA)
+compileRA :: FilePath -> IO RA
 compileRA path = do
-  parseResult <- parse path
-  pure $ do
-    ast <- parseResult
-    typeInfo <- mapError TypeErr $ TS.typeCheck ast
-    pure $ compileToRA ast
+  ast <- parse path
+  typeInfo <- typeCheck path  -- TODO don't re-parse
+  pure $ compileToRA ast
 
-compileEIR :: FilePath -> IO (Either EclairError EIR)
+compileEIR :: FilePath -> IO EIR
 compileEIR path = do
-  parseResult <- parse path
-  pure $ do
-    ast <- parseResult
-    typeInfo <- mapError TypeErr $ TS.typeCheck ast
-    let ra = compileToRA ast
-    pure $ compileToEIR typeInfo ra
+  ra <- compileRA path
+  typeInfo <- typeCheck path  -- TODO don't re-parse
+  pure $ compileToEIR typeInfo ra
 
-compileLLVM :: FilePath -> IO (Either EclairError Module)
+compileLLVM :: FilePath -> IO Module
 compileLLVM path =
-  traverse compileToLLVM =<< compileEIR path
+  compileToLLVM =<< compileEIR path
 
-compile :: FilePath -> IO (Either EclairError Module)
-compile = compileLLVM
+compile :: FilePath -> IO ()
+compile path = handle handleErrors $ do
+  llvmModule <- compileLLVM path
+  putLTextLn $ ppllvm llvmModule
 
 run :: FilePath -> IO (M.Map Relation [[Number]])
 run path = do
-  raResult <- compileRA path
-  case raResult of
-    Left (ParseErr err) -> do
-      printParseError err
-      panic "Failed to parse file."
-    Left (TypeErr errs) -> do
-      print errs
-      panic "Failed to type-check file."
-    Right ra -> do
-      interpretRA ra
+  ra <- compileRA path
+  interpretRA ra
 
-mapError :: (a -> c) -> Either a b -> Either c b
-mapError f = \case
-  Left a -> Left $ f a
-  Right b -> Right b
-
+handleErrors :: EclairError -> IO ()
+handleErrors = \case
+  ParseErr err -> do
+    printParseError err
+    panic "Failed to parse file."
+  TypeErr errs -> do
+    print errs
+    panic "Failed to type-check file."
