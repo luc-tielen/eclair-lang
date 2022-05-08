@@ -1,3 +1,5 @@
+{-# LANGUAGE GADTs, QuasiQuotes, TemplateHaskell #-}
+
 module Eclair
   ( parse
   , compileRA
@@ -6,6 +8,7 @@ module Eclair
   , compile
   , run
   , EclairError(..)
+  , handleErrors
   ) where
 
 import qualified Data.Map as M
@@ -22,6 +25,10 @@ import qualified Eclair.TypeSystem as TS
 import LLVM.AST (Module)
 import Control.Exception
 import LLVM.Pretty
+import qualified Rock
+import Data.GADT.Compare.TH (deriveGEq)
+import Data.Some
+import Data.Maybe
 
 
 type Relation = RA.Relation
@@ -33,43 +40,80 @@ data EclairError
   | TypeErr [TS.TypeError]
   deriving (Show, Exception)
 
--- TODO: refactor all these helper functions to be more composable
+
+data Query a where
+  Parse :: FilePath -> Query (IO AST)
+  Typecheck :: FilePath -> Query (IO TS.TypeInfo)
+  CompileRA :: FilePath -> Query (IO RA)
+  CompileEIR :: FilePath -> Query (IO EIR)
+  CompileLLVM :: FilePath -> Query (IO Module)
+
+deriveGEq ''Query
+
+instance Hashable (Query a) where
+  hashWithSalt salt = \case
+    Parse path ->
+      hashWithSalt salt (path, 0 :: Int)
+    Typecheck path ->
+      hashWithSalt salt (path, 1 :: Int)
+    CompileRA path ->
+      hashWithSalt salt (path, 2 :: Int)
+    CompileEIR path ->
+      hashWithSalt salt (path, 3 :: Int)
+    CompileLLVM path ->
+      hashWithSalt salt (path, 4 :: Int)
+
+instance Hashable (Some Query) where
+  hashWithSalt salt (Some query) =
+    hashWithSalt salt query
+
+rules :: Rock.Rules Query
+rules = \case
+  Parse path ->
+    pure $ either (throwIO . ParseErr) pure =<< parseFile path
+  Typecheck path -> do
+    ast <- Rock.fetch (Parse path)
+    pure $ either (throwIO . TypeErr) pure . TS.typeCheck =<< ast
+  CompileRA path -> do
+    ast <- Rock.fetch (Parse path)
+    pure $ compileToRA <$> ast
+  CompileEIR path -> do
+    ra <- Rock.fetch (CompileRA path)
+    typeInfo <- Rock.fetch (Typecheck path)
+    pure $ compileToEIR <$> typeInfo <*> ra
+  CompileLLVM path -> do
+    eir <- Rock.fetch (CompileEIR path)
+    pure $ compileToLLVM =<< eir
+
+runQuery :: Query a -> IO a
+runQuery query = do
+  memoVar <- newIORef mempty
+  let task = Rock.fetch query
+  Rock.runTask (Rock.memoise memoVar rules) task
 
 parse :: FilePath -> IO AST
-parse path =
-  parseFile path >>= either (throwIO . ParseErr) pure
-
-typeCheck :: FilePath -> IO TS.TypeInfo
-typeCheck path = do
-  ast <- parse path
-  either (throwIO . TypeErr) pure $ TS.typeCheck ast
+parse = join . runQuery . Parse
 
 compileRA :: FilePath -> IO RA
-compileRA path = do
-  ast <- parse path
-  typeInfo <- typeCheck path  -- TODO don't re-parse
-  pure $ compileToRA ast
+compileRA =
+  join . runQuery . CompileRA
 
 compileEIR :: FilePath -> IO EIR
-compileEIR path = do
-  ra <- compileRA path
-  typeInfo <- typeCheck path  -- TODO don't re-parse
-  pure $ compileToEIR typeInfo ra
+compileEIR =
+  join . runQuery . CompileEIR
 
 compileLLVM :: FilePath -> IO Module
-compileLLVM path =
-  compileToLLVM =<< compileEIR path
+compileLLVM =
+  join . runQuery . CompileLLVM
 
-compile :: FilePath -> IO ()
-compile path = handle handleErrors $ do
-  llvmModule <- compileLLVM path
-  putLTextLn $ ppllvm llvmModule
+compile :: FilePath -> IO Module
+compile = compileLLVM
 
 run :: FilePath -> IO (M.Map Relation [[Number]])
-run path = do
-  ra <- compileRA path
-  interpretRA ra
+run =
+  interpretRA <=< join . runQuery . CompileRA
 
+-- TODO: improve error handling...
 handleErrors :: EclairError -> IO ()
 handleErrors = \case
   ParseErr err -> do
@@ -78,3 +122,4 @@ handleErrors = \case
   TypeErr errs -> do
     print errs
     panic "Failed to type-check file."
+
