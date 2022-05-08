@@ -6,7 +6,6 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Test.Hspec
 import System.FilePath
-import Eclair
 import Eclair.Id
 import Eclair.Parser
 import Eclair.AST.Lower
@@ -18,7 +17,7 @@ import qualified Data.Text as T
 idxSel :: FilePath -> IO IndexMap
 idxSel path = do
   let file = "tests/fixtures" </> path <.> "dl"
-  parseResult <- parse file
+  parseResult <- parseFile file
   case parseResult of
     Left err -> panic $ "Failed to parse " <> toText file <> "!"
     Right ast -> do
