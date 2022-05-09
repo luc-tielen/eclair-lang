@@ -75,6 +75,7 @@ library
     , bytestring ==0.10.*
     , comonad ==5.*
     , containers ==0.*
+    , dependent-sum-template ==0.1.*
     , exceptions ==0.10.*
     , extra ==1.*
     , lens ==4.*
@@ -88,6 +89,8 @@ library
     , prettyprinter ==1.7.*
     , recursion-schemes ==5.*
     , relude ==1.0.*
+    , rock ==0.3.*
+    , some ==1.*
     , souffle-haskell ==3.1.0
     , text ==1.*
     , transformers ==0.*
@@ -141,6 +144,7 @@ executable eclairc
     , bytestring ==0.10.*
     , comonad ==5.*
     , containers ==0.*
+    , dependent-sum-template ==0.1.*
     , directory ==1.*
     , eclair-lang
     , exceptions ==0.10.*
@@ -156,6 +160,8 @@ executable eclairc
     , prettyprinter ==1.7.*
     , recursion-schemes ==5.*
     , relude ==1.0.*
+    , rock ==0.3.*
+    , some ==1.*
     , souffle-haskell ==3.1.0
     , text ==1.*
     , transformers ==0.*
@@ -215,6 +221,7 @@ test-suite eclair-test
     , bytestring ==0.10.*
     , comonad ==5.*
     , containers ==0.*
+    , dependent-sum-template ==0.1.*
     , eclair-lang
     , exceptions ==0.10.*
     , extra ==1.*
@@ -234,6 +241,8 @@ test-suite eclair-test
     , prettyprinter ==1.7.*
     , recursion-schemes ==5.*
     , relude ==1.0.*
+    , rock ==0.3.*
+    , some ==1.*
     , souffle-haskell ==3.1.0
     , text ==1.*
     , transformers ==0.*

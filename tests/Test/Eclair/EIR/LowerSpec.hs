@@ -21,10 +21,8 @@ import LLVM.Pretty
 cg :: FilePath -> IO T.Text
 cg path = do
   let file = "tests/fixtures" </> path <.> "dl"
-  result <- compileLLVM file
-  case result of
-    Left err -> panic $ "Failed to parse " <> toText file <> "!"
-    Right llvm -> pure $ toStrict $ ppllvm llvm
+  llvm <- compileLLVM file
+  pure $ toStrict $ ppllvm llvm
 
 extractDeclTypeSnippet :: Text -> Text
 extractDeclTypeSnippet result =
