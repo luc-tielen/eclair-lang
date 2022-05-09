@@ -52,11 +52,12 @@ compileToLLVM = \case
     programTy <- mkType "program" fnss
     let lowerState = LowerState programTy fnsMap mempty exts
     traverse_ (processDecl lowerState) decls
-    addFactsFn <- generateAddFactsFn metas lowerState
-    generateAddFact addFactsFn lowerState
-    generateGetFactsFn metas lowerState
-    generateFreeBufferFn lowerState
-    generateFactCountFn metas lowerState
+    usingReaderT (metas, lowerState) $ do
+      addFactsFn <- generateAddFactsFn
+      generateAddFact addFactsFn
+      generateGetFactsFn
+      generateFreeBufferFn
+      generateFactCountFn
   _ ->
     panic "Unexpected top level EIR declarations when compiling to LLVM!"
   where
@@ -266,8 +267,9 @@ createExternals = do
   pure $ Externals mallocFn freeFn memsetFn
 
 
-generateAddFact :: Operand -> LowerState -> ModuleBuilderT IO Operand
-generateAddFact addFactsFn lowerState = do
+generateAddFact :: MonadFix m => Operand -> CodegenInOutT (ModuleBuilderT m) Operand
+generateAddFact addFactsFn = do
+  lowerState <- asks snd
   let args = [ (ptr (programType lowerState), ParameterName "eclair_program")
              , (i16, ParameterName "fact_type")
              , (ptr i32, ParameterName "memory")
@@ -278,8 +280,9 @@ generateAddFact addFactsFn lowerState = do
     call addFactsFn $ (, []) <$> [program, factType, memory, int32 1]
     retVoid
 
-generateAddFactsFn :: MonadFix m => [(Relation, Metadata)] -> LowerState -> ModuleBuilderT m Operand
-generateAddFactsFn metas lowerState = do
+generateAddFactsFn :: MonadFix m => CodegenInOutT (ModuleBuilderT m) Operand
+generateAddFactsFn = do
+  (metas, lowerState) <- ask
   let relations = getRelations metas
       mapping = getFactTypeMapping metas
 
@@ -307,8 +310,9 @@ generateAddFactsFn metas lowerState = do
     end <- block `named` "eclair_add_facts.end"
     retVoid
 
-generateGetFactsFn :: MonadFix m => [(Relation, Metadata)] -> LowerState -> ModuleBuilderT m Operand
-generateGetFactsFn metas lowerState = do
+generateGetFactsFn :: MonadFix m => CodegenInOutT (ModuleBuilderT m) Operand
+generateGetFactsFn = do
+  (metas, lowerState) <- ask
   let args = [ (ptr (programType lowerState), ParameterName "eclair_program")
              , (i16, ParameterName "fact_type")
              ]
@@ -350,8 +354,9 @@ generateGetFactsFn metas lowerState = do
 
       ret =<< memory `bitcast` ptr i32
 
-generateFreeBufferFn :: Monad m => LowerState -> ModuleBuilderT m Operand
-generateFreeBufferFn lowerState = do
+generateFreeBufferFn :: Monad m => CodegenInOutT (ModuleBuilderT m) Operand
+generateFreeBufferFn = do
+  lowerState <- asks snd
   let freeFn = extFree $ externals lowerState
       args = [(ptr i32, ParameterName "buffer")]
       returnType = void
@@ -360,8 +365,9 @@ generateFreeBufferFn lowerState = do
     call freeFn [(memory, [])]
     retVoid
 
-generateFactCountFn :: MonadFix m => [(Relation, Metadata)] -> LowerState -> ModuleBuilderT m Operand
-generateFactCountFn metas lowerState = do
+generateFactCountFn :: MonadFix m => CodegenInOutT (ModuleBuilderT m) Operand
+generateFactCountFn = do
+  (metas, lowerState) <- ask
   let args = [ (ptr (programType lowerState), ParameterName "eclair_program")
              , (i16, ParameterName "fact_type")
              ]
@@ -378,6 +384,10 @@ generateFactCountFn metas lowerState = do
       ret relationSize
 
 -- TODO: move all lower level code below to Codegen.hs to keep high level overview here!
+
+type InOutState = ([(Relation, Metadata)], LowerState)
+
+type CodegenInOutT = ReaderT  InOutState
 
 switchOnFactType :: MonadFix m
                  => [(Relation, metadata)]
