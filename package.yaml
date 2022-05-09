@@ -6,7 +6,7 @@ homepage: https://github.com/luc-tielen/eclair-lang
 license: BSD3
 author: Luc Tielen
 maintainer: luc.tielen@gmail.com
-copyright: Luc Tielen, 2021
+copyright: Luc Tielen, 2022
 category: Web
 extra-source-files:
   - README.md
