@@ -42,11 +42,11 @@ data EclairError
 
 
 data Query a where
-  Parse :: FilePath -> Query (IO AST)
-  Typecheck :: FilePath -> Query (IO TS.TypeInfo)
-  CompileRA :: FilePath -> Query (IO RA)
-  CompileEIR :: FilePath -> Query (IO EIR)
-  CompileLLVM :: FilePath -> Query (IO Module)
+  Parse :: FilePath -> Query AST
+  Typecheck :: FilePath -> Query TS.TypeInfo
+  CompileRA :: FilePath -> Query RA
+  CompileEIR :: FilePath -> Query EIR
+  CompileLLVM :: FilePath -> Query Module
 
 deriveGEq ''Query
 
@@ -70,20 +70,20 @@ instance Hashable (Some Query) where
 rules :: Rock.Rules Query
 rules = \case
   Parse path ->
-    pure $ either (throwIO . ParseErr) pure =<< parseFile path
+    liftIO $ either (throwIO . ParseErr) pure =<< parseFile path
   Typecheck path -> do
     ast <- Rock.fetch (Parse path)
-    pure $ either (throwIO . TypeErr) pure . TS.typeCheck =<< ast
+    liftIO . either (throwIO . TypeErr) pure $ TS.typeCheck ast
   CompileRA path -> do
     ast <- Rock.fetch (Parse path)
-    pure $ compileToRA <$> ast
+    pure $ compileToRA ast
   CompileEIR path -> do
     ra <- Rock.fetch (CompileRA path)
     typeInfo <- Rock.fetch (Typecheck path)
-    pure $ compileToEIR <$> typeInfo <*> ra
+    pure $ compileToEIR typeInfo ra
   CompileLLVM path -> do
     eir <- Rock.fetch (CompileEIR path)
-    pure $ compileToLLVM =<< eir
+    liftIO $ compileToLLVM eir
 
 runQuery :: Query a -> IO a
 runQuery query = do
@@ -92,26 +92,26 @@ runQuery query = do
   Rock.runTask (Rock.memoise memoVar rules) task
 
 parse :: FilePath -> IO AST
-parse = join . runQuery . Parse
+parse = runQuery . Parse
 
 compileRA :: FilePath -> IO RA
 compileRA =
-  join . runQuery . CompileRA
+  runQuery . CompileRA
 
 compileEIR :: FilePath -> IO EIR
 compileEIR =
-  join . runQuery . CompileEIR
+  runQuery . CompileEIR
 
 compileLLVM :: FilePath -> IO Module
 compileLLVM =
-  join . runQuery . CompileLLVM
+  runQuery . CompileLLVM
 
 compile :: FilePath -> IO Module
 compile = compileLLVM
 
 run :: FilePath -> IO (M.Map Relation [[Number]])
 run =
-  interpretRA <=< join . runQuery . CompileRA
+  interpretRA <=< runQuery . CompileRA
 
 -- TODO: improve error handling...
 handleErrors :: EclairError -> IO ()
