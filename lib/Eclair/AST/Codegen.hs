@@ -70,8 +70,8 @@ data Term = VarTerm Id | LitTerm AST.Number
 
 toTerm :: AST.AST -> Term
 toTerm = \case
-  AST.Lit x -> LitTerm x
-  AST.Var x -> VarTerm x
+  AST.Lit _ x -> LitTerm x
+  AST.Var _ x -> VarTerm x
   -- TODO fix, no catch-all
   _ -> panic "Unknown pattern in 'toTerm'"
 
@@ -94,7 +94,7 @@ data Clause
 
 toClause :: AST.AST -> Clause
 toClause = \case
-  AST.Atom name values -> AtomClause name (map toTerm values)
+  AST.Atom _ name values -> AtomClause name (map toTerm values)
   _ -> panic "toClause: unsupported case"
 
 project :: Relation -> [Term] -> CodegenM RA

@@ -21,7 +21,7 @@ type Record = [Number]
 
 interpret :: Text -> IO (M.Map Relation [Record])
 interpret txt = do
-  case parseText "<test>" txt of
+  case map fst $ parseText "<test>" txt of
     Left err -> do
       printParseError err
       panic "Failed to parse file."

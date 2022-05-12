@@ -36,14 +36,14 @@ typeCheck ast
       & map (DuplicateTypeDeclaration . fst . head)
     typeDefs = extractTypeDefs ast
     typeErrors = execWriter $ flip cata ast $ \case
-      AtomF name args -> do
+      AtomF _ name args -> do
         case lookupType name of
           Nothing ->
             tell [UnknownAtom name]
           Just types ->
             checkArgCount name types args
 
-      RuleF name args clauses -> do
+      RuleF _ name args clauses -> do
         case lookupType name of
           Nothing ->
             tell [UnknownAtom name]
@@ -66,7 +66,7 @@ typeCheck ast
 
 extractTypeDefs :: AST -> [(Id, [Type])]
 extractTypeDefs = cata $ \case
-  DeclareTypeF name tys -> [(name, tys)]
+  DeclareTypeF _ name tys -> [(name, tys)]
   AtomF {} -> mempty
   RuleF {} -> mempty
   astf -> foldMap identity astf
