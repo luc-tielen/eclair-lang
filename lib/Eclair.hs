@@ -6,6 +6,9 @@ module Eclair
   , compileEIR
   , compileLLVM
   , compile
+  , emitRA
+  , emitEIR
+  , emitLLVM
   , run
   , EclairError(..)
   , handleErrors
@@ -16,6 +19,7 @@ import Eclair.AST.Lower
 import Eclair.RA.Lower
 import Eclair.EIR.Lower
 import Eclair.Parser
+import Eclair.Pretty
 import Eclair.Id
 import Eclair.AST.IR
 import qualified Eclair.RA.IR as RA
@@ -45,8 +49,11 @@ data Query a where
   Parse :: FilePath -> Query AST
   Typecheck :: FilePath -> Query TS.TypeInfo
   CompileRA :: FilePath -> Query RA
+  EmitRA :: FilePath -> Query ()
   CompileEIR :: FilePath -> Query EIR
+  EmitEIR :: FilePath -> Query ()
   CompileLLVM :: FilePath -> Query Module
+  EmitLLVM :: FilePath -> Query ()
 
 deriveGEq ''Query
 
@@ -58,10 +65,16 @@ instance Hashable (Query a) where
       hashWithSalt salt (path, 1 :: Int)
     CompileRA path ->
       hashWithSalt salt (path, 2 :: Int)
-    CompileEIR path ->
+    EmitRA path ->
       hashWithSalt salt (path, 3 :: Int)
-    CompileLLVM path ->
+    CompileEIR path ->
       hashWithSalt salt (path, 4 :: Int)
+    EmitEIR path ->
+      hashWithSalt salt (path, 5 :: Int)
+    CompileLLVM path ->
+      hashWithSalt salt (path, 6 :: Int)
+    EmitLLVM path ->
+      hashWithSalt salt (path, 7 :: Int)
 
 instance Hashable (Some Query) where
   hashWithSalt salt (Some query) =
@@ -77,13 +90,22 @@ rules = \case
   CompileRA path -> do
     ast <- Rock.fetch (Parse path)
     pure $ compileToRA ast
+  EmitRA path -> do
+    ra <- Rock.fetch (CompileRA path)
+    liftIO $ putTextLn $ printDoc ra
   CompileEIR path -> do
     ra <- Rock.fetch (CompileRA path)
     typeInfo <- Rock.fetch (Typecheck path)
     pure $ compileToEIR typeInfo ra
+  EmitEIR path -> do
+    eir <- Rock.fetch (CompileEIR path)
+    liftIO $ putTextLn $ printDoc eir
   CompileLLVM path -> do
     eir <- Rock.fetch (CompileEIR path)
     liftIO $ compileToLLVM eir
+  EmitLLVM path -> do
+    llvmModule <- Rock.fetch (CompileLLVM path)
+    liftIO $ putLTextLn $ ppllvm llvmModule
 
 runQuery :: Query a -> IO a
 runQuery query = do
@@ -98,9 +120,17 @@ compileRA :: FilePath -> IO RA
 compileRA =
   runQuery . CompileRA
 
+emitRA :: FilePath -> IO ()
+emitRA =
+  runQuery . EmitRA
+
 compileEIR :: FilePath -> IO EIR
 compileEIR =
   runQuery . CompileEIR
+
+emitEIR :: FilePath -> IO ()
+emitEIR =
+  runQuery . EmitEIR
 
 compileLLVM :: FilePath -> IO Module
 compileLLVM =
@@ -108,6 +138,9 @@ compileLLVM =
 
 compile :: FilePath -> IO Module
 compile = compileLLVM
+
+emitLLVM :: FilePath -> IO ()
+emitLLVM = runQuery . EmitLLVM
 
 run :: FilePath -> IO (M.Map Relation [[Number]])
 run =

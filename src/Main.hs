@@ -13,6 +13,4 @@ main = do
     Nothing -> panic "Expected usage: 'eclairc FILE'"
     Just args -> do
       let filePath = head args
-      handle handleErrors $ do
-        llvmModule <- compile filePath
-        putLTextLn $ ppllvm llvmModule
+      emitLLVM filePath `catch` handleErrors
