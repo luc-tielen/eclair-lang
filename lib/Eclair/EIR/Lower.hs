@@ -293,7 +293,7 @@ generateAddFactsFn = do
              , (i32, ParameterName "fact_count")
              ]
       returnType = void
-  function "eclair_add_facts" args returnType $ \[program, factType, memory, factCount] -> mdo
+  function "eclair_add_facts" args returnType $ \[program, factType, memory, factCount] -> do
     switchOnFactType metas retVoid factType $ \r -> do
       let indexes = indexesFor lowerState r
       for_ indexes $ \idx -> do
@@ -307,9 +307,6 @@ generateAddFactsFn = do
           valuePtr <- gep arrayPtr [i]
           call (lsLookupFunction r idx EIR.Insert lowerState) [(relationPtr, []), (valuePtr, [])]
 
-    end <- block `named` "eclair_add_facts.end"
-    retVoid
-
 generateGetFactsFn :: MonadFix m => CodegenInOutT (ModuleBuilderT m) Operand
 generateGetFactsFn = do
   (metas, lowerState) <- ask
@@ -318,7 +315,7 @@ generateGetFactsFn = do
              ]
       returnType = ptr i32
       mallocFn = extMalloc $ externals lowerState
-  function "eclair_get_facts" args returnType $ \[program, factType] -> mdo
+  function "eclair_get_facts" args returnType $ \[program, factType] -> do
     switchOnFactType metas (ret $ nullPtr i32) factType $ \r -> do
       let indexes = indexesFor lowerState r
           idx = fromJust $ viaNonEmpty head indexes  -- TODO: which idx? just select first matching?
