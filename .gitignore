@@ -7,5 +7,6 @@ cabal.project.local*
 *.bc
 *.o
 *.s
+./*.dl
 
 result
