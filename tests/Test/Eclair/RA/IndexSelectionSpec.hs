@@ -17,7 +17,7 @@ import qualified Data.Text as T
 idxSel :: FilePath -> IO IndexMap
 idxSel path = do
   let file = "tests/fixtures" </> path <.> "dl"
-  parseResult <- parseFile file
+  parseResult <- map fst <$> parseFile file
   case parseResult of
     Left err -> panic $ "Failed to parse " <> toText file <> "!"
     Right ast -> do

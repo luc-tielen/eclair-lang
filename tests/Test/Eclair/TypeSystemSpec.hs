@@ -13,7 +13,7 @@ import NeatInterpolation
 
 tc :: Text -> Either [TypeError] TypeInfo
 tc code = do
-  let parseResult = parseText "<test>" code
+  let parseResult = map fst $ parseText "<test>" code
   case parseResult of
     Left _ -> panic "Failed to parse code!"
     Right ast -> typeCheck ast

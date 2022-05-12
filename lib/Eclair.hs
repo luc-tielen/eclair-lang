@@ -46,7 +46,7 @@ data EclairError
 
 
 data Query a where
-  Parse :: FilePath -> Query AST
+  Parse :: FilePath -> Query (AST, IntMap Span)
   Typecheck :: FilePath -> Query TS.TypeInfo
   CompileRA :: FilePath -> Query RA
   EmitRA :: FilePath -> Query ()
@@ -55,26 +55,33 @@ data Query a where
   CompileLLVM :: FilePath -> Query Module
   EmitLLVM :: FilePath -> Query ()
 
+queryFilePath :: Query a -> FilePath
+queryFilePath = \case
+  Parse path       -> path
+  Typecheck path   -> path
+  CompileRA path   -> path
+  EmitRA path      -> path
+  CompileEIR path  -> path
+  EmitEIR path     -> path
+  CompileLLVM path -> path
+  EmitLLVM    path -> path
+
+queryEnum :: Query a -> Int
+queryEnum = \case
+  Parse {}       -> 0
+  Typecheck {}   -> 1
+  CompileRA {}   -> 2
+  EmitRA {}      -> 3
+  CompileEIR {}  -> 4
+  EmitEIR {}     -> 5
+  CompileLLVM {} -> 6
+  EmitLLVM {}    -> 7
+
 deriveGEq ''Query
 
 instance Hashable (Query a) where
-  hashWithSalt salt = \case
-    Parse path ->
-      hashWithSalt salt (path, 0 :: Int)
-    Typecheck path ->
-      hashWithSalt salt (path, 1 :: Int)
-    CompileRA path ->
-      hashWithSalt salt (path, 2 :: Int)
-    EmitRA path ->
-      hashWithSalt salt (path, 3 :: Int)
-    CompileEIR path ->
-      hashWithSalt salt (path, 4 :: Int)
-    EmitEIR path ->
-      hashWithSalt salt (path, 5 :: Int)
-    CompileLLVM path ->
-      hashWithSalt salt (path, 6 :: Int)
-    EmitLLVM path ->
-      hashWithSalt salt (path, 7 :: Int)
+  hashWithSalt salt =
+    hashWithSalt salt . (queryFilePath &&& queryEnum)
 
 instance Hashable (Some Query) where
   hashWithSalt salt (Some query) =
@@ -85,10 +92,10 @@ rules = \case
   Parse path ->
     liftIO $ either (throwIO . ParseErr) pure =<< parseFile path
   Typecheck path -> do
-    ast <- Rock.fetch (Parse path)
+    ast <- fst <$> Rock.fetch (Parse path)
     liftIO . either (throwIO . TypeErr) pure $ TS.typeCheck ast
   CompileRA path -> do
-    ast <- Rock.fetch (Parse path)
+    ast <- fst <$> Rock.fetch (Parse path)
     pure $ compileToRA ast
   EmitRA path -> do
     ra <- Rock.fetch (CompileRA path)
@@ -114,7 +121,7 @@ runQuery query = do
   Rock.runTask (Rock.memoise memoVar rules) task
 
 parse :: FilePath -> IO AST
-parse = runQuery . Parse
+parse = map fst . runQuery . Parse
 
 compileRA :: FilePath -> IO RA
 compileRA =
