@@ -46,7 +46,7 @@ data EclairError
 
 
 data Query a where
-  Parse :: FilePath -> Query (AST, IntMap Span)
+  Parse :: FilePath -> Query (AST, SpanMap)
   Typecheck :: FilePath -> Query TS.TypeInfo
   CompileRA :: FilePath -> Query RA
   EmitRA :: FilePath -> Query ()
@@ -64,7 +64,7 @@ queryFilePath = \case
   CompileEIR path  -> path
   EmitEIR path     -> path
   CompileLLVM path -> path
-  EmitLLVM    path -> path
+  EmitLLVM path    -> path
 
 queryEnum :: Query a -> Int
 queryEnum = \case
