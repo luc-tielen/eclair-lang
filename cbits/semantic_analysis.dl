@@ -1,0 +1,48 @@
+.decl literal(node_id: unsigned, value: unsigned)
+.decl variable(node_id: unsigned, var_name: symbol)
+.decl atom(node_id: unsigned, name: symbol)
+.decl atom_arg(atom_id: unsigned, atom_arg_pos: unsigned, atom_arg_id: unsigned)
+.decl rule(rule_id: unsigned, name: symbol)
+.decl rule_arg(rule_id: unsigned, rule_arg_pos: unsigned, rule_arg_id: unsigned)
+.decl rule_clause(rule_id: unsigned, rule_clause_pos: unsigned, rule_clause_id: unsigned)
+.decl declare_type(node_id: unsigned, name: symbol)
+.decl module(node_id: unsigned)
+.decl module_declaration(module_id: unsigned, declaration_id: unsigned)
+
+.decl ungrounded_variable(node_id: unsigned, var_name: symbol)
+.decl rule_clause_var(rule_id: unsigned, var_name: symbol)
+
+
+.input literal
+.input variable
+.input atom
+.input atom_arg
+.input rule
+.input rule_arg
+.input rule_clause
+.input declare_type
+.input module
+.input module_declaration
+
+.output ungrounded_variable
+
+// Top level facts: no variables allowed
+ungrounded_variable(atom_arg_id, var_name) :-
+  module_declaration(_, atom_id),
+  atom_arg(atom_id, _, atom_arg_id),
+  variable(atom_arg_id, var_name).
+
+// Rules: no variables allowed in rule head if not used in rule body
+ungrounded_variable(rule_arg_id, var_name) :-
+  rule(rule_id, _),
+  rule_arg(rule_id, _, rule_arg_id),
+  variable(rule_arg_id, var_name),
+  !rule_clause_var(rule_id, var_name).
+
+// Helper relation for getting all variables in body of a rule.
+rule_clause_var(rule_id, var_name) :-
+  rule(rule_id, _),
+  rule_clause(rule_id, _, rule_clause_id),
+  atom_arg(rule_clause_id, _, var_id),
+  variable(var_id, var_name).
+

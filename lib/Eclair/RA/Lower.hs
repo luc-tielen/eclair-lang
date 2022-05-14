@@ -245,7 +245,7 @@ initValue r idx a bound eqs = do
 
 data Val
   = AliasVal RA.Alias Column
-  | Constant Int
+  | Constant Word32
   deriving Show
 
 data NormalizedEquality

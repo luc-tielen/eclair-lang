@@ -388,17 +388,17 @@
         "np": "np_2"
       },
       "locked": {
-        "lastModified": 1649271551,
-        "narHash": "sha256-/CycEwZcxgeT2PIum8WUwVKAmHUTGyKPIDwZqzmUNhU=",
+        "lastModified": 1652537053,
+        "narHash": "sha256-89K/2Skgg1HTcLoBuQaZJFIqOd2IyVTEZS1N+K0Rzro=",
         "owner": "luc-tielen",
         "repo": "souffle-haskell",
-        "rev": "4ece8507a1e3276f828a1d7ec96e3d5dc9eac34f",
+        "rev": "ba9799084545148791552826ac244810ada21551",
         "type": "github"
       },
       "original": {
         "owner": "luc-tielen",
         "repo": "souffle-haskell",
-        "rev": "4ece8507a1e3276f828a1d7ec96e3d5dc9eac34f",
+        "rev": "ba9799084545148791552826ac244810ada21551",
         "type": "github"
       }
     }

@@ -7,7 +7,7 @@
     ds.url = "github:numtide/devshell?ref=master";
     hls.url = "github:haskell/haskell-language-server?ref=master";
     shs.url =
-      "github:luc-tielen/souffle-haskell?rev=4ece8507a1e3276f828a1d7ec96e3d5dc9eac34f";
+      "github:luc-tielen/souffle-haskell?rev=ba9799084545148791552826ac244810ada21551";
     llvm-hs.url =
       "github:luc-tielen/llvm-hs?rev=69ae96c9eea8531c750c9d81f9813286ef5ced81";
     llvm-hs.flake = false;
@@ -89,6 +89,7 @@
           imports = [ (pkgs.devshell.importTOML ./devshell.toml) ];
           packages = with pkgs;
             with haskellPackages; [
+              souffle
               pkgs.ghcid
               pkgs.llvmPackages_9.llvm.dev
               (ghcWithPackages (p:
@@ -107,6 +108,8 @@
                   haskell-language-server
                 ]))
             ];
+          # Next line always sets DATALOG_DIR so souffle can find the datalog files in interpreted mode.
+          env = [{ name = "DATALOG_DIR"; value = "cbits/"; }];
         };
       });
 }

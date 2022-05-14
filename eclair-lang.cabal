@@ -25,6 +25,7 @@ flag debug
 library
   exposed-modules:
       Eclair
+      Eclair.AST.Analysis
       Eclair.AST.Codegen
       Eclair.AST.IR
       Eclair.AST.Lower

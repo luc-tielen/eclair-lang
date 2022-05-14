@@ -2,6 +2,7 @@
 
 module Eclair
   ( parse
+  , runSemanticAnalysis
   , compileRA
   , compileEIR
   , compileLLVM
@@ -26,6 +27,7 @@ import qualified Eclair.RA.IR as RA
 import qualified Eclair.EIR.IR as EIR
 import Eclair.RA.Interpreter
 import qualified Eclair.TypeSystem as TS
+import qualified Eclair.AST.Analysis as SA
 import LLVM.AST (Module)
 import Control.Exception
 import LLVM.Pretty
@@ -47,6 +49,7 @@ data EclairError
 
 data Query a where
   Parse :: FilePath -> Query (AST, SpanMap)
+  RunSemanticAnalysis :: FilePath -> Query SA.Result
   Typecheck :: FilePath -> Query TS.TypeInfo
   CompileRA :: FilePath -> Query RA
   EmitRA :: FilePath -> Query ()
@@ -57,25 +60,27 @@ data Query a where
 
 queryFilePath :: Query a -> FilePath
 queryFilePath = \case
-  Parse path       -> path
-  Typecheck path   -> path
-  CompileRA path   -> path
-  EmitRA path      -> path
-  CompileEIR path  -> path
-  EmitEIR path     -> path
-  CompileLLVM path -> path
-  EmitLLVM path    -> path
+  Parse path               -> path
+  RunSemanticAnalysis path -> path
+  Typecheck path           -> path
+  CompileRA path           -> path
+  EmitRA path              -> path
+  CompileEIR path          -> path
+  EmitEIR path             -> path
+  CompileLLVM path         -> path
+  EmitLLVM path            -> path
 
 queryEnum :: Query a -> Int
 queryEnum = \case
-  Parse {}       -> 0
-  Typecheck {}   -> 1
-  CompileRA {}   -> 2
-  EmitRA {}      -> 3
-  CompileEIR {}  -> 4
-  EmitEIR {}     -> 5
-  CompileLLVM {} -> 6
-  EmitLLVM {}    -> 7
+  Parse {}               -> 0
+  RunSemanticAnalysis {} -> 1
+  Typecheck {}           -> 2
+  CompileRA {}           -> 3
+  EmitRA {}              -> 4
+  CompileEIR {}          -> 5
+  EmitEIR {}             -> 6
+  CompileLLVM {}         -> 7
+  EmitLLVM {}            -> 8
 
 deriveGEq ''Query
 
@@ -91,6 +96,9 @@ rules :: Rock.Rules Query
 rules = \case
   Parse path ->
     liftIO $ either (throwIO . ParseErr) pure =<< parseFile path
+  RunSemanticAnalysis path -> do
+    ast <- fst <$> Rock.fetch (Parse path)
+    liftIO $ SA.runAnalysis ast
   Typecheck path -> do
     ast <- fst <$> Rock.fetch (Parse path)
     liftIO . either (throwIO . TypeErr) pure $ TS.typeCheck ast
@@ -122,6 +130,9 @@ runQuery query = do
 
 parse :: FilePath -> IO AST
 parse = map fst . runQuery . Parse
+
+runSemanticAnalysis :: FilePath -> IO SA.Result
+runSemanticAnalysis = runQuery . RunSemanticAnalysis
 
 compileRA :: FilePath -> IO RA
 compileRA =
