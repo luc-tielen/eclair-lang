@@ -21,10 +21,8 @@ import LLVM.Pretty
 cg :: FilePath -> IO T.Text
 cg path = do
   let file = "tests/fixtures" </> path <.> "dl"
-  result <- compileLLVM file
-  case result of
-    Left err -> panic $ "Failed to parse " <> toText file <> "!"
-    Right llvm -> pure $ toStrict $ ppllvm llvm
+  llvm <- compileLLVM file
+  pure $ toStrict $ ppllvm llvm
 
 extractDeclTypeSnippet :: Text -> Text
 extractDeclTypeSnippet result =
@@ -1125,16 +1123,16 @@ spec = describe "LLVM Code Generation" $ parallel $ do
       extractFnSnippet llvmIR "eclair_add_facts" `shouldBe` Just [text|
         define external ccc  void @eclair_add_facts(%program*  %eclair_program_0, i16  %fact_type_0, i32*  %memory_0, i32  %fact_count_0)    {
         ; <label>:0:
-          switch i16 %fact_type_0, label %eclair_add_facts.end_0 []
-        eclair_add_facts.end_0:
+          switch i16 %fact_type_0, label %switch.default_0 []
+        switch.default_0:
           ret void
         }
         |]
       extractFnSnippet llvmIR "eclair_get_facts" `shouldBe` Just [text|
         define external ccc  i32* @eclair_get_facts(%program*  %eclair_program_0, i16  %fact_type_0)    {
         ; <label>:0:
-          switch i16 %fact_type_0, label %eclair_get_facts.end_0 []
-        eclair_get_facts.end_0:
+          switch i16 %fact_type_0, label %switch.default_0 []
+        switch.default_0:
           ret i32* zeroinitializer
         }
         |]
@@ -1144,7 +1142,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
       extractFnSnippet llvmIR "eclair_add_facts" `shouldBe` Just [text|
         define external ccc  void @eclair_add_facts(%program*  %eclair_program_0, i16  %fact_type_0, i32*  %memory_0, i32  %fact_count_0)    {
         ; <label>:0:
-          switch i16 %fact_type_0, label %eclair_add_facts.end_0 [i16 0, label %edge_0 i16 1, label %path_0]
+          switch i16 %fact_type_0, label %switch.default_0 [i16 0, label %edge_0 i16 1, label %path_0]
         edge_0:
           %1 = getelementptr  %program, %program* %eclair_program_0, i32 0, i32 1
           %2 = bitcast i32* %memory_0 to [2 x i32]*
@@ -1175,14 +1173,14 @@ spec = describe "LLVM Code Generation" $ parallel $ do
           br label %for_begin_1
         for_end_1:
           ret void
-        eclair_add_facts.end_0:
+        switch.default_0:
           ret void
         }
         |]
       extractFnSnippet llvmIR "eclair_get_facts" `shouldBe` Just [text|
         define external ccc  i32* @eclair_get_facts(%program*  %eclair_program_0, i16  %fact_type_0)    {
         ; <label>:0:
-          switch i16 %fact_type_0, label %eclair_get_facts.end_0 [i16 0, label %edge_0 i16 1, label %path_0]
+          switch i16 %fact_type_0, label %switch.default_0 [i16 0, label %edge_0 i16 1, label %path_0]
         edge_0:
           %1 = getelementptr  %program, %program* %eclair_program_0, i32 0, i32 1
           %fact_count_0 =  call ccc  i64  @btree_size_0(%btree_t_0*  %1)
@@ -1249,7 +1247,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         while_end_1:
           %18 = bitcast i8* %memory_1 to i32*
           ret i32* %18
-        eclair_get_facts.end_0:
+        switch.default_0:
           ret i32* zeroinitializer
         }
         |]
@@ -1259,7 +1257,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
       extractFnSnippet llvmIR "eclair_add_facts" `shouldBe` Just [text|
         define external ccc  void @eclair_add_facts(%program*  %eclair_program_0, i16  %fact_type_0, i32*  %memory_0, i32  %fact_count_0)    {
         ; <label>:0:
-          switch i16 %fact_type_0, label %eclair_add_facts.end_0 [i16 0, label %a_0 i16 1, label %b_0]
+          switch i16 %fact_type_0, label %switch.default_0 [i16 0, label %a_0 i16 1, label %b_0]
         a_0:
           %1 = getelementptr  %program, %program* %eclair_program_0, i32 0, i32 0
           %2 = bitcast i32* %memory_0 to [1 x i32]*
@@ -1290,14 +1288,14 @@ spec = describe "LLVM Code Generation" $ parallel $ do
           br label %for_begin_1
         for_end_1:
           ret void
-        eclair_add_facts.end_0:
+        switch.default_0:
           ret void
         }
         |]
       extractFnSnippet llvmIR "eclair_get_facts" `shouldBe` Just [text|
         define external ccc  i32* @eclair_get_facts(%program*  %eclair_program_0, i16  %fact_type_0)    {
         ; <label>:0:
-          switch i16 %fact_type_0, label %eclair_get_facts.end_0 [i16 0, label %a_0 i16 1, label %b_0]
+          switch i16 %fact_type_0, label %switch.default_0 [i16 0, label %a_0 i16 1, label %b_0]
         a_0:
           %1 = getelementptr  %program, %program* %eclair_program_0, i32 0, i32 0
           %fact_count_0 =  call ccc  i64  @btree_size_0(%btree_t_0*  %1)
@@ -1364,7 +1362,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         while_end_1:
           %18 = bitcast i8* %memory_1 to i32*
           ret i32* %18
-        eclair_get_facts.end_0:
+        switch.default_0:
           ret i32* zeroinitializer
         }
         |]

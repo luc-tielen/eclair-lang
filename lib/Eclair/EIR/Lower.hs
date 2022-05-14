@@ -52,10 +52,12 @@ compileToLLVM = \case
     programTy <- mkType "program" fnss
     let lowerState = LowerState programTy fnsMap mempty exts
     traverse_ (processDecl lowerState) decls
-    addFactsFn <- generateAddFactsFn metas lowerState
-    generateAddFact addFactsFn lowerState
-    generateGetFactsFn metas lowerState
-    generateFreeBufferFn lowerState
+    usingReaderT (metas, lowerState) $ do
+      addFactsFn <- generateAddFactsFn
+      generateAddFact addFactsFn
+      generateGetFactsFn
+      generateFreeBufferFn
+      generateFactCountFn
   _ ->
     panic "Unexpected top level EIR declarations when compiling to LLVM!"
   where
@@ -159,12 +161,11 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
     toOperandWithContext (Triple eir operand _) =
       (operand, eir)
     toInstrs (Triple _ _ instrs) = instrs
-
-doCall :: Relation -> Index -> EIR.Function -> [CodegenM Operand] -> CodegenM Operand
-doCall r idx fn args = do
-  argOperands <- sequence args
-  func <- lookupFunction r idx fn
-  call func $ (, []) <$> argOperands
+    doCall :: Relation -> Index -> EIR.Function -> [CodegenM Operand] -> CodegenM Operand
+    doCall r idx fn args = do
+      argOperands <- sequence args
+      func <- lookupFunction r idx fn
+      call func $ (, []) <$> argOperands
 
 -- A tuple of 3 elements, defined as a newtype so a Comonad instance can be added.
 data Triple a b c
@@ -266,8 +267,9 @@ createExternals = do
   pure $ Externals mallocFn freeFn memsetFn
 
 
-generateAddFact :: Operand -> LowerState -> ModuleBuilderT IO Operand
-generateAddFact addFactsFn lowerState = do
+generateAddFact :: MonadFix m => Operand -> CodegenInOutT (ModuleBuilderT m) Operand
+generateAddFact addFactsFn = do
+  lowerState <- asks snd
   let args = [ (ptr (programType lowerState), ParameterName "eclair_program")
              , (i16, ParameterName "fact_type")
              , (ptr i32, ParameterName "memory")
@@ -278,8 +280,9 @@ generateAddFact addFactsFn lowerState = do
     call addFactsFn $ (, []) <$> [program, factType, memory, int32 1]
     retVoid
 
-generateAddFactsFn :: MonadFix m => [(Relation, Metadata)] -> LowerState -> ModuleBuilderT m Operand
-generateAddFactsFn metas lowerState = do
+generateAddFactsFn :: MonadFix m => CodegenInOutT (ModuleBuilderT m) Operand
+generateAddFactsFn = do
+  (metas, lowerState) <- ask
   let relations = getRelations metas
       mapping = getFactTypeMapping metas
 
@@ -290,13 +293,9 @@ generateAddFactsFn metas lowerState = do
              , (i32, ParameterName "fact_count")
              ]
       returnType = void
-  function "eclair_add_facts" args returnType $ \[program, factType, memory, factCount] -> mdo
-
-    switch factType end caseBlocks
-    caseBlocks <- for mapping $ \(r, factNum) -> do
+  function "eclair_add_facts" args returnType $ \[program, factType, memory, factCount] -> do
+    switchOnFactType metas retVoid factType $ \r -> do
       let indexes = indexesFor lowerState r
-
-      caseBlock <- block `named` toShort (encodeUtf8 $ unId r)
       for_ indexes $ \idx -> do
         let numCols = fromIntegral $ factNumColumns r metas
             treeOffset = int32 $ toInteger $ getContainerOffset metas r idx
@@ -308,21 +307,16 @@ generateAddFactsFn metas lowerState = do
           valuePtr <- gep arrayPtr [i]
           call (lsLookupFunction r idx EIR.Insert lowerState) [(relationPtr, []), (valuePtr, [])]
 
-      pure (Int 16 factNum, caseBlock)
-
-    end <- block `named` "eclair_add_facts.end"
-    retVoid
-
-generateGetFactsFn :: MonadFix m => [(Relation, Metadata)] -> LowerState -> ModuleBuilderT m Operand
-generateGetFactsFn metas lowerState = do
+generateGetFactsFn :: MonadFix m => CodegenInOutT (ModuleBuilderT m) Operand
+generateGetFactsFn = do
+  (metas, lowerState) <- ask
   let args = [ (ptr (programType lowerState), ParameterName "eclair_program")
              , (i16, ParameterName "fact_type")
              ]
       returnType = ptr i32
-  function "eclair_get_facts" args returnType $ \[program, factType] -> mdo
-    switch factType end caseBlocks
-
-    caseBlocks <- for mapping $ \(r, factNum) -> do
+      mallocFn = extMalloc $ externals lowerState
+  function "eclair_get_facts" args returnType $ \[program, factType] -> do
+    switchOnFactType metas (ret $ nullPtr i32) factType $ \r -> do
       let indexes = indexesFor lowerState r
           idx = fromJust $ viaNonEmpty head indexes  -- TODO: which idx? just select first matching?
           lookupFn fn = lsLookupFunction r idx fn lowerState
@@ -330,8 +324,6 @@ generateGetFactsFn metas lowerState = do
           numCols = factNumColumns r metas
           valueSize = 4 * numCols  -- TODO: should use LLVM "valueSize" instead of re-calculating here
           treeOffset = int32 $ toInteger $ getContainerOffset metas r idx
-
-      caseBlock <- block `named` toShort (encodeUtf8 $ unId r)
       relationPtr <- gep program [int32 0, treeOffset]
       relationSize <- (doCall EIR.Size [relationPtr] >>= (`trunc` i32)) `named` "fact_count"
       memorySize <- mul relationSize (int32 $ toInteger valueSize) `named` "byte_count"
@@ -358,17 +350,10 @@ generateGetFactsFn metas lowerState = do
         doCall EIR.IterNext [currIter]
 
       ret =<< memory `bitcast` ptr i32
-      pure (Int 16 factNum, caseBlock)
 
-    end <- block `named` "eclair_get_facts.end"
-    ret $ nullPtr i32
-  where
-    relations = getRelations metas
-    mapping = getFactTypeMapping metas
-    mallocFn = extMalloc $ externals lowerState
-
-generateFreeBufferFn :: Monad m => LowerState -> ModuleBuilderT m Operand
-generateFreeBufferFn lowerState = do
+generateFreeBufferFn :: Monad m => CodegenInOutT (ModuleBuilderT m) Operand
+generateFreeBufferFn = do
+  lowerState <- asks snd
   let freeFn = extFree $ externals lowerState
       args = [(ptr i32, ParameterName "buffer")]
       returnType = void
@@ -377,7 +362,47 @@ generateFreeBufferFn lowerState = do
     call freeFn [(memory, [])]
     retVoid
 
+generateFactCountFn :: MonadFix m => CodegenInOutT (ModuleBuilderT m) Operand
+generateFactCountFn = do
+  (metas, lowerState) <- ask
+  let args = [ (ptr (programType lowerState), ParameterName "eclair_program")
+             , (i16, ParameterName "fact_type")
+             ]
+      returnType = i64
+  function "eclair_fact_count" args returnType $ \[program, factType] -> do
+    switchOnFactType metas (ret $ int64 0) factType $ \r -> do
+      let indexes = indexesFor lowerState r
+          idx = fromJust $ viaNonEmpty head indexes  -- TODO: which idx? just select first matching?
+          lookupFn fn = lsLookupFunction r idx fn lowerState
+          doCall fn args = call (lookupFn fn) $ (,[]) <$> args
+          treeOffset = int32 $ toInteger $ getContainerOffset metas r idx
+      relationPtr <- gep program [int32 0, treeOffset]
+      relationSize <- doCall EIR.Size [relationPtr]
+      ret relationSize
+
 -- TODO: move all lower level code below to Codegen.hs to keep high level overview here!
+
+type InOutState = ([(Relation, Metadata)], LowerState)
+
+type CodegenInOutT = ReaderT  InOutState
+
+switchOnFactType :: MonadFix m
+                 => [(Relation, metadata)]
+                 -> IRBuilderT m ()
+                 -> Operand
+                 -> (Relation -> IRBuilderT m ())
+                 -> IRBuilderT m ()
+switchOnFactType metas defaultCase factType generateCase = mdo
+    switch factType end caseBlocks
+    caseBlocks <- for mapping $ \(r, factNum) -> do
+      caseBlock <- block `named` toShort (encodeUtf8 $ unId r)
+      generateCase r
+      pure (Int 16 factNum, caseBlock)
+
+    end <- block `named` "switch.default"
+    defaultCase
+  where
+    mapping = getFactTypeMapping metas
 
 factNumColumns :: Relation -> [(Relation, Metadata)] -> Int
 factNumColumns r metas =

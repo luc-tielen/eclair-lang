@@ -6,7 +6,7 @@ homepage: https://github.com/luc-tielen/eclair-lang
 license: BSD3
 author: Luc Tielen
 maintainer: luc.tielen@gmail.com
-copyright: Luc Tielen, 2021
+copyright: Luc Tielen, 2022
 category: Web
 extra-source-files:
   - README.md
@@ -43,6 +43,9 @@ dependencies:
   - llvm-hs-pure == 9.*
   - llvm-hs-pretty == 0.9.0.0
   - llvm-hs-combinators == 0.1.*
+  - rock == 0.3.*
+  - dependent-sum-template == 0.1.*
+  - some == 1.*
 
 default-extensions:
   - OverloadedStrings

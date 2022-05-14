@@ -1,6 +1,7 @@
 module Main (main) where
 
 import qualified Data.Text.Lazy.IO as T
+import Control.Exception
 import LLVM.Pretty
 import Eclair
 
@@ -12,7 +13,4 @@ main = do
     Nothing -> panic "Expected usage: 'eclairc FILE'"
     Just args -> do
       let filePath = head args
-      compile filePath >>= \case
-        Left _ -> panic "Failed to compile the Datalog code!"
-        Right llvmModule -> do
-          putLTextLn $ ppllvm llvmModule
+      emitLLVM filePath `catch` handleErrors

@@ -30,7 +30,7 @@
         version = "${ghcVersion}.${substring 0 8 self.lastModifiedDate}.${
             self.shortRev or "dirty"
           }";
-        config = { };
+        config = {};
         overlay = final: _:
           let
             haskellPackages =
@@ -63,6 +63,9 @@
                     algebraic-graphs = with hf;
                       dontCheck
                       (callCabal2nix "algebraic-graphs" (inputs.alga) { });
+
+                    dependent-hashmap = with hf;
+                      unmarkBroken (dontCheck hp.dependent-hashmap);
 
                     relude = hf.relude_1_0_0_1;
 

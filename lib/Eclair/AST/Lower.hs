@@ -17,9 +17,10 @@ compileToRA ast = RA.Module $ concatMap processDecls sortedDecls where
 
   processDecls :: [AST] -> [RA]
   processDecls = \case
-    [Atom name values] -> runCodegen $
-      emit $ project name (LitTerm <$> values ^.. folded . _Lit)
-    [Rule name args clauses] ->
+    [Atom _ name values] -> runCodegen $
+      let literals = fmap snd (values ^.. folded . _Lit)
+       in emit $ project name (LitTerm <$> literals)
+    [Rule _ name args clauses] ->
       let terms = map toTerm args
           clauses' = map toClause clauses
       in runCodegen $ processSingleRule name terms clauses'
@@ -28,7 +29,7 @@ compileToRA ast = RA.Module $ concatMap processDecls sortedDecls where
 
   scc :: AST -> [[AST]]
   scc = \case
-    Module decls -> map G.flattenSCC sortedDecls
+    Module _ decls -> map G.flattenSCC sortedDecls
       where
         relevantDecls = filter isRuleOrAtom decls
         sortedDecls = G.stronglyConnComp $ zipWith (\i d -> (d, i, refersTo d)) [0..] relevantDecls
@@ -38,13 +39,13 @@ compileToRA ast = RA.Module $ concatMap processDecls sortedDecls where
           Rule {} -> True
           _ -> False
         refersTo = \case
-          Rule _ _ clauses ->
+          Rule _ _ _ clauses ->
             -- If no top level facts are defined, no entry exists in declLine mapping -> default to -1
             concatMap (fromMaybe [-1] . flip M.lookup declLineMapping . nameFor) clauses
           _ -> []
         nameFor = \case
-          Atom name _ -> name
-          Rule name _ _ -> name
+          Atom _ name _ -> name
+          Rule _ name _ _ -> name
           _ ->  unreachable  -- Because of 'isRuleOrAtom'
     _ -> unreachable         -- Because rejected by parser
     where unreachable = panic "Unreachable code in 'scc'"
@@ -120,7 +121,7 @@ isRecursive ruleName clauses =
 
 extractRuleData :: AST -> Maybe (Relation, [AST], [AST])
 extractRuleData = \case
-  Rule name args clauses -> Just (name, args, clauses)
+  Rule _ name args clauses -> Just (name, args, clauses)
   _ -> Nothing
 
 newRelationOf, deltaRelationOf :: Relation -> Relation
