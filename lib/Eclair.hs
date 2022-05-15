@@ -2,7 +2,7 @@
 
 module Eclair
   ( parse
-  , runSemanticAnalysis
+  , semanticAnalysis
   , compileRA
   , compileEIR
   , compileLLVM
@@ -131,8 +131,8 @@ runQuery query = do
 parse :: FilePath -> IO AST
 parse = map fst . runQuery . Parse
 
-runSemanticAnalysis :: FilePath -> IO SA.Result
-runSemanticAnalysis = runQuery . RunSemanticAnalysis
+semanticAnalysis :: FilePath -> IO SA.Result
+semanticAnalysis = runQuery . RunSemanticAnalysis
 
 compileRA :: FilePath -> IO RA
 compileRA =

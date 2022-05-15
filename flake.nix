@@ -7,7 +7,7 @@
     ds.url = "github:numtide/devshell?ref=master";
     hls.url = "github:haskell/haskell-language-server?ref=master";
     shs.url =
-      "github:luc-tielen/souffle-haskell?rev=ba9799084545148791552826ac244810ada21551";
+      "github:luc-tielen/souffle-haskell?rev=f8c9fc45eed709110af3d3301393f63f4535c71e";
     llvm-hs.url =
       "github:luc-tielen/llvm-hs?rev=69ae96c9eea8531c750c9d81f9813286ef5ced81";
     llvm-hs.flake = false;
@@ -89,7 +89,7 @@
           imports = [ (pkgs.devshell.importTOML ./devshell.toml) ];
           packages = with pkgs;
             with haskellPackages; [
-              souffle
+              souffle  # TODO this can be removed again after souffle-haskell overlay is used again (after we no longer depend on llvm-hs)
               pkgs.ghcid
               pkgs.llvmPackages_9.llvm.dev
               (ghcWithPackages (p:

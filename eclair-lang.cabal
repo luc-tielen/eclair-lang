@@ -16,6 +16,7 @@ license-file:   LICENSE
 build-type:     Simple
 extra-source-files:
     README.md
+    cbits/semantic_analysis.dl
 
 flag debug
   description: Enables stack traces.
@@ -92,7 +93,7 @@ library
     , relude ==1.0.*
     , rock ==0.3.*
     , some ==1.*
-    , souffle-haskell ==3.3.0
+    , souffle-haskell ==3.4.0
     , text ==1.*
     , transformers ==0.*
     , vector ==0.12.*
@@ -163,7 +164,7 @@ executable eclairc
     , relude ==1.0.*
     , rock ==0.3.*
     , some ==1.*
-    , souffle-haskell ==3.3.0
+    , souffle-haskell ==3.4.0
     , text ==1.*
     , transformers ==0.*
     , vector ==0.12.*
@@ -244,7 +245,7 @@ test-suite eclair-test
     , relude ==1.0.*
     , rock ==0.3.*
     , some ==1.*
-    , souffle-haskell ==3.3.0
+    , souffle-haskell ==3.4.0
     , text ==1.*
     , transformers ==0.*
     , vector ==0.12.*

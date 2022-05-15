@@ -13,5 +13,5 @@ main = do
     Nothing -> panic "Expected usage: 'eclairc FILE'"
     Just args -> do
       let filePath = head args
-      --(print =<< runSemanticAnalysis filePath) `catch` handleErrors
+      --(print =<< semanticAnalysis filePath) `catch` handleErrors
       emitLLVM filePath `catch` handleErrors
