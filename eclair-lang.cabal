@@ -183,6 +183,7 @@ test-suite eclair-test
   type: exitcode-stdio-1.0
   main-is: test.hs
   other-modules:
+      Test.Eclair.AST.AnalysisSpec
       Test.Eclair.AST.LowerSpec
       Test.Eclair.EIR.LowerSpec
       Test.Eclair.LLVM.HashSpec
