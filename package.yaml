@@ -39,10 +39,7 @@ dependencies:
   - recursion-schemes == 5.*
   - comonad == 5.*
   - algebraic-graphs == 0.*
-  - llvm-hs == 9.*
-  - llvm-hs-pure == 9.*
-  - llvm-hs-pretty == 0.9.0.0
-  - llvm-hs-combinators == 0.1.*
+  - llvm-codegen # TODO version
   - rock == 0.3.*
   - dependent-sum-template == 0.1.*
   - some == 1.*

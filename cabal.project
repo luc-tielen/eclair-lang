@@ -2,22 +2,6 @@ packages: .
 
 source-repository-package
         type: git
-        location: https://github.com/luc-tielen/llvm-hs-combinators.git
-        tag: 6a5494d00d55dc2d988957588cf204731f27abc1
+        location: https://github.com/luc-tielen/llvm-codegen.git
+        tag: cca111af3498895d09b65b6316fb0e2af5219163
 
-source-repository-package
-        type: git
-        location: https://github.com/luc-tielen/llvm-hs.git
-        tag: 47ed4d900aaa8ed2b74726cfc2eeeeb029a1f165
-        subdir: llvm-hs
-
-source-repository-package
-        type: git
-        location: https://github.com/luc-tielen/llvm-hs.git
-        tag: 47ed4d900aaa8ed2b74726cfc2eeeeb029a1f165
-        subdir: llvm-hs-pure
-
-source-repository-package
-        type: git
-        location: https://github.com/luc-tielen/llvm-hs-pretty.git
-        tag: 2b0e2f03d785293f682f32fe9533fbe55ed561a1
