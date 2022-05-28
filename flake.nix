@@ -40,8 +40,6 @@
                     dependent-hashmap = with hf;
                       unmarkBroken (dontCheck hp.dependent-hashmap);
 
-                    relude = hf.relude_1_0_0_1;
-
                     eclair-lang = with hf;
                       (callCabal2nix "eclair-lang" ./. { }).overrideAttrs
                       (o: { version = "${o.version}.${version}"; });
