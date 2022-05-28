@@ -52,10 +52,10 @@
         pkgs = import np {
           inherit system config;
           overlays = [
-            overlay
             ds.overlay
             shs.overlay."${system}"
             llvm-cg.overlay."${system}"
+            overlay
           ];
         };
       in with pkgs.lib; rec {
