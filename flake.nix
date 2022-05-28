@@ -19,7 +19,7 @@
     with fu.lib;
     eachSystem [ "x86_64-linux" ] (system:
       let
-        ghcVersion = "8107";
+        ghcVersion = "902";
         version = "${ghcVersion}.${substring 0 8 self.lastModifiedDate}.${
             self.shortRev or "dirty"
           }";
