@@ -13,25 +13,14 @@ import qualified Data.Map as M
 import qualified Data.List as L
 import Data.List ((!!))
 import Data.Maybe (fromJust)
-import LLVM.AST (Module)
-import LLVM.AST.Operand hiding (Metadata)
-import LLVM.AST.Name
-import qualified LLVM.AST.Type as LLVM (Type)
-import LLVM.AST.Type hiding (Type)
-import LLVM.AST.Constant hiding (index)
-import qualified LLVM.AST.IntegerPredicate as IP
-import LLVM.IRBuilder.Instruction hiding (sizeof)
-import LLVM.IRBuilder.Constant
-import LLVM.IRBuilder.Module
-import LLVM.IRBuilder.Monad
-import LLVM.IRBuilder.Combinators
+import LLVM.Codegen as LLVM
 import qualified Eclair.EIR.IR as EIR
 import qualified Eclair.LLVM.BTree as BTree
 import Eclair.EIR.Codegen
+import Eclair.LLVM.LLVM hiding (mkType)
 import Eclair.LLVM.Metadata
 import Eclair.LLVM.Hash
 import Eclair.LLVM.Runtime
-import Eclair.LLVM.LLVM (nullPtr)
 import Eclair.RA.IndexSelection
 import Eclair.AST.IR
 import Eclair.Id
@@ -43,14 +32,15 @@ type Relation = EIR.Relation
 
 compileToLLVM :: EIR -> IO Module
 compileToLLVM = \case
-  EIR.Block (EIR.DeclareProgram metas : decls) -> buildModuleT "eclair_code" $ do
+  EIR.Block (EIR.DeclareProgram metas : decls) -> runModuleBuilderT $ do
     exts <- createExternals
     (metaMapping, fnss) <- runCacheT $ traverse (codegenRuntime exts . snd) metas
     codegenDebugInfos metaMapping
     let fnsInfo = zip (map (map getIndexFromMeta) metas) fnss
         fnsMap = M.fromList fnsInfo
     programTy <- mkType "program" fnss
-    let lowerState = LowerState programTy fnsMap mempty exts
+    programSize <- sizeOfType programTy
+    let lowerState = LowerState programTy programSize fnsMap mempty exts
     traverse_ (processDecl lowerState) decls
     usingReaderT (metas, lowerState) $ do
       addFactsFn <- generateAddFactsFn
@@ -69,7 +59,7 @@ compileToLLVM = \case
         argTypes <- liftIO $ traverse getType tys
         returnType <- liftIO $ getType retTy
         let args = map (, ParameterName "arg") argTypes
-        function (mkName $ toString name) args returnType $ \args -> do
+        function (Name name) args returnType $ \args -> do
           runCodegenM (fnBodyToLLVM args body) lowerState
       _ ->
         panic "Unexpected top level EIR declaration when compiling to LLVM!"
@@ -99,13 +89,13 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
       EIR.EqualsF (a, lhs) (b, rhs) -> do
         valueA <- loadIfNeeded lhs a
         valueB <- loadIfNeeded rhs b
-        icmp IP.EQ valueA valueB
+        valueA `eq` valueB
       EIR.CallF r idx fn (map snd -> args) ->
         doCall r idx fn args
       EIR.HeapAllocateProgramF -> do
-        (malloc, programTy) <- gets (extMalloc . externals &&& programType)
-        memorySize <- sizeOfProgram programTy `named` "byte_count"
-        pointer <- call malloc [(memorySize, [])] `named` "memory"
+        (malloc, (programTy, programSize)) <- gets (extMalloc . externals &&& programType &&& programSizeBytes)
+        let memorySize = int32 $ fromIntegral programSize
+        pointer <- call malloc [memorySize] `named` "memory"
         pointer `bitcast` ptr programTy
       EIR.StackAllocateF r idx ty -> do
         theType <- toLLVMType r idx ty
@@ -127,7 +117,7 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
           EIR.Var varName -> do
             -- Assigning to a variable: evaluate the value, and add to the varMap.
             -- This allows for future lookups of a variable.
-            value <- val `named` toShort (encodeUtf8 varName)
+            value <- val `named` Name varName
             addVarBinding varName value
           _ -> do
             -- NOTE: here we assume we are assigning to an operand (of a struct field)
@@ -140,7 +130,7 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
         freeFn <- gets (extFree . externals)
         program <- programVar
         memory <- program `bitcast` ptr i8 `named` "memory"
-        () <$ call freeFn [(memory, [])]
+        () <$ call freeFn [memory]
       EIR.CallF r idx fn (map toOperand -> args) ->
         () <$ doCall r idx fn args
       EIR.LoopF stmts ->
@@ -165,7 +155,7 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
     doCall r idx fn args = do
       argOperands <- sequence args
       func <- lookupFunction r idx fn
-      call func $ (, []) <$> argOperands
+      call func argOperands
 
 -- A tuple of 3 elements, defined as a newtype so a Comonad instance can be added.
 data Triple a b c
@@ -208,17 +198,6 @@ lowerM f = gcata (distParaZygo f)
           base_t_a = map tThd m
        in Triple (embed base_t_t) (g base_t_tb) base_t_a
 
--- TODO: get cpu arch to make this check dynamically
-sizeOfProgram :: LLVM.Type -> CodegenM Operand
-sizeOfProgram programTy = do
-  let ptrSizeBits = 64
-      programSize = ConstantOperand $ sizeof ptrSizeBits programTy
-  -- TODO: use ADT to make pattern match exhaustive
-  -- case ptrSizeBits of
-  --   32 -> pure programSize
-  --   64 -> trunc programSize i32
-  trunc programSize i32
-
 type CacheT = StateT (Map Metadata (Suffix, Functions))
 
 runCacheT :: Monad m => CacheT m a -> m (Map Metadata Suffix, a)
@@ -244,15 +223,14 @@ codegenDebugInfos metaMapping =
   where
     codegenDebugInfo meta i =
       let hash = getHash meta
-          name = mkName $ toString $ ("specialize_debug_info." <>) $ unHash hash
+          name = Name $ ("specialize_debug_info." <>) $ unHash hash
        in global name i32 (Int 32 $ toInteger i)
 
 -- TODO: add hash based on filepath of the file we're compiling?
 mkType :: Name -> [Functions] -> ModuleBuilderT IO LLVM.Type
 mkType name fnss =
-  typedef name (struct tys)
+  typedef name (StructureType Off tys)
   where
-    struct = Just . StructureType False
     tys = map typeObj fnss
 
 getIndexFromMeta :: Metadata -> Index
@@ -277,7 +255,7 @@ generateAddFact addFactsFn = do
       returnType = void
 
   function "eclair_add_fact" args returnType $ \[program, factType, memory] -> do
-    call addFactsFn $ (, []) <$> [program, factType, memory, int32 1]
+    call addFactsFn [program, factType, memory, int32 1]
     retVoid
 
 generateAddFactsFn :: MonadFix m => CodegenInOutT (ModuleBuilderT m) Operand
@@ -303,9 +281,9 @@ generateAddFactsFn = do
         -- TODO: don't re-calculate this type, do this based on value datatype created in each runtime data structure
         arrayPtr <- memory `bitcast` ptr (ArrayType numCols i32)
 
-        loopFor (int32 0) (\i -> icmp IP.ULT i factCount) (add (int32 1)) $ \i -> do
+        loopFor (int32 0) (`ult` factCount) (add (int32 1)) $ \i -> do
           valuePtr <- gep arrayPtr [i]
-          call (lsLookupFunction r idx EIR.Insert lowerState) [(relationPtr, []), (valuePtr, [])]
+          call (lsLookupFunction r idx EIR.Insert lowerState) [relationPtr, valuePtr]
 
 generateGetFactsFn :: MonadFix m => CodegenInOutT (ModuleBuilderT m) Operand
 generateGetFactsFn = do
@@ -320,14 +298,14 @@ generateGetFactsFn = do
       let indexes = indexesFor lowerState r
           idx = fromJust $ viaNonEmpty head indexes  -- TODO: which idx? just select first matching?
           lookupFn fn = lsLookupFunction r idx fn lowerState
-          doCall fn args = call (lookupFn fn) $ (,[]) <$> args
+          doCall fn = call (lookupFn fn)
           numCols = factNumColumns r metas
           valueSize = 4 * numCols  -- TODO: should use LLVM "valueSize" instead of re-calculating here
           treeOffset = int32 $ toInteger $ getContainerOffset metas r idx
       relationPtr <- gep program [int32 0, treeOffset]
       relationSize <- (doCall EIR.Size [relationPtr] >>= (`trunc` i32)) `named` "fact_count"
       memorySize <- mul relationSize (int32 $ toInteger valueSize) `named` "byte_count"
-      memory <- call mallocFn [(memorySize, [])] `named` "memory"
+      memory <- call mallocFn [memorySize] `named` "memory"
       arrayPtr <- memory `bitcast` ptr (ArrayType (fromIntegral numCols) i32) `named` "array"
 
       iPtr <- alloca i32 (Just (int32 1)) 0 `named` "i"
@@ -359,7 +337,7 @@ generateFreeBufferFn = do
       returnType = void
   function "eclair_free_buffer" args returnType $ \[buf] -> mdo
     memory <- buf `bitcast` ptr i8 `named` "memory"
-    call freeFn [(memory, [])]
+    call freeFn [memory]
     retVoid
 
 generateFactCountFn :: MonadFix m => CodegenInOutT (ModuleBuilderT m) Operand
@@ -374,7 +352,7 @@ generateFactCountFn = do
       let indexes = indexesFor lowerState r
           idx = fromJust $ viaNonEmpty head indexes  -- TODO: which idx? just select first matching?
           lookupFn fn = lsLookupFunction r idx fn lowerState
-          doCall fn args = call (lookupFn fn) $ (,[]) <$> args
+          doCall fn = call (lookupFn fn)
           treeOffset = int32 $ toInteger $ getContainerOffset metas r idx
       relationPtr <- gep program [int32 0, treeOffset]
       relationSize <- doCall EIR.Size [relationPtr]
@@ -395,9 +373,9 @@ switchOnFactType :: MonadFix m
 switchOnFactType metas defaultCase factType generateCase = mdo
     switch factType end caseBlocks
     caseBlocks <- for mapping $ \(r, factNum) -> do
-      caseBlock <- block `named` toShort (encodeUtf8 $ unId r)
+      caseBlock <- block `named` Name (unId r)
       generateCase r
-      pure (Int 16 factNum, caseBlock)
+      pure (int16 factNum, caseBlock)
 
     end <- block `named` "switch.default"
     defaultCase
@@ -428,8 +406,4 @@ sameRelationAndIndex r idx (r', idx') =
 indexesFor :: LowerState -> Relation -> [Index]
 indexesFor ls r =
   map snd $ filter ((== r) . fst) $ M.keys $ fnsMap ls
-
--- TODO: why not found in llvm-hs-pure? are we pointing to an older llvm-9 branch?
-int16 :: Integer -> Operand
-int16 = ConstantOperand . Int 16
 

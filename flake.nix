@@ -9,7 +9,7 @@
     shs.url =
       "github:luc-tielen/souffle-haskell?rev=c46d0677e4bc830df89ec1de2396c562eb9d86d3";
     llvm-cg.url =
-      "github:luc-tielen/llvm-codegen?rev=cca111af3498895d09b65b6316fb0e2af5219163";
+      "github:luc-tielen/llvm-codegen?rev=06d118cc8e25cbb76801bf933757bdee5476051f";
     alga.url =
       "github:snowleopard/alga?rev=75de41a4323ab9e58ca49dbd78b77f307b189795";
     alga.flake = false;
