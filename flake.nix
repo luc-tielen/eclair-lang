@@ -65,6 +65,7 @@
           imports = [ (pkgs.devshell.importTOML ./devshell.toml) ];
           packages = with pkgs;
             with haskellPackages; [
+              pkgs.llvmPackages_13.llvm.dev
               pkgs.ghcid
               (ghcWithPackages (p:
                 with p; [
