@@ -39,7 +39,7 @@ compileToLLVM = \case
     let fnsInfo = zip (map (map getIndexFromMeta) metas) fnss
         fnsMap = M.fromList fnsInfo
     programTy <- mkType "program" fnss
-    programSize <- sizeOfType programTy
+    programSize <- withLLVMTypeInfo $ \ctx td -> llvmSizeOf ctx td programTy
     let lowerState = LowerState programTy programSize fnsMap mempty exts
     traverse_ (processDecl lowerState) decls
     usingReaderT (metas, lowerState) $ do
@@ -229,7 +229,7 @@ codegenDebugInfos metaMapping =
 -- TODO: add hash based on filepath of the file we're compiling?
 mkType :: Name -> [Functions] -> ModuleBuilderT IO LLVM.Type
 mkType name fnss =
-  typedef name (StructureType Off tys)
+  typedef name Off tys
   where
     tys = map typeObj fnss
 

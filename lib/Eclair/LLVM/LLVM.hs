@@ -6,6 +6,7 @@ module Eclair.LLVM.LLVM
   ) where
 
 import qualified Data.Text as T
+import qualified Data.Map as M
 import Control.Monad.Morph
 import Foreign.ForeignPtr
 import Foreign.Ptr
@@ -25,39 +26,66 @@ def funcName args retTy body = do
   function funcNameWithHash args retTy body
 
 mkType :: (MonadModuleBuilder m, MonadReader r m, HasSuffix r)
-       => Text -> Type -> m Type
-mkType typeName ty = do
+       => Text -> Flag Packed -> [Type] -> m Type
+mkType typeName packed tys = do
   s <- asks (show . getSuffix)
   let typeNameWithHash = Name $ typeName <> "_" <> s
-  typedef typeNameWithHash ty
+  typedef typeNameWithHash packed tys
 
-sizeOfType :: Type -> ModuleBuilderT IO Word64
-sizeOfType ty = liftIO $ do
-  ctx <- LibLLVM.mkContext
-  llvmMod <- LibLLVM.mkModule ctx "<internal_use_only>"
-  td <- LibLLVM.getTargetData llvmMod
-  ty' <- mkLLVMType ctx ty
+llvmSizeOf :: ForeignPtr LibLLVM.Context -> Ptr LibLLVM.TargetData -> Type -> ModuleBuilderT IO Word64
+llvmSizeOf ctx td ty = liftIO $ do
+  ty' <- encodeType ctx ty
   LibLLVM.sizeOfType td ty'
 
--- TODO export as a helper function in llvm-codegen
-mkLLVMType :: ForeignPtr LibLLVM.Context -> Type -> IO (Ptr LibLLVM.Type)
-mkLLVMType ctx = \case
-  VoidType ->
-    LibLLVM.mkVoidType ctx
-  IntType bits ->
-    LibLLVM.mkIntType ctx bits
-  PointerType ty ->
-    LibLLVM.mkPointerType =<< mkLLVMType ctx ty
-  StructureType packed tys -> do
-    tys' <- traverse (mkLLVMType ctx) tys
-    LibLLVM.mkStructType ctx tys' packed
-  ArrayType count ty -> do
-    ty' <- mkLLVMType ctx ty
-    LibLLVM.mkArrayType ty' count
-  FunctionType retTy argTys -> do
-    retTy' <- mkLLVMType ctx retTy
-    argTys' <- traverse (mkLLVMType ctx) argTys
-    LibLLVM.mkFunctionType retTy' argTys'
-  NamedTypeReference name ->
-    LibLLVM.getTypeByName ctx name
+withLLVMTypeInfo :: (ForeignPtr LibLLVM.Context -> Ptr LibLLVM.TargetData -> ModuleBuilderT IO a)
+                 -> ModuleBuilderT IO a
+withLLVMTypeInfo f = do
+  (ctx, td) <- liftIO $ do
+    ctx <- LibLLVM.mkContext
+    llvmMod <- LibLLVM.mkModule ctx "<internal_use_only>"
+    td <- LibLLVM.getTargetData llvmMod
+    pure (ctx, td)
 
+  -- First, we forward declare all struct types known up to this point,
+  typedefs <- getTypedefs
+  structTys <- liftIO $ M.traverseWithKey (forwardDeclareStruct ctx) typedefs
+
+  -- Then we serialize all types (including structs, with their bodies),
+  liftIO $ M.traverseWithKey (serialize ctx) structTys
+  -- Finally, we can call the function with all type info available in LLVM.
+  f ctx td
+  where
+    forwardDeclareStruct ctx name structTy =
+      (,structTy) <$> LibLLVM.mkOpaqueStructType ctx name
+
+    serialize :: ForeignPtr LibLLVM.Context -> Name -> (Ptr LibLLVM.Type, Type) -> IO ()
+    serialize ctx name (llvmTy, ty) = case ty of
+      StructureType packed tys -> do
+        tys' <- traverse (encodeType ctx) tys
+        LibLLVM.setNamedStructBody llvmTy tys' packed
+      ty ->
+        panic $ "Unexpected typedef: only structs are allowed, but got: " <> show ty
+
+-- NOTE: this only works if all the named structs are known beforehand (a.k.a. forward declared)!
+encodeType :: ForeignPtr LibLLVM.Context -> Type -> IO (Ptr LibLLVM.Type)
+encodeType ctx = go
+  where
+    go = \case
+      VoidType ->
+        LibLLVM.mkVoidType ctx
+      IntType bits ->
+        LibLLVM.mkIntType ctx bits
+      PointerType ty ->
+        LibLLVM.mkPointerType =<< go ty
+      StructureType packed tys -> do
+        tys' <- traverse go tys
+        LibLLVM.mkAnonStructType ctx tys' packed
+      ArrayType count ty -> do
+        ty' <- go ty
+        LibLLVM.mkArrayType ty' count
+      FunctionType retTy argTys -> do
+        retTy' <- go retTy
+        argTys' <- traverse go argTys
+        LibLLVM.mkFunctionType retTy' argTys'
+      NamedTypeReference name ->
+        LibLLVM.getTypeByName ctx name

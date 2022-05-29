@@ -114,9 +114,10 @@ codegen suffix exts settings = do
     runReaderT generateFunctions $ CGState suffix settings tys sizes exts
   where intoIO = pure . runIdentity
 
+-- TODO: can be merged with generateTypes now with llvm-codegen?
 computeSizes :: Meta -> ModuleBuilderT IO Sizes
 computeSizes settings = do
-  let nodeDataTy = wrap
+  let nodeDataTy = StructureType Off
         [ -- Next type doesn't matter here, but we need to break the
           -- cyclic loop or Haskell will throw an exception.
           ptrTy   -- parent
@@ -124,19 +125,25 @@ computeSizes settings = do
         , i16     -- num_elements
         , i1      -- node type
         ]
-      ptrTy = wrap [ptr i8]
-      valueType = wrap [ArrayType (fromIntegral $ numColumns settings) i32]
-  ptrSize <- sizeOfType ptrTy
-  valueSz <- sizeOfType valueType
-  nodeDataSz <- sizeOfType nodeDataTy
+      ptrTy = ptr i8
+      valueType = ArrayType (fromIntegral $ numColumns settings) i32
+  (ptrSz, valueSz, nodeDataSz) <- withLLVMTypeInfo $ \ctx td -> do
+    let sizeOf = llvmSizeOf ctx td
+    pointerSize <- sizeOf ptrTy
+    valueSize <- sizeOf valueType
+    nodeDataSize <- sizeOf nodeDataTy
+    pure (pointerSize, valueSize, nodeDataSize)
+
   let numKeys' = fromIntegral $ numKeysHelper settings nodeDataSz valueSz
-      nodeType = wrap [nodeDataTy, ArrayType numKeys' valueType]
-      innerNodeType = wrap [nodeType, ArrayType (numKeys' + 1) (ptr nodeType)]
-  leafNodeSz <- sizeOfType nodeType
-  innerNodeSz <- sizeOfType innerNodeType
-  pure $ Sizes ptrSize valueSz nodeDataSz leafNodeSz innerNodeSz
-  where
-    wrap = StructureType Off
+      nodeType = StructureType Off [nodeDataTy, ArrayType numKeys' valueType]
+      innerNodeType = StructureType Off [nodeType, ArrayType (numKeys' + 1) (ptr nodeType)]
+  (leafNodeSz, innerNodeSz) <- withLLVMTypeInfo $ \ctx td -> do
+    let sizeOf = llvmSizeOf ctx td
+    leafNodeSize <- sizeOf nodeType
+    innerNodeSize <- sizeOf innerNodeType
+    pure (leafNodeSize, innerNodeSize)
+
+  pure $ Sizes ptrSz valueSz nodeDataSz leafNodeSz innerNodeSz
 
 generateTypes :: (MonadModuleBuilder m, MonadReader TGState m, MonadFix m)
               => Sizes -> m Types
@@ -145,35 +152,35 @@ generateTypes sizes = mdo
   suffix <- asks tgSuffix
   let numKeys' = fromIntegral $ numKeys meta sizes
 
-  columnTy <- mkType "column_t" i32
-  valueTy <- mkType "value_t" $ ArrayType (fromIntegral $ numColumns meta) columnTy
-  positionTy <- mkType "position_t" i16
-  nodeSizeTy <- mkType "node_size_t" i16  -- Note: used to be size_t/i64
-  nodeTypeTy <- mkType "node_type_t" i1
-  let nodeDataName = "node_data_t"
-  nodeDataTy <- mkType nodeDataName $
-    mkStruct [ ptr nodeTy  -- parent
-             , positionTy  -- position_in_parent
-             , nodeSizeTy  -- num_elements
-             , nodeTypeTy  -- node type
-             ]
-  nodeTy <- mkType "node_t" $
-    mkStruct [ nodeDataTy                  -- meta
-             , ArrayType numKeys' valueTy  -- values
-             ]
-  leafNodeTy <- mkType "leaf_node_t" nodeTy
-  innerNodeTy <- mkType "inner_node_t" $
-    mkStruct [ nodeTy                                 -- base
-             , ArrayType (numKeys' + 1) (ptr nodeTy)  -- children
-             ]
-  btreeIteratorTy <- mkType "btree_iterator_t" $
-    mkStruct [ ptr nodeTy  -- current
-             , positionTy  -- value pos
-             ]
-  btreeTy <- mkType "btree_t" $
-    mkStruct [ ptr nodeTy  -- root
-             , ptr nodeTy  -- first
-             ]
+  let columnTy = i32
+      valueTy = ArrayType (fromIntegral $ numColumns meta) columnTy
+      positionTy = i16
+      nodeSizeTy = i16  -- Note: used to be size_t/i64
+      nodeTypeTy = i1
+      nodeDataName = "node_data_t"
+  nodeDataTy <- mkType nodeDataName Off
+    [ ptr nodeTy  -- parent
+    , positionTy  -- position_in_parent
+    , nodeSizeTy  -- num_elements
+    , nodeTypeTy  -- node type
+    ]
+  nodeTy <- mkType "node_t" Off
+    [ nodeDataTy                  -- meta
+    , ArrayType numKeys' valueTy  -- values
+    ]
+  let leafNodeTy = nodeTy
+  innerNodeTy <- mkType "inner_node_t" Off
+    [ nodeTy                                 -- base
+    , ArrayType (numKeys' + 1) (ptr nodeTy)  -- children
+    ]
+  btreeIteratorTy <- mkType "btree_iterator_t" Off
+    [ ptr nodeTy  -- current
+    , positionTy  -- value pos
+    ]
+  btreeTy <- mkType "btree_t" Off
+    [ ptr nodeTy  -- root
+    , ptr nodeTy  -- first
+    ]
   pure $ Types
     { btreeTy = btreeTy
     , iteratorTy = btreeIteratorTy
@@ -185,7 +192,6 @@ generateTypes sizes = mdo
     , valueTy = valueTy
     , columnTy = columnTy
     }
-  where mkStruct = StructureType Off
 
 generateFunctions :: ModuleCodegen Functions
 generateFunctions = mdo
