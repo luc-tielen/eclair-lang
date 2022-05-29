@@ -1,85 +1,126 @@
 {
   description =
     "eclair-lang: An experimental and minimal Datalog that compiles to LLVM";
-  inputs = {
-    np.url = "github:nixos/nixpkgs?ref=haskell-updates";
-    fu.url = "github:numtide/flake-utils?ref=master";
-    ds.url = "github:numtide/devshell?ref=master";
-    hls.url = "github:haskell/haskell-language-server?ref=master";
-    shs.url =
-      "github:luc-tielen/souffle-haskell?rev=c46d0677e4bc830df89ec1de2396c562eb9d86d3";
-    llvm-cg.url =
-      "github:luc-tielen/llvm-codegen?rev=d82ba64b3e0c12ac68fe44d7cab2ea9403584753";
-    alga.url =
-      "github:snowleopard/alga?rev=75de41a4323ab9e58ca49dbd78b77f307b189795";
-    alga.flake = false;
-  };
-  outputs = { self, np, fu, ds, shs, llvm-cg, ... }@inputs:
-    with np.lib;
-    with fu.lib;
+
+  inputs.devshell.url = "github:numtide/devshell";
+  inputs.flake-utils.url = "github:numtide/flake-utils";
+  inputs.nix-filter.url = "github:numtide/nix-filter";
+  inputs.souffle-haskell.url =
+    "github:smunix/souffle-haskell?ref=fix.ghc-multi";
+  inputs.llvm-codegen.url = "github:smunix/llvm-codegen?ref=fix.ghc-multi";
+  inputs.algebraic-graphs.url =
+    "github:snowleopard/alga?rev=75de41a4323ab9e58ca49dbd78b77f307b189795";
+  inputs.algebraic-graphs.flake = false;
+
+  outputs = { self, flake-utils, nix-filter, devshell, nixpkgs, ... }@inputs:
+    with nixpkgs.lib;
+    with flake-utils.lib;
     eachSystem [ "x86_64-linux" ] (system:
       let
-        ghcVersion = "902";
-        version = "${ghcVersion}.${substring 0 8 self.lastModifiedDate}.${
-            self.shortRev or "dirty"
-          }";
-        config = {};
-        overlay = final: _:
+        rmDot = replaceStrings [ "." ] [ "" ];
+        supportedGHCs = [ "default" "902" "922" ];
+        config = { };
+        overlays.devshell = devshell.overlay;
+        overlays.default = f: p:
           let
-            haskellPackages =
-              final.haskell.packages."ghc${ghcVersion}".override {
-                overrides = hf: hp:
-                  with final.haskell.lib; rec {
-                    inherit (shs.packages."${system}") souffle-haskell;
-                    inherit (llvm-cg.packages."${system}") llvm-codegen;
+            ghcVersion = "ghc${rmDot p.haskellPackages.ghc.version}";
 
-                    algebraic-graphs = with hf;
-                      dontCheck
-                      (callCabal2nix "algebraic-graphs" (inputs.alga) { });
+            mkHaskellPackages = hspkgs:
+              (hspkgs.override (old: { })).extend (hf: hp:
+                with f.haskell.lib;
+                composeExtensions (hf: hp: {
+                  eclair-lang = disableLibraryProfiling
+                    ((hf.callCabal2nix "eclair-lang" (with nix-filter.lib;
+                      filter {
+                        root = self;
+                        exclude = [ (matchExt "cabal") ];
+                      }) { }).overrideAttrs (old: {
+                        version = "${rmDot hp.ghc.version}-${old.version}-${
+                            substring 0 8 self.lastModifiedDate
+                          }.${self.shortRev or "dirty"}";
+                      }));
+                }) (hf: hp:
+                  with f.haskell.lib; {
+                    algebraic-graphs = dontCheck
+                      (hf.callCabal2nix "algebraic-graphs"
+                        (inputs.algebraic-graphs) { });
 
-                    dependent-hashmap = with hf;
+                    dependent-hashmap =
                       unmarkBroken (dontCheck hp.dependent-hashmap);
 
-                    eclair-lang = with hf;
-                      (callCabal2nix "eclair-lang" ./. { }).overrideAttrs
-                      (o: { version = "${o.version}.${version}"; });
-                  };
-              };
-          in { inherit haskellPackages; };
+                    souffle-haskell =
+                      inputs.souffle-haskell.packages.${system}."souffle-haskell-${
+                        rmDot hp.ghc.version
+                      }";
 
-        pkgs = import np {
+                    llvm-codegen =
+                      inputs.llvm-codegen.packages.${system}."llvm-codegen-${
+                        rmDot hp.ghc.version
+                      }";
+                  }) hf hp);
+
+            # all haskellPackages
+            allHaskellPackages = let
+              cases = listToAttrs (map (n: {
+                name = "${n}";
+                value = mkHaskellPackages
+                  f.haskell.packages."${if n == "default" then
+                    "${ghcVersion}"
+                  else
+                    "ghc${n}"}";
+              }) supportedGHCs);
+            in cases;
+
+            # all packages
+            allPackages = listToAttrs (map (n: {
+              name = if n == "default" then n else "eclair-lang-${n}";
+              value = allHaskellPackages."${n}".eclair-lang;
+            }) supportedGHCs);
+
+            # make dev shell
+            mkDevShell = g:
+              p.devshell.mkShell {
+                name = "eclair-lang-${
+                    if g == "default" then "${ghcVersion}" else g
+                  }-${substring 0 8 self.lastModifiedDate}.${
+                    self.shortRev or "dirty"
+                  }";
+                packages = with f;
+                  with f.allHaskellPackages."${g}"; [
+                    ghcid
+                    (ghcWithPackages (hp:
+                      with hp; [
+                        eclair-lang
+                        cabal-install
+                        ghc
+                        haskell-language-server
+                        hpack
+                        hspec-discover
+                        hsc2hs
+                        llvm-codegen
+                        souffle-haskell
+                      ]))
+                  ];
+              };
+
+            # all packages
+            allDevShells = listToAttrs (map (n: {
+              name = "${n}";
+              value = mkDevShell n;
+            }) supportedGHCs);
+          in {
+            haskellPackages = allHaskellPackages.default;
+            inherit allHaskellPackages allDevShells allPackages;
+          };
+
+        pkgs = import nixpkgs {
           inherit system config;
-          overlays = [
-            ds.overlay
-            shs.overlay."${system}"
-            llvm-cg.overlay."${system}"
-            overlay
-          ];
+          overlays = [ overlays.devshell overlays.default ];
         };
+
       in with pkgs.lib; rec {
-        inherit overlay;
-        packages = { inherit (pkgs.haskellPackages) eclair-lang; };
-        defaultPackage = packages.eclair-lang;
-        devShell = pkgs.devshell.mkShell {
-          name = "ECLAIR-LANG";
-          imports = [ (pkgs.devshell.importTOML ./devshell.toml) ];
-          packages = with pkgs;
-            with haskellPackages; [
-              pkgs.llvmPackages_13.llvm.dev
-              pkgs.ghcid
-              (ghcWithPackages (p:
-                with p; [
-                  algebraic-graphs
-                  hspec-discover
-                  llvm-codegen
-                  souffle-haskell
-                  ghc
-                  cabal-install
-                  hsc2hs
-                  hpack
-                  haskell-language-server
-                ]))
-            ];
-        };
+        inherit overlays;
+        packages = flattenTree (pkgs.recurseIntoAttrs pkgs.allPackages);
+        devShells = flattenTree (pkgs.recurseIntoAttrs pkgs.allDevShells);
       });
 }
