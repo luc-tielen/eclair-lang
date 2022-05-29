@@ -5,33 +5,14 @@ module Eclair.LLVM.LLVM
   ( module Eclair.LLVM.LLVM
   ) where
 
-import Control.Monad.Morph
 import qualified Data.Text as T
-import LLVM.IRBuilder.Module
-import LLVM.IRBuilder.Monad
-import qualified LLVM.AST.Constant as Constant
-import LLVM.AST.Operand ( Operand(..) )
-import LLVM.AST.Type
-import LLVM.AST.Name
-import LLVM.Internal.EncodeAST
-import LLVM.Internal.Coding hiding (alloca)
-import LLVM.Internal.Type
-import qualified LLVM.Context as Context
-import qualified LLVM.Internal.DataLayout as DL
-import qualified LLVM.Internal.FFI.DataLayout as DL
-import qualified LLVM.CodeGenOpt as CG
-import qualified LLVM.CodeModel as CM
-import qualified LLVM.Relocation as Rel
-import LLVM.Target
+import qualified Data.Map as M
+import Control.Monad.Morph
+import Foreign.ForeignPtr
+import Foreign.Ptr
+import LLVM.Codegen
+import qualified LLVM.C.API as LibLLVM
 import Eclair.LLVM.Runtime
-
-
--- TODO: remove, import directly from llvm-hs
-int16 :: Integer -> Operand
-int16 = ConstantOperand . Constant.Int 16
-
-nullPtr :: Type -> Operand
-nullPtr = ConstantOperand . Constant.Null . ptr
 
 def :: (MonadModuleBuilder m, MonadReader r m, HasSuffix r)
     => Text
@@ -41,36 +22,70 @@ def :: (MonadModuleBuilder m, MonadReader r m, HasSuffix r)
     -> m Operand
 def funcName args retTy body = do
   s <- asks (show . getSuffix)
-  let funcNameWithHash = mkName $ toString $ funcName <> "_" <> s
+  let funcNameWithHash = Name $ funcName <> "_" <> s
   function funcNameWithHash args retTy body
 
 mkType :: (MonadModuleBuilder m, MonadReader r m, HasSuffix r)
-       => Text -> Type -> m Type
-mkType typeName ty = do
+       => Text -> Flag Packed -> [Type] -> m Type
+mkType typeName packed tys = do
   s <- asks (show . getSuffix)
-  let typeNameWithHash = mkName $ toString $ typeName <> "_" <> s
-  typedef typeNameWithHash (Just ty)
+  let typeNameWithHash = Name $ typeName <> "_" <> s
+  typedef typeNameWithHash packed tys
 
-sizeOfType :: (Name, Type) -> ModuleBuilderT IO Word64
-sizeOfType (n, ty) = do
-  liftIO $ withHostTargetMachine Rel.PIC CM.Default CG.None $ \tm -> do
-    dl <- getTargetMachineDataLayout tm
-    Context.withContext $ flip runEncodeAST $ do
-      createType
-      ty' <- encodeM ty
-      liftIO $ DL.withFFIDataLayout dl $ flip DL.getTypeAllocSize ty'
+llvmSizeOf :: ForeignPtr LibLLVM.Context -> Ptr LibLLVM.TargetData -> Type -> ModuleBuilderT IO Word64
+llvmSizeOf ctx td ty = liftIO $ do
+  ty' <- encodeType ctx ty
+  LibLLVM.sizeOfType td ty'
+
+withLLVMTypeInfo :: (ForeignPtr LibLLVM.Context -> Ptr LibLLVM.TargetData -> ModuleBuilderT IO a)
+                 -> ModuleBuilderT IO a
+withLLVMTypeInfo f = do
+  (ctx, td) <- liftIO $ do
+    ctx <- LibLLVM.mkContext
+    llvmMod <- LibLLVM.mkModule ctx "<internal_use_only>"
+    td <- LibLLVM.getTargetData llvmMod
+    pure (ctx, td)
+
+  -- First, we forward declare all struct types known up to this point,
+  typedefs <- getTypedefs
+  structTys <- liftIO $ M.traverseWithKey (forwardDeclareStruct ctx) typedefs
+
+  -- Then we serialize all types (including structs, with their bodies),
+  liftIO $ M.traverseWithKey (serialize ctx) structTys
+  -- Finally, we can call the function with all type info available in LLVM.
+  f ctx td
   where
-    createType :: EncodeAST ()
-    createType = do
-      (t', n') <- createNamedType n
-      defineType n n' t'
-      setNamedType t' ty
+    forwardDeclareStruct ctx name structTy =
+      (,structTy) <$> LibLLVM.mkOpaqueStructType ctx name
 
--- NOTE: Orphan instance, but should give no conflicts.
-instance MFunctor ModuleBuilderT where
-  hoist nat = ModuleBuilderT . hoist nat . unModuleBuilderT
+    serialize :: ForeignPtr LibLLVM.Context -> Name -> (Ptr LibLLVM.Type, Type) -> IO ()
+    serialize ctx name (llvmTy, ty) = case ty of
+      StructureType packed tys -> do
+        tys' <- traverse (encodeType ctx) tys
+        LibLLVM.setNamedStructBody llvmTy tys' packed
+      ty ->
+        panic $ "Unexpected typedef: only structs are allowed, but got: " <> show ty
 
--- NOTE: Orphan instance, but should give no conflicts.
-instance MFunctor IRBuilderT where
-  hoist nat = IRBuilderT . hoist nat . unIRBuilderT
-
+-- NOTE: this only works if all the named structs are known beforehand (a.k.a. forward declared)!
+encodeType :: ForeignPtr LibLLVM.Context -> Type -> IO (Ptr LibLLVM.Type)
+encodeType ctx = go
+  where
+    go = \case
+      VoidType ->
+        LibLLVM.mkVoidType ctx
+      IntType bits ->
+        LibLLVM.mkIntType ctx bits
+      PointerType ty ->
+        LibLLVM.mkPointerType =<< go ty
+      StructureType packed tys -> do
+        tys' <- traverse go tys
+        LibLLVM.mkAnonStructType ctx tys' packed
+      ArrayType count ty -> do
+        ty' <- go ty
+        LibLLVM.mkArrayType ty' count
+      FunctionType retTy argTys -> do
+        retTy' <- go retTy
+        argTys' <- traverse go argTys
+        LibLLVM.mkFunctionType retTy' argTys'
+      NamedTypeReference name ->
+        LibLLVM.getTypeByName ctx name

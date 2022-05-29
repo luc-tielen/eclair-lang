@@ -32,17 +32,14 @@ dependencies:
   - mtl == 2.*
   - mmorph == 1.*
   - exceptions == 0.10.*
-  - lens == 4.* # TODO: use microlens? or Optics?
+  - lens == 5.* # TODO: use microlens? or Optics?
   - prettyprinter == 1.7.*
   - megaparsec == 9.*
-  - souffle-haskell == 3.1.0
+  - souffle-haskell == 3.4.0
   - recursion-schemes == 5.*
   - comonad == 5.*
   - algebraic-graphs == 0.*
-  - llvm-hs == 9.*
-  - llvm-hs-pure == 9.*
-  - llvm-hs-pretty == 0.9.0.0
-  - llvm-hs-combinators == 0.1.*
+  - llvm-codegen # TODO version
   - rock == 0.3.*
   - dependent-sum-template == 0.1.*
   - some == 1.*

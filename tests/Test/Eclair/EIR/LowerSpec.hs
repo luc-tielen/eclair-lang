@@ -1,28 +1,31 @@
-{-# LANGUAGE TypeFamilies, RankNTypes, QuasiQuotes #-}
+{-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Test.Eclair.EIR.LowerSpec
-  ( module Test.Eclair.EIR.LowerSpec
-  ) where
+  ( module Test.Eclair.EIR.LowerSpec,
+  )
+where
 
-import Data.Maybe (fromJust)
 import qualified Data.List as L
+import Data.Maybe (fromJust)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import Eclair
 import Eclair.Pretty
+import LLVM.Pretty
+import NeatInterpolation
 import System.FilePath
 import Test.Hspec
-import NeatInterpolation
-import LLVM.Pretty
 
 -- Tip: compare LLVM IR with EIR from tests that generate pretty-printed EIR
-
 
 cg :: FilePath -> IO T.Text
 cg path = do
   let file = "tests/fixtures" </> path <.> "dl"
   llvm <- compileLLVM file
-  pure $ toStrict $ ppllvm llvm
+  -- pure $ toStrict $ ppllvm llvm
+  pure "cg not implemented yet"
 
 extractDeclTypeSnippet :: Text -> Text
 extractDeclTypeSnippet result =
@@ -37,11 +40,14 @@ extractFnSnippet result fnSignature = do
 -- TODO add tests for caching mechanism (e.g. single_nonrecursive_rule test)
 
 spec :: Spec
-spec = describe "LLVM Code Generation" $ parallel $ do
-  it "generates almost no code for an empty program" $ do
-    llvmIR <- cg "empty"
-    extractDeclTypeSnippet llvmIR `shouldBe` "%program = type {}"
-    extractFnSnippet llvmIR "eclair_program_init" `shouldBe` Just [text|
+spec = describe "LLVM Code Generation" $
+  parallel $ do
+    it "generates almost no code for an empty program" $ do
+      llvmIR <- cg "empty"
+      extractDeclTypeSnippet llvmIR `shouldBe` "%program = type {}"
+      extractFnSnippet llvmIR "eclair_program_init"
+        `shouldBe` Just
+          [text|
       define external ccc  %program* @eclair_program_init()    {
         %byte_count_0 = trunc i64 ptrtoint (%program* getelementptr inbounds (%program, %program* inttoptr (i64 0 to %program*), i64 1) to i64) to i32
         %memory_0 =  call ccc  i8*  @malloc(i32  %byte_count_0)
@@ -49,22 +55,28 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         ret %program* %program_0
       }
       |]
-    extractFnSnippet llvmIR "eclair_program_destroy" `shouldBe` Just [text|
+      extractFnSnippet llvmIR "eclair_program_destroy"
+        `shouldBe` Just
+          [text|
       define external ccc  void @eclair_program_destroy(%program*  %arg_0)    {
         %memory_0 = bitcast %program* %arg_0 to i8*
          call ccc  void  @free(i8*  %memory_0)
         ret void
       }
       |]
-    -- It generates an empty function (forward decl?), but apparently LLVM is fine with it, huh.
-    extractFnSnippet llvmIR "eclair_program_run" `shouldBe` Just [text|
+      -- It generates an empty function (forward decl?), but apparently LLVM is fine with it, huh.
+      extractFnSnippet llvmIR "eclair_program_run"
+        `shouldBe` Just
+          [text|
       declare external ccc  void @eclair_program_run(%program*)
       |]
 
-  it "generates code for a single fact" $ do
-    llvmIR <- cg "single_fact"
-    extractDeclTypeSnippet llvmIR `shouldBe` "%program = type {%btree_t_0, %btree_t_1}"
-    extractFnSnippet llvmIR "eclair_program_init" `shouldBe` Just [text|
+    it "generates code for a single fact" $ do
+      llvmIR <- cg "single_fact"
+      extractDeclTypeSnippet llvmIR `shouldBe` "%program = type {%btree_t_0, %btree_t_1}"
+      extractFnSnippet llvmIR "eclair_program_init"
+        `shouldBe` Just
+          [text|
       define external ccc  %program* @eclair_program_init()    {
         %byte_count_0 = trunc i64 ptrtoint (%program* getelementptr inbounds (%program, %program* inttoptr (i64 0 to %program*), i64 1) to i64) to i32
         %memory_0 =  call ccc  i8*  @malloc(i32  %byte_count_0)
@@ -76,7 +88,9 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         ret %program* %program_0
       }
       |]
-    extractFnSnippet llvmIR "eclair_program_destroy" `shouldBe` Just [text|
+      extractFnSnippet llvmIR "eclair_program_destroy"
+        `shouldBe` Just
+          [text|
       define external ccc  void @eclair_program_destroy(%program*  %arg_0)    {
         %1 = getelementptr  %program, %program* %arg_0, i32 0, i32 0
          call ccc  void  @btree_destroy_0(%btree_t_0*  %1)
@@ -87,7 +101,9 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         ret void
       }
       |]
-    extractFnSnippet llvmIR "eclair_program_run" `shouldBe` Just [text|
+      extractFnSnippet llvmIR "eclair_program_run"
+        `shouldBe` Just
+          [text|
       define external ccc  void @eclair_program_run(%program*  %arg_0)    {
         %value_0 = alloca %value_t_0, i32 1
         %1 = getelementptr  %value_t_0, %value_t_0* %value_0, i32 0, i32 0
@@ -116,10 +132,12 @@ spec = describe "LLVM Code Generation" $ parallel $ do
       }
       |]
 
-  it "generates code for a single non-recursive rule" $ do
-    llvmIR <- cg "single_nonrecursive_rule"
-    extractDeclTypeSnippet llvmIR `shouldBe` "%program = type {%btree_t_0, %btree_t_0}"
-    extractFnSnippet llvmIR "eclair_program_init" `shouldBe` Just [text|
+    it "generates code for a single non-recursive rule" $ do
+      llvmIR <- cg "single_nonrecursive_rule"
+      extractDeclTypeSnippet llvmIR `shouldBe` "%program = type {%btree_t_0, %btree_t_0}"
+      extractFnSnippet llvmIR "eclair_program_init"
+        `shouldBe` Just
+          [text|
       define external ccc  %program* @eclair_program_init()    {
         %byte_count_0 = trunc i64 ptrtoint (%program* getelementptr inbounds (%program, %program* inttoptr (i64 0 to %program*), i64 1) to i64) to i32
         %memory_0 =  call ccc  i8*  @malloc(i32  %byte_count_0)
@@ -131,7 +149,9 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         ret %program* %program_0
       }
       |]
-    extractFnSnippet llvmIR "eclair_program_destroy" `shouldBe` Just [text|
+      extractFnSnippet llvmIR "eclair_program_destroy"
+        `shouldBe` Just
+          [text|
       define external ccc  void @eclair_program_destroy(%program*  %arg_0)    {
         %1 = getelementptr  %program, %program* %arg_0, i32 0, i32 0
          call ccc  void  @btree_destroy_0(%btree_t_0*  %1)
@@ -142,7 +162,9 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         ret void
       }
       |]
-    extractFnSnippet llvmIR "eclair_program_run" `shouldBe` Just [text|
+      extractFnSnippet llvmIR "eclair_program_run"
+        `shouldBe` Just
+          [text|
       define external ccc  void @eclair_program_run(%program*  %arg_0)    {
       ; <label>:0:
         %value_0 = alloca %value_t_0, i32 1
@@ -194,10 +216,12 @@ spec = describe "LLVM Code Generation" $ parallel $ do
       }
       |]
 
-  it "generates nested searches correctly" $ do
-    llvmIR <- cg "multiple_rule_clauses"
-    extractDeclTypeSnippet llvmIR `shouldBe` "%program = type {%btree_t_0, %btree_t_1, %btree_t_2}"
-    extractFnSnippet llvmIR "eclair_program_init" `shouldBe` Just [text|
+    it "generates nested searches correctly" $ do
+      llvmIR <- cg "multiple_rule_clauses"
+      extractDeclTypeSnippet llvmIR `shouldBe` "%program = type {%btree_t_0, %btree_t_1, %btree_t_2}"
+      extractFnSnippet llvmIR "eclair_program_init"
+        `shouldBe` Just
+          [text|
       define external ccc  %program* @eclair_program_init()    {
         %byte_count_0 = trunc i64 ptrtoint (%program* getelementptr inbounds (%program, %program* inttoptr (i64 0 to %program*), i64 1) to i64) to i32
         %memory_0 =  call ccc  i8*  @malloc(i32  %byte_count_0)
@@ -211,7 +235,9 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         ret %program* %program_0
       }
       |]
-    extractFnSnippet llvmIR "eclair_program_destroy" `shouldBe` Just [text|
+      extractFnSnippet llvmIR "eclair_program_destroy"
+        `shouldBe` Just
+          [text|
       define external ccc  void @eclair_program_destroy(%program*  %arg_0)    {
         %1 = getelementptr  %program, %program* %arg_0, i32 0, i32 0
          call ccc  void  @btree_destroy_0(%btree_t_0*  %1)
@@ -224,7 +250,9 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         ret void
       }
       |]
-    extractFnSnippet llvmIR "eclair_program_run" `shouldBe` Just [text|
+      extractFnSnippet llvmIR "eclair_program_run"
+        `shouldBe` Just
+          [text|
       define external ccc  void @eclair_program_run(%program*  %arg_0)    {
       ; <label>:0:
         %value_0 = alloca %value_t_1, i32 1
@@ -308,10 +336,12 @@ spec = describe "LLVM Code Generation" $ parallel $ do
       }
       |]
 
-  it "generates code for a rule with 2 clauses of same name" $ do
-    llvmIR <- cg "multiple_clauses_same_name"
-    extractDeclTypeSnippet llvmIR `shouldBe` "%program = type {%btree_t_0, %btree_t_1}"
-    extractFnSnippet llvmIR "eclair_program_init" `shouldBe` Just [text|
+    it "generates code for a rule with 2 clauses of same name" $ do
+      llvmIR <- cg "multiple_clauses_same_name"
+      extractDeclTypeSnippet llvmIR `shouldBe` "%program = type {%btree_t_0, %btree_t_1}"
+      extractFnSnippet llvmIR "eclair_program_init"
+        `shouldBe` Just
+          [text|
       define external ccc  %program* @eclair_program_init()    {
         %byte_count_0 = trunc i64 ptrtoint (%program* getelementptr inbounds (%program, %program* inttoptr (i64 0 to %program*), i64 1) to i64) to i32
         %memory_0 =  call ccc  i8*  @malloc(i32  %byte_count_0)
@@ -323,7 +353,9 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         ret %program* %program_0
       }
       |]
-    extractFnSnippet llvmIR "eclair_program_destroy" `shouldBe` Just [text|
+      extractFnSnippet llvmIR "eclair_program_destroy"
+        `shouldBe` Just
+          [text|
       define external ccc  void @eclair_program_destroy(%program*  %arg_0)    {
         %1 = getelementptr  %program, %program* %arg_0, i32 0, i32 0
          call ccc  void  @btree_destroy_0(%btree_t_0*  %1)
@@ -334,7 +366,9 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         ret void
       }
       |]
-    extractFnSnippet llvmIR "eclair_program_run" `shouldBe` Just [text|
+      extractFnSnippet llvmIR "eclair_program_run"
+        `shouldBe` Just
+          [text|
       define external ccc  void @eclair_program_run(%program*  %arg_0)    {
       ; <label>:0:
         %value_0 = alloca %value_t_1, i32 1
@@ -421,13 +455,14 @@ spec = describe "LLVM Code Generation" $ parallel $ do
       }
       |]
 
-  it "generates code for a rule where columns need to equal each other" $ do
-    pending -- TODO: cg "rule_equal_columns"
-
-  it "generates code for a single recursive rule" $ do
-    llvmIR <- cg "single_recursive_rule"
-    extractDeclTypeSnippet llvmIR `shouldBe` "%program = type {%btree_t_0, %btree_t_0, %btree_t_0, %btree_t_0}"
-    extractFnSnippet llvmIR "eclair_program_init" `shouldBe` Just [text|
+    it "generates code for a rule where columns need to equal each other" $ do
+      pending -- TODO: cg "rule_equal_columns"
+    it "generates code for a single recursive rule" $ do
+      llvmIR <- cg "single_recursive_rule"
+      extractDeclTypeSnippet llvmIR `shouldBe` "%program = type {%btree_t_0, %btree_t_0, %btree_t_0, %btree_t_0}"
+      extractFnSnippet llvmIR "eclair_program_init"
+        `shouldBe` Just
+          [text|
       define external ccc  %program* @eclair_program_init()    {
         %byte_count_0 = trunc i64 ptrtoint (%program* getelementptr inbounds (%program, %program* inttoptr (i64 0 to %program*), i64 1) to i64) to i32
         %memory_0 =  call ccc  i8*  @malloc(i32  %byte_count_0)
@@ -443,7 +478,9 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         ret %program* %program_0
       }
       |]
-    extractFnSnippet llvmIR "eclair_program_destroy" `shouldBe` Just [text|
+      extractFnSnippet llvmIR "eclair_program_destroy"
+        `shouldBe` Just
+          [text|
       define external ccc  void @eclair_program_destroy(%program*  %arg_0)    {
         %1 = getelementptr  %program, %program* %arg_0, i32 0, i32 0
          call ccc  void  @btree_destroy_0(%btree_t_0*  %1)
@@ -458,7 +495,9 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         ret void
       }
       |]
-    extractFnSnippet llvmIR "eclair_program_run" `shouldBe` Just [text|
+      extractFnSnippet llvmIR "eclair_program_run"
+        `shouldBe` Just
+          [text|
       define external ccc  void @eclair_program_run(%program*  %arg_0)    {
       ; <label>:0:
         %value_0 = alloca %value_t_0, i32 1
@@ -588,12 +627,14 @@ spec = describe "LLVM Code Generation" $ parallel $ do
       }
       |]
 
-  -- TODO variant where one is recursive
-  it "generates code for mutually recursive rules" $ do
-    llvmIR <- cg "mutually_recursive_rules"
-    extractDeclTypeSnippet llvmIR `shouldBe`
-      "%program = type {%btree_t_0, %btree_t_0, %btree_t_0, %btree_t_0, %btree_t_0, %btree_t_0, %btree_t_0, %btree_t_0}"
-    extractFnSnippet llvmIR "eclair_program_init" `shouldBe` Just [text|
+    -- TODO variant where one is recursive
+    it "generates code for mutually recursive rules" $ do
+      llvmIR <- cg "mutually_recursive_rules"
+      extractDeclTypeSnippet llvmIR
+        `shouldBe` "%program = type {%btree_t_0, %btree_t_0, %btree_t_0, %btree_t_0, %btree_t_0, %btree_t_0, %btree_t_0, %btree_t_0}"
+      extractFnSnippet llvmIR "eclair_program_init"
+        `shouldBe` Just
+          [text|
       define external ccc  %program* @eclair_program_init()    {
         %byte_count_0 = trunc i64 ptrtoint (%program* getelementptr inbounds (%program, %program* inttoptr (i64 0 to %program*), i64 1) to i64) to i32
         %memory_0 =  call ccc  i8*  @malloc(i32  %byte_count_0)
@@ -617,7 +658,9 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         ret %program* %program_0
       }
       |]
-    extractFnSnippet llvmIR "eclair_program_destroy" `shouldBe` Just [text|
+      extractFnSnippet llvmIR "eclair_program_destroy"
+        `shouldBe` Just
+          [text|
       define external ccc  void @eclair_program_destroy(%program*  %arg_0)    {
         %1 = getelementptr  %program, %program* %arg_0, i32 0, i32 0
          call ccc  void  @btree_destroy_0(%btree_t_0*  %1)
@@ -640,7 +683,9 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         ret void
       }
       |]
-    extractFnSnippet llvmIR "eclair_program_run" `shouldBe` Just [text|
+      extractFnSnippet llvmIR "eclair_program_run"
+        `shouldBe` Just
+          [text|
       define external ccc  void @eclair_program_run(%program*  %arg_0)    {
       ; <label>:0:
         %value_0 = alloca %value_t_0, i32 1
@@ -914,12 +959,14 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         ret void
       }
       |]
-  -- TODO tests for rules with >2 clauses, ...
+    -- TODO tests for rules with >2 clauses, ...
 
-  it "can generate code for program with no top level facts" $ do
-    llvmIR <- cg "no_top_level_facts"
-    extractDeclTypeSnippet llvmIR `shouldBe` "%program = type {%btree_t_0, %btree_t_0, %btree_t_0, %btree_t_0}"
-    extractFnSnippet llvmIR "eclair_program_init" `shouldBe` Just [text|
+    it "can generate code for program with no top level facts" $ do
+      llvmIR <- cg "no_top_level_facts"
+      extractDeclTypeSnippet llvmIR `shouldBe` "%program = type {%btree_t_0, %btree_t_0, %btree_t_0, %btree_t_0}"
+      extractFnSnippet llvmIR "eclair_program_init"
+        `shouldBe` Just
+          [text|
       define external ccc  %program* @eclair_program_init()    {
         %byte_count_0 = trunc i64 ptrtoint (%program* getelementptr inbounds (%program, %program* inttoptr (i64 0 to %program*), i64 1) to i64) to i32
         %memory_0 =  call ccc  i8*  @malloc(i32  %byte_count_0)
@@ -935,7 +982,9 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         ret %program* %program_0
       }
       |]
-    extractFnSnippet llvmIR "eclair_program_destroy" `shouldBe` Just [text|
+      extractFnSnippet llvmIR "eclair_program_destroy"
+        `shouldBe` Just
+          [text|
       define external ccc  void @eclair_program_destroy(%program*  %arg_0)    {
         %1 = getelementptr  %program, %program* %arg_0, i32 0, i32 0
          call ccc  void  @btree_destroy_0(%btree_t_0*  %1)
@@ -950,7 +999,9 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         ret void
       }
       |]
-    extractFnSnippet llvmIR "eclair_program_run" `shouldBe` Just [text|
+      extractFnSnippet llvmIR "eclair_program_run"
+        `shouldBe` Just
+          [text|
       define external ccc  void @eclair_program_run(%program*  %arg_0)    {
       ; <label>:0:
         %value_0 = alloca %value_t_0, i32 1
@@ -1111,16 +1162,21 @@ spec = describe "LLVM Code Generation" $ parallel $ do
       }
       |]
 
-  describe "fact IO" $ parallel $ do
-    it "generates valid code for empty programs" $ do
-      llvmIR <- cg "empty"
-      extractFnSnippet llvmIR "eclair_add_fact" `shouldBe` Just [text|
+    describe "fact IO" $
+      parallel $ do
+        it "generates valid code for empty programs" $ do
+          llvmIR <- cg "empty"
+          extractFnSnippet llvmIR "eclair_add_fact"
+            `shouldBe` Just
+              [text|
         define external ccc  void @eclair_add_fact(%program*  %eclair_program_0, i16  %fact_type_0, i32*  %memory_0)    {
            call ccc  void  @eclair_add_facts(%program*  %eclair_program_0, i16  %fact_type_0, i32*  %memory_0, i32  1)
           ret void
         }
         |]
-      extractFnSnippet llvmIR "eclair_add_facts" `shouldBe` Just [text|
+          extractFnSnippet llvmIR "eclair_add_facts"
+            `shouldBe` Just
+              [text|
         define external ccc  void @eclair_add_facts(%program*  %eclair_program_0, i16  %fact_type_0, i32*  %memory_0, i32  %fact_count_0)    {
         ; <label>:0:
           switch i16 %fact_type_0, label %switch.default_0 []
@@ -1128,7 +1184,9 @@ spec = describe "LLVM Code Generation" $ parallel $ do
           ret void
         }
         |]
-      extractFnSnippet llvmIR "eclair_get_facts" `shouldBe` Just [text|
+          extractFnSnippet llvmIR "eclair_get_facts"
+            `shouldBe` Just
+              [text|
         define external ccc  i32* @eclair_get_facts(%program*  %eclair_program_0, i16  %fact_type_0)    {
         ; <label>:0:
           switch i16 %fact_type_0, label %switch.default_0 []
@@ -1137,9 +1195,11 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         }
         |]
 
-    it "only generates IO code for relations visible to the user" $ do
-      llvmIR <- cg "no_top_level_facts"
-      extractFnSnippet llvmIR "eclair_add_facts" `shouldBe` Just [text|
+        it "only generates IO code for relations visible to the user" $ do
+          llvmIR <- cg "no_top_level_facts"
+          extractFnSnippet llvmIR "eclair_add_facts"
+            `shouldBe` Just
+              [text|
         define external ccc  void @eclair_add_facts(%program*  %eclair_program_0, i16  %fact_type_0, i32*  %memory_0, i32  %fact_count_0)    {
         ; <label>:0:
           switch i16 %fact_type_0, label %switch.default_0 [i16 0, label %edge_0 i16 1, label %path_0]
@@ -1177,7 +1237,9 @@ spec = describe "LLVM Code Generation" $ parallel $ do
           ret void
         }
         |]
-      extractFnSnippet llvmIR "eclair_get_facts" `shouldBe` Just [text|
+          extractFnSnippet llvmIR "eclair_get_facts"
+            `shouldBe` Just
+              [text|
         define external ccc  i32* @eclair_get_facts(%program*  %eclair_program_0, i16  %fact_type_0)    {
         ; <label>:0:
           switch i16 %fact_type_0, label %switch.default_0 [i16 0, label %edge_0 i16 1, label %path_0]
@@ -1252,9 +1314,11 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         }
         |]
 
-    it "generates correct code with facts of different types" $ do
-      llvmIR <- cg "different_types"
-      extractFnSnippet llvmIR "eclair_add_facts" `shouldBe` Just [text|
+        it "generates correct code with facts of different types" $ do
+          llvmIR <- cg "different_types"
+          extractFnSnippet llvmIR "eclair_add_facts"
+            `shouldBe` Just
+              [text|
         define external ccc  void @eclair_add_facts(%program*  %eclair_program_0, i16  %fact_type_0, i32*  %memory_0, i32  %fact_count_0)    {
         ; <label>:0:
           switch i16 %fact_type_0, label %switch.default_0 [i16 0, label %a_0 i16 1, label %b_0]
@@ -1292,7 +1356,9 @@ spec = describe "LLVM Code Generation" $ parallel $ do
           ret void
         }
         |]
-      extractFnSnippet llvmIR "eclair_get_facts" `shouldBe` Just [text|
+          extractFnSnippet llvmIR "eclair_get_facts"
+            `shouldBe` Just
+              [text|
         define external ccc  i32* @eclair_get_facts(%program*  %eclair_program_0, i16  %fact_type_0)    {
         ; <label>:0:
           switch i16 %fact_type_0, label %switch.default_0 [i16 0, label %a_0 i16 1, label %b_0]

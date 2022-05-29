@@ -5,8 +5,7 @@ module Eclair.LLVM.Runtime
   , HasSuffix(..)
   ) where
 
-import LLVM.AST.Operand
-import LLVM.AST.Type
+import LLVM.Codegen
 
 -- Like a vtable in C++, except here everything is guaranteed to be inlined
 -- because of specialization.
