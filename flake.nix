@@ -11,6 +11,13 @@
   inputs.algebraic-graphs.url =
     "github:snowleopard/alga?rev=75de41a4323ab9e58ca49dbd78b77f307b189795";
   inputs.algebraic-graphs.flake = false;
+  inputs.relude.url = "github:kowainik/relude";
+  inputs.relude.flake = false;
+  inputs.rock.url = "github:smunix/rock?ref=fix.ghc-922";
+  inputs.rock.flake = false;
+  inputs.bytestring-011.url =
+    "https://hackage.haskell.org/package/bytestring-0.11.3.0/bytestring-0.11.3.0.tar.gz";
+  inputs.bytestring-011.flake = false;
 
   outputs = { self, flake-utils, nix-filter, devshell, nixpkgs, ... }@inputs:
     with nixpkgs.lib;
@@ -29,18 +36,23 @@
               (hspkgs.override (old: { })).extend (hf: hp:
                 with f.haskell.lib;
                 composeExtensions (hf: hp: {
-                  eclair-lang = disableLibraryProfiling
-                    ((hf.callCabal2nix "eclair-lang" (with nix-filter.lib;
-                      filter {
-                        root = self;
-                        exclude = [ (matchExt "cabal") ];
-                      }) { }).overrideAttrs (old: {
-                        version = "${rmDot hp.ghc.version}-${old.version}-${
-                            substring 0 8 self.lastModifiedDate
-                          }.${self.shortRev or "dirty"}";
-                      }));
+                  eclair-lang = (if "${rmDot hp.ghc.version}" == "922" then
+                    doJailbreak
+                  else
+                    id) (disableLibraryProfiling
+                      ((hf.callCabal2nix "eclair-lang" (with nix-filter.lib;
+                        filter {
+                          root = self;
+                          exclude = [ (matchExt "cabal") ];
+                        }) { }).overrideAttrs (old: {
+                          doCheck = false;
+                          version = "${rmDot hp.ghc.version}-${old.version}-${
+                              substring 0 8 self.lastModifiedDate
+                            }.${self.shortRev or "dirty"}";
+                        })));
                 }) (hf: hp:
-                  with f.haskell.lib; {
+                  with f.haskell.lib;
+                  {
                     algebraic-graphs = dontCheck
                       (hf.callCabal2nix "algebraic-graphs"
                         (inputs.algebraic-graphs) { });
@@ -57,7 +69,22 @@
                       inputs.llvm-codegen.packages.${system}."llvm-codegen-${
                         rmDot hp.ghc.version
                       }";
-                  }) hf hp);
+                  } // (if "${rmDot hp.ghc.version}" == "922" then {
+                    relude = disableLibraryProfiling (dontHaddock (dontCheck
+                      (hf.callCabal2nix "relude" (with nix-filter.lib;
+                        filter {
+                          root = inputs.relude;
+                          exclude = [ ];
+                        }) { })));
+
+                    rock = disableLibraryProfiling (dontHaddock (dontCheck
+                      (hf.callCabal2nix "rock" (with nix-filter.lib;
+                        filter {
+                          root = inputs.rock;
+                          exclude = [ ];
+                        }) { })));
+                  } else
+                    { })) hf hp);
 
             # all haskellPackages
             allHaskellPackages = let
@@ -88,6 +115,7 @@
                 packages = with f;
                   with f.allHaskellPackages."${g}"; [
                     ghcid
+                    llvmPackages_13.llvm.dev
                     (ghcWithPackages (hp:
                       with hp; [
                         eclair-lang

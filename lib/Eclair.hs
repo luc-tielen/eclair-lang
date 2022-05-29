@@ -1,48 +1,53 @@
-{-# LANGUAGE GADTs, QuasiQuotes, TemplateHaskell #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Eclair
-  ( parse
-  , compileRA
-  , compileEIR
-  , compileLLVM
-  , compile
-  , emitRA
-  , emitEIR
-  , emitLLVM
-  , run
-  , EclairError(..)
-  , handleErrors
-  ) where
+  ( parse,
+    compileRA,
+    compileEIR,
+    compileLLVM,
+    compile,
+    emitRA,
+    emitEIR,
+    emitLLVM,
+    run,
+    EclairError (..),
+    handleErrors,
+  )
+where
 
+import Control.Exception
+import Data.GADT.Compare
+import Data.GADT.Compare.TH (deriveGEq, geq', runGComparing)
 import qualified Data.Map as M
+import Data.Maybe
+import Data.Some
+import Eclair.AST.IR
 import Eclair.AST.Lower
-import Eclair.RA.Lower
+import qualified Eclair.EIR.IR as EIR
 import Eclair.EIR.Lower
+import Eclair.Id
 import Eclair.Parser
 import Eclair.Pretty
-import Eclair.Id
-import Eclair.AST.IR
 import qualified Eclair.RA.IR as RA
-import qualified Eclair.EIR.IR as EIR
 import Eclair.RA.Interpreter
+import Eclair.RA.Lower
 import qualified Eclair.TypeSystem as TS
 import LLVM.Codegen (Module, ppllvm)
-import Control.Exception
 import qualified Rock
-import Data.GADT.Compare.TH (deriveGEq)
-import Data.Some
-import Data.Maybe
-
 
 type Relation = RA.Relation
+
 type RA = RA.RA
+
 type EIR = EIR.EIR
 
 data EclairError
   = ParseErr ParseError
   | TypeErr [TS.TypeError]
   deriving (Show, Exception)
-
 
 data Query a where
   Parse :: FilePath -> Query (AST, SpanMap)
@@ -56,27 +61,37 @@ data Query a where
 
 queryFilePath :: Query a -> FilePath
 queryFilePath = \case
-  Parse path       -> path
-  Typecheck path   -> path
-  CompileRA path   -> path
-  EmitRA path      -> path
-  CompileEIR path  -> path
-  EmitEIR path     -> path
+  Parse path -> path
+  Typecheck path -> path
+  CompileRA path -> path
+  EmitRA path -> path
+  CompileEIR path -> path
+  EmitEIR path -> path
   CompileLLVM path -> path
-  EmitLLVM path    -> path
+  EmitLLVM path -> path
 
 queryEnum :: Query a -> Int
 queryEnum = \case
-  Parse {}       -> 0
-  Typecheck {}   -> 1
-  CompileRA {}   -> 2
-  EmitRA {}      -> 3
-  CompileEIR {}  -> 4
-  EmitEIR {}     -> 5
+  Parse {} -> 0
+  Typecheck {} -> 1
+  CompileRA {} -> 2
+  EmitRA {} -> 3
+  CompileEIR {} -> 4
+  EmitEIR {} -> 5
   CompileLLVM {} -> 6
-  EmitLLVM {}    -> 7
+  EmitLLVM {} -> 7
 
 deriveGEq ''Query
+
+instance Eq (Query a) where
+  Parse x == Parse y = x == y
+  Typecheck x == Typecheck y = x == y
+  CompileRA x == CompileRA y = x == y
+  EmitRA x == EmitRA y = x == y
+  CompileEIR x == CompileEIR y = x == y
+  EmitEIR x == EmitEIR y = x == y
+  CompileLLVM x == CompileLLVM y = x == y
+  EmitLLVM x == EmitLLVM y = x == y
 
 instance Hashable (Query a) where
   hashWithSalt salt =
@@ -161,4 +176,3 @@ handleErrors = \case
   TypeErr errs -> do
     traverse_ print errs
     panic "Failed to type-check file."
-

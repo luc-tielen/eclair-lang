@@ -17,6 +17,18 @@
         "type": "github"
       }
     },
+    "bytestring-011": {
+      "flake": false,
+      "locked": {
+        "narHash": "sha256-rJ7QiqKbbgr04Y6uIQIMCnaV+xk3QVg0mS+08+viXKw=",
+        "type": "tarball",
+        "url": "https://hackage.haskell.org/package/bytestring-0.11.3.0/bytestring-0.11.3.0.tar.gz"
+      },
+      "original": {
+        "type": "tarball",
+        "url": "https://hackage.haskell.org/package/bytestring-0.11.3.0/bytestring-0.11.3.0.tar.gz"
+      }
+    },
     "devshell": {
       "inputs": {
         "flake-utils": "flake-utils",
@@ -315,14 +327,50 @@
         "type": "indirect"
       }
     },
+    "relude": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1650271944,
+        "narHash": "sha256-JWnX09f0XplFlUwzaV6pECJnv/w9bIrVMU5h0d+Va8A=",
+        "owner": "kowainik",
+        "repo": "relude",
+        "rev": "3011495606b8437a3ccd21d03d743f4d31e9c257",
+        "type": "github"
+      },
+      "original": {
+        "owner": "kowainik",
+        "repo": "relude",
+        "type": "github"
+      }
+    },
+    "rock": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1653832740,
+        "narHash": "sha256-ztFjGttYhysxlwcljfEoeE9g5Dm1VMrR6Lw2FM6fjeo=",
+        "owner": "smunix",
+        "repo": "rock",
+        "rev": "4723db4110d90111121fec7e964607a55662a6bf",
+        "type": "github"
+      },
+      "original": {
+        "owner": "smunix",
+        "ref": "fix.ghc-922",
+        "repo": "rock",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
         "algebraic-graphs": "algebraic-graphs",
+        "bytestring-011": "bytestring-011",
         "devshell": "devshell",
         "flake-utils": "flake-utils_2",
         "llvm-codegen": "llvm-codegen",
         "nix-filter": "nix-filter_2",
         "nixpkgs": "nixpkgs_4",
+        "relude": "relude",
+        "rock": "rock",
         "souffle-haskell": "souffle-haskell"
       }
     },
