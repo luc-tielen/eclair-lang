@@ -41,7 +41,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
   it "generates almost no code for an empty program" $ do
     llvmIR <- cg "empty"
     extractDeclTypeSnippet llvmIR `shouldBe` "%program = type {}"
-    -- TODO: should not malloc 0 bytes, atleast 1
+    -- TODO: should not malloc 0 bytes, atleast 1 => semantic analysis should give a warning instead
     extractFnSnippet llvmIR "eclair_program_init" `shouldBe` Just [text|
       define external ccc %program* @eclair_program_init() {
       start:
