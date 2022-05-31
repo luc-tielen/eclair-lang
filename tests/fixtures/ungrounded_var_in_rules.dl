@@ -1,0 +1,8 @@
+@def edge(u32, u32).
+@def reachable(u32, u32).
+
+reachable(x, z) :-
+  edge(x, y).
+
+reachable(a, b) :-
+  edge(x, y).

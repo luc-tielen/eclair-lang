@@ -46,11 +46,17 @@
 
                       eclair-lang = with hf;
                         (callCabal2nix "eclair-lang" ./. { }).overrideAttrs
-                        (o: { version = "${o.version}.${version}"; });
+                        (o: {
+                          version = "${o.version}.${version}";
+                          checkPhase = ''
+                          runHook preCheck
+                          DATALOG_DIR="${o.src}/cbits/" SOUFFLE_BIN="${pkgs.souffle}/bin/souffle" ./Setup test
+                          runHook postCheck
+                          '';
+                        });
                     };
                 };
             in { inherit haskellPackages; };
-
           pkgs = import np {
             inherit system config;
             overlays = [
@@ -69,6 +75,7 @@
             imports = [ (pkgs.devshell.importTOML ./devshell.toml) ];
             packages = with pkgs;
               with haskellPackages; [
+                souffle
                 pkgs.llvmPackages_13.llvm.dev
                 pkgs.ghcid
                 (ghcWithPackages (p:
@@ -84,6 +91,8 @@
                     haskell-language-server
                   ]))
               ];
+            # Next line always sets DATALOG_DIR so souffle can find the datalog files in interpreted mode.
+            env = [{ name = "DATALOG_DIR"; value = "cbits/"; }];
           };
         });
 }

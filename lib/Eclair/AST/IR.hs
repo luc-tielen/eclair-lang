@@ -20,13 +20,15 @@ import Control.Lens
 import Data.Functor.Foldable.TH
 import Prettyprinter
 import Eclair.Id
+import qualified Language.Souffle.Marshal as S
 
 newtype NodeId
   = NodeId
-  { unNodeId :: Int
-  } deriving (Eq, Ord, Show)
+  { unNodeId :: Int32
+  } deriving (Eq, Ord, Show, Generic)
+  deriving S.Marshal
 
-type Number = Int
+type Number = Word32
 
 type Value = AST
 type Clause = AST

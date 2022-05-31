@@ -10,6 +10,7 @@ copyright: Luc Tielen, 2022
 category: Web
 extra-source-files:
   - README.md
+  - cbits/*.dl
 
 flags:
   debug:
@@ -129,3 +130,7 @@ tests:
         version: ">= 4.7 && < 5"
         mixin:
           - hiding (Prelude)
+
+system-build-tools:
+  - which
+  - souffle

@@ -22,7 +22,7 @@ import Eclair.Id
 import qualified Data.Text as T
 import qualified Data.Vector as V
 import qualified Data.Vector.Mutable as MV
-import qualified Data.IntMap as M
+import qualified Data.Map as M
 import qualified Data.Text.Read as TR
 import qualified Text.Megaparsec as P
 import qualified Text.Megaparsec.Char as P
@@ -38,7 +38,7 @@ data Span
   }
 
 newtype SpanMap =
-  SpanMap (IntMap Span)
+  SpanMap (Map Int32 Span)
 
 insertSpan :: NodeId -> Span -> SpanMap -> SpanMap
 insertSpan nodeId span (SpanMap m) =
@@ -49,7 +49,7 @@ lookupSpan :: SpanMap -> NodeId -> Span
 lookupSpan (SpanMap m) nodeId =
   fromJust $ M.lookup (unNodeId nodeId) m
 
-type ParserState = (Int, SpanMap)
+type ParserState = (Int32, SpanMap)
 type Parser = P.ParsecT ParseErr Text (State ParserState)
 
 parseFile :: FilePath -> IO (Either ParseError (AST, SpanMap))
