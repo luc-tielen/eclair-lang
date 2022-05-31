@@ -17,12 +17,7 @@ import Prelude hiding (void)
 import Data.Maybe (fromJust)
 import qualified Data.Text as T
 import qualified Data.Map as M
-import LLVM.AST.Operand (Operand)
-import LLVM.AST.Type (Type, ptr, void)
-import LLVM.AST.Name
-import LLVM.IRBuilder.Module
-import LLVM.IRBuilder.Monad
-import LLVM.IRBuilder.Instruction
+import LLVM.Codegen
 import Data.ByteString.Short hiding (index)
 import Eclair.LLVM.Runtime
 import qualified Eclair.EIR.IR as EIR
@@ -39,6 +34,7 @@ type FunctionsMap = Map (Relation, Index) Functions
 data LowerState
   = LowerState
   { programType :: Type
+  , programSizeBytes :: Word64
   , fnsMap :: FunctionsMap
   , varMap :: VarMap
   , externals :: Externals
@@ -52,7 +48,7 @@ runCodegenM = evalStateT
 
 labelToName :: EIR.LabelId -> Name
 labelToName (EIR.LabelId lbl) =
-  mkName $ toString lbl
+  Name lbl
 
 -- This is a function mostly used by `lookupFunction`, but also for calling functions during fact IO
 lsLookupFunction :: Relation -> Index -> EIR.Function -> LowerState -> Operand

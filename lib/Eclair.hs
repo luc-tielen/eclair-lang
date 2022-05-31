@@ -28,9 +28,8 @@ import qualified Eclair.EIR.IR as EIR
 import Eclair.RA.Interpreter
 import qualified Eclair.TypeSystem as TS
 import qualified Eclair.AST.Analysis as SA
-import LLVM.AST (Module)
+import LLVM.Codegen (Module, ppllvm)
 import Control.Exception
-import LLVM.Pretty
 import qualified Rock
 import Data.GADT.Compare.TH (deriveGEq)
 import Data.Some
@@ -120,7 +119,7 @@ rules = \case
     liftIO $ compileToLLVM eir
   EmitLLVM path -> do
     llvmModule <- Rock.fetch (CompileLLVM path)
-    liftIO $ putLTextLn $ ppllvm llvmModule
+    liftIO $ putTextLn $ ppllvm llvmModule
 
 runQuery :: Query a -> IO a
 runQuery query = do
