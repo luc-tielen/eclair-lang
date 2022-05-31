@@ -23,10 +23,10 @@ jobs:
           cachix use luctielen
       - name: nix build
         run: nix build
-      - name: nix log
-        if: ${{ always() }}
-        run: |
-          nix log &> ${{ matrix.os }}-eclair-lang.log
+      # - name: nix log
+      #   if: ${{ always() }}
+      #   run: |
+      #     nix log &> ${{ matrix.os }}-eclair-lang.log
       - name: upload ${{ matrix.os }}-eclair-lang.log
         if: ${{ always() }}
         uses: actions/upload-artifact@v2
