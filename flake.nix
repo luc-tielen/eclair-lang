@@ -46,7 +46,14 @@
 
                       eclair-lang = with hf;
                         (callCabal2nix "eclair-lang" ./. { }).overrideAttrs
-                        (o: { version = "${o.version}.${version}"; });
+                        (o: {
+                          version = "${o.version}.${version}";
+                          checkPhase = ''
+                          runHook preCheck
+                          DATALOG_DIR="${o.src}/cbits/" SOUFFLE_BIN="${pkgs.souffle}/bin/souffle" ./Setup test
+                          runHook postCheck
+                          '';
+                        });
                     };
                 };
             in { inherit haskellPackages; };

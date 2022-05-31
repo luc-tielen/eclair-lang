@@ -71,6 +71,9 @@ library
       ScopedTypeVariables
   ghc-options: -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__ -Wall
+  build-tools:
+      souffle
+    , which
   build-depends:
       algebraic-graphs ==0.*
     , base >=4.7 && <5
@@ -137,6 +140,9 @@ executable eclairc
       ScopedTypeVariables
   ghc-options: -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits -threaded -rtsopts -with-rtsopts=-N
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__
+  build-tools:
+      souffle
+    , which
   build-depends:
       algebraic-graphs ==0.*
     , base >=4.7 && <5
@@ -212,6 +218,9 @@ test-suite eclair-test
       ScopedTypeVariables
   ghc-options: -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__
+  build-tools:
+      souffle
+    , which
   build-depends:
       algebraic-graphs ==0.*
     , base >=4.7 && <5
