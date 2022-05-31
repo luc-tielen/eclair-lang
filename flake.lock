@@ -607,22 +607,6 @@
     },
     "np_2": {
       "locked": {
-        "lastModified": 1653610387,
-        "narHash": "sha256-mA4MyAbrkJwIyP9VOWAtDYT8P6pyNFJ2xHy0qsa/FNo=",
-        "owner": "nixos",
-        "repo": "nixpkgs",
-        "rev": "317651b87240bf0d89d4f7d507cbe0d6a073f2f9",
-        "type": "github"
-      },
-      "original": {
-        "owner": "nixos",
-        "ref": "haskell-updates",
-        "repo": "nixpkgs",
-        "type": "github"
-      }
-    },
-    "np_3": {
-      "locked": {
         "lastModified": 1652527621,
         "narHash": "sha256-hHqY6n8nAKk8St2+BDkCOvXaUQSeN8GHgQR1jDuc+to=",
         "owner": "nixos",
@@ -707,7 +691,6 @@
         "fu": "fu",
         "hls": "hls",
         "llvm-cg": "llvm-cg",
-        "np": "np_2",
         "shs": "shs"
       }
     },
@@ -715,7 +698,7 @@
       "inputs": {
         "ds": "ds_3",
         "fu": "fu_3",
-        "np": "np_3"
+        "np": "np_2"
       },
       "locked": {
         "lastModified": 1653686988,
