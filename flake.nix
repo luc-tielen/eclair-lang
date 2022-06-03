@@ -9,7 +9,7 @@
     shs.url =
       "github:luc-tielen/souffle-haskell?rev=c46d0677e4bc830df89ec1de2396c562eb9d86d3";
     llvm-cg.url =
-      "github:luc-tielen/llvm-codegen?rev=2d8c179c9f1119e886a4ce21399eea733797cf54";
+      "github:luc-tielen/llvm-codegen?rev=fbce3c709e6238c84029a98a8115f437c21cb507";
     alga.url =
       "github:snowleopard/alga?rev=75de41a4323ab9e58ca49dbd78b77f307b189795";
     alga.flake = false;
@@ -76,7 +76,7 @@
             packages = with pkgs;
               with haskellPackages; [
                 souffle
-                pkgs.llvmPackages_13.llvm.dev
+                pkgs.llvmPackages_14.llvm.dev
                 pkgs.ghcid
                 (ghcWithPackages (p:
                   with p; [
