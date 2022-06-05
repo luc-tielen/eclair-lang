@@ -2,6 +2,7 @@
 
 module Eclair.AST.Analysis
   ( UngroundedVar(..)
+  , MissingTypedef(..)
   , Result(..)
   , runAnalysis
   ) where
@@ -86,6 +87,12 @@ data UngroundedVar
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions UngroundedVar "ungrounded_variable" 'S.Output
 
+data MissingTypedef
+  = MissingTypedef NodeId Id
+  deriving stock (Generic, Eq, Show)
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions MissingTypedef "missing_typedef" 'S.Output
+
 data SemanticAnalysis
   = SemanticAnalysis
   deriving S.Program
@@ -101,15 +108,17 @@ data SemanticAnalysis
        , Module
        , ModuleDecl
        , UngroundedVar
+       , MissingTypedef
        ]
 
--- TODO: change to Vector when finished for performance?
+-- TODO: change to Vector when finished for performance
 type Container = []
 
-newtype Result
-  = Result (Container UngroundedVar)
-  deriving (Eq, Show)
-  -- TODO add other results
+data Result
+  = Result
+  { ungroundedVars :: Container UngroundedVar
+  , missingTypedefs :: Container MissingTypedef
+  } deriving (Eq, Show)
 
 
 analysis :: S.Handle SemanticAnalysis -> S.Analysis S.SouffleM IR.AST Result
@@ -147,7 +156,9 @@ analysis prog = S.mkAnalysis addFacts run getFacts
       S.run prog
 
     getFacts :: S.SouffleM Result
-    getFacts = Result <$> S.getFacts prog
+    getFacts =
+      Result <$> S.getFacts prog
+             <*> S.getFacts prog
 
     getNodeId :: IR.ASTF NodeId -> NodeId
     getNodeId = \case
