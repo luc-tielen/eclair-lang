@@ -52,8 +52,7 @@ spec = describe "Semantic analysis" $ parallel $ do
         ["unknown_rule", "unknown_fact1", "unknown_fact2"]
 
     it "detects missing type definitions for top level facts" $
-      checkMissingTypedefs "missing_typedef_in_atom"
-        ["unknown_fact"]
+      checkMissingTypedefs "missing_typedef_in_atom" ["unknown_fact"]
 
     it "finds no issues if all types are defined" $ do
       checkMissingTypedefs "mutually_recursive_rules" []
