@@ -8,6 +8,7 @@ module Eclair.AST.Analysis
   , UngroundedVar(..)
   , MissingTypedef(..)
   , EmptyModule(..)
+  , RuleClauseSameVar(..)
   , IR.NodeId(..)
   , Container
   ) where
@@ -98,6 +99,12 @@ data MissingTypedef
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions MissingTypedef "missing_typedef" 'S.Output
 
+data RuleClauseSameVar
+  = RuleClauseSameVar NodeId Id
+  deriving stock (Generic, Eq, Show)
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions RuleClauseSameVar "rule_clause_same_var" 'S.Output
+
 newtype EmptyModule
   = EmptyModule NodeId
   deriving stock (Generic, Eq, Show)
@@ -121,6 +128,7 @@ data SemanticAnalysis
        , UngroundedVar
        , MissingTypedef
        , EmptyModule
+       , RuleClauseSameVar
        ]
 
 -- TODO: change to Vector when finished for performance
@@ -131,6 +139,7 @@ data Result
   { emptyModules :: Container EmptyModule
   , ungroundedVars :: Container UngroundedVar
   , missingTypedefs :: Container MissingTypedef
+  , ruleClausesWithSameVar :: Container RuleClauseSameVar -- TODO remove once support is added for this!
   } deriving (Eq, Show)
 
 data SemanticError
@@ -194,6 +203,7 @@ analysis prog = S.mkAnalysis addFacts run getFacts
     getFacts :: S.SouffleM Result
     getFacts =
       Result <$> S.getFacts prog
+             <*> S.getFacts prog
              <*> S.getFacts prog
              <*> S.getFacts prog
 

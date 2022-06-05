@@ -15,10 +15,10 @@ a(x) :-
   b(x, x),
   other(x).
 
-a(x) :-
-  c(x, x, x),
-  other(x).
+a(y) :-
+  c(y, y, y),
+  other(y).
 
-a(x) :-
-  d(x, x, 12, x),
-  other(x).
+a(z) :-
+  d(z, z, 12, z),
+  other(z).

@@ -9,10 +9,12 @@
 .decl module(node_id: unsigned)
 .decl module_declaration(module_id: unsigned, declaration_id: unsigned)
 
+.decl rule_clause_var(rule_id: unsigned, var_name: symbol)
+
 .decl ungrounded_variable(node_id: unsigned, var_name: symbol)
 .decl missing_typedef(node_id: unsigned, var_name: symbol)
 .decl empty_module(node_id: unsigned)
-.decl rule_clause_var(rule_id: unsigned, var_name: symbol)
+.decl rule_clause_same_var(rule_clause_id: unsigned, var_name: symbol)
 
 
 .input literal
@@ -29,6 +31,7 @@
 .output ungrounded_variable
 .output missing_typedef
 .output empty_module
+.output rule_clause_same_var
 
 // Top level facts: no variables allowed
 ungrounded_variable(atom_arg_id, var_name) :-
@@ -45,10 +48,19 @@ ungrounded_variable(rule_arg_id, var_name) :-
 
 // Helper relation for getting all variables in body of a rule.
 rule_clause_var(rule_id, var_name) :-
-  rule(rule_id, _),
   rule_clause(rule_id, _, rule_clause_id),
   atom_arg(rule_clause_id, _, var_id),
   variable(var_id, var_name).
+
+// Currently not supported (though planned for the future): facts with same var occurring >1 times.
+// This would require an extra equality constraint, which is not supported atm.
+rule_clause_same_var(rule_clause_id, var) :-
+  rule_clause(_, _, rule_clause_id),
+  atom_arg(rule_clause_id, pos1, atom_arg_id1),
+  atom_arg(rule_clause_id, pos2, atom_arg_id2),
+  pos1 != pos2,
+  variable(atom_arg_id1, var),
+  variable(atom_arg_id2, var).
 
 // An atom always needs a type definition
 missing_typedef(node_id, atom_name) :-
