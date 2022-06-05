@@ -43,9 +43,7 @@ type EIR = EIR.EIR
 data EclairError
   = ParseErr ParseError
   | TypeErr [TS.TypeError]
-  | SemanticErr (SA.Container SA.EmptyModule)
-                (SA.Container SA.UngroundedVar)
-                (SA.Container SA.MissingTypedef)
+  | SemanticErr SA.SemanticError
   deriving (Show, Exception)
 
 
@@ -178,4 +176,6 @@ handleErrors = \case
   TypeErr errs -> do
     traverse_ print errs
     panic "Failed to type-check file."
-
+  SemanticErr err -> do
+    print err
+    panic "Semantic analysis failed."
