@@ -1,10 +1,12 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 module Eclair.AST.Analysis
-  ( UngroundedVar(..)
-  , MissingTypedef(..)
-  , Result(..)
+  ( Result(..)
   , runAnalysis
+  , UngroundedVar(..)
+  , MissingTypedef(..)
+  , EmptyModule(..)
+  , IR.NodeId(..)
   ) where
 
 import qualified Language.Souffle.Interpreted as S
@@ -93,6 +95,12 @@ data MissingTypedef
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions MissingTypedef "missing_typedef" 'S.Output
 
+newtype EmptyModule
+  = EmptyModule NodeId
+  deriving stock (Generic, Eq, Show)
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions EmptyModule "empty_module" 'S.Output
+
 data SemanticAnalysis
   = SemanticAnalysis
   deriving S.Program
@@ -109,6 +117,7 @@ data SemanticAnalysis
        , ModuleDecl
        , UngroundedVar
        , MissingTypedef
+       , EmptyModule
        ]
 
 -- TODO: change to Vector when finished for performance
@@ -116,7 +125,8 @@ type Container = []
 
 data Result
   = Result
-  { ungroundedVars :: Container UngroundedVar
+  { emptyModules :: Container EmptyModule
+  , ungroundedVars :: Container UngroundedVar
   , missingTypedefs :: Container MissingTypedef
   } deriving (Eq, Show)
 
@@ -158,6 +168,7 @@ analysis prog = S.mkAnalysis addFacts run getFacts
     getFacts :: S.SouffleM Result
     getFacts =
       Result <$> S.getFacts prog
+             <*> S.getFacts prog
              <*> S.getFacts prog
 
     getNodeId :: IR.ASTF NodeId -> NodeId
