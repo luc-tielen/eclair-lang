@@ -2,11 +2,14 @@
 
 module Eclair.AST.Analysis
   ( Result(..)
+  , SemanticError(..)
   , runAnalysis
+  , maybeToSemanticError
   , UngroundedVar(..)
   , MissingTypedef(..)
   , EmptyModule(..)
   , IR.NodeId(..)
+  , Container
   ) where
 
 import qualified Language.Souffle.Interpreted as S
@@ -130,6 +133,29 @@ data Result
   , missingTypedefs :: Container MissingTypedef
   } deriving (Eq, Show)
 
+data SemanticError
+  = SemanticError (Container EmptyModule)
+                  (Container UngroundedVar)
+                  (Container MissingTypedef)
+  deriving (Eq, Show, Exception)
+
+hasSemanticErrors :: Result -> Bool
+hasSemanticErrors result =
+  not $ isNull emptyModules &&
+        isNull ungroundedVars &&
+        isNull missingTypedefs
+  where
+    isNull :: (Result -> Container a) -> Bool
+    isNull f = null (f result)
+
+maybeToSemanticError :: Result -> Maybe SemanticError
+maybeToSemanticError result
+  | hasSemanticErrors result
+  = Just $ SemanticError (emptyModules result)
+                         (ungroundedVars result)
+                         (missingTypedefs result)
+  | otherwise
+  = Nothing
 
 analysis :: S.Handle SemanticAnalysis -> S.Analysis S.SouffleM IR.AST Result
 analysis prog = S.mkAnalysis addFacts run getFacts

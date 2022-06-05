@@ -43,6 +43,9 @@ type EIR = EIR.EIR
 data EclairError
   = ParseErr ParseError
   | TypeErr [TS.TypeError]
+  | SemanticErr (SA.Container SA.EmptyModule)
+                (SA.Container SA.UngroundedVar)
+                (SA.Container SA.MissingTypedef)
   deriving (Show, Exception)
 
 
@@ -91,13 +94,16 @@ instance Hashable (Some Query) where
   hashWithSalt salt (Some query) =
     hashWithSalt salt query
 
+
 rules :: Rock.Rules Query
 rules = \case
   Parse path ->
     liftIO $ either (throwIO . ParseErr) pure =<< parseFile path
   RunSemanticAnalysis path -> do
     ast <- fst <$> Rock.fetch (Parse path)
-    liftIO $ SA.runAnalysis ast
+    result <- liftIO $ SA.runAnalysis ast
+    liftIO $ forM_ (SA.maybeToSemanticError result) throwIO
+    pure result
   Typecheck path -> do
     ast <- fst <$> Rock.fetch (Parse path)
     liftIO . either (throwIO . TypeErr) pure $ TS.typeCheck ast
