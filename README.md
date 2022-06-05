@@ -4,15 +4,14 @@ An experimental and minimal Datalog implementation that compiles down to LLVM.
 
 ## Features
 
-Eclair is a very minimal Datalog (for now). It only supports the following features:
+Eclair is a minimal Datalog (for now). It only supports the following features:
 
 - Facts containing literals (only integers are supported)
 - Rules consisting of one or more clauses.
 - Rules can be non-recursive, recursive or mutually recursive.
 
-It's **extremely alpha** software, not ready for real use. Right now it compiles
-to LLVM but still contains some bugs. Many edgecases are not checked yet (there
-is no semantic analysis yet for example).
+It's **alpha** software, not ready for real use. Right now it compiles to LLVM
+but expect there to be bugs. Some edge cases might not be checked yet.
 
 ## Roadmap
 
@@ -23,10 +22,10 @@ is no semantic analysis yet for example).
 - [x] Compile to Eclair IR (EIR)
 - [x] Compile to LLVM
 - [x] Add functions for sending data back and forth between Eclair and the host language
+- [ ] Add static analysis for edgecases
 - [ ] Clean up rough edges in the MVP
 - [ ] Support other data types than integers (strings, ...)
 - [ ] Add typesystem
-- [ ] Add static analysis for edgecases
 - [ ] ...
 
 This roadmap is not set in stone, but it gives an idea on the direction of the
@@ -57,7 +56,7 @@ use_flake() {
 ```
 
 Once this is done, you can just type the command `direnv allow` and Nix will do
-the heavy lifting. After nix has finished setting up your local environment, you
+the heavy lifting. After Nix has finished setting up your local environment, you
 can use `cabal` to build your project as usual. The Makefile contains the most
 commonly used commands needed during development.
 
