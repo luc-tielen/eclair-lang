@@ -1,10 +1,15 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 module Eclair.AST.Analysis
-  ( UngroundedVar(..)
-  , MissingTypedef(..)
-  , Result(..)
+  ( Result(..)
+  , SemanticError(..)
   , runAnalysis
+  , maybeToSemanticError
+  , UngroundedVar(..)
+  , MissingTypedef(..)
+  , EmptyModule(..)
+  , IR.NodeId(..)
+  , Container
   ) where
 
 import qualified Language.Souffle.Interpreted as S
@@ -93,6 +98,12 @@ data MissingTypedef
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions MissingTypedef "missing_typedef" 'S.Output
 
+newtype EmptyModule
+  = EmptyModule NodeId
+  deriving stock (Generic, Eq, Show)
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions EmptyModule "empty_module" 'S.Output
+
 data SemanticAnalysis
   = SemanticAnalysis
   deriving S.Program
@@ -109,6 +120,7 @@ data SemanticAnalysis
        , ModuleDecl
        , UngroundedVar
        , MissingTypedef
+       , EmptyModule
        ]
 
 -- TODO: change to Vector when finished for performance
@@ -116,10 +128,34 @@ type Container = []
 
 data Result
   = Result
-  { ungroundedVars :: Container UngroundedVar
+  { emptyModules :: Container EmptyModule
+  , ungroundedVars :: Container UngroundedVar
   , missingTypedefs :: Container MissingTypedef
   } deriving (Eq, Show)
 
+data SemanticError
+  = SemanticError (Container EmptyModule)
+                  (Container UngroundedVar)
+                  (Container MissingTypedef)
+  deriving (Eq, Show, Exception)
+
+hasSemanticErrors :: Result -> Bool
+hasSemanticErrors result =
+  not $ isNull emptyModules &&
+        isNull ungroundedVars &&
+        isNull missingTypedefs
+  where
+    isNull :: (Result -> Container a) -> Bool
+    isNull f = null (f result)
+
+maybeToSemanticError :: Result -> Maybe SemanticError
+maybeToSemanticError result
+  | hasSemanticErrors result
+  = Just $ SemanticError (emptyModules result)
+                         (ungroundedVars result)
+                         (missingTypedefs result)
+  | otherwise
+  = Nothing
 
 analysis :: S.Handle SemanticAnalysis -> S.Analysis S.SouffleM IR.AST Result
 analysis prog = S.mkAnalysis addFacts run getFacts
@@ -158,6 +194,7 @@ analysis prog = S.mkAnalysis addFacts run getFacts
     getFacts :: S.SouffleM Result
     getFacts =
       Result <$> S.getFacts prog
+             <*> S.getFacts prog
              <*> S.getFacts prog
 
     getNodeId :: IR.ASTF NodeId -> NodeId

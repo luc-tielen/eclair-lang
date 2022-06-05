@@ -43,6 +43,7 @@ type EIR = EIR.EIR
 data EclairError
   = ParseErr ParseError
   | TypeErr [TS.TypeError]
+  | SemanticErr SA.SemanticError
   deriving (Show, Exception)
 
 
@@ -91,6 +92,7 @@ instance Hashable (Some Query) where
   hashWithSalt salt (Some query) =
     hashWithSalt salt query
 
+
 rules :: Rock.Rules Query
 rules = \case
   Parse path ->
@@ -98,6 +100,10 @@ rules = \case
   RunSemanticAnalysis path -> do
     ast <- fst <$> Rock.fetch (Parse path)
     liftIO $ SA.runAnalysis ast
+    -- TODO: throwing the exception causes some tests fail:
+    -- result <- liftIO $ SA.runAnalysis ast
+    -- liftIO $ forM_ (SA.maybeToSemanticError result) (throwIO . SemanticErr)
+    -- pure result
   Typecheck path -> do
     ast <- fst <$> Rock.fetch (Parse path)
     liftIO . either (throwIO . TypeErr) pure $ TS.typeCheck ast
@@ -172,4 +178,6 @@ handleErrors = \case
   TypeErr errs -> do
     traverse_ print errs
     panic "Failed to type-check file."
-
+  SemanticErr err -> do
+    print err
+    panic "Semantic analysis failed."

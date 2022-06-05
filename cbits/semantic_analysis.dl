@@ -11,6 +11,7 @@
 
 .decl ungrounded_variable(node_id: unsigned, var_name: symbol)
 .decl missing_typedef(node_id: unsigned, var_name: symbol)
+.decl empty_module(node_id: unsigned)
 .decl rule_clause_var(rule_id: unsigned, var_name: symbol)
 
 
@@ -27,6 +28,7 @@
 
 .output ungrounded_variable
 .output missing_typedef
+.output empty_module
 
 // Top level facts: no variables allowed
 ungrounded_variable(atom_arg_id, var_name) :-
@@ -57,3 +59,8 @@ missing_typedef(node_id, atom_name) :-
 missing_typedef(node_id, rule_name) :-
   rule(node_id, rule_name),
   !declare_type(_, rule_name).
+
+empty_module(node_id) :-
+  module(node_id),
+  !module_declaration(node_id, _).
+
