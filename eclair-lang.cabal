@@ -86,7 +86,7 @@ library
     , megaparsec ==9.*
     , mmorph ==1.*
     , mtl ==2.*
-    , optparse-applicative ==0.17.*
+    , optparse-applicative ==0.16.*
     , prettyprinter ==1.7.*
     , recursion-schemes ==5.*
     , relude ==1.0.*
@@ -155,7 +155,7 @@ executable eclair
     , megaparsec ==9.*
     , mmorph ==1.*
     , mtl ==2.*
-    , optparse-applicative ==0.17.*
+    , optparse-applicative ==0.16.*
     , prettyprinter ==1.7.*
     , recursion-schemes ==5.*
     , relude ==1.0.*
@@ -236,7 +236,7 @@ test-suite eclair-test
     , mmorph ==1.*
     , mtl ==2.*
     , neat-interpolation ==0.*
-    , optparse-applicative ==0.17.*
+    , optparse-applicative ==0.16.*
     , prettyprinter ==1.7.*
     , recursion-schemes ==5.*
     , relude ==1.0.*

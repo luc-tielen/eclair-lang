@@ -44,7 +44,7 @@ dependencies:
   - rock == 0.3.*
   - dependent-sum-template == 0.1.*
   - some == 1.*
-  - optparse-applicative == 0.17.*
+  - optparse-applicative == 0.16.*
 
 default-extensions:
   - OverloadedStrings
