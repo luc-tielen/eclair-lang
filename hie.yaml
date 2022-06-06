@@ -4,10 +4,10 @@ cradle:
       component: "lib:eclair-lang"
 
     - path: "src/Main.hs"
-      component: "eclair-lang:exe:eclairc"
+      component: "eclair-lang:exe:eclair"
 
     - path: "src/Paths_eclair_lang.hs"
-      component: "eclair-lang:exe:eclairc"
+      component: "eclair-lang:exe:eclair"
 
     - path: "tests"
       component: "eclair-lang:test:eclair-test"
