@@ -26,6 +26,7 @@ flag debug
 library
   exposed-modules:
       Eclair
+      Eclair.ArgParser
       Eclair.AST.Analysis
       Eclair.AST.Codegen
       Eclair.AST.IR
@@ -85,6 +86,7 @@ library
     , megaparsec ==9.*
     , mmorph ==1.*
     , mtl ==2.*
+    , optparse-applicative ==0.16.*
     , prettyprinter ==1.7.*
     , recursion-schemes ==5.*
     , relude ==1.0.*
@@ -108,7 +110,7 @@ library
         stdc++
   default-language: Haskell2010
 
-executable eclairc
+executable eclair
   main-is: Main.hs
   other-modules:
       Paths_eclair_lang
@@ -153,6 +155,7 @@ executable eclairc
     , megaparsec ==9.*
     , mmorph ==1.*
     , mtl ==2.*
+    , optparse-applicative ==0.16.*
     , prettyprinter ==1.7.*
     , recursion-schemes ==5.*
     , relude ==1.0.*
@@ -177,6 +180,7 @@ test-suite eclair-test
   type: exitcode-stdio-1.0
   main-is: test.hs
   other-modules:
+      Test.Eclair.ArgParserSpec
       Test.Eclair.AST.AnalysisSpec
       Test.Eclair.AST.LowerSpec
       Test.Eclair.EIR.LowerSpec
@@ -232,10 +236,12 @@ test-suite eclair-test
     , mmorph ==1.*
     , mtl ==2.*
     , neat-interpolation ==0.*
+    , optparse-applicative ==0.16.*
     , prettyprinter ==1.7.*
     , recursion-schemes ==5.*
     , relude ==1.0.*
     , rock ==0.3.*
+    , silently ==1.2.*
     , some ==1.*
     , souffle-haskell ==3.4.0
     , text ==1.*
