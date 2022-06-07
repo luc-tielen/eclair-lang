@@ -15,17 +15,18 @@ but expect there to be bugs. Some edge cases might not be checked yet.
 
 ## Roadmap
 
-- [x] Compile Datalog to relation algebra (RA)
-- [x] Prettyprinter for RA IR
-- [x] Interpreter for RA IR
-- [x] Add indices to relations
-- [x] Compile to Eclair IR (EIR)
 - [x] Compile to LLVM
-- [x] Add functions for sending data back and forth between Eclair and the host language
-- [ ] Add static analysis for edgecases
-- [ ] Clean up rough edges in the MVP
-- [ ] Support other data types than integers (strings, ...)
-- [ ] Add typesystem
+- [ ] Release 0.0.1
+- [ ] Proper error handling
+- [ ] LSP support
+- [ ] Support wildcards (`_`)
+- [ ] Support `=` and `!=` operators
+- [ ] Support arithmetic / logical / ... operators
+- [ ] Support other data types than integers (strings, ...), add typesystem
+- [ ] Support negation
+- [ ] Compile to WASM
+- [ ] Optimizations on the AST / RA / LLVM level
+- [ ] Support other underlying data structures such as btree
 - [ ] ...
 
 This roadmap is not set in stone, but it gives an idea on the direction of the
@@ -35,7 +36,7 @@ project. :smile:
 
 Eclair is inspired by [Soufflé](https://souffle-lang.github.io/), a high
 performance Datalog that compiles to C++. Because of the similarities, I chose a
-different kind of food that I like. I mean, an eclair contains *both* chocolate and
+different kind of food that I like. I mean, an eclair contains _both_ chocolate and
 pudding, what's not to like!?
 
 ## Developer setup
