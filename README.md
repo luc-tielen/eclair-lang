@@ -20,13 +20,13 @@ but expect there to be bugs. Some edge cases might not be checked yet.
 - [ ] Proper error handling
 - [ ] LSP support
 - [ ] Support wildcards (`_`)
-- [ ] Support `=` and `!=` operators
-- [ ] Support arithmetic / logical / ... operators
 - [ ] Support other data types than integers (strings, ...), add typesystem
+- [ ] Support `=` and `!=` operators
 - [ ] Support negation
+- [ ] Support arithmetic / logical / ... operators
 - [ ] Compile to WASM
 - [ ] Optimizations on the AST / RA / LLVM level
-- [ ] Support other underlying data structures such as btree
+- [ ] Support other underlying data structures than btree
 - [ ] ...
 
 This roadmap is not set in stone, but it gives an idea on the direction of the
