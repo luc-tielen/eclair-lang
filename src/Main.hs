@@ -5,10 +5,12 @@ import Control.Exception
 import LLVM.Pretty
 import Eclair.ArgParser
 import Eclair
+import GHC.IO.Encoding
 
 
 main :: IO ()
 main = do
+  setLocaleEncoding utf8
   arguments <- getArgs
   parseArgs arguments >>= \case
     Compile cfg -> do
