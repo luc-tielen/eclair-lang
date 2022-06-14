@@ -10,10 +10,12 @@ import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import Eclair
 import Eclair.Pretty
+import Eclair.AST.Analysis
 import System.FilePath
 import Test.Hspec
 import NeatInterpolation
 import LLVM.Codegen
+import Control.Exception
 
 -- Tip: compare LLVM IR with EIR from tests that generate pretty-printed EIR
 
@@ -23,6 +25,14 @@ cg path = do
   let file = "tests/fixtures" </> path <.> "dl"
   llvm <- compileLLVM file
   pure $ ppllvm llvm
+
+shouldFailWithCause :: (Eq a, Show a) => IO T.Text -> (SemanticErrors -> [a]) -> IO ()
+shouldFailWithCause m f =
+  try m >>= \case
+    Left (SemanticErr errs) ->
+      f errs `shouldNotBe` []
+    result ->
+      panic $ "Expected a failure, but got: " <> show result
 
 extractDeclTypeSnippet :: Text -> Text
 extractDeclTypeSnippet result =
@@ -39,32 +49,7 @@ extractFnSnippet result fnSignature = do
 spec :: Spec
 spec = describe "LLVM Code Generation" $ parallel $ do
   it "generates almost no code for an empty program" $ do
-    llvmIR <- cg "empty"
-    extractDeclTypeSnippet llvmIR `shouldBe` "%program = type {}"
-    -- TODO: should not malloc 0 bytes, atleast 1 => semantic analysis should give a warning instead
-    extractFnSnippet llvmIR "eclair_program_init" `shouldBe` Just [text|
-      define external ccc %program* @eclair_program_init() {
-      start:
-        %memory_0 = call ccc i8* @malloc(i32 0)
-        %program_0 = bitcast i8* %memory_0 to %program*
-        ret %program* %program_0
-      }
-      |]
-    extractFnSnippet llvmIR "eclair_program_destroy" `shouldBe` Just [text|
-      define external ccc void @eclair_program_destroy(%program* %arg_0) {
-      start:
-        %memory_0 = bitcast %program* %arg_0 to i8*
-        call ccc void @free(i8* %memory_0)
-        ret void
-      }
-      |]
-    -- It generates an empty function (forward decl?), but apparently LLVM is fine with it, huh.
-    extractFnSnippet llvmIR "eclair_program_run" `shouldBe` Just [text|
-      define external ccc void @eclair_program_run(%program* %arg_0) {
-      start:
-        ret void
-      }
-      |]
+    cg "empty" `shouldFailWithCause` emptyModules
 
   it "generates code for a single fact" $ do
     llvmIR <- cg "single_fact"
@@ -1125,32 +1110,6 @@ spec = describe "LLVM Code Generation" $ parallel $ do
       |]
 
   describe "fact IO" $ parallel $ do
-    it "generates valid code for empty programs" $ do
-      llvmIR <- cg "empty"
-      extractFnSnippet llvmIR "eclair_add_fact" `shouldBe` Just [text|
-        define external ccc void @eclair_add_fact(%program* %eclair_program_0, i16 %fact_type_0, i32* %memory_0) {
-        start:
-          call ccc void @eclair_add_facts(%program* %eclair_program_0, i16 %fact_type_0, i32* %memory_0, i32 1)
-          ret void
-        }
-        |]
-      extractFnSnippet llvmIR "eclair_add_facts" `shouldBe` Just [text|
-        define external ccc void @eclair_add_facts(%program* %eclair_program_0, i16 %fact_type_0, i32* %memory_0, i32 %fact_count_0) {
-        start:
-          switch i16 %fact_type_0, label %switch.default_0 []
-        switch.default_0:
-          ret void
-        }
-        |]
-      extractFnSnippet llvmIR "eclair_get_facts" `shouldBe` Just [text|
-        define external ccc i32* @eclair_get_facts(%program* %eclair_program_0, i16 %fact_type_0) {
-        start:
-          switch i16 %fact_type_0, label %switch.default_0 []
-        switch.default_0:
-          ret i32* zeroinitializer
-        }
-        |]
-
     it "only generates IO code for relations visible to the user" $ do
       llvmIR <- cg "no_top_level_facts"
       extractFnSnippet llvmIR "eclair_add_facts" `shouldBe` Just [text|

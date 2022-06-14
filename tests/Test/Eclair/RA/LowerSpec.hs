@@ -5,12 +5,14 @@ module Test.Eclair.RA.LowerSpec
   ) where
 
 import qualified Data.Text as T
-import Eclair
 import qualified Eclair.EIR.IR as EIR
+import Eclair.AST.Analysis
 import Eclair.Pretty
+import Eclair
 import System.FilePath
 import Test.Hspec
 import NeatInterpolation
+import Control.Exception
 
 
 cg :: FilePath -> IO T.Text
@@ -61,28 +63,13 @@ extractFnSnippet result fnSignature =
 spec :: Spec
 spec = describe "EIR Code Generation" $ parallel $ do
   it "generates empty run function for empty program" $ do
-    eir <- cg "empty"
-    eir `shouldBe` [text|
-      {
-        declare_type Program
-        {
-
-        }
-        fn eclair_program_init() -> *Program
-        {
-          program = heap_allocate_program
-          return program
-        }
-        fn eclair_program_destroy(*Program) -> Void
-        {
-          free_program(FN_ARG[0])
-        }
-        fn eclair_program_run(*Program) -> Void
-        {
-
-        }
-      }
-      |]
+    let shouldFailWithCause m f = do
+          try m >>= \case
+            Left (SemanticErr errs) ->
+              f errs `shouldNotBe` []
+            result ->
+              panic $ "Expected a failure, but got: " <> show result
+    cg "empty" `shouldFailWithCause` emptyModules
 
   it "generates code for a single fact" $ do
     eir <- cg "single_fact"

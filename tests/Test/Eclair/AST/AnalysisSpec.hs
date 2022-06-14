@@ -4,16 +4,24 @@ module Test.Eclair.AST.AnalysisSpec
 
 import Test.Hspec
 import System.FilePath
+import Control.Exception
 import Eclair.AST.Analysis
 import Eclair.Id
 import Eclair
 
 
-check :: (Eq a, Show a) => (Result -> a) -> FilePath -> a -> IO ()
+check :: (Eq a, Show a) => (SemanticErrors -> [a]) -> FilePath -> [a] -> IO ()
 check f path expected = do
   let file = "tests/fixtures" </> path <.> "dl"
-  result <- semanticAnalysis file
-  f result `shouldBe` expected
+  result <- try $ semanticAnalysis file
+  case result of
+    Left (SemanticErr errs) ->
+      f errs `shouldBe` expected
+    Left e ->
+      panic $ "Received unexpected exception: " <> show e
+    Right _ ->
+      unless (null expected) $
+        panic "Expected SA errors, but found none!"
 
 checkUngroundedVars :: FilePath -> [Text] -> IO ()
 checkUngroundedVars path expectedVars =
@@ -35,9 +43,9 @@ checkEmptyModules =
 
 checkRuleClauseSameVar :: FilePath -> [Text] -> IO ()
 checkRuleClauseSameVar path expectedVars =
-  check getMissingTypedefs path (map Id expectedVars)
+  check getRuleClausesSameVar path (map Id expectedVars)
   where
-    getMissingTypedefs =
+    getRuleClausesSameVar =
       map (\(RuleClauseSameVar _ v) -> v) . ruleClausesWithSameVar
 
 spec :: Spec

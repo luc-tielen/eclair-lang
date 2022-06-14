@@ -2,9 +2,9 @@
 
 module Eclair.AST.Analysis
   ( Result(..)
-  , SemanticError(..)
+  , SemanticErrors(..)
+  , hasSemanticErrors
   , runAnalysis
-  , maybeToSemanticError
   , UngroundedVar(..)
   , MissingTypedef(..)
   , EmptyModule(..)
@@ -134,37 +134,34 @@ data SemanticAnalysis
 -- TODO: change to Vector when finished for performance
 type Container = []
 
+type SemanticInfo = ()  -- TODO: not used atm
+
 data Result
   = Result
-  { emptyModules :: Container EmptyModule
-  , ungroundedVars :: Container UngroundedVar
-  , missingTypedefs :: Container MissingTypedef
-  , ruleClausesWithSameVar :: Container RuleClauseSameVar -- TODO remove once support is added for this!
-  } deriving (Eq, Show)
+  { semanticInfo :: SemanticInfo
+  , semanticErrors :: SemanticErrors
+  }
+  deriving (Eq, Show)
 
-data SemanticError
-  = SemanticError (Container EmptyModule)
-                  (Container UngroundedVar)
-                  (Container MissingTypedef)
+data SemanticErrors
+  = SemanticErrors
+    { emptyModules :: Container EmptyModule
+    , ungroundedVars :: Container UngroundedVar
+    , missingTypedefs :: Container MissingTypedef
+    , ruleClausesWithSameVar :: Container RuleClauseSameVar  -- TODO remove once support is added for this!
+    }
   deriving (Eq, Show, Exception)
 
 hasSemanticErrors :: Result -> Bool
 hasSemanticErrors result =
-  not $ isNull emptyModules &&
-        isNull ungroundedVars &&
-        isNull missingTypedefs
+  isNotNull emptyModules ||
+  isNotNull ungroundedVars ||
+  isNotNull missingTypedefs ||
+  isNotNull ruleClausesWithSameVar
   where
-    isNull :: (Result -> Container a) -> Bool
-    isNull f = null (f result)
-
-maybeToSemanticError :: Result -> Maybe SemanticError
-maybeToSemanticError result
-  | hasSemanticErrors result
-  = Just $ SemanticError (emptyModules result)
-                         (ungroundedVars result)
-                         (missingTypedefs result)
-  | otherwise
-  = Nothing
+    errs = semanticErrors result
+    isNotNull :: (SemanticErrors -> [a]) -> Bool
+    isNotNull f = not . null $ f errs
 
 analysis :: S.Handle SemanticAnalysis -> S.Analysis S.SouffleM IR.AST Result
 analysis prog = S.mkAnalysis addFacts run getFacts
@@ -201,11 +198,12 @@ analysis prog = S.mkAnalysis addFacts run getFacts
       S.run prog
 
     getFacts :: S.SouffleM Result
-    getFacts =
-      Result <$> S.getFacts prog
-             <*> S.getFacts prog
-             <*> S.getFacts prog
-             <*> S.getFacts prog
+    getFacts = do
+      errs <- SemanticErrors <$> S.getFacts prog
+                             <*> S.getFacts prog
+                             <*> S.getFacts prog
+                             <*> S.getFacts prog
+      pure $ Result () errs
 
     getNodeId :: IR.ASTF NodeId -> NodeId
     getNodeId = \case
