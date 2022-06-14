@@ -5,8 +5,10 @@ cabal-version: 2.2
 -- see: https://github.com/sol/hpack
 
 name:           eclair-lang
-version:        0.1.0.0
-category:       Web
+version:        0.0.1
+synopsis:       Eclair: an experimental and minimal Datalog that compiles to LLVM.
+description:    Eclair: an experimental and minimal Datalog that compiles to LLVM.
+category:       Compiler
 homepage:       https://github.com/luc-tielen/eclair-lang
 author:         Luc Tielen
 maintainer:     luc.tielen@gmail.com
@@ -16,6 +18,8 @@ license-file:   LICENSE
 build-type:     Simple
 extra-source-files:
     README.md
+    CHANGELOG.md
+    LICENSE
     cbits/semantic_analysis.dl
 
 flag debug
