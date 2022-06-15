@@ -20,6 +20,7 @@ import Control.Lens
 import Data.Functor.Foldable.TH
 import Prettyprinter
 import Eclair.Id
+import Eclair.Pretty
 import qualified Language.Souffle.Marshal as S
 
 newtype NodeId
@@ -49,3 +50,24 @@ data AST
 
 makePrisms ''AST
 makeBaseFunctor ''AST
+
+instance Pretty Type where
+  pretty = \case
+    U32 -> "u32"
+
+instance Pretty AST where
+  pretty = \case
+    Lit _ x ->
+      pretty x
+    Var _ v ->
+      pretty v
+    Atom _ name values ->
+      pretty name <> parens (withCommas $ map pretty values)
+    Rule _ name values clauses ->
+      let separators = replicate (length clauses - 1) "," ++ ["."]
+       in pretty name <> parens (withCommas $ map pretty values) <+> ":-" <> hardline <>
+            indent 2 (vsep (zipWith (<>) (map pretty clauses) separators))
+    DeclareType _ name tys ->
+      "@def" <+> pretty name <> parens (withCommas $ map pretty tys)
+    Module _ decls ->
+      vsep $ intersperse hardline $ map pretty decls
