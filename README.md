@@ -16,7 +16,7 @@ but expect there to be bugs. Some edge cases might not be checked yet.
 ## Roadmap
 
 - [x] Compile to LLVM
-- [ ] Release 0.0.1
+- [x] Release 0.0.1
 - [ ] Proper error handling
 - [ ] LSP support
 - [ ] Support wildcards (`_`)
