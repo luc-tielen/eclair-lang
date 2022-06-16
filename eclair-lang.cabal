@@ -35,6 +35,8 @@ library
       Eclair.AST.Codegen
       Eclair.AST.IR
       Eclair.AST.Lower
+      Eclair.AST.Transforms
+      Eclair.AST.Transforms.RemoveWildcards
       Eclair.EIR.Codegen
       Eclair.EIR.IR
       Eclair.EIR.Lower
@@ -51,6 +53,7 @@ library
       Eclair.RA.Interpreter
       Eclair.RA.IR
       Eclair.RA.Lower
+      Eclair.Transform
       Eclair.TypeSystem
       Prelude
   hs-source-dirs:
@@ -74,6 +77,7 @@ library
       FlexibleContexts
       FlexibleInstances
       ScopedTypeVariables
+      PatternSynonyms
   ghc-options: -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__ -Wall
   build-depends:
@@ -141,6 +145,7 @@ executable eclair
       FlexibleContexts
       FlexibleInstances
       ScopedTypeVariables
+      PatternSynonyms
   ghc-options: -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits -threaded -rtsopts -with-rtsopts=-N
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__
   build-depends:
@@ -187,6 +192,7 @@ test-suite eclair-test
       Test.Eclair.ArgParserSpec
       Test.Eclair.AST.AnalysisSpec
       Test.Eclair.AST.LowerSpec
+      Test.Eclair.AST.Transforms.RemoveWildcardsSpec
       Test.Eclair.EIR.LowerSpec
       Test.Eclair.LLVM.HashSpec
       Test.Eclair.ParserSpec
@@ -218,6 +224,7 @@ test-suite eclair-test
       FlexibleContexts
       FlexibleInstances
       ScopedTypeVariables
+      PatternSynonyms
   ghc-options: -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__
   build-depends:

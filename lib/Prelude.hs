@@ -12,10 +12,12 @@ module Prelude
   , map
   , panic
   , groupBy
+  , first
   ) where
 
-import Relude hiding ( Type, Constraint, swap, and, id, (.), map)
+import Relude hiding (Type, Constraint, swap, and, id, (.), map, first)
 import Data.String (IsString(..))
+import Control.Arrow
 import Control.Comonad
 import Control.Category
 import Control.Monad.Writer.Strict hiding (pass)
@@ -24,6 +26,7 @@ import Control.Monad.Except
 import GHC.TypeLits (KnownSymbol, Symbol, symbolVal)
 import GHC.Generics (Rep, K1(..), U1(..), M1(..), (:*:)(..), from, to)
 import GHC.Records (HasField(..))
+
 
 map :: Functor f => (a -> b) -> f a -> f b
 map = fmap

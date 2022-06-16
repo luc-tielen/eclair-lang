@@ -67,6 +67,7 @@ default-extensions:
   - FlexibleContexts
   - FlexibleInstances
   - ScopedTypeVariables
+  - PatternSynonyms
 
 ghc-options:
   #- -Wall TODO turn on again
