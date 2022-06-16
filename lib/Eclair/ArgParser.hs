@@ -11,7 +11,8 @@ import qualified Data.List.Extra as L
 
 
 data EmitKind
-  = EmitRA
+  = EmitSimplifiedAST
+  | EmitRA
   | EmitEIR
   | EmitLLVM
   -- TODO: object file, WASM, ...
@@ -57,8 +58,9 @@ emitKindParser =
   option (maybeReader readEmitKind) (long "emit" <> value EmitLLVM <> help desc)
   where
     readEmitKind opt = case L.lower opt of
+      "ast-simplified" -> Just EmitSimplifiedAST
       "ra" -> Just EmitRA
       "eir" -> Just EmitEIR
       "llvm" -> Just EmitLLVM
       _ -> Nothing
-    desc = "Emit a specific IR. Defaults to emitting LLVM IR. Supported options: 'ra', 'eir', 'llvm'."
+    desc = "Emit a specific IR. Defaults to emitting LLVM IR. Supported options: 'ast-simplified', 'ra', 'eir', 'llvm'."
