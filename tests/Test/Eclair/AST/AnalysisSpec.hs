@@ -41,6 +41,14 @@ checkEmptyModules :: FilePath -> [EmptyModule] -> IO ()
 checkEmptyModules =
   check emptyModules
 
+checkWildcardsInFacts :: FilePath -> [WildcardInFact] -> IO ()
+checkWildcardsInFacts =
+  check wildcardsInFacts
+
+checkWildcardsInRuleHeads :: FilePath -> [WildcardInRuleHead] -> IO ()
+checkWildcardsInRuleHeads =
+  check wildcardsInRuleHeads
+
 checkRuleClauseSameVar :: FilePath -> [Text] -> IO ()
 checkRuleClauseSameVar path expectedVars =
   check getRuleClausesSameVar path (map Id expectedVars)
@@ -58,7 +66,7 @@ spec = describe "Semantic analysis" $ parallel $ do
       checkEmptyModules "single_recursive_rule" []
       checkEmptyModules "mutually_recursive_rules" []
 
-  describe "detecting missing typedefinitions" $ do
+  describe "detecting missing type definitions" $ do
     it "detects no missing type definitions for empty file" $
       checkMissingTypedefs "empty" []
 
@@ -99,6 +107,27 @@ spec = describe "Semantic analysis" $ parallel $ do
 
     it "finds no ungrounded vars for a rule with a unused var in the body" $ do
       checkUngroundedVars "ungrounded_var_check_in_rule_body" []
+
+  describe "Invalid wildcard usage" $ do
+    it "reports wildcards used in a top level fact" $ do
+      checkWildcardsInFacts "wildcard_in_fact"
+        [ WildcardInFact (NodeId 2) (NodeId 4) 1
+        , WildcardInFact (NodeId 5) (NodeId 6) 0
+        ]
+
+    it "reports wildcards used in a rule head" $ do
+      checkWildcardsInRuleHeads "wildcard_in_rule_head"
+        [ WildcardInRuleHead (NodeId 3) (NodeId 5) 1
+        , WildcardInRuleHead (NodeId 8) (NodeId 9) 0
+        ]
+
+    it "does not report wildcards used in rule body" $ do
+      checkWildcardsInFacts "wildcard_in_rule_body" []
+      checkWildcardsInRuleHeads "wildcard_in_rule_body" []
+
+    it "does not report normal variables" $ do
+      checkWildcardsInFacts "single_recursive_rule" []
+      checkWildcardsInRuleHeads "single_recursive_rule" []
 
   -- NOTE: tests should be removed once feature is implemented
   describe "disabling same variables in rule clause" $ do

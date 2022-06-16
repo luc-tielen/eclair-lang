@@ -8,6 +8,8 @@ module Eclair.AST.Analysis
   , UngroundedVar(..)
   , MissingTypedef(..)
   , EmptyModule(..)
+  , WildcardInFact(..)
+  , WildcardInRuleHead(..)
   , RuleClauseSameVar(..)
   , IR.NodeId(..)
   , Container
@@ -22,6 +24,8 @@ import Data.Functor.Foldable
 
 
 type NodeId = IR.NodeId
+
+type Position = Word32
 
 -- The facts submitted to Datalog closely follow the AST structure,
 -- but are denormalized so that Datalog can easily process it.
@@ -93,6 +97,26 @@ data UngroundedVar
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions UngroundedVar "ungrounded_variable" 'S.Output
 
+data WildcardInFact
+  = WildcardInFact
+  { factNodeId :: NodeId
+  , factArgId :: NodeId
+  , wildcardFactPos :: Position
+  }
+  deriving stock (Generic, Eq, Show)
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions WildcardInFact "wildcard_in_fact" 'S.Output
+
+data WildcardInRuleHead
+  = WildcardInRuleHead
+  { ruleNodeId :: NodeId
+  , ruleArgId :: NodeId
+  , wildcardRuleHeadPos :: Position
+  }
+  deriving stock (Generic, Eq, Show)
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions WildcardInFact "wildcard_in_rule_head" 'S.Output
+
 data MissingTypedef
   = MissingTypedef NodeId Id
   deriving stock (Generic, Eq, Show)
@@ -129,6 +153,8 @@ data SemanticAnalysis
        , MissingTypedef
        , EmptyModule
        , RuleClauseSameVar
+       , WildcardInRuleHead
+       , WildcardInFact
        ]
 
 -- TODO: change to Vector when finished for performance
@@ -149,6 +175,8 @@ data SemanticErrors
     , ungroundedVars :: Container UngroundedVar
     , missingTypedefs :: Container MissingTypedef
     , ruleClausesWithSameVar :: Container RuleClauseSameVar  -- TODO remove once support is added for this!
+    , wildcardsInFacts :: Container WildcardInFact
+    , wildcardsInRuleHeads :: Container WildcardInRuleHead
     }
   deriving (Eq, Show, Exception)
 
@@ -200,6 +228,8 @@ analysis prog = S.mkAnalysis addFacts run getFacts
     getFacts :: S.SouffleM Result
     getFacts = do
       errs <- SemanticErrors <$> S.getFacts prog
+                             <*> S.getFacts prog
+                             <*> S.getFacts prog
                              <*> S.getFacts prog
                              <*> S.getFacts prog
                              <*> S.getFacts prog
