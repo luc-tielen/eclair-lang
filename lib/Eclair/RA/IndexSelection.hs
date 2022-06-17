@@ -6,19 +6,23 @@ module Eclair.RA.IndexSelection
   , Column
   , runIndexSelection
   , columnsForRelation
-  , constraintsForSearch
+  , NormalizedEquality(..)
+  , Val(..)
+  , normalizedEqToConstraints
+  , extractEqualities
   ) where
 
 -- Based on the paper "Automatic Index Selection for Large-Scale Datalog Computation"
 -- http://www.vldb.org/pvldb/vol12/p141-subotic.pdf
 
 import Data.Maybe (fromJust)
+import Data.Functor.Foldable hiding (fold)
 import Eclair.RA.IR
 import Eclair.Pretty
+import Eclair.Comonads
 import Eclair.TypeSystem (TypeInfo)
 import Algebra.Graph.Bipartite.AdjacencyMap
 import Algebra.Graph.Bipartite.AdjacencyMap.Algorithm hiding (matching)
-import Data.Functor.Foldable hiding (fold)
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import qualified Data.List as List
@@ -71,7 +75,7 @@ data SearchFact
 
 searchesForProgram :: TypeInfo -> RA -> SearchMap
 searchesForProgram typeInfo ra =
-  let searchFacts = execState (zygo constraintsForSearch constraintsForRA ra) mempty
+  let searchFacts = execState (gcata (dsitribute extractEqualities) constraintsForRA ra) mempty
       facts = searchFacts ++ getAdditionalSearchFacts typeInfo searchFacts
    in solve facts
   where
@@ -82,10 +86,13 @@ searchesForProgram typeInfo ra =
         let columns = columnsFor values
             signature = SearchSignature $ Set.fromList columns
         addFact $ SearchOn r signature
-      SearchF r a (foldMap fst -> cs) (snd -> action) -> do
-        -- Only direct constraints in the search matter, since that is what
-        -- is used to select the index with, afterwards we are already
-        -- looping over the value!
+      SearchF r a (traverse_ tSnd -> m) (tThd -> action) -> do
+        -- 1. Only direct constraints in the search matter, since that is what
+        --    is used to select the index with, afterwards we are already
+        --    looping over the value!
+        -- 2. Only equality constraints matter, not "NoElem" constraints!
+        let eqs = execWriter m
+            cs = concatMap normalizedEqToConstraints eqs
         let relevantCols = mapMaybe (columnsForRelation a) cs
             signature = SearchSignature $ Set.fromList relevantCols
         unless (null relevantCols) $ do
@@ -97,7 +104,18 @@ searchesForProgram typeInfo ra =
         addFact $ SearchOn r signature
       MergeF r1 r2 -> addFact $ Related r1 r2
       SwapF r1 r2  -> addFact $ Related r1 r2
-      raf -> traverse_ snd raf
+      raf -> traverse_ tThd raf
+
+    dsitribute
+      :: Corecursive t
+      => (Base t (t, b) -> b)
+      -> (Base t (Triple t b a) -> Triple t b (Base t a))
+    dsitribute g m =
+      let base_t_t = map tFst m
+          base_t_tb = map (tFst &&& tSnd) m
+          base_t_a = map tThd m
+        in Triple (embed base_t_t) (g base_t_tb) base_t_a
+
 
 -- Finds all facts that didn't have any searches,
 -- and defaults those to a search that makes use of all columns.
@@ -115,11 +133,39 @@ getAdditionalSearchFacts typeInfo searchFacts =
       SearchOn r _ -> Just r
       _ -> Nothing
 
+-- TODO better name
+data Val
+  = AliasVal Alias Column
+  | Constant Word32
+  deriving Show
 
-constraintsForSearch :: RAF [(Relation, Column)] -> [(Relation, Column)]
-constraintsForSearch = \case
-  ColumnIndexF r col -> [(r, col)]
-  e -> fold e
+data NormalizedEquality
+  = Equality Alias Column Val
+  deriving Show
+
+extractEqualities :: RAF (RA, Writer [NormalizedEquality] ()) -> Writer [NormalizedEquality] ()
+extractEqualities = \case
+  ConstrainF (lhs, _) (rhs, _) -> do
+    case (lhs, rhs) of
+      (ColumnIndex lA lCol, ColumnIndex rA rCol) ->
+        tell [ Equality lA lCol (AliasVal rA rCol)
+             , Equality rA rCol (AliasVal lA lCol)
+             ]
+      (ColumnIndex lA lCol, Lit r) ->
+        tell [Equality lA lCol (Constant r)]
+      (Lit l, ColumnIndex rA rCol) ->
+        tell [Equality rA rCol (Constant l)]
+      _ ->
+        pass
+  raf ->
+    traverse_ snd raf
+
+normalizedEqToConstraints :: NormalizedEquality -> [(Relation, Column)]
+normalizedEqToConstraints = \case
+  Equality a1 c1 (AliasVal a2 c2) ->
+    [(a1, c1), (a2, c2)]
+  Equality a1 c1 _ ->
+    [(a1, c1)]
 
 columnsForRelation :: Relation -> (Relation, Column) -> Maybe Column
 columnsForRelation r (r', col)

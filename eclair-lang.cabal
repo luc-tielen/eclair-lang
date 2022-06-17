@@ -37,6 +37,7 @@ library
       Eclair.AST.Lower
       Eclair.AST.Transforms
       Eclair.AST.Transforms.RemoveWildcards
+      Eclair.Comonads
       Eclair.EIR.Codegen
       Eclair.EIR.IR
       Eclair.EIR.Lower

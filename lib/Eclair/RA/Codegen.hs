@@ -292,7 +292,8 @@ withEndLabel end m = do
 idxFromConstraints :: Relation -> Alias -> [(Relation, Column)] -> CodegenM Index
 idxFromConstraints r a constraints = do
   getIndexForSearch <- idxSelector <$> getLowerState
-  tys <- fromJust . M.lookup r . typeEnv <$> getLowerState
+  let r' = stripIdPrefixes r
+  tys <- fromJust . M.lookup r' . typeEnv <$> getLowerState
   let columns
         -- NOTE: no constraints -> use index on all columns
         | null constraints = zipWith const [0..] tys

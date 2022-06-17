@@ -4,7 +4,8 @@ module Eclair.RA.Lower ( compileToEIR ) where
 import Prelude hiding (head)
 import Data.Maybe (fromJust)
 import Data.List (head)
-import Data.Functor.Foldable
+import Data.Functor.Foldable hiding (fold)
+
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -14,6 +15,7 @@ import Eclair.EIR.IR (EIR)
 import Eclair.RA.IR (RA)
 import Eclair.RA.IndexSelection
 import Eclair.Id
+import Eclair.Comonads hiding (Quad)
 import Eclair.TypeSystem
 import qualified Eclair.EIR.IR as EIR
 import qualified Eclair.RA.IR as RA
@@ -60,33 +62,19 @@ compileRun ra = do
   fn "eclair_program_run" [EIR.Pointer EIR.Program] EIR.Void
     [generateProgramInstructions ra]
 
-data Quad a b c d
-  = Quad
-  { qFirst :: a
-  , qSecond :: b
-  , qThird :: c
-  , qFourth :: d
-  } deriving Functor
-
-instance Comonad (Quad a b c) where
-  extract (Quad _ _ _ d) = d
-
-  duplicate (Quad a b c d) =
-    Quad a b c (Quad a b c d)
-
 generateProgramInstructions :: RA -> CodegenM EIR
-generateProgramInstructions = gcata (distribute constraintsForSearch extractEqualities) $ \case
+generateProgramInstructions = gcata (distribute extractEqualities) $ \case
   RA.ModuleF (map extract -> actions) -> block actions
   RA.ParF (map extract -> actions) -> parallel actions
   RA.SearchF r alias clauses (extract -> action) -> do
-    let eqsInSearch = foldMap (execWriter . qThird) clauses
-    let constraints = concatMap qSecond clauses
-    idx <- idxFromConstraints r alias constraints
+    let eqsInSearch = execWriter $ traverse_ tSnd clauses
+        eqs = concatMap normalizedEqToConstraints eqsInSearch
+    idx <- idxFromConstraints r alias eqs
     let relationPtr = lookupRelationByIndex r idx
         isConstrain = \case
           RA.Constrain _ _ -> True
           _ -> False
-        queryClauses = map extract $ filter ((not . isConstrain) . qFirst) clauses
+        queryClauses = map extract $ filter ((not . isConstrain) . tFst) clauses
         query = List.foldl1' and' queryClauses
     (initLBValue, lbValue) <- initValue r idx alias LowerBound eqsInSearch
     (initUBValue, ubValue) <- initValue r idx alias UpperBound eqsInSearch
@@ -184,15 +172,13 @@ generateProgramInstructions = gcata (distribute constraintsForSearch extractEqua
         fieldAccess (pure value) col
   where
     distribute :: Corecursive t
-               => (Base t a -> a)
-               -> (Base t (t, b) -> b)
-               -> (Base t (Quad t a b c) -> Quad t a b (Base t c))
-    distribute f g m =
-      let base_t_t = map qFirst m
-          base_t_a = map qSecond m
-          base_t_tb = map (qFirst &&& qThird) m
-          base_t_c = map qFourth m
-      in Quad (embed base_t_t) (f base_t_a) (g base_t_tb) base_t_c
+                => (Base t (t, a) -> a)
+                -> (Base t (Triple t a b) -> Triple t a (Base t b))
+    distribute f m =
+      let base_t_t = map tFst m
+          base_t_ta = map (tFst &&& tSnd) m
+          base_t_b = map tThd m
+      in Triple (embed base_t_t) (f base_t_ta) base_t_b
 
 rangeQuery :: Relation
            -> Index
@@ -242,32 +228,6 @@ initValue r idx a bound eqs = do
     dontCare = lit $ case bound of
       LowerBound -> 0
       UpperBound -> 0xffffffff
-
-data Val
-  = AliasVal RA.Alias Column
-  | Constant Word32
-  deriving Show
-
-data NormalizedEquality
-  = Equality RA.Alias Column Val
-  deriving Show
-
-extractEqualities :: RA.RAF (RA, Writer [NormalizedEquality] ()) -> Writer [NormalizedEquality] ()
-extractEqualities = \case
-  RA.ConstrainF (lhs, _) (rhs, _) -> do
-    case (lhs, rhs) of
-      (RA.ColumnIndex lA lCol, RA.ColumnIndex rA rCol) ->
-        tell [ Equality lA lCol (AliasVal rA rCol)
-             , Equality rA rCol (AliasVal lA lCol)
-             ]
-      (RA.ColumnIndex lA lCol, RA.Lit r) ->
-        tell [Equality lA lCol (Constant r)]
-      (RA.Lit l, RA.ColumnIndex rA rCol) ->
-        tell [Equality rA rCol (Constant l)]
-      _ ->
-        pass
-  raf ->
-    traverse_ snd raf
 
 forEachRelation :: CodegenM EIR -> (ContainerInfo -> CodegenM EIR -> CodegenM EIR) -> CodegenM [CodegenM EIR]
 forEachRelation program f = do
