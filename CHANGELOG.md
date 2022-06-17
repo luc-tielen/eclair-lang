@@ -9,6 +9,11 @@ The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-has
 
 - Wildcards are now supported in rule bodies.
 
+### Fixed
+
+- Edgecase in index selection algorithm. The algorithm now does not take
+  `NoElem` variants into account.
+
 ## [0.0.1] - 2022-06-14
 
 ### Added
