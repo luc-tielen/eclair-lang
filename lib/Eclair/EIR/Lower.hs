@@ -22,6 +22,7 @@ import Eclair.LLVM.Metadata
 import Eclair.LLVM.Hash
 import Eclair.LLVM.Runtime
 import Eclair.RA.IndexSelection
+import Eclair.Comonads
 import Eclair.AST.IR
 import Eclair.Id
 
@@ -157,20 +158,6 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
       func <- lookupFunction r idx fn
       call func argOperands
 
--- A tuple of 3 elements, defined as a newtype so a Comonad instance can be added.
-data Triple a b c
-  = Triple
-  { tFst :: a
-  , tSnd :: b
-  , tThd :: c
-  } deriving Functor
-
-instance Comonad (Triple a b) where
-  extract (Triple _ _ c) = c
-
-  duplicate (Triple a b c) =
-    Triple a b (Triple a b c)
-
 -- Here be recursion-schemes dragons...
 --
 -- lowerM is a recursion-scheme that behaves like a zygomorphism, but it is
@@ -186,13 +173,13 @@ lowerM :: (EIRF (EIR, CodegenM Operand) -> CodegenM Operand)
        -> (EIRF (Triple EIR (CodegenM Operand) (CodegenM ())) -> CodegenM ())
        -> EIR
        -> CodegenM ()
-lowerM f = gcata (distParaZygo f)
+lowerM f = gcata (distribute f)
   where
-    distParaZygo
+    distribute
       :: Corecursive t
       => (Base t (t, b) -> b)
       -> (Base t (Triple t b a) -> Triple t b (Base t a))
-    distParaZygo g m =
+    distribute g m =
       let base_t_t = map tFst m
           base_t_tb = map (tFst &&& tSnd) m
           base_t_a = map tThd m

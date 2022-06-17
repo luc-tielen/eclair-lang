@@ -127,3 +127,11 @@ spec = describe "Index selection" $ parallel $ do
                   , ("path", [[0,1]])
                   , ("edge", [[0,1]])
                   ]
+
+  it "does not use 'NoElem' constraints to compute indexes" $ do
+    idxSel "index_selection_should_only_check_for_equalities" `resultsIn`
+      toSelection [ ("delta_reachable", [[0,1]])
+                  , ("new_reachable", [[0,1]])
+                  , ("reachable", [[0,1]])
+                  , ("edge", [[0,1]])
+                  ]
