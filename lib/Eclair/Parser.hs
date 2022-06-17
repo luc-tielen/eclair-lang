@@ -135,7 +135,13 @@ atomParser = withNodeId $ \nodeId -> do
 
 valueParser :: Parser AST
 valueParser = withNodeId $ \nodeId ->
-  Var nodeId <$> identifier <|> Lit nodeId <$> number
+  Var nodeId <$> (identifier <|> wildcard) <|>
+  Lit nodeId <$> number
+
+-- Not sure if we want to support something like _abc?
+wildcard :: Parser Id
+wildcard =
+  Id . one <$> P.char '_'
 
 identifier :: Parser Id
 identifier = Id <$> do

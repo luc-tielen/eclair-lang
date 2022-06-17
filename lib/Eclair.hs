@@ -3,10 +3,12 @@
 module Eclair
   ( parse
   , semanticAnalysis
+  , transformAST
   , compileRA
   , compileEIR
   , compileLLVM
   , compile
+  , emitSimplifiedAST
   , emitRA
   , emitEIR
   , emitLLVM
@@ -23,6 +25,7 @@ import Eclair.Parser
 import Eclair.Pretty
 import Eclair.Id
 import Eclair.AST.IR
+import Eclair.AST.Transforms
 import qualified Eclair.RA.IR as RA
 import qualified Eclair.EIR.IR as EIR
 import Eclair.RA.Interpreter
@@ -51,6 +54,8 @@ data Query a where
   Parse :: FilePath -> Query (AST, SpanMap)
   RunSemanticAnalysis :: FilePath -> Query SA.Result
   Typecheck :: FilePath -> Query TS.TypeInfo
+  TransformAST :: FilePath -> Query AST
+  EmitSimplifiedAST :: FilePath -> Query ()
   CompileRA :: FilePath -> Query RA
   EmitRA :: FilePath -> Query ()
   CompileEIR :: FilePath -> Query EIR
@@ -63,6 +68,8 @@ queryFilePath = \case
   Parse path               -> path
   RunSemanticAnalysis path -> path
   Typecheck path           -> path
+  TransformAST path        -> path
+  EmitSimplifiedAST path   -> path
   CompileRA path           -> path
   EmitRA path              -> path
   CompileEIR path          -> path
@@ -75,12 +82,14 @@ queryEnum = \case
   Parse {}               -> 0
   RunSemanticAnalysis {} -> 1
   Typecheck {}           -> 2
-  CompileRA {}           -> 3
-  EmitRA {}              -> 4
-  CompileEIR {}          -> 5
-  EmitEIR {}             -> 6
-  CompileLLVM {}         -> 7
-  EmitLLVM {}            -> 8
+  TransformAST {}        -> 3
+  EmitSimplifiedAST {}   -> 4
+  CompileRA {}           -> 5
+  EmitRA {}              -> 6
+  CompileEIR {}          -> 7
+  EmitEIR {}             -> 8
+  CompileLLVM {}         -> 9
+  EmitLLVM {}            -> 10
 
 deriveGEq ''Query
 
@@ -109,8 +118,14 @@ rules = \case
     -- TODO: find better place to do semantic analysis
     _ <- Rock.fetch (RunSemanticAnalysis path)
     liftIO . either (throwIO . TypeErr) pure $ TS.typeCheck ast
-  CompileRA path -> do
+  TransformAST path -> do
     ast <- fst <$> Rock.fetch (Parse path)
+    pure $ simplify ast
+  EmitSimplifiedAST path -> do
+    ast <- Rock.fetch (TransformAST path)
+    liftIO $ putTextLn $ printDoc ast
+  CompileRA path -> do
+    ast <- Rock.fetch (TransformAST path)
     pure $ compileToRA ast
   EmitRA path -> do
     ra <- Rock.fetch (CompileRA path)
@@ -140,6 +155,12 @@ parse = map fst . runQuery . Parse
 
 semanticAnalysis :: FilePath -> IO SA.Result
 semanticAnalysis = runQuery . RunSemanticAnalysis
+
+transformAST :: FilePath -> IO AST
+transformAST = runQuery . TransformAST
+
+emitSimplifiedAST :: FilePath -> IO ()
+emitSimplifiedAST = runQuery . EmitSimplifiedAST
 
 compileRA :: FilePath -> IO RA
 compileRA =

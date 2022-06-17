@@ -9,12 +9,15 @@
 .decl module(node_id: unsigned)
 .decl module_declaration(module_id: unsigned, declaration_id: unsigned)
 
+.decl wildcard(node_id: unsigned) inline
 .decl rule_clause_var(rule_id: unsigned, var_name: symbol)
 
 .decl ungrounded_variable(node_id: unsigned, var_name: symbol)
 .decl missing_typedef(node_id: unsigned, var_name: symbol)
 .decl empty_module(node_id: unsigned)
 .decl rule_clause_same_var(rule_clause_id: unsigned, var_name: symbol)
+.decl wildcard_in_fact(fact_node_id: unsigned,  fact_arg_id: unsigned, pos: unsigned)
+.decl wildcard_in_rule_head(rule_node_id: unsigned, rule_arg_id: unsigned, pos: unsigned)
 
 
 .input literal
@@ -32,6 +35,8 @@
 .output missing_typedef
 .output empty_module
 .output rule_clause_same_var
+.output wildcard_in_fact
+.output wildcard_in_rule_head
 
 // Top level facts: no variables allowed
 ungrounded_variable(atom_arg_id, var_name) :-
@@ -76,3 +81,14 @@ empty_module(node_id) :-
   module(node_id),
   !module_declaration(node_id, _).
 
+wildcard(node_id) :-
+  variable(node_id, "_").
+
+wildcard_in_rule_head(rule_id, rule_arg_id, pos) :-
+  rule_arg(rule_id, pos, rule_arg_id),
+  wildcard(rule_arg_id).
+
+wildcard_in_fact(atom_id, atom_arg_id, pos) :-
+  module_declaration(_, atom_id),
+  atom_arg(atom_id, pos, atom_arg_id),
+  wildcard(atom_arg_id).

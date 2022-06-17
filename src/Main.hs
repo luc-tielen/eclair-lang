@@ -16,6 +16,7 @@ main = do
     Compile cfg -> do
       let file = mainFile cfg
           fn = case emitKind cfg of
+            EmitSimplifiedAST -> emitSimplifiedAST
             EmitRA -> emitRA
             EmitEIR -> emitEIR
             EmitLLVM -> emitLLVM
