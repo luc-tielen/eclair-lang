@@ -19,10 +19,10 @@ but expect there to be bugs. Some edge cases might not be checked yet.
 - [x] Release 0.0.1
 - [ ] Proper error handling
 - [ ] LSP support
-- [ ] Support wildcards (`_`)
+- [x] Support wildcards (`_`)
 - [ ] Support other data types than integers (strings, ...), add typesystem
-- [ ] Support `=` and `!=` operators
-- [ ] Support negation
+- [x] Support `=`
+- [ ] Support negation, `!=` operator
 - [ ] Support arithmetic / logical / ... operators
 - [ ] Compile to WASM
 - [ ] Optimizations on the AST / RA / LLVM level

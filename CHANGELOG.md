@@ -8,6 +8,7 @@ The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-has
 ### Added
 
 - Wildcards are now supported in rule bodies.
+- Assignments are now supported in rule bodies.
 
 ### Fixed
 
