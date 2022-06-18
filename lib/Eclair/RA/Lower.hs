@@ -133,6 +133,8 @@ generateProgramInstructions = gcata (distribute extractEqualities) $ \case
   RA.LoopF (map extract -> actions) -> do
     end <- labelId "loop.end"
     block [withEndLabel end $ loop actions, label end]
+  RA.IfF (extract -> lhs) (extract -> rhs) (extract -> action) -> do
+    if' (equals lhs rhs) action
   RA.ExitF rs -> do
     end <- endLabel <$> getLowerState
     foldl' f (jump end) =<< traverse getFirstFieldOffset rs

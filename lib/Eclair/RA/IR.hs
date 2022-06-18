@@ -38,6 +38,7 @@ data RA
   | ColumnIndex Relation ColumnIndex
   | Constrain RA RA  -- equality constraint
   | NotElem Relation [RA]
+  | If RA RA RA  -- NOTE: not the traditional if: args are lhs, rhs, body
   deriving (Eq, Show)
 
 makeBaseFunctor ''RA
@@ -66,6 +67,8 @@ instance Pretty RA where
     Purge r -> "purge" <+> pretty r
     Par stmts -> "parallel do" <> prettyBlock stmts
     Loop stmts -> "loop do" <> prettyBlock stmts
+    If lhs rhs stmt ->
+      "if" <+> pretty lhs <+> "=" <+> pretty rhs <+> "do" <> prettyBlock [stmt]
     Exit rs ->
       let texts = map formatExitCondition rs
       in "exit if" <+> withAnds texts
