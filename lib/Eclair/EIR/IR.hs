@@ -117,6 +117,7 @@ instance Pretty Function where
     IterUpperBound -> "iter_upper_bound"
     IterBegin -> "iter_begin"
     IterEnd -> "iter_end"
+    Size -> "size"
 
 instance Pretty LabelId where
   pretty (LabelId label) = pretty label
