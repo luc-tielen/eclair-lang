@@ -119,7 +119,7 @@ factOrRuleParser = withNodeId $ \nodeId -> do
   declType <- lexeme $ (RuleType <$ P.chunk ":-") <|> (FactType <$ P.chunk ".")
   case declType of
     RuleType -> do
-      body <- atomParser `P.sepBy1` comma <* period
+      body <- ruleClauseParser `P.sepBy1` comma <* period
       pure $ Rule nodeId name args body
     FactType -> pure $ Atom nodeId name args
   where period = lexeme $ P.char '.'
@@ -127,11 +127,24 @@ factOrRuleParser = withNodeId $ \nodeId -> do
 comma :: Parser Char
 comma = lexeme $ P.char ','
 
+ruleClauseParser :: Parser AST
+ruleClauseParser = do
+  atomParser <|> assignParser
+
 atomParser :: Parser AST
-atomParser = withNodeId $ \nodeId -> do
-  name <- lexeme identifier
-  args <- lexeme $ betweenParens $ valueParser `P.sepBy1` comma
-  pure $ Atom nodeId name args
+atomParser = do
+  P.notFollowedBy $ lexeme identifier *> P.char '='
+  withNodeId $ \nodeId -> do
+    name <- lexeme identifier
+    args <- lexeme $ betweenParens $ valueParser `P.sepBy1` comma
+    pure $ Atom nodeId name args
+
+assignParser :: Parser AST
+assignParser = withNodeId $ \nodeId -> do
+  lhs <- lexeme valueParser
+  _ <- lexeme $ P.char '='
+  rhs <- lexeme valueParser
+  pure $ Assign nodeId lhs rhs
 
 valueParser :: Parser AST
 valueParser = withNodeId $ \nodeId ->
