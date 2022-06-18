@@ -42,6 +42,12 @@ data Var
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions Var "variable" 'S.Input
 
+data Assign
+  = Assign { assignId :: NodeId, lhsId :: NodeId, rhsId :: NodeId }
+  deriving stock Generic
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions Assign "assign" 'S.Input
+
 data Atom
   = Atom NodeId Id
   deriving stock Generic
@@ -141,6 +147,7 @@ data SemanticAnalysis
   via S.ProgramOptions SemanticAnalysis "semantic_analysis"
       '[ Lit
        , Var
+       , Assign
        , Atom
        , AtomArg
        , Rule
@@ -200,6 +207,10 @@ analysis prog = S.mkAnalysis addFacts run getFacts
         S.addFact prog $ Lit nodeId lit
       IR.VarF nodeId var ->
         S.addFact prog $ Var nodeId var
+      IR.AssignF nodeId (lhsId, lhsAction) (rhsId, rhsAction) -> do
+        S.addFact prog $ Assign nodeId lhsId rhsId
+        lhsAction
+        rhsAction
       IR.AtomF nodeId atom (unzip -> (argNodeIds, actions)) -> do
         S.addFact prog $ Atom nodeId atom
         S.addFacts prog $ mapWithPos (AtomArg nodeId) argNodeIds
@@ -239,6 +250,7 @@ analysis prog = S.mkAnalysis addFacts run getFacts
     getNodeId = \case
       IR.LitF nodeId _ -> nodeId
       IR.VarF nodeId _ -> nodeId
+      IR.AssignF nodeId _ _ -> nodeId
       IR.AtomF nodeId _ _ -> nodeId
       IR.RuleF nodeId _ _ _ -> nodeId
       IR.DeclareTypeF nodeId _ _ -> nodeId

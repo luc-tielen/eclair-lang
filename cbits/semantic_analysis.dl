@@ -1,5 +1,6 @@
 .decl literal(node_id: unsigned, value: unsigned)
 .decl variable(node_id: unsigned, var_name: symbol)
+.decl assign(node_id: unsigned, lhs_node_id: unsigned, rhs_node_id: unsigned)
 .decl atom(node_id: unsigned, name: symbol)
 .decl atom_arg(atom_id: unsigned, atom_arg_pos: unsigned, atom_arg_id: unsigned)
 .decl rule(rule_id: unsigned, name: symbol)
@@ -22,6 +23,7 @@
 
 .input literal
 .input variable
+.input assign
 .input atom
 .input atom_arg
 .input rule
