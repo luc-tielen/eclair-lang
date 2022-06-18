@@ -10,6 +10,7 @@ module Eclair.AST.Analysis
   , EmptyModule(..)
   , WildcardInFact(..)
   , WildcardInRuleHead(..)
+  , WildcardInAssignment(..)
   , RuleClauseSameVar(..)
   , IR.NodeId(..)
   , Container
@@ -115,13 +116,22 @@ data WildcardInFact
 
 data WildcardInRuleHead
   = WildcardInRuleHead
-  { ruleNodeId :: NodeId
-  , ruleArgId :: NodeId
+  { wildcardRuleNodeId :: NodeId
+  , wildcardRuleArgId :: NodeId
   , wildcardRuleHeadPos :: Position
   }
   deriving stock (Generic, Eq, Show)
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions WildcardInFact "wildcard_in_rule_head" 'S.Output
+
+data WildcardInAssignment
+  = WildcardInAssignment
+  { wildcardAssignNodeId :: NodeId
+  , wildcardNodeId :: NodeId
+  }
+  deriving stock (Generic, Eq, Show)
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions WildcardInAssignment "wildcard_in_assignment" 'S.Output
 
 data MissingTypedef
   = MissingTypedef NodeId Id
@@ -162,6 +172,7 @@ data SemanticAnalysis
        , RuleClauseSameVar
        , WildcardInRuleHead
        , WildcardInFact
+       , WildcardInAssignment
        ]
 
 -- TODO: change to Vector when finished for performance
@@ -184,6 +195,7 @@ data SemanticErrors
     , ruleClausesWithSameVar :: Container RuleClauseSameVar  -- TODO remove once support is added for this!
     , wildcardsInFacts :: Container WildcardInFact
     , wildcardsInRuleHeads :: Container WildcardInRuleHead
+    , wildcardsInAssignments :: Container WildcardInAssignment
     }
   deriving (Eq, Show, Exception)
 
@@ -192,7 +204,10 @@ hasSemanticErrors result =
   isNotNull emptyModules ||
   isNotNull ungroundedVars ||
   isNotNull missingTypedefs ||
-  isNotNull ruleClausesWithSameVar
+  isNotNull ruleClausesWithSameVar ||
+  isNotNull wildcardsInFacts ||
+  isNotNull wildcardsInRuleHeads ||
+  isNotNull wildcardsInAssignments
   where
     errs = semanticErrors result
     isNotNull :: (SemanticErrors -> [a]) -> Bool
@@ -239,6 +254,7 @@ analysis prog = S.mkAnalysis addFacts run getFacts
     getFacts :: S.SouffleM Result
     getFacts = do
       errs <- SemanticErrors <$> S.getFacts prog
+                             <*> S.getFacts prog
                              <*> S.getFacts prog
                              <*> S.getFacts prog
                              <*> S.getFacts prog
