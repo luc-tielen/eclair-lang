@@ -291,16 +291,21 @@ withEndLabel end m = do
 
 idxFromConstraints :: Relation -> Alias -> [(Relation, Column)] -> CodegenM Index
 idxFromConstraints r a constraints = do
-  getIndexForSearch <- idxSelector <$> getLowerState
-  let r' = stripIdPrefixes r
-  tys <- fromJust . M.lookup r' . typeEnv <$> getLowerState
-  let columns
-        -- NOTE: no constraints -> use index on all columns
-        | null constraints = zipWith const [0..] tys
-        | otherwise = mapMaybe (columnsForRelation a) constraints
-  let signature = SearchSignature $ S.fromList columns
-      idx = getIndexForSearch r signature
-  pure idx
+  lowerState <- getLowerState
+  let (getIndexForSearch, indexMap) = (idxSelector &&& idxMap) lowerState
+      r' = stripIdPrefixes r
+      tys = fromJust . M.lookup r' . typeEnv $ lowerState
+  if null constraints
+    then do
+      -- NOTE: no constraints so we pick the first index
+      -- TODO check if this is the best choice?
+      let indices = fromJust $ M.lookup r' indexMap
+      pure $ S.elemAt 0 indices
+    else do
+      let columns = mapMaybe (columnsForRelation a) constraints
+          signature = SearchSignature $ S.fromList columns
+          idx = getIndexForSearch r signature
+      pure idx
 
 lookupRelationByIndex :: Relation -> Index -> CodegenM EIR
 lookupRelationByIndex r idx = do
