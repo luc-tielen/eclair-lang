@@ -195,6 +195,7 @@ test-suite eclair-test
       Test.Eclair.AST.AnalysisSpec
       Test.Eclair.AST.LowerSpec
       Test.Eclair.AST.Transforms.RemoveWildcardsSpec
+      Test.Eclair.AST.Transforms.ShiftAssignmentsSpec
       Test.Eclair.EIR.LowerSpec
       Test.Eclair.LLVM.HashSpec
       Test.Eclair.ParserSpec

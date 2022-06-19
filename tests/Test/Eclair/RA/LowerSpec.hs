@@ -349,6 +349,121 @@ spec = describe "EIR Code Generation" $ parallel $ do
   it "generates code for a rule where columns need to equal each other" $ do
     pending -- TODO: cg "rule_equal_columns"
 
+  fit "generates code for a rule containing an equality statement" $ do
+    eir <- cg "assignment"
+    extractDeclTypeSnippet eir `shouldBe` [text|
+      declare_type Program
+      {
+        fact1 btree(num_columns=2, index=[1], block_size=256, search_type=linear)
+        fact2 btree(num_columns=2, index=[0,1], block_size=256, search_type=linear)
+      }
+      |]
+    extractFnSnippet eir "eclair_program_init() -> *Program" `shouldBe` Just [text|
+      fn eclair_program_init() -> *Program
+      {
+        program = heap_allocate_program
+        fact1.init_empty(program.0)
+        fact2.init_empty(program.1)
+        return program
+      }
+      |]
+    extractFnSnippet eir "eclair_program_destroy(*Program) -> Void" `shouldBe` Just [text|
+      fn eclair_program_destroy(*Program) -> Void
+      {
+        fact1.destroy(FN_ARG[0].0)
+        fact2.destroy(FN_ARG[0].1)
+        free_program(FN_ARG[0])
+      }
+      |]
+    extractFnSnippet eir "eclair_program_run(*Program) -> Void" `shouldBe` Just [text|
+      fn eclair_program_run(*Program) -> Void
+      {
+        value = fact1.stack_allocate Value
+        value.0 = 0
+        value.1 = 0
+        value_1 = fact1.stack_allocate Value
+        value_1.0 = 4294967295
+        value_1.1 = 4294967295
+        begin_iter = fact1.stack_allocate Iter
+        end_iter = fact1.stack_allocate Iter
+        fact1.iter_lower_bound(FN_ARG[0].0, value, begin_iter)
+        fact1.iter_upper_bound(FN_ARG[0].0, value_1, end_iter)
+        loop
+        {
+          condition = fact1.iter_is_equal(begin_iter, end_iter)
+          if (condition)
+          {
+            goto range_query.end
+          }
+          current = fact1.iter_current(begin_iter)
+          condition_1 = 123 == current.1
+          if (condition_1)
+          {
+            value_2 = fact2.stack_allocate Value
+            value_2.0 = current.1
+            value_2.1 = current.0
+            fact2.insert(FN_ARG[0].1, value_2)
+          }
+          fact1.iter_next(begin_iter)
+        }
+        range_query.end:
+        value_3 = fact1.stack_allocate Value
+        value_3.0 = 0
+        value_3.1 = 0
+        value_4 = fact1.stack_allocate Value
+        value_4.0 = 4294967295
+        value_4.1 = 4294967295
+        begin_iter_1 = fact1.stack_allocate Iter
+        end_iter_1 = fact1.stack_allocate Iter
+        fact1.iter_lower_bound(FN_ARG[0].0, value_3, begin_iter_1)
+        fact1.iter_upper_bound(FN_ARG[0].0, value_4, end_iter_1)
+        loop
+        {
+          condition_2 = fact1.iter_is_equal(begin_iter_1, end_iter_1)
+          if (condition_2)
+          {
+            goto range_query.end_1
+          }
+          current_1 = fact1.iter_current(begin_iter_1)
+          value_5 = fact1.stack_allocate Value
+          value_5.0 = 0
+          value_5.1 = current_1.0
+          value_6 = fact1.stack_allocate Value
+          value_6.0 = 4294967295
+          value_6.1 = current_1.0
+          begin_iter_2 = fact1.stack_allocate Iter
+          end_iter_2 = fact1.stack_allocate Iter
+          fact1.iter_lower_bound(FN_ARG[0].0, value_5, begin_iter_2)
+          fact1.iter_upper_bound(FN_ARG[0].0, value_6, end_iter_2)
+          loop
+          {
+            condition_3 = fact1.iter_is_equal(begin_iter_2, end_iter_2)
+            if (condition_3)
+            {
+              goto range_query.end_2
+            }
+            current_2 = fact1.iter_current(begin_iter_2)
+            condition_4 = current_1.1 == current_1.0
+            if (condition_4)
+            {
+              condition_5 = current_2.0 == 123
+              if (condition_5)
+              {
+                value_7 = fact2.stack_allocate Value
+                value_7.0 = current_1.0
+                value_7.1 = 1
+                fact2.insert(FN_ARG[0].1, value_7)
+              }
+            }
+            fact1.iter_next(begin_iter_2)
+          }
+          range_query.end_2:
+          fact1.iter_next(begin_iter_1)
+        }
+        range_query.end_1:
+      }
+      |]
+
   it "generates code for a single recursive rule" $ do
     eir <- cg "single_recursive_rule"
     -- NOTE: program for now also contains delta_ and new_ relations,
