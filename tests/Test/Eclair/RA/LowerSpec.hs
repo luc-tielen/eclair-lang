@@ -349,7 +349,7 @@ spec = describe "EIR Code Generation" $ parallel $ do
   it "generates code for a rule where columns need to equal each other" $ do
     pending -- TODO: cg "rule_equal_columns"
 
-  fit "generates code for a rule containing an equality statement" $ do
+  it "generates code for a rule containing an equality statement" $ do
     eir <- cg "assignment"
     extractDeclTypeSnippet eir `shouldBe` [text|
       declare_type Program
