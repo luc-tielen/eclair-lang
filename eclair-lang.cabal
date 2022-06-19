@@ -37,6 +37,7 @@ library
       Eclair.AST.Lower
       Eclair.AST.Transforms
       Eclair.AST.Transforms.RemoveWildcards
+      Eclair.AST.Transforms.ShiftAssignments
       Eclair.Comonads
       Eclair.EIR.Codegen
       Eclair.EIR.IR
@@ -79,7 +80,7 @@ library
       FlexibleInstances
       ScopedTypeVariables
       PatternSynonyms
-  ghc-options: -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
+  ghc-options: -Wincomplete-patterns -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__ -Wall
   build-depends:
       algebraic-graphs ==0.*
@@ -147,7 +148,7 @@ executable eclair
       FlexibleInstances
       ScopedTypeVariables
       PatternSynonyms
-  ghc-options: -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wincomplete-patterns -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits -threaded -rtsopts -with-rtsopts=-N
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__
   build-depends:
       algebraic-graphs ==0.*
@@ -194,6 +195,7 @@ test-suite eclair-test
       Test.Eclair.AST.AnalysisSpec
       Test.Eclair.AST.LowerSpec
       Test.Eclair.AST.Transforms.RemoveWildcardsSpec
+      Test.Eclair.AST.Transforms.ShiftAssignmentsSpec
       Test.Eclair.EIR.LowerSpec
       Test.Eclair.LLVM.HashSpec
       Test.Eclair.ParserSpec
@@ -226,7 +228,7 @@ test-suite eclair-test
       FlexibleInstances
       ScopedTypeVariables
       PatternSynonyms
-  ghc-options: -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
+  ghc-options: -Wincomplete-patterns -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__
   build-depends:
       algebraic-graphs ==0.*

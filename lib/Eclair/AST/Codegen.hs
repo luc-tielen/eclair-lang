@@ -18,6 +18,7 @@ module Eclair.AST.Codegen
   , purge
   , exit
   , noElemOf
+  , if'
   ) where
 
 import Data.Maybe (fromJust)
@@ -75,13 +76,17 @@ toTerm = \case
   -- TODO fix, no catch-all
   _ -> panic "Unknown pattern in 'toTerm'"
 
--- TODO: can be unified with other constraints?
--- or keep explicitly separate?
 data ConstraintExpr
   = NotElem Id [Term]
 
 noElemOf :: Relation -> [Term] -> CodegenM a -> CodegenM a
 noElemOf r ts = constrain (NotElem r ts)
+
+if' :: Term -> Term -> CodegenM RA -> CodegenM RA
+if' lhsTerm rhsTerm body = do
+  lhs <- resolveTerm lhsTerm
+  rhs <- resolveTerm rhsTerm
+  RA.If lhs rhs <$> body
 
 constrain :: ConstraintExpr -> CodegenM a -> CodegenM a
 constrain c m = do
@@ -91,11 +96,16 @@ constrain c m = do
 data Clause
   = AtomClause Id [Term]
   | ConstrainClause ConstraintExpr
+  | AssignClause Term Term
 
 toClause :: AST.AST -> Clause
 toClause = \case
-  AST.Atom _ name values -> AtomClause name (map toTerm values)
-  _ -> panic "toClause: unsupported case"
+  AST.Atom _ name values ->
+    AtomClause name (map toTerm values)
+  AST.Assign _ lhs rhs ->
+    AssignClause (toTerm lhs) (toTerm rhs)
+  _ ->
+    panic "toClause: unsupported case"
 
 project :: Relation -> [Term] -> CodegenM RA
 project r ts =

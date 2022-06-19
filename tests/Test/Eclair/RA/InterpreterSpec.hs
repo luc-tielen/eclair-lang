@@ -169,3 +169,23 @@ spec = describe "RA interpreter" $ parallel $ do
       , (Id "c", [[1], [2]])
       , (Id "d", [[1], [2], [3]])
       ]
+
+  it "can interpret assignments in rules" $ do
+    result <- interpret [text|
+      @def a(u32).
+      @def b(u32, u32).
+
+      a(x) :-
+        b(x, y),
+        x = y.
+
+      b(2, 1).
+      b(2, 2).
+      b(3, 3).
+      b(2, 3).
+      |]
+    result `shouldBe` M.fromList
+      [ (Id "a", [[3], [2]])
+      , (Id "b", [[2, 1], [2, 2], [3, 3], [2, 3]])
+      ]
+

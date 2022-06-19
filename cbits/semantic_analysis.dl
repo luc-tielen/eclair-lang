@@ -1,5 +1,6 @@
 .decl literal(node_id: unsigned, value: unsigned)
 .decl variable(node_id: unsigned, var_name: symbol)
+.decl assign(node_id: unsigned, lhs_node_id: unsigned, rhs_node_id: unsigned)
 .decl atom(node_id: unsigned, name: symbol)
 .decl atom_arg(atom_id: unsigned, atom_arg_pos: unsigned, atom_arg_id: unsigned)
 .decl rule(rule_id: unsigned, name: symbol)
@@ -18,10 +19,11 @@
 .decl rule_clause_same_var(rule_clause_id: unsigned, var_name: symbol)
 .decl wildcard_in_fact(fact_node_id: unsigned,  fact_arg_id: unsigned, pos: unsigned)
 .decl wildcard_in_rule_head(rule_node_id: unsigned, rule_arg_id: unsigned, pos: unsigned)
-
+.decl wildcard_in_assignment(assign_node_id: unsigned, wildcard_node_id: unsigned)
 
 .input literal
 .input variable
+.input assign
 .input atom
 .input atom_arg
 .input rule
@@ -37,6 +39,7 @@
 .output rule_clause_same_var
 .output wildcard_in_fact
 .output wildcard_in_rule_head
+.output wildcard_in_assignment
 
 // Top level facts: no variables allowed
 ungrounded_variable(atom_arg_id, var_name) :-
@@ -92,3 +95,11 @@ wildcard_in_fact(atom_id, atom_arg_id, pos) :-
   module_declaration(_, atom_id),
   atom_arg(atom_id, pos, atom_arg_id),
   wildcard(atom_arg_id).
+
+wildcard_in_assignment(assign_node_id, lhs_node_id) :-
+  assign(assign_node_id, lhs_node_id, _),
+  wildcard(lhs_node_id).
+
+wildcard_in_assignment(assign_node_id, rhs_node_id) :-
+  assign(assign_node_id, _, rhs_node_id),
+  wildcard(rhs_node_id).

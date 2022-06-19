@@ -42,6 +42,7 @@ data Type
 data AST
   = Lit NodeId Number
   | Var NodeId Id
+  | Assign NodeId AST AST
   | Atom NodeId Id [Value]
   | Rule NodeId Id [Value] [Clause]
   | DeclareType NodeId Id [Type]
@@ -71,6 +72,8 @@ instance Pretty AST where
           pure $ pretty x
         Var _ v ->
           pure $ pretty v
+        Assign _ lhs rhs ->
+          pure $ pretty lhs <+> "=" <+> pretty rhs
         Atom _ name values -> do
           end <- ask <&> \case
             TopLevel -> "."

@@ -59,6 +59,12 @@ interpretRA ra = removeInternals <$> runInterpreter (interpret ra) where
       if all null values
         then throwM ExitLoop
         else pass
+    If lhs rhs action -> do
+      a <- resolveValue lhs
+      b <- resolveValue rhs
+      if a == b
+        then interpret action
+        else pass
     _ ->
       panic "Unexpected case in 'interpret'!"
   loopExitError :: InterpretError -> InterpreterM ()

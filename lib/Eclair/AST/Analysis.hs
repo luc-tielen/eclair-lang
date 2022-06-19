@@ -10,6 +10,7 @@ module Eclair.AST.Analysis
   , EmptyModule(..)
   , WildcardInFact(..)
   , WildcardInRuleHead(..)
+  , WildcardInAssignment(..)
   , RuleClauseSameVar(..)
   , IR.NodeId(..)
   , Container
@@ -41,6 +42,12 @@ data Var
   deriving stock Generic
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions Var "variable" 'S.Input
+
+data Assign
+  = Assign { assignId :: NodeId, lhsId :: NodeId, rhsId :: NodeId }
+  deriving stock Generic
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions Assign "assign" 'S.Input
 
 data Atom
   = Atom NodeId Id
@@ -109,13 +116,22 @@ data WildcardInFact
 
 data WildcardInRuleHead
   = WildcardInRuleHead
-  { ruleNodeId :: NodeId
-  , ruleArgId :: NodeId
+  { wildcardRuleNodeId :: NodeId
+  , wildcardRuleArgId :: NodeId
   , wildcardRuleHeadPos :: Position
   }
   deriving stock (Generic, Eq, Show)
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions WildcardInFact "wildcard_in_rule_head" 'S.Output
+
+data WildcardInAssignment
+  = WildcardInAssignment
+  { wildcardAssignNodeId :: NodeId
+  , wildcardNodeId :: NodeId
+  }
+  deriving stock (Generic, Eq, Show)
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions WildcardInAssignment "wildcard_in_assignment" 'S.Output
 
 data MissingTypedef
   = MissingTypedef NodeId Id
@@ -141,6 +157,7 @@ data SemanticAnalysis
   via S.ProgramOptions SemanticAnalysis "semantic_analysis"
       '[ Lit
        , Var
+       , Assign
        , Atom
        , AtomArg
        , Rule
@@ -155,6 +172,7 @@ data SemanticAnalysis
        , RuleClauseSameVar
        , WildcardInRuleHead
        , WildcardInFact
+       , WildcardInAssignment
        ]
 
 -- TODO: change to Vector when finished for performance
@@ -177,6 +195,7 @@ data SemanticErrors
     , ruleClausesWithSameVar :: Container RuleClauseSameVar  -- TODO remove once support is added for this!
     , wildcardsInFacts :: Container WildcardInFact
     , wildcardsInRuleHeads :: Container WildcardInRuleHead
+    , wildcardsInAssignments :: Container WildcardInAssignment
     }
   deriving (Eq, Show, Exception)
 
@@ -185,7 +204,10 @@ hasSemanticErrors result =
   isNotNull emptyModules ||
   isNotNull ungroundedVars ||
   isNotNull missingTypedefs ||
-  isNotNull ruleClausesWithSameVar
+  isNotNull ruleClausesWithSameVar ||
+  isNotNull wildcardsInFacts ||
+  isNotNull wildcardsInRuleHeads ||
+  isNotNull wildcardsInAssignments
   where
     errs = semanticErrors result
     isNotNull :: (SemanticErrors -> [a]) -> Bool
@@ -200,6 +222,10 @@ analysis prog = S.mkAnalysis addFacts run getFacts
         S.addFact prog $ Lit nodeId lit
       IR.VarF nodeId var ->
         S.addFact prog $ Var nodeId var
+      IR.AssignF nodeId (lhsId, lhsAction) (rhsId, rhsAction) -> do
+        S.addFact prog $ Assign nodeId lhsId rhsId
+        lhsAction
+        rhsAction
       IR.AtomF nodeId atom (unzip -> (argNodeIds, actions)) -> do
         S.addFact prog $ Atom nodeId atom
         S.addFacts prog $ mapWithPos (AtomArg nodeId) argNodeIds
@@ -233,12 +259,14 @@ analysis prog = S.mkAnalysis addFacts run getFacts
                              <*> S.getFacts prog
                              <*> S.getFacts prog
                              <*> S.getFacts prog
+                             <*> S.getFacts prog
       pure $ Result () errs
 
     getNodeId :: IR.ASTF NodeId -> NodeId
     getNodeId = \case
       IR.LitF nodeId _ -> nodeId
       IR.VarF nodeId _ -> nodeId
+      IR.AssignF nodeId _ _ -> nodeId
       IR.AtomF nodeId _ _ -> nodeId
       IR.RuleF nodeId _ _ _ -> nodeId
       IR.DeclareTypeF nodeId _ _ -> nodeId

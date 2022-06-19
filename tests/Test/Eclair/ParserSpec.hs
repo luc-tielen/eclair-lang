@@ -40,6 +40,9 @@ spec = describe "parsing" $ parallel $ do
     shouldParseFile "multiple_rule_clauses.dl"
     shouldParseFile "multiple_clauses_same_name.dl"
 
+  it "parses assignments" $ do
+    shouldParseFile "assignment.dl"
+
   it "parses mix of everything" $ do
     shouldParseText [text|
       @def edge(u32, u32).

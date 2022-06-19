@@ -38,15 +38,16 @@ compileToRA ast = RA.Module $ concatMap processDecls sortedDecls where
           Atom {} -> True
           Rule {} -> True
           _ -> False
+        refersTo :: AST -> [Int]
         refersTo = \case
           Rule _ _ _ clauses ->
             -- If no top level facts are defined, no entry exists in declLine mapping -> default to -1
-            concatMap (fromMaybe [-1] . flip M.lookup declLineMapping . nameFor) clauses
+            concatMap (fromMaybe [-1] . flip M.lookup declLineMapping . nameFor) $ filter isRuleOrAtom clauses
           _ -> []
         nameFor = \case
           Atom _ name _ -> name
           Rule _ name _ _ -> name
-          _ ->  unreachable  -- Because of 'isRuleOrAtom'
+          _ ->  unreachable  -- Because of "isRuleOrAtom"
     _ -> unreachable         -- Because rejected by parser
     where unreachable = panic "Unreachable code in 'scc'"
 
@@ -114,10 +115,15 @@ nestedSearchAndProject relation intoRelation terms clauses =
         in search relation' args inner
       ConstrainClause (NotElem r values) ->
         noElemOf r values inner
+      AssignClause lhs rhs ->
+        if' lhs rhs inner
 
 isRecursive :: Relation -> [Clause] -> Bool
 isRecursive ruleName clauses =
-  ruleName `elem` map (\(AtomClause name _) -> name) clauses
+  let atomClauses = flip mapMaybe clauses $ \case
+        AtomClause name _ -> Just name
+        _ -> Nothing
+   in ruleName `elem` atomClauses
 
 extractRuleData :: AST -> Maybe (Relation, [AST], [AST])
 extractRuleData = \case

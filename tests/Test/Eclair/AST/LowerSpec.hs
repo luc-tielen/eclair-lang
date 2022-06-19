@@ -66,6 +66,18 @@ spec = describe "RA Code Generation" $ parallel $ do
   it "generates code for a rule where columns need to equal each other"
     pending -- TODO use fixture: rule_equal_columns
 
+  it "generates code for a rule containing an equality statement" $ do
+    cg "assignment" `resultsIn` [text|
+      search fact1 as fact10 do
+        if 123 = fact10[1] do
+          project (fact10[1], fact10[0]) into fact2
+      search fact1 as fact10 do
+        search fact1 as fact11 where (fact11[1] = fact10[0]) do
+          if fact10[1] = fact10[0] do
+            if fact11[0] = 123 do
+              project (fact10[0], 1) into fact2
+      |]
+
   it "generates code for a single recursive rule" $ do
     cg "single_recursive_rule" `resultsIn` [text|
       project (1, 2) into edge

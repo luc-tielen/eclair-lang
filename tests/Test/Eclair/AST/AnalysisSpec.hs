@@ -49,6 +49,10 @@ checkWildcardsInRuleHeads :: FilePath -> [WildcardInRuleHead] -> IO ()
 checkWildcardsInRuleHeads =
   check wildcardsInRuleHeads
 
+checkWildcardsInAssignments :: FilePath -> [WildcardInAssignment] -> IO ()
+checkWildcardsInAssignments =
+  check wildcardsInAssignments
+
 checkRuleClauseSameVar :: FilePath -> [Text] -> IO ()
 checkRuleClauseSameVar path expectedVars =
   check getRuleClausesSameVar path (map Id expectedVars)
@@ -128,6 +132,15 @@ spec = describe "Semantic analysis" $ parallel $ do
     it "does not report normal variables" $ do
       checkWildcardsInFacts "single_recursive_rule" []
       checkWildcardsInRuleHeads "single_recursive_rule" []
+      checkWildcardsInAssignments "single_recursive_rule" []
+
+    it "reports wildcards used in assignments" $ do
+      checkWildcardsInAssignments "wildcard_in_assignment"
+        [ WildcardInAssignment (NodeId 8) (NodeId 9)
+        , WildcardInAssignment (NodeId 16) (NodeId 18)
+        , WildcardInAssignment (NodeId 24) (NodeId 25)
+        , WildcardInAssignment (NodeId 24) (NodeId 26)
+        ]
 
   -- NOTE: tests should be removed once feature is implemented
   describe "disabling same variables in rule clause" $ do

@@ -71,6 +71,7 @@ default-extensions:
 
 ghc-options:
   #- -Wall TODO turn on again
+  - -Wincomplete-patterns
   - -fhide-source-paths
   - -fno-show-valid-hole-fits
   - -fno-sort-valid-hole-fits
