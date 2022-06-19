@@ -3,11 +3,6 @@
 module Eclair.AST.IR
   ( AST(.., PWildcard)
   , ASTF(.., PWildcardF)
-  , _Lit
-  , _Var
-  , _Atom
-  , _Rule
-  , _Module
   , Value
   , Clause
   , Decl
@@ -16,7 +11,6 @@ module Eclair.AST.IR
   , NodeId(..)
   ) where
 
-import Control.Lens
 import Data.Functor.Foldable.TH
 import Prettyprinter
 import Eclair.Id
@@ -52,7 +46,6 @@ data AST
 pattern PWildcard nodeId
   = Var nodeId (Id "_")
 
-makePrisms ''AST
 makeBaseFunctor ''AST
 
 pattern PWildcardF nodeId

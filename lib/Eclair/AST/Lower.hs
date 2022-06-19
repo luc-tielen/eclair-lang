@@ -1,6 +1,5 @@
 module Eclair.AST.Lower ( compileToRA ) where
 
-import Control.Lens hiding (Equality, Index)
 import qualified Data.Graph as G
 import qualified Data.Map as M
 import Eclair.AST.Codegen
@@ -18,7 +17,7 @@ compileToRA ast = RA.Module $ concatMap processDecls sortedDecls where
   processDecls :: [AST] -> [RA]
   processDecls = \case
     [Atom _ name values] -> runCodegen $
-      let literals = fmap snd (values ^.. folded . _Lit)
+      let literals = getLiterals values
        in emit $ project name (LitTerm <$> literals)
     [Rule _ name args clauses] ->
       let terms = map toTerm args
@@ -51,6 +50,11 @@ compileToRA ast = RA.Module $ concatMap processDecls sortedDecls where
     _ -> unreachable         -- Because rejected by parser
     where unreachable = panic "Unreachable code in 'scc'"
 
+getLiterals :: [AST] -> [Number]
+getLiterals = mapMaybe $ \case
+  Lit _ x -> Just x
+  _ -> Nothing
+
 -- NOTE: These rules can all be evaluated in parallel inside the fixpoint loop
 processMultipleRules :: [AST] -> CodegenM ()
 processMultipleRules rules = traverse_ emit stmts where
@@ -65,7 +69,7 @@ processMultipleRules rules = traverse_ emit stmts where
         deltaRelation = deltaRelationOf r
      in [merge newRelation r, swap newRelation deltaRelation]
   rulesInfo = mapMaybe extractRuleData rules
-  relations = map (view _1) rulesInfo
+  relations = map (\(r, _, _) -> r) rulesInfo
   -- TODO: better func name
   f (r, map toTerm -> ts, map toClause -> clauses) =
     recursiveRuleToStmt r ts clauses
