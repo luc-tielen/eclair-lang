@@ -30,12 +30,14 @@ handleErrors = \case
     let diagnostic = errorDiagnosticFromBundle Nothing "Failed to parse file" Nothing err
         diagnostic' = addFile diagnostic file content
      in renderError diagnostic'
+
   TypeErr file spanMap errs -> do
     content <- readFileText file
     let reports = map (typeErrorToReport file content spanMap) errs
         diagnostic = foldl' addReport def reports
         diagnostic' = addFile diagnostic file (toString content)
      in renderError diagnostic'
+
   SemanticErr file spanMap semanticErr -> do
     content <- readFileText file
     let reports = semanticErrorsToReports file content spanMap semanticErr
@@ -43,13 +45,26 @@ handleErrors = \case
         diagnostic' = addFile diagnostic file (toString content)
      in renderError diagnostic'
 
--- TODO add more info
 typeErrorToReport :: FilePath -> Text -> SpanMap -> TypeError -> Report Text
 typeErrorToReport file fileContent spanMap = \case
-  UnknownAtom nodeId atom ->
-    err Nothing ("Failed to check type of unknown fact '" <> unId atom <> "'") [] []
-  ArgCountMismatch atom expectedCount actualCount ->
-    err Nothing ("Found an unexpected amount of arguments for fact '" <> unId atom <> "'") [] []
+  UnknownAtom nodeId factName ->
+    let srcLoc = getSourcePos file fileContent spanMap nodeId
+        title = "Missing type definition"
+        markers = [(srcLoc, This $ "Could not find a type definition for '" <> unId factName <> "'.")]
+        hints = ["You can solve this by adding a type definition for '" <> unId factName <> "'."]
+    in err Nothing title markers hints
+
+  ArgCountMismatch factName (typedefNodeId, expectedCount) (factNodeId, actualCount) ->
+    let title = "Found an unexpected amount of arguments for fact '" <> unId factName <> "'"
+        expectedSrcLoc = getSourcePos file fileContent spanMap typedefNodeId
+        actualSrcLoc = getSourcePos file fileContent spanMap factNodeId
+        markers = [ (actualSrcLoc, This $ show actualCount <> pluralize actualCount " argument is" " arguments are" <> " provided here.")
+                  , (expectedSrcLoc, Where $ "'" <> unId factName <> "' is defined with " <> show expectedCount <>
+                    pluralize expectedCount " argument." " arguments.")
+                  ]
+        hints = ["You can solve this by passing exactly " <> show expectedCount <> " arguments to '" <> unId factName <> "'."]
+    in err Nothing title markers hints
+
   DuplicateTypeDeclaration factName decls ->
     err Nothing title (mainMarker:markers) hints
     where
@@ -75,6 +90,7 @@ ungroundedVarToReport :: FilePath -> Text -> SpanMap -> UngroundedVar -> Report 
 ungroundedVarToReport file fileContent spanMap (UngroundedVar nodeId var) =
   err Nothing ("Variable '" <> unId var <> "' is ungrounded") [] []
 
+-- TODO: can be removed and handled by type-checker?
 missingTypedefToReport :: FilePath -> Text -> SpanMap -> MissingTypedef -> Report Text
 missingTypedefToReport file fileContent spanMap (MissingTypedef nodeId factName) =
   let srcLoc = getSourcePos file fileContent spanMap nodeId
@@ -120,6 +136,10 @@ semanticErrorsToReports file fileContent spanMap e@(SemanticErrors _ _ _ _ _ _ _
     wildcardInFactReports = getReportsFor wildcardsInFacts wildcardInFactToReport
     wildcardInRuleHeadReports = getReportsFor wildcardsInRuleHeads wildcardInRuleHeadToReport
     wildcardInAssignmentReports = getReportsFor wildcardsInAssignments wildcardInAssignmentToReport
+
+pluralize :: Int -> Text -> Text -> Text
+pluralize count singular plural =
+  if count == 1 then singular else plural
 
 getSourcePos :: FilePath -> Text -> SpanMap -> NodeId -> Position
 getSourcePos file fileContent spanMap nodeId =
