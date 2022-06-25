@@ -204,8 +204,9 @@ data SourcePos
 
 data SourceSpan
   = SourceSpan
-  { beginSourceSpan :: {-# UNPACK #-} !SourcePos
-  , endSourceSpan :: {-# UNPACK #-} !SourcePos
+  { sourceSpanFile :: FilePath
+  , sourceSpanBegin :: {-# UNPACK #-} !SourcePos
+  , sourceSpanEnd :: {-# UNPACK #-} !SourcePos
   }
 
 spanToSourceSpan :: FilePath -> Text -> Span -> SourceSpan
@@ -222,7 +223,7 @@ spanToSourceSpan path text span@(Span begin end) =
       endPos <- P.getSourcePos
       let beginSourcePos = SourcePos (line beginPos) (column beginPos)
           endSourcePos = SourcePos (line endPos) (column endPos)
-      pure $ SourceSpan beginSourcePos endSourcePos
+      pure $ SourceSpan path beginSourcePos endSourcePos
       where
         diff = end - begin
         line = P.unPos . P.sourceLine

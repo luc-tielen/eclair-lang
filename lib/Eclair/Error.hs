@@ -46,12 +46,22 @@ handleErrors = \case
 -- TODO add more info
 typeErrorToReport :: FilePath -> Text -> SpanMap -> TypeError -> Report Text
 typeErrorToReport file fileContent spanMap = \case
-  UnknownAtom atom ->
+  UnknownAtom nodeId atom ->
     err Nothing ("Failed to check type of unknown fact '" <> unId atom <> "'") [] []
   ArgCountMismatch atom expectedCount actualCount ->
     err Nothing ("Found an unexpected amount of arguments for fact '" <> unId atom <> "'") [] []
-  DuplicateTypeDeclaration atom ->
-    err Nothing ("Duplicate type declaration for fact '" <> unId atom <> "'") [] []
+  DuplicateTypeDeclaration factName decls ->
+    err Nothing title (mainMarker:markers) hints
+    where
+      title = "Multiple type declarations for fact '" <> unId factName <> "'"
+      mainMarker =
+        let nodeId = fst $ head decls
+            srcLoc = getSourcePos file fileContent spanMap nodeId
+         in (srcLoc, This $ "'" <> unId factName <> "' is originally defined here.")
+      markers = tail decls & toList & map (\(nodeId, _tys) ->
+        let srcLoc = getSourcePos file fileContent spanMap nodeId
+         in (srcLoc, Where $ "'" <> unId factName <> "' is re-defined here."))
+      hints = ["You can solve this by removing the duplicate definitions for '" <> unId factName <> "'."]
 
 -- TODO finish
 -- TODO helpful error message pointing to a getting started guide
@@ -67,12 +77,11 @@ ungroundedVarToReport file fileContent spanMap (UngroundedVar nodeId var) =
 
 missingTypedefToReport :: FilePath -> Text -> SpanMap -> MissingTypedef -> Report Text
 missingTypedefToReport file fileContent spanMap (MissingTypedef nodeId factName) =
-  -- TODO refactor
-  let span = lookupSpan spanMap nodeId
-      srcLoc = sourceSpanToPosition file $ spanToSourceSpan file fileContent span
+  let srcLoc = getSourcePos file fileContent spanMap nodeId
+      title = "Missing type definition"
       markers = [(srcLoc, This $ "Could not find a type definition for '" <> unId factName <> "'.")]
       hints = ["You can solve this by adding a type definition for '" <> unId factName <> "'."]
-  in err Nothing "Missing type definition" markers hints
+  in err Nothing title markers hints
 
 -- TODO finish
 -- TODO explain why it is not allowed
@@ -112,13 +121,18 @@ semanticErrorsToReports file fileContent spanMap e@(SemanticErrors _ _ _ _ _ _ _
     wildcardInRuleHeadReports = getReportsFor wildcardsInRuleHeads wildcardInRuleHeadToReport
     wildcardInAssignmentReports = getReportsFor wildcardsInAssignments wildcardInAssignmentToReport
 
-sourceSpanToPosition :: FilePath -> SourceSpan -> Position
-sourceSpanToPosition file sourceSpan =
-  let beginPos = beginSourceSpan sourceSpan
-      endPos = endSourceSpan sourceSpan
+getSourcePos :: FilePath -> Text -> SpanMap -> NodeId -> Position
+getSourcePos file fileContent spanMap nodeId =
+  let span = lookupSpan spanMap nodeId
+   in sourceSpanToPosition $ spanToSourceSpan file fileContent span
+
+sourceSpanToPosition :: SourceSpan -> Position
+sourceSpanToPosition sourceSpan =
+  let beginPos = sourceSpanBegin sourceSpan
+      endPos = sourceSpanEnd sourceSpan
       start = (sourcePosLine beginPos, sourcePosColumn beginPos)
       end = (sourcePosLine endPos, sourcePosColumn endPos)
-   in Position start end file
+   in Position start end (sourceSpanFile sourceSpan)
 
 renderError :: Diagnostic Text -> IO ()
 renderError =
