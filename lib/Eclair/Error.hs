@@ -78,11 +78,13 @@ typeErrorToReport file fileContent spanMap = \case
          in (srcLoc, Where $ "'" <> unId factName <> "' is re-defined here."))
       hints = ["You can solve this by removing the duplicate definitions for '" <> unId factName <> "'."]
 
--- TODO finish
--- TODO helpful error message pointing to a getting started guide
 emptyModuleToReport :: FilePath -> Text -> SpanMap -> EmptyModule -> Report Text
 emptyModuleToReport file fileContent spanMap (EmptyModule nodeId) =
-  err Nothing "Nothing to do for empty module, aborting" [] []
+  let title = "Empty module"
+      markers = []
+      -- TODO: write out some more getting started docs
+      hints = ["See https://github.com/luc-tielen/eclair-lang#example-code for some example code! :)"]
+   in err Nothing title markers hints
 
 -- TODO finish
 -- TODO explain what ungrounded means
@@ -99,16 +101,28 @@ missingTypedefToReport file fileContent spanMap (MissingTypedef nodeId factName)
       hints = ["You can solve this by adding a type definition for '" <> unId factName <> "'."]
   in err Nothing title markers hints
 
--- TODO finish
--- TODO explain why it is not allowed
 wildcardInFactToReport :: FilePath -> Text -> SpanMap -> WildcardInFact -> Report Text
-wildcardInFactToReport file fileContent spanMap (WildcardInFact factNodeId factArgId pos) =
-  err Nothing ("Found wildcard in top level fact") [] []
+wildcardInFactToReport file fileContent spanMap (WildcardInFact factNodeId factArgId _pos) =
+  let title = "Wildcard in top level fact"
+      srcLocFact = getSourcePos file fileContent spanMap factNodeId
+      srcLocArg = getSourcePos file fileContent spanMap factArgId
+      markers = [ (srcLocArg, This "Wildcard found.")
+                , (srcLocFact, Where "A top level fact only supports constants.\nVariables or wildcards are not allowed.")
+                ]
+      hints = ["Replace the wildcard with a constant."]
+   in err Nothing title markers hints
 
--- TODO finish
+-- TODO: span of rule => weird error rendering?
 wildcardInRuleHeadToReport :: FilePath -> Text -> SpanMap -> WildcardInRuleHead -> Report Text
-wildcardInRuleHeadToReport file fileContent spanMap (WildcardInRuleHead nodeId _ _) =
-  err Nothing ("Found wildcard in the 'head' of a rule") [] []
+wildcardInRuleHeadToReport file fileContent spanMap (WildcardInRuleHead ruleNodeId ruleArgId _pos) =
+  let title = "Wildcard in 'head' of rule"
+      srcLocRule = getSourcePos file fileContent spanMap ruleNodeId
+      srcLocArg = getSourcePos file fileContent spanMap ruleArgId
+      markers = [ (srcLocArg, This "Wildcard found.")
+                , (srcLocRule, Where "Only constants and variables are allowed in the head of a rule.\nWildcards are not allowed.")
+                ]
+      hints = ["Replace the wildcard with a constant or a variable."]
+   in err Nothing title markers hints
 
 -- TODO finish
 wildcardInAssignmentToReport :: FilePath -> Text -> SpanMap -> WildcardInAssignment -> Report Text

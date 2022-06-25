@@ -119,13 +119,14 @@ factOrRuleParser :: Parser AST
 factOrRuleParser = withNodeId $ \nodeId -> do
   name <- lexeme identifier
   args <- lexeme $ betweenParens $ valueParser `P.sepBy1` comma
-  declType <- lexeme $ (RuleType <$ P.chunk ":-") <|> (FactType <$ P.chunk ".")
+  declType <- lexeme (RuleType <$ P.chunk ":-") <|> (FactType <$ P.chunk ".")
   case declType of
     RuleType -> do
       body <- ruleClauseParser `P.sepBy1` comma <* period
       pure $ Rule nodeId name args body
     FactType -> pure $ Atom nodeId name args
-  where period = lexeme $ P.char '.'
+  where
+    period = P.char '.'
 
 comma :: Parser Char
 comma = lexeme $ P.char ','
