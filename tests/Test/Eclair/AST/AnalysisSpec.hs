@@ -15,7 +15,7 @@ check f path expected = do
   let file = "tests/fixtures" </> path <.> "dl"
   result <- try $ semanticAnalysis file
   case result of
-    Left (SemanticErr errs) ->
+    Left (SemanticErr _ _ errs) ->
       f errs `shouldBe` expected
     Left e ->
       panic $ "Received unexpected exception: " <> show e

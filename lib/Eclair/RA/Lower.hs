@@ -174,8 +174,8 @@ generateProgramInstructions = gcata (distribute extractEqualities) $ \case
         fieldAccess (pure value) col
   where
     distribute :: Corecursive t
-                => (Base t (t, a) -> a)
-                -> (Base t (Triple t a b) -> Triple t a (Base t b))
+               => (Base t (t, a) -> a)
+               -> (Base t (Triple t a b) -> Triple t a (Base t b))
     distribute f m =
       let base_t_t = map tFst m
           base_t_ta = map (tFst &&& tSnd) m

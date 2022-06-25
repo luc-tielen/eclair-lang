@@ -65,7 +65,7 @@ spec = describe "EIR Code Generation" $ parallel $ do
   it "generates empty run function for empty program" $ do
     let shouldFailWithCause m f = do
           try m >>= \case
-            Left (SemanticErr errs) ->
+            Left (SemanticErr _ _ errs) ->
               f errs `shouldNotBe` []
             result ->
               panic $ "Expected a failure, but got: " <> show result

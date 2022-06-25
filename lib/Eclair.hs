@@ -23,6 +23,7 @@ import Eclair.RA.Lower
 import Eclair.EIR.Lower
 import Eclair.Parser
 import Eclair.Pretty
+import Eclair.Error
 import Eclair.Id
 import Eclair.AST.IR
 import Eclair.AST.Transforms
@@ -42,12 +43,6 @@ import Data.Maybe
 type Relation = RA.Relation
 type RA = RA.RA
 type EIR = EIR.EIR
-
-data EclairError
-  = ParseErr ParseError
-  | TypeErr [TS.TypeError]
-  | SemanticErr SA.SemanticErrors
-  deriving (Show, Exception)
 
 
 data Query a where
@@ -105,19 +100,19 @@ instance Hashable (Some Query) where
 rules :: Rock.Rules Query
 rules = \case
   Parse path ->
-    liftIO $ either (throwIO . ParseErr) pure =<< parseFile path
+    liftIO $ either (throwIO . ParseErr path) pure =<< parseFile path
   RunSemanticAnalysis path -> do
-    ast <- fst <$> Rock.fetch (Parse path)
+    (ast, spans) <- Rock.fetch (Parse path)
     result <- liftIO $ SA.runAnalysis ast
     let errors = SA.semanticErrors result
     when (SA.hasSemanticErrors result) $ do
-      liftIO $ (throwIO . SemanticErr) errors
+      liftIO $ (throwIO . SemanticErr path spans) errors
     pure result
   Typecheck path -> do
-    ast <- fst <$> Rock.fetch (Parse path)
+    (ast, spans) <- Rock.fetch (Parse path)
     -- TODO: find better place to do semantic analysis
     _ <- Rock.fetch (RunSemanticAnalysis path)
-    liftIO . either (throwIO . TypeErr) pure $ TS.typeCheck ast
+    liftIO . either (throwIO . TypeErr path spans) pure $ TS.typeCheck ast
   TransformAST path -> do
     ast <- fst <$> Rock.fetch (Parse path)
     pure $ simplify ast
@@ -192,15 +187,3 @@ run :: FilePath -> IO (M.Map Relation [[Number]])
 run =
   interpretRA <=< runQuery . CompileRA
 
--- TODO: improve error handling...
-handleErrors :: EclairError -> IO ()
-handleErrors = \case
-  ParseErr err -> do
-    printParseError err
-    panic "Failed to parse file."
-  TypeErr errs -> do
-    traverse_ print errs
-    panic "Failed to type-check file."
-  SemanticErr err -> do
-    print err
-    panic "Semantic analysis failed."
