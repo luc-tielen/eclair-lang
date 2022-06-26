@@ -17,7 +17,7 @@ but expect there to be bugs. Some edge cases might not be checked yet.
 
 - [x] Compile to LLVM
 - [x] Release 0.0.1
-- [ ] Proper error handling
+- [x] Proper error handling
 - [ ] LSP support
 - [x] Support wildcards (`_`)
 - [ ] Support other data types than integers (strings, ...), add typesystem
