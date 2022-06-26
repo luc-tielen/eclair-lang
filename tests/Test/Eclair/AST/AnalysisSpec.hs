@@ -15,7 +15,7 @@ check f path expected = do
   let file = "tests/fixtures" </> path <.> "dl"
   result <- try $ semanticAnalysis file
   case result of
-    Left (SemanticErr errs) ->
+    Left (SemanticErr _ _ errs) ->
       f errs `shouldBe` expected
     Left e ->
       panic $ "Received unexpected exception: " <> show e
@@ -28,14 +28,14 @@ checkUngroundedVars path expectedVars =
   check getUngroundedVars path (map Id expectedVars)
   where
     getUngroundedVars =
-      map (\(UngroundedVar _ v) -> v) . ungroundedVars
+      map (\(UngroundedVar _ _ v) -> v) . ungroundedVars
 
-checkMissingTypedefs :: FilePath -> [Text] -> IO ()
-checkMissingTypedefs path expectedVars =
-  check getMissingTypedefs path (map Id expectedVars)
+checkVarsInFacts :: FilePath -> [Text] -> IO ()
+checkVarsInFacts path expectedVars =
+  check getVarsInFacts path (map Id expectedVars)
   where
-    getMissingTypedefs =
-      map (\(MissingTypedef _ v) -> v) . missingTypedefs
+    getVarsInFacts =
+      map (\(VariableInFact _ v) -> v) . variablesInFacts
 
 checkEmptyModules :: FilePath -> [EmptyModule] -> IO ()
 checkEmptyModules =
@@ -70,21 +70,6 @@ spec = describe "Semantic analysis" $ parallel $ do
       checkEmptyModules "single_recursive_rule" []
       checkEmptyModules "mutually_recursive_rules" []
 
-  describe "detecting missing type definitions" $ do
-    it "detects no missing type definitions for empty file" $
-      checkMissingTypedefs "empty" []
-
-    it "detects missing type definitions for rules" $
-      checkMissingTypedefs "missing_typedef_in_rule"
-        ["unknown_rule", "unknown_fact1", "unknown_fact2"]
-
-    it "detects missing type definitions for top level facts" $
-      checkMissingTypedefs "missing_typedef_in_atom" ["unknown_fact"]
-
-    it "finds no issues if all types are defined" $ do
-      checkMissingTypedefs "mutually_recursive_rules" []
-      checkMissingTypedefs "typedef_after_usage" []
-
   describe "detecting ungrounded variables" $ do
     it "finds no ungrounded vars for empty file" $ do
       checkUngroundedVars "empty" []
@@ -104,7 +89,7 @@ spec = describe "Semantic analysis" $ parallel $ do
     it "finds no ungrounded vars for a rule where 2 vars are equal" pending
 
     it "marks all variables found in top level facts as ungrounded" $ do
-      checkUngroundedVars "ungrounded_var_in_facts" ["a", "b", "c", "d"]
+      checkVarsInFacts "ungrounded_var_in_facts" ["a", "b", "c", "d"]
 
     it "marks all variables only found in a rule head as ungrounded" $ do
       checkUngroundedVars "ungrounded_var_in_rules" ["z", "a", "b"]

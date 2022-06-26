@@ -29,7 +29,7 @@ cg path = do
 shouldFailWithCause :: (Eq a, Show a) => IO T.Text -> (SemanticErrors -> [a]) -> IO ()
 shouldFailWithCause m f =
   try m >>= \case
-    Left (SemanticErr errs) ->
+    Left (SemanticErr _ _ errs) ->
       f errs `shouldNotBe` []
     result ->
       panic $ "Expected a failure, but got: " <> show result

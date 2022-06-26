@@ -36,6 +36,7 @@ dependencies:
   - mmorph == 1.*
   - exceptions == 0.10.*
   - prettyprinter == 1.7.*
+  - prettyprinter-ansi-terminal == 1.*
   - megaparsec == 9.*
   - souffle-haskell == 3.4.0
   - recursion-schemes == 5.*
@@ -46,6 +47,7 @@ dependencies:
   - dependent-sum-template == 0.1.*
   - some == 1.*
   - optparse-applicative == 0.16.*
+  - diagnose == 2.*
 
 default-extensions:
   - OverloadedStrings

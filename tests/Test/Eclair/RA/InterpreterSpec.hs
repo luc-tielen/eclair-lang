@@ -23,8 +23,7 @@ interpret :: Text -> IO (M.Map Relation [Record])
 interpret txt = do
   case map fst $ parseText "<test>" txt of
     Left err -> do
-      printParseError err
-      panic "Failed to parse file."
+      panic $ "Failed to parse file: " <> show err
     Right ast ->
       case typeCheck ast of
         Left errs -> do

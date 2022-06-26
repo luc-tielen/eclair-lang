@@ -17,7 +17,7 @@ but expect there to be bugs. Some edge cases might not be checked yet.
 
 - [x] Compile to LLVM
 - [x] Release 0.0.1
-- [ ] Proper error handling
+- [x] Proper error handling
 - [ ] LSP support
 - [x] Support wildcards (`_`)
 - [ ] Support other data types than integers (strings, ...), add typesystem
@@ -31,6 +31,30 @@ but expect there to be bugs. Some edge cases might not be checked yet.
 
 This roadmap is not set in stone, but it gives an idea on the direction of the
 project. :smile:
+
+## Example code
+
+Let's say we want to find out which points are reachable in a graph. We can
+determine which points are reachable using the following two rules:
+
+1. One point is reachable from another point, iff there is a direct edge between
+   those two points.
+2. One point is reachable from another point, iff there is a third point z such
+   that there is a direct edge between 'x' and 'z', and between 'z' and 'y'.
+
+The Eclair code below can be used to calculate the solution:
+
+```eclair
+@def edge(u32, u32).
+@def reachable(u32, u32).
+
+reachable(x, y) :-
+  edge(x, y).
+
+reachable(x, z) :-
+  edge(x, y),
+  reachable(y, z).
+```
 
 ## Why the name?
 

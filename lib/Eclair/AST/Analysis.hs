@@ -5,8 +5,8 @@ module Eclair.AST.Analysis
   , SemanticErrors(..)
   , hasSemanticErrors
   , runAnalysis
+  , VariableInFact(..)
   , UngroundedVar(..)
-  , MissingTypedef(..)
   , EmptyModule(..)
   , WildcardInFact(..)
   , WildcardInRuleHead(..)
@@ -98,8 +98,18 @@ data ModuleDecl
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions ModuleDecl "module_declaration" 'S.Input
 
+data VariableInFact
+  = VariableInFact NodeId Id
+  deriving stock (Generic, Eq, Show)
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions VariableInFact "variable_in_fact" 'S.Output
+
 data UngroundedVar
-  = UngroundedVar NodeId Id
+  = UngroundedVar
+  { ungroundedRuleNodeId :: NodeId
+  , ungroundedVarNodeId :: NodeId
+  , ungroundedVarName :: Id
+  }
   deriving stock (Generic, Eq, Show)
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions UngroundedVar "ungrounded_variable" 'S.Output
@@ -133,12 +143,6 @@ data WildcardInAssignment
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions WildcardInAssignment "wildcard_in_assignment" 'S.Output
 
-data MissingTypedef
-  = MissingTypedef NodeId Id
-  deriving stock (Generic, Eq, Show)
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions MissingTypedef "missing_typedef" 'S.Output
-
 data RuleClauseSameVar
   = RuleClauseSameVar NodeId Id
   deriving stock (Generic, Eq, Show)
@@ -166,8 +170,8 @@ data SemanticAnalysis
        , DeclareType
        , Module
        , ModuleDecl
+       , VariableInFact
        , UngroundedVar
-       , MissingTypedef
        , EmptyModule
        , RuleClauseSameVar
        , WildcardInRuleHead
@@ -189,21 +193,21 @@ data Result
 
 data SemanticErrors
   = SemanticErrors
-    { emptyModules :: Container EmptyModule
-    , ungroundedVars :: Container UngroundedVar
-    , missingTypedefs :: Container MissingTypedef
-    , ruleClausesWithSameVar :: Container RuleClauseSameVar  -- TODO remove once support is added for this!
-    , wildcardsInFacts :: Container WildcardInFact
-    , wildcardsInRuleHeads :: Container WildcardInRuleHead
-    , wildcardsInAssignments :: Container WildcardInAssignment
-    }
+  { emptyModules :: Container EmptyModule
+  , variablesInFacts :: Container VariableInFact
+  , ungroundedVars :: Container UngroundedVar
+  , ruleClausesWithSameVar :: Container RuleClauseSameVar  -- TODO remove once support is added for this!
+  , wildcardsInFacts :: Container WildcardInFact
+  , wildcardsInRuleHeads :: Container WildcardInRuleHead
+  , wildcardsInAssignments :: Container WildcardInAssignment
+  }
   deriving (Eq, Show, Exception)
 
 hasSemanticErrors :: Result -> Bool
 hasSemanticErrors result =
   isNotNull emptyModules ||
+  isNotNull variablesInFacts ||
   isNotNull ungroundedVars ||
-  isNotNull missingTypedefs ||
   isNotNull ruleClausesWithSameVar ||
   isNotNull wildcardsInFacts ||
   isNotNull wildcardsInRuleHeads ||

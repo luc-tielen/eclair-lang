@@ -53,6 +53,18 @@
         "url": "https://hackage.haskell.org/package/constraints-extras-0.3.2.1/constraints-extras-0.3.2.1.tar.gz"
       }
     },
+    "diagnose": {
+      "flake": false,
+      "locked": {
+        "narHash": "sha256-/SuFVQSs5Nn55/KjJW26Jq5zwmka8vBPrbpgKt2Ltyk=",
+        "type": "tarball",
+        "url": "https://hackage.haskell.org/package/diagnose-2.0.0/diagnose-2.0.0.tar.gz"
+      },
+      "original": {
+        "type": "tarball",
+        "url": "https://hackage.haskell.org/package/diagnose-2.0.0/diagnose-2.0.0.tar.gz"
+      }
+    },
     "ds": {
       "inputs": {
         "flake-utils": "flake-utils",
@@ -687,6 +699,7 @@
     "root": {
       "inputs": {
         "alga": "alga",
+        "diagnose": "diagnose",
         "ds": "ds",
         "fu": "fu",
         "hls": "hls",

@@ -10,6 +10,10 @@ The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-has
 - Wildcards are now supported in rule bodies.
 - Assignments are now supported in rule bodies.
 
+### Changed
+
+- Improved error reporting.
+
 ### Fixed
 
 - Edgecase in index selection algorithm. The algorithm now does not take

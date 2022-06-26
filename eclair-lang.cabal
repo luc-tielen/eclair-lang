@@ -42,6 +42,7 @@ library
       Eclair.EIR.Codegen
       Eclair.EIR.IR
       Eclair.EIR.Lower
+      Eclair.Error
       Eclair.Id
       Eclair.LLVM.BTree
       Eclair.LLVM.Hash
@@ -89,6 +90,7 @@ library
     , comonad ==5.*
     , containers ==0.*
     , dependent-sum-template ==0.1.*
+    , diagnose ==2.*
     , exceptions ==0.10.*
     , extra ==1.*
     , llvm-codegen
@@ -97,6 +99,7 @@ library
     , mtl ==2.*
     , optparse-applicative ==0.16.*
     , prettyprinter ==1.7.*
+    , prettyprinter-ansi-terminal ==1.*
     , recursion-schemes ==5.*
     , relude ==1.0.*
     , rock ==0.3.*
@@ -156,6 +159,7 @@ executable eclair
     , comonad ==5.*
     , containers ==0.*
     , dependent-sum-template ==0.1.*
+    , diagnose ==2.*
     , directory ==1.*
     , eclair-lang
     , exceptions ==0.10.*
@@ -166,6 +170,7 @@ executable eclair
     , mtl ==2.*
     , optparse-applicative ==0.16.*
     , prettyprinter ==1.7.*
+    , prettyprinter-ansi-terminal ==1.*
     , recursion-schemes ==5.*
     , relude ==1.0.*
     , rock ==0.3.*
@@ -235,6 +240,7 @@ test-suite eclair-test
     , comonad ==5.*
     , containers ==0.*
     , dependent-sum-template ==0.1.*
+    , diagnose ==2.*
     , eclair-lang
     , exceptions ==0.10.*
     , extra ==1.*
@@ -249,6 +255,7 @@ test-suite eclair-test
     , neat-interpolation ==0.*
     , optparse-applicative ==0.16.*
     , prettyprinter ==1.7.*
+    , prettyprinter-ansi-terminal ==1.*
     , recursion-schemes ==5.*
     , relude ==1.0.*
     , rock ==0.3.*
