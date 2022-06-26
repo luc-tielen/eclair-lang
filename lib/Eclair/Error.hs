@@ -86,20 +86,24 @@ emptyModuleToReport file fileContent spanMap (EmptyModule nodeId) =
       hints = ["See https://github.com/luc-tielen/eclair-lang#example-code for some example code! :)"]
    in err Nothing title markers hints
 
--- TODO finish
--- TODO explain what ungrounded means
-ungroundedVarToReport :: FilePath -> Text -> SpanMap -> UngroundedVar -> Report Text
-ungroundedVarToReport file fileContent spanMap (UngroundedVar nodeId var) =
-  err Nothing ("Variable '" <> unId var <> "' is ungrounded") [] []
-
--- TODO: can be removed and handled by type-checker?
-missingTypedefToReport :: FilePath -> Text -> SpanMap -> MissingTypedef -> Report Text
-missingTypedefToReport file fileContent spanMap (MissingTypedef nodeId factName) =
+variableInFactToReport :: FilePath -> Text -> SpanMap -> VariableInFact -> Report Text
+variableInFactToReport file fileContent spanMap (VariableInFact nodeId var) =
   let srcLoc = getSourcePos file fileContent spanMap nodeId
-      title = "Missing type definition"
-      markers = [(srcLoc, This $ "Could not find a type definition for '" <> unId factName <> "'.")]
-      hints = ["You can solve this by adding a type definition for '" <> unId factName <> "'."]
-  in err Nothing title markers hints
+      title = "Variable in top level fact"
+      markers = [(srcLoc, This "Only constants are allowed in facts.")]
+      hints = ["You can solve this by replacing the variable with a constant."]
+   in err Nothing title markers hints
+
+ungroundedVarToReport :: FilePath -> Text -> SpanMap -> UngroundedVar -> Report Text
+ungroundedVarToReport file fileContent spanMap (UngroundedVar ruleNodeId varNodeId var) =
+  let title = "Ungrounded variable"
+      srcLocRule = getSourcePos file fileContent spanMap ruleNodeId
+      srcLocVar = getSourcePos file fileContent spanMap varNodeId
+      markers = [ (srcLocVar, This $ "The variable '" <> unId var <> "' is ungrounded, meaning it is not directly bound as an argument to a relation.")
+                , (srcLocRule, Where $ "This rule contains no clauses that refer to '" <> unId var <> "'.")
+                ]
+      hints = ["Use the variable '" <> unId var <> "' as an argument in another clause in the same rule."]
+   in err Nothing title markers hints
 
 wildcardInFactToReport :: FilePath -> Text -> SpanMap -> WildcardInFact -> Report Text
 wildcardInFactToReport file fileContent spanMap (WildcardInFact factNodeId factArgId _pos) =
@@ -112,7 +116,6 @@ wildcardInFactToReport file fileContent spanMap (WildcardInFact factNodeId factA
       hints = ["Replace the wildcard with a constant."]
    in err Nothing title markers hints
 
--- TODO: span of rule => weird error rendering?
 wildcardInRuleHeadToReport :: FilePath -> Text -> SpanMap -> WildcardInRuleHead -> Report Text
 wildcardInRuleHeadToReport file fileContent spanMap (WildcardInRuleHead ruleNodeId ruleArgId _pos) =
   let title = "Wildcard in 'head' of rule"
@@ -124,17 +127,23 @@ wildcardInRuleHeadToReport file fileContent spanMap (WildcardInRuleHead ruleNode
       hints = ["Replace the wildcard with a constant or a variable."]
    in err Nothing title markers hints
 
--- TODO finish
 wildcardInAssignmentToReport :: FilePath -> Text -> SpanMap -> WildcardInAssignment -> Report Text
-wildcardInAssignmentToReport file fileContent spanMap (WildcardInAssignment nodeId _) =
-  err Nothing ("Found a wildcard in an assignment") [] []
+wildcardInAssignmentToReport file fileContent spanMap (WildcardInAssignment assignNodeId wildcardNodeId) =
+  let title = "Found wildcard in equality constraint"
+      srcLocWildcard = getSourcePos file fileContent spanMap wildcardNodeId
+      srcLocAssign = getSourcePos file fileContent spanMap assignNodeId
+      markers = [ (srcLocWildcard, This "Wildcard found.")
+                , (srcLocAssign, Where "Only constants and variables are allowed in an equality constraint.")
+                ]
+      hints = ["This statement can be removed since it has no effect."]
+   in err Nothing title markers hints
 
 -- NOTE: pattern match is done this way to keep track of additional errors that need to be reported
 semanticErrorsToReports :: FilePath -> Text -> SpanMap -> SemanticErrors -> [Report Text]
 semanticErrorsToReports file fileContent spanMap e@(SemanticErrors _ _ _ _ _ _ _) =
   concat [ emptyModuleReports
          , ungroundedVarReports
-         , missingTypedefReports
+         , variableInFactReports
          , wildcardInFactReports
          , wildcardInRuleHeadReports
          , wildcardInAssignmentReports
@@ -146,7 +155,7 @@ semanticErrorsToReports file fileContent spanMap e@(SemanticErrors _ _ _ _ _ _ _
     getReportsFor f g = map (g file fileContent spanMap) (f e)
     emptyModuleReports = getReportsFor emptyModules emptyModuleToReport
     ungroundedVarReports = getReportsFor ungroundedVars ungroundedVarToReport
-    missingTypedefReports = getReportsFor missingTypedefs missingTypedefToReport
+    variableInFactReports = getReportsFor variablesInFacts variableInFactToReport
     wildcardInFactReports = getReportsFor wildcardsInFacts wildcardInFactToReport
     wildcardInRuleHeadReports = getReportsFor wildcardsInRuleHeads wildcardInRuleHeadToReport
     wildcardInAssignmentReports = getReportsFor wildcardsInAssignments wildcardInAssignmentToReport

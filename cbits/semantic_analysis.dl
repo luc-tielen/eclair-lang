@@ -13,8 +13,8 @@
 .decl wildcard(node_id: unsigned) inline
 .decl rule_clause_var(rule_id: unsigned, var_name: symbol)
 
-.decl ungrounded_variable(node_id: unsigned, var_name: symbol)
-.decl missing_typedef(node_id: unsigned, var_name: symbol)
+.decl variable_in_fact(node_id: unsigned, var_name: symbol)
+.decl ungrounded_variable(rule_id: unsigned, node_id: unsigned, var_name: symbol)
 .decl empty_module(node_id: unsigned)
 .decl rule_clause_same_var(rule_clause_id: unsigned, var_name: symbol)
 .decl wildcard_in_fact(fact_node_id: unsigned,  fact_arg_id: unsigned, pos: unsigned)
@@ -33,25 +33,27 @@
 .input module
 .input module_declaration
 
+.output variable_in_fact
+.output wildcard_in_fact
 .output ungrounded_variable
-.output missing_typedef
 .output empty_module
 .output rule_clause_same_var
-.output wildcard_in_fact
 .output wildcard_in_rule_head
 .output wildcard_in_assignment
 
 // Top level facts: no variables allowed
-ungrounded_variable(atom_arg_id, var_name) :-
+variable_in_fact(atom_arg_id, var_name) :-
   module_declaration(_, atom_id),
   atom_arg(atom_id, _, atom_arg_id),
-  variable(atom_arg_id, var_name).
+  variable(atom_arg_id, var_name),
+  var_name != "_".
 
 // Rules: no variables allowed in rule head if not used in rule body
-ungrounded_variable(rule_arg_id, var_name) :-
+ungrounded_variable(rule_id, rule_arg_id, var_name) :-
   rule(rule_id, _),
   rule_arg(rule_id, _, rule_arg_id),
   variable(rule_arg_id, var_name),
+  var_name != "_",
   !rule_clause_var(rule_id, var_name).
 
 // Helper relation for getting all variables in body of a rule.
@@ -69,16 +71,6 @@ rule_clause_same_var(rule_clause_id, var) :-
   pos1 != pos2,
   variable(atom_arg_id1, var),
   variable(atom_arg_id2, var).
-
-// An atom always needs a type definition
-missing_typedef(node_id, atom_name) :-
-  atom(node_id, atom_name),
-  !declare_type(_, atom_name).
-
-// A rule always needs a type definition
-missing_typedef(node_id, rule_name) :-
-  rule(node_id, rule_name),
-  !declare_type(_, rule_name).
 
 empty_module(node_id) :-
   module(node_id),
