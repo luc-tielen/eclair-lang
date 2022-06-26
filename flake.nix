@@ -13,6 +13,8 @@
     alga.url =
       "github:snowleopard/alga?rev=75de41a4323ab9e58ca49dbd78b77f307b189795";
     alga.flake = false;
+    diagnose.url = "https://hackage.haskell.org/package/diagnose-2.0.0/diagnose-2.0.0.tar.gz";
+    diagnose.flake = false;
   };
   outputs = { self, fu, ds, shs, llvm-cg, ... }@inputs:
     let
@@ -43,6 +45,8 @@
 
                       dependent-hashmap = with hf;
                         unmarkBroken (dontCheck hp.dependent-hashmap);
+
+                      diagnose = hf.callCabal2nixWithOptions "diagnose" (inputs.diagnose) "-fmegaparsec-compat" {};
 
                       eclair-lang = with hf;
                         (callCabal2nix "eclair-lang" ./. { }).overrideAttrs
