@@ -13,6 +13,36 @@ Eclair is a minimal Datalog (for now). It only supports the following features:
 It's **alpha** software, not ready for real use. Right now it compiles to LLVM
 but expect there to be bugs. Some edge cases might not be checked yet.
 
+## Some example code
+
+Given the following Eclair code that can calculate which nodes in a graph are
+connected to each other:
+
+```prolog
+@def edge(u32, u32).
+@def reachable(u32, u32).
+
+reachable(x, y) :-
+  edge(x, y).
+
+reachable(x, z) :-
+  edge(x, y),
+  reachable(y, z).
+```
+
+Then it can be compiled to LLVM using the Docker image provided by this repo:
+
+```bash
+$ git clone git@github.com:luc-tielen/eclair-lang.git
+$ cd eclair-lang
+$ docker build . -t eclair
+# The next line assumes the eclair code is saved as "example.dl" in the current directory
+$ docker run -v $PWD:/code --rm -it eclair:latest compile /code/example.dl
+```
+
+This will emit the generated LLVM IR to the stdout of the terminal (which you
+can redirect to a file).
+
 ## Roadmap
 
 - [x] Compile to LLVM
