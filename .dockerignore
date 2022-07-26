@@ -1,0 +1,8 @@
+.direnv/
+.git/
+.github/
+dist/
+dist-newstyle/
+result/
+Dockerfile
+.dockerignore
