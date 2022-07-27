@@ -42,7 +42,7 @@ data Span
 data SpanMap =
   SpanMap
   { spanMapPath :: !FilePath
-  , spanMapSpans :: !(Map Int32 Span)
+  , spanMapSpans :: !(Map Word32 Span)
   }
   deriving Show
 
@@ -55,7 +55,7 @@ lookupSpan :: SpanMap -> NodeId -> Span
 lookupSpan (SpanMap _path m) nodeId =
   fromJust $ M.lookup (unNodeId nodeId) m
 
-type ParserState = (Int32, SpanMap)
+type ParserState = (Word32, SpanMap)
 type Parser = P.ParsecT ParseErr Text (State ParserState)
 
 parseFile :: FilePath -> IO (Either ParseError (AST, SpanMap))

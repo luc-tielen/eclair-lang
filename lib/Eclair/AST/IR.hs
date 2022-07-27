@@ -19,7 +19,7 @@ import qualified Language.Souffle.Marshal as S
 
 newtype NodeId
   = NodeId
-  { unNodeId :: Int32
+  { unNodeId :: Word32
   } deriving (Eq, Ord, Show, Generic)
   deriving S.Marshal
 
