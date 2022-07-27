@@ -90,7 +90,7 @@ library
     , comonad ==5.*
     , containers ==0.*
     , dependent-sum-template ==0.1.*
-    , diagnose ==2.*
+    , diagnose ==2.0.*
     , exceptions ==0.10.*
     , extra ==1.*
     , llvm-codegen
@@ -159,7 +159,7 @@ executable eclair
     , comonad ==5.*
     , containers ==0.*
     , dependent-sum-template ==0.1.*
-    , diagnose ==2.*
+    , diagnose ==2.0.*
     , directory ==1.*
     , eclair-lang
     , exceptions ==0.10.*
@@ -240,7 +240,7 @@ test-suite eclair-test
     , comonad ==5.*
     , containers ==0.*
     , dependent-sum-template ==0.1.*
-    , diagnose ==2.*
+    , diagnose ==2.0.*
     , eclair-lang
     , exceptions ==0.10.*
     , extra ==1.*
