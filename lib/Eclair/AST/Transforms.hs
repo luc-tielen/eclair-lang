@@ -8,7 +8,7 @@ import qualified Eclair.AST.Transforms.RemoveWildcards as RmWildcards
 import qualified Eclair.AST.Transforms.ShiftAssignments as ShiftAssigns
 
 
-simplify :: AST -> AST
-simplify =
-  runTransform $ RmWildcards.transform
-             >>> ShiftAssigns.transform
+simplify :: NodeId -> AST -> AST
+simplify nodeId =
+  runTransform nodeId $ RmWildcards.transform
+                    >>> ShiftAssigns.transform

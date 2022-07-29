@@ -1,5 +1,6 @@
 module Prelude
   ( module Relude
+  , module Control.Arrow
   , module Control.Monad.Writer.Strict
   , module Control.Monad.RWS.Strict
   , module Control.Monad.Except
@@ -12,12 +13,11 @@ module Prelude
   , map
   , panic
   , groupBy
-  , first
   ) where
 
 import Relude hiding (Type, Constraint, swap, and, id, (.), map, first)
 import Data.String (IsString(..))
-import Control.Arrow
+import Control.Arrow hiding (second, loop, (<+>))
 import Control.Comonad
 import Control.Category
 import Control.Monad.Writer.Strict hiding (pass)

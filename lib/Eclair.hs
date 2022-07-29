@@ -46,7 +46,7 @@ type EIR = EIR.EIR
 
 
 data Query a where
-  Parse :: FilePath -> Query (AST, SpanMap)
+  Parse :: FilePath -> Query (AST, NodeId, SpanMap)
   RunSemanticAnalysis :: FilePath -> Query SA.Result
   Typecheck :: FilePath -> Query TS.TypeInfo
   TransformAST :: FilePath -> Query AST
@@ -102,20 +102,20 @@ rules = \case
   Parse path ->
     liftIO $ either (throwIO . ParseErr path) pure =<< parseFile path
   RunSemanticAnalysis path -> do
-    (ast, spans) <- Rock.fetch (Parse path)
+    (ast, _, spans) <- Rock.fetch (Parse path)
     result <- liftIO $ SA.runAnalysis ast
     let errors = SA.semanticErrors result
     when (SA.hasSemanticErrors result) $ do
       liftIO $ (throwIO . SemanticErr path spans) errors
     pure result
   Typecheck path -> do
-    (ast, spans) <- Rock.fetch (Parse path)
+    (ast, _, spans) <- Rock.fetch (Parse path)
     -- TODO: find better place to do semantic analysis
     _ <- Rock.fetch (RunSemanticAnalysis path)
     liftIO . either (throwIO . TypeErr path spans) pure $ TS.typeCheck ast
   TransformAST path -> do
-    ast <- fst <$> Rock.fetch (Parse path)
-    pure $ simplify ast
+    (ast, nodeId, spans) <- Rock.fetch (Parse path)
+    pure $ simplify nodeId ast
   EmitSimplifiedAST path -> do
     ast <- Rock.fetch (TransformAST path)
     liftIO $ putTextLn $ printDoc ast
@@ -146,7 +146,7 @@ runQuery query = do
   Rock.runTask (Rock.memoise memoVar rules) task
 
 parse :: FilePath -> IO AST
-parse = map fst . runQuery . Parse
+parse = map (\(ast, _, _) -> ast) . runQuery . Parse
 
 semanticAnalysis :: FilePath -> IO SA.Result
 semanticAnalysis = runQuery . RunSemanticAnalysis

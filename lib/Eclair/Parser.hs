@@ -42,7 +42,7 @@ data Span
 data SpanMap =
   SpanMap
   { spanMapPath :: !FilePath
-  , spanMapSpans :: !(Map Int32 Span)
+  , spanMapSpans :: !(Map Word32 Span)
   }
   deriving Show
 
@@ -55,22 +55,24 @@ lookupSpan :: SpanMap -> NodeId -> Span
 lookupSpan (SpanMap _path m) nodeId =
   fromJust $ M.lookup (unNodeId nodeId) m
 
-type ParserState = (Int32, SpanMap)
+type ParserState = (Word32, SpanMap)
 type Parser = P.ParsecT ParseErr Text (State ParserState)
 
-parseFile :: FilePath -> IO (Either ParseError (AST, SpanMap))
+parseFile :: FilePath -> IO (Either ParseError (AST, NodeId, SpanMap))
 parseFile path = do
   contents <- readFileText path
   pure $ parseText path contents
 
-parseText :: FilePath -> Text -> Either ParseError (AST, SpanMap)
+parseText :: FilePath -> Text -> Either ParseError (AST, NodeId, SpanMap)
 parseText path text =
-  snd <<$>> f (runState (P.runParserT astParser path text) (0, SpanMap path mempty))
+  g <$> f (runState (P.runParserT astParser path text) (0, SpanMap path mempty))
   where
     f :: (Either a b, c) -> Either a (b, c)
     f (m, c) = case m of
       Left a -> Left a
       Right b -> Right (b, c)
+    g :: (AST, ParserState) -> (AST, NodeId, SpanMap)
+    g (ast, ps) = (ast, NodeId $ fst ps, snd ps)
 
 freshNodeId :: Parser NodeId
 freshNodeId = do
