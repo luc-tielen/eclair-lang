@@ -11,8 +11,10 @@ import Eclair.Transform
 
 transform :: Transform AST AST
 transform =
-  Transform $ flip evalState 0 . cata rewrite
+  -- TODO: this adds extra state on top of nodeid state => proper mtl approach
+  Transform $ flip evalStateT 0 . cata rewrite
   where
+    rewrite :: RewriteRuleT (StateT Int) AST
     rewrite = \case
       PWildcardF nodeId -> do
         x <- get

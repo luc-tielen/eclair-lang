@@ -13,13 +13,16 @@ transform :: Transform AST AST
 transform =
   Transform $ cata rewrite
   where
+    rewrite :: RewriteRule AST
     rewrite = \case
-      RuleF nodeId name values clauses ->
-        let (assignClauses, restClauses) = partition isAssignment clauses
-            clauses' = restClauses <> assignClauses
-         in Rule nodeId name values clauses'
+      RuleF nodeId name values clauses -> do
+        values' <- sequence values
+        clauses' <- sequence clauses
+        let (assignClauses, restClauses) = partition isAssignment clauses'
+            clauses'' = restClauses <> assignClauses
+        pure $ Rule nodeId name values' clauses''
       astf ->
-        embed astf
+        embed <$> sequence astf
 
     isAssignment :: AST -> Bool
     isAssignment = \case
