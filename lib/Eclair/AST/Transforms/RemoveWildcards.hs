@@ -11,7 +11,6 @@ import Eclair.Transform
 
 transform :: Transform AST AST
 transform =
-  -- TODO: this adds extra state on top of nodeid state => proper mtl approach
   Transform $ flip evalStateT 0 . cata rewrite
   where
     rewrite :: RewriteRuleT (StateT Int) AST
