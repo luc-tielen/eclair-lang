@@ -12,23 +12,23 @@ import Eclair.Id
 
 transform :: Transform AST AST
 transform =
-  Transform $ cata rewrite
+  Transform $ zygo renameVars rewrite
   where
-    rewrite :: RewriteRule AST
+    rewrite :: ASTF (StateT TransformState TransformM AST, TransformM AST) -> TransformM AST
     rewrite = \case
       RuleF nodeId name values clauses -> do
-        vals <- sequence values
-        (clauses', equalities -> assignClauses) <- runStateT (traverse renameVars clauses) mempty
+        vals <- traverse snd values
+        (clauses', equalities -> assignClauses) <- runStateT (traverse fst clauses) mempty
         pure $ Rule nodeId name vals $ clauses' <> assignClauses
       astf ->
-        embed <$> sequence astf
+        embed <$> traverse snd astf
 
-    renameVars :: TransformM AST -> StateT TransformState TransformM AST
-    renameVars m = lift m >>= \case
-      -- TODO needs to be handled in 'rewrite' instead (using zygo?)
-      Atom nodeId name values ->
-        Atom nodeId name <$> traverse (renameVars . pure) values
-      var@(Var nodeId v) -> do
+    renameVars :: RewriteRuleT (StateT TransformState) AST
+    renameVars = \case
+      AtomF nodeId name values ->
+        Atom nodeId name <$> sequence values
+      VarF nodeId v -> do
+        let var = Var nodeId v
         vs <- gets varMap
         case Map.lookup v vs of
           Nothing -> do
@@ -43,8 +43,9 @@ transform =
                              , varMap = Map.insert v (x + 1) (varMap s)
                              }
             pure var'
-      ast ->
-        pure ast
+      astf ->
+        embed <$> sequence astf
+
 
 data TransformState
   = TransformState
