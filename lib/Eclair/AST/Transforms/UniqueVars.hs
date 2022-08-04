@@ -1,4 +1,4 @@
-module Eclair.AST.Transforms.NormalizeVarEqualities
+module Eclair.AST.Transforms.UniqueVars
   ( transform
   ) where
 

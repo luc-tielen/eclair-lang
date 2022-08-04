@@ -36,9 +36,9 @@ library
       Eclair.AST.IR
       Eclair.AST.Lower
       Eclair.AST.Transforms
-      Eclair.AST.Transforms.NormalizeVarEqualities
       Eclair.AST.Transforms.RemoveWildcards
       Eclair.AST.Transforms.ShiftAssignments
+      Eclair.AST.Transforms.UniqueVars
       Eclair.Comonads
       Eclair.EIR.Codegen
       Eclair.EIR.IR
