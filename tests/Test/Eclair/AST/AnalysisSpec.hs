@@ -53,12 +53,6 @@ checkWildcardsInAssignments :: FilePath -> [WildcardInAssignment] -> IO ()
 checkWildcardsInAssignments =
   check wildcardsInAssignments
 
-checkRuleClauseSameVar :: FilePath -> [Text] -> IO ()
-checkRuleClauseSameVar path expectedVars =
-  check getRuleClausesSameVar path (map Id expectedVars)
-  where
-    getRuleClausesSameVar =
-      map (\(RuleClauseSameVar _ v) -> v) . ruleClausesWithSameVar
 
 spec :: Spec
 spec = describe "Semantic analysis" $ parallel $ do
@@ -127,10 +121,3 @@ spec = describe "Semantic analysis" $ parallel $ do
         , WildcardInAssignment (NodeId 24) (NodeId 26)
         ]
 
-  -- NOTE: tests should be removed once feature is implemented
-  describe "disabling same variables in rule clause" $ do
-    it "detects rule clauses where the same variable occurs more than one time" $ do
-      checkRuleClauseSameVar "rule_equal_columns" ["x", "y", "z"]
-
-    it "finds no issues if all variables are different in a rule clause" $ do
-      checkRuleClauseSameVar "single_recursive_rule" []

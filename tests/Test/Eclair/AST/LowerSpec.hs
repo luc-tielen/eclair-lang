@@ -63,8 +63,18 @@ spec = describe "RA Code Generation" $ parallel $ do
           project (link0[0], link0[1], link1[1]) into chain
       |]
 
-  it "generates code for a rule where columns need to equal each other"
-    pending -- TODO use fixture: rule_equal_columns
+  it "generates code for a rule where columns need to equal each other" $
+    cg "clause_with_same_vars" `resultsIn` [text|
+      search c as c0 where (c0[2] = 42) do
+        search other as other1 where (other1[0] = c0[0]) do
+          if c0[0] = c0[4] do
+            if c0[0] = c0[1] do
+              project (c0[0]) into a
+      search b as b0 do
+        search other as other1 where (other1[0] = b0[0]) do
+          if b0[0] = b0[1] do
+            project (b0[0]) into a
+      |]
 
   it "generates code for a rule containing an equality statement" $ do
     cg "assignment" `resultsIn` [text|

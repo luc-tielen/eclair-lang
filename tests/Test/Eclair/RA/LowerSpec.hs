@@ -347,7 +347,116 @@ spec = describe "EIR Code Generation" $ parallel $ do
       |]
 
   it "generates code for a rule where columns need to equal each other" $ do
-    pending -- TODO: cg "rule_equal_columns"
+    eir <- cg "clause_with_same_vars"
+    extractFnSnippet eir "eclair_program_run(*Program) -> Void" `shouldBe` Just [text|
+      fn eclair_program_run(*Program) -> Void
+      {
+        value = c.stack_allocate Value
+        value.0 = 0
+        value.1 = 0
+        value.2 = 42
+        value.3 = 0
+        value.4 = 0
+        value_1 = c.stack_allocate Value
+        value_1.0 = 4294967295
+        value_1.1 = 4294967295
+        value_1.2 = 42
+        value_1.3 = 4294967295
+        value_1.4 = 4294967295
+        begin_iter = c.stack_allocate Iter
+        end_iter = c.stack_allocate Iter
+        c.iter_lower_bound(FN_ARG[0].2, value, begin_iter)
+        c.iter_upper_bound(FN_ARG[0].2, value_1, end_iter)
+        loop
+        {
+          condition = c.iter_is_equal(begin_iter, end_iter)
+          if (condition)
+          {
+            goto range_query.end
+          }
+          current = c.iter_current(begin_iter)
+          value_2 = other.stack_allocate Value
+          value_2.0 = current.0
+          value_3 = other.stack_allocate Value
+          value_3.0 = current.0
+          begin_iter_1 = other.stack_allocate Iter
+          end_iter_1 = other.stack_allocate Iter
+          other.iter_lower_bound(FN_ARG[0].3, value_2, begin_iter_1)
+          other.iter_upper_bound(FN_ARG[0].3, value_3, end_iter_1)
+          loop
+          {
+            condition_1 = other.iter_is_equal(begin_iter_1, end_iter_1)
+            if (condition_1)
+            {
+              goto range_query.end_1
+            }
+            current_1 = other.iter_current(begin_iter_1)
+            condition_2 = current.0 == current.4
+            if (condition_2)
+            {
+              condition_3 = current.0 == current.1
+              if (condition_3)
+              {
+                value_4 = a.stack_allocate Value
+                value_4.0 = current.0
+                a.insert(FN_ARG[0].0, value_4)
+              }
+            }
+            other.iter_next(begin_iter_1)
+          }
+          range_query.end_1:
+          c.iter_next(begin_iter)
+        }
+        range_query.end:
+        value_5 = b.stack_allocate Value
+        value_5.0 = 0
+        value_5.1 = 0
+        value_6 = b.stack_allocate Value
+        value_6.0 = 4294967295
+        value_6.1 = 4294967295
+        begin_iter_2 = b.stack_allocate Iter
+        end_iter_2 = b.stack_allocate Iter
+        b.iter_lower_bound(FN_ARG[0].1, value_5, begin_iter_2)
+        b.iter_upper_bound(FN_ARG[0].1, value_6, end_iter_2)
+        loop
+        {
+          condition_4 = b.iter_is_equal(begin_iter_2, end_iter_2)
+          if (condition_4)
+          {
+            goto range_query.end_2
+          }
+          current_2 = b.iter_current(begin_iter_2)
+          value_7 = other.stack_allocate Value
+          value_7.0 = current_2.0
+          value_8 = other.stack_allocate Value
+          value_8.0 = current_2.0
+          begin_iter_3 = other.stack_allocate Iter
+          end_iter_3 = other.stack_allocate Iter
+          other.iter_lower_bound(FN_ARG[0].3, value_7, begin_iter_3)
+          other.iter_upper_bound(FN_ARG[0].3, value_8, end_iter_3)
+          loop
+          {
+            condition_5 = other.iter_is_equal(begin_iter_3, end_iter_3)
+            if (condition_5)
+            {
+              goto range_query.end_3
+            }
+            current_3 = other.iter_current(begin_iter_3)
+            condition_6 = current_2.0 == current_2.1
+            if (condition_6)
+            {
+              value_9 = a.stack_allocate Value
+              value_9.0 = current_2.0
+              a.insert(FN_ARG[0].0, value_9)
+            }
+            other.iter_next(begin_iter_3)
+          }
+          range_query.end_3:
+          b.iter_next(begin_iter_2)
+        }
+        range_query.end_2:
+      }
+      |]
 
   it "generates code for a rule containing an equality statement" $ do
     eir <- cg "assignment"

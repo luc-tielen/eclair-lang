@@ -18,7 +18,6 @@ transform =
     rewrite = \case
       RuleF nodeId name values clauses -> do
         vals <- traverse snd values
-        -- (clauses', equalities -> assignClauses) <- runStateT (traverse fst clauses) mempty
         (clauses', concatMap equalities -> assignClauses) <- unzip <$> traverse (usingStateT mempty . fst) clauses
         pure $ Rule nodeId name vals $ clauses' <> assignClauses
       astf ->
