@@ -11,7 +11,6 @@ module Eclair.AST.Analysis
   , WildcardInFact(..)
   , WildcardInRuleHead(..)
   , WildcardInAssignment(..)
-  , RuleClauseSameVar(..)
   , IR.NodeId(..)
   , Container
   ) where
@@ -143,12 +142,6 @@ data WildcardInAssignment
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions WildcardInAssignment "wildcard_in_assignment" 'S.Output
 
-data RuleClauseSameVar
-  = RuleClauseSameVar NodeId Id
-  deriving stock (Generic, Eq, Show)
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions RuleClauseSameVar "rule_clause_same_var" 'S.Output
-
 newtype EmptyModule
   = EmptyModule NodeId
   deriving stock (Generic, Eq, Show)
@@ -173,7 +166,6 @@ data SemanticAnalysis
        , VariableInFact
        , UngroundedVar
        , EmptyModule
-       , RuleClauseSameVar
        , WildcardInRuleHead
        , WildcardInFact
        , WildcardInAssignment
@@ -196,7 +188,6 @@ data SemanticErrors
   { emptyModules :: Container EmptyModule
   , variablesInFacts :: Container VariableInFact
   , ungroundedVars :: Container UngroundedVar
-  , ruleClausesWithSameVar :: Container RuleClauseSameVar  -- TODO remove once support is added for this!
   , wildcardsInFacts :: Container WildcardInFact
   , wildcardsInRuleHeads :: Container WildcardInRuleHead
   , wildcardsInAssignments :: Container WildcardInAssignment
@@ -208,7 +199,6 @@ hasSemanticErrors result =
   isNotNull emptyModules ||
   isNotNull variablesInFacts ||
   isNotNull ungroundedVars ||
-  isNotNull ruleClausesWithSameVar ||
   isNotNull wildcardsInFacts ||
   isNotNull wildcardsInRuleHeads ||
   isNotNull wildcardsInAssignments
@@ -258,7 +248,6 @@ analysis prog = S.mkAnalysis addFacts run getFacts
     getFacts :: S.SouffleM Result
     getFacts = do
       errs <- SemanticErrors <$> S.getFacts prog
-                             <*> S.getFacts prog
                              <*> S.getFacts prog
                              <*> S.getFacts prog
                              <*> S.getFacts prog

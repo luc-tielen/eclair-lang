@@ -38,6 +38,7 @@ library
       Eclair.AST.Transforms
       Eclair.AST.Transforms.RemoveWildcards
       Eclair.AST.Transforms.ShiftAssignments
+      Eclair.AST.Transforms.UniqueVars
       Eclair.Comonads
       Eclair.EIR.Codegen
       Eclair.EIR.IR
@@ -199,6 +200,7 @@ test-suite eclair-test
       Test.Eclair.AST.LowerSpec
       Test.Eclair.AST.Transforms.RemoveWildcardsSpec
       Test.Eclair.AST.Transforms.ShiftAssignmentsSpec
+      Test.Eclair.AST.Transforms.UniqueVarsSpec
       Test.Eclair.EIR.LowerSpec
       Test.Eclair.LLVM.HashSpec
       Test.Eclair.ParserSpec

@@ -16,7 +16,6 @@
 .decl variable_in_fact(node_id: unsigned, var_name: symbol)
 .decl ungrounded_variable(rule_id: unsigned, node_id: unsigned, var_name: symbol)
 .decl empty_module(node_id: unsigned)
-.decl rule_clause_same_var(rule_clause_id: unsigned, var_name: symbol)
 .decl wildcard_in_fact(fact_node_id: unsigned,  fact_arg_id: unsigned, pos: unsigned)
 .decl wildcard_in_rule_head(rule_node_id: unsigned, rule_arg_id: unsigned, pos: unsigned)
 .decl wildcard_in_assignment(assign_node_id: unsigned, wildcard_node_id: unsigned)
@@ -37,7 +36,6 @@
 .output wildcard_in_fact
 .output ungrounded_variable
 .output empty_module
-.output rule_clause_same_var
 .output wildcard_in_rule_head
 .output wildcard_in_assignment
 
@@ -61,16 +59,6 @@ rule_clause_var(rule_id, var_name) :-
   rule_clause(rule_id, _, rule_clause_id),
   atom_arg(rule_clause_id, _, var_id),
   variable(var_id, var_name).
-
-// Currently not supported (though planned for the future): facts with same var occurring >1 times.
-// This would require an extra equality constraint, which is not supported atm.
-rule_clause_same_var(rule_clause_id, var) :-
-  rule_clause(_, _, rule_clause_id),
-  atom_arg(rule_clause_id, pos1, atom_arg_id1),
-  atom_arg(rule_clause_id, pos2, atom_arg_id2),
-  pos1 != pos2,
-  variable(atom_arg_id1, var),
-  variable(atom_arg_id2, var).
 
 empty_module(node_id) :-
   module(node_id),

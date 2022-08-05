@@ -1,5 +1,6 @@
 module Eclair.Transform
   ( Transform(..)
+  , TransformM
   , runTransform
   , fixTransform
   , freshNodeId
