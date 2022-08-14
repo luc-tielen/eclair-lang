@@ -52,7 +52,7 @@ typeErrorToReport file fileContent spanMap = \case
         title = "Missing type definition"
         markers = [(srcLoc, This $ "Could not find a type definition for '" <> unId factName <> "'.")]
         hints = [Hint $ "You can solve this by adding a type definition for '" <> unId factName <> "'."]
-    in err Nothing title markers hints
+    in Err Nothing title markers hints
 
   ArgCountMismatch factName (typedefNodeId, expectedCount) (factNodeId, actualCount) ->
     let title = "Found an unexpected amount of arguments for fact '" <> unId factName <> "'"
@@ -63,10 +63,10 @@ typeErrorToReport file fileContent spanMap = \case
                     pluralize expectedCount " argument." " arguments.")
                   ]
         hints = [Hint $ "You can solve this by passing exactly " <> show expectedCount <> " arguments to '" <> unId factName <> "'."]
-    in err Nothing title markers hints
+    in Err Nothing title markers hints
 
   DuplicateTypeDeclaration factName decls ->
-    err Nothing title (mainMarker:markers) hints
+    Err Nothing title (mainMarker:markers) hints
     where
       title = "Multiple type declarations for fact '" <> unId factName <> "'"
       mainMarker =
@@ -84,7 +84,7 @@ emptyModuleToReport file fileContent spanMap (EmptyModule nodeId) =
       markers = []
       -- TODO: write out some more getting started docs
       hints = ["See https://github.com/luc-tielen/eclair-lang#example-code for some example code! :)"]
-   in err Nothing title markers hints
+   in Err Nothing title markers hints
 
 variableInFactToReport :: FilePath -> Text -> SpanMap -> VariableInFact -> Report Text
 variableInFactToReport file fileContent spanMap (VariableInFact nodeId var) =
@@ -92,7 +92,7 @@ variableInFactToReport file fileContent spanMap (VariableInFact nodeId var) =
       title = "Variable in top level fact"
       markers = [(srcLoc, This "Only constants are allowed in facts.")]
       hints = ["You can solve this by replacing the variable with a constant."]
-   in err Nothing title markers hints
+   in Err Nothing title markers hints
 
 ungroundedVarToReport :: FilePath -> Text -> SpanMap -> UngroundedVar -> Report Text
 ungroundedVarToReport file fileContent spanMap (UngroundedVar ruleNodeId varNodeId var) =
@@ -103,7 +103,7 @@ ungroundedVarToReport file fileContent spanMap (UngroundedVar ruleNodeId varNode
                 , (srcLocRule, Where $ "This rule contains no clauses that refer to '" <> unId var <> "'.")
                 ]
       hints = [Hint $ "Use the variable '" <> unId var <> "' as an argument in another clause in the same rule."]
-   in err Nothing title markers hints
+   in Err Nothing title markers hints
 
 wildcardInFactToReport :: FilePath -> Text -> SpanMap -> WildcardInFact -> Report Text
 wildcardInFactToReport file fileContent spanMap (WildcardInFact factNodeId factArgId _pos) =
@@ -114,7 +114,7 @@ wildcardInFactToReport file fileContent spanMap (WildcardInFact factNodeId factA
                 , (srcLocFact, Where "A top level fact only supports constants.\nVariables or wildcards are not allowed.")
                 ]
       hints = ["Replace the wildcard with a constant."]
-   in err Nothing title markers hints
+   in Err Nothing title markers hints
 
 wildcardInRuleHeadToReport :: FilePath -> Text -> SpanMap -> WildcardInRuleHead -> Report Text
 wildcardInRuleHeadToReport file fileContent spanMap (WildcardInRuleHead ruleNodeId ruleArgId _pos) =
@@ -125,7 +125,7 @@ wildcardInRuleHeadToReport file fileContent spanMap (WildcardInRuleHead ruleNode
                 , (srcLocRule, Where "Only constants and variables are allowed in the head of a rule.\nWildcards are not allowed.")
                 ]
       hints = ["Replace the wildcard with a constant or a variable."]
-   in err Nothing title markers hints
+   in Err Nothing title markers hints
 
 wildcardInAssignmentToReport :: FilePath -> Text -> SpanMap -> WildcardInAssignment -> Report Text
 wildcardInAssignmentToReport file fileContent spanMap (WildcardInAssignment assignNodeId wildcardNodeId) =
@@ -136,7 +136,7 @@ wildcardInAssignmentToReport file fileContent spanMap (WildcardInAssignment assi
                 , (srcLocAssign, Where "Only constants and variables are allowed in an equality constraint.")
                 ]
       hints = ["This statement can be removed since it has no effect."]
-   in err Nothing title markers hints
+   in Err Nothing title markers hints
 
 -- NOTE: pattern match is done this way to keep track of additional errors that need to be reported
 semanticErrorsToReports :: FilePath -> Text -> SpanMap -> SemanticErrors -> [Report Text]
@@ -207,6 +207,8 @@ style = reAnnotate style
         bold <> colorDull Magenta
       MarkerStyle st ->
         bold <> style st
+      CodeStyle ->
+        color White
 
 instance HasHints Void msg where
   hints = const mempty
