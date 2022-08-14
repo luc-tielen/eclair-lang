@@ -13,7 +13,7 @@
     alga.url =
       "github:snowleopard/alga?rev=75de41a4323ab9e58ca49dbd78b77f307b189795";
     alga.flake = false;
-    diagnose.url = "https://hackage.haskell.org/package/diagnose-2.0.0/diagnose-2.0.0.tar.gz";
+    diagnose.url = "github:luc-tielen/diagnose?rev=d58752f062c105ec0f8831357f3c688965e13add";
     diagnose.flake = false;
   };
   outputs = { self, fu, ds, shs, llvm-cg, ... }@inputs:

@@ -56,13 +56,18 @@
     "diagnose": {
       "flake": false,
       "locked": {
-        "narHash": "sha256-/SuFVQSs5Nn55/KjJW26Jq5zwmka8vBPrbpgKt2Ltyk=",
-        "type": "tarball",
-        "url": "https://hackage.haskell.org/package/diagnose-2.0.0/diagnose-2.0.0.tar.gz"
+        "lastModified": 1660484352,
+        "narHash": "sha256-+GM5lycsGXKS+TclT/iBLC6qJmyM91kjBy87n9kulpg=",
+        "owner": "luc-tielen",
+        "repo": "diagnose",
+        "rev": "d58752f062c105ec0f8831357f3c688965e13add",
+        "type": "github"
       },
       "original": {
-        "type": "tarball",
-        "url": "https://hackage.haskell.org/package/diagnose-2.0.0/diagnose-2.0.0.tar.gz"
+        "owner": "luc-tielen",
+        "repo": "diagnose",
+        "rev": "d58752f062c105ec0f8831357f3c688965e13add",
+        "type": "github"
       }
     },
     "ds": {
