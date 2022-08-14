@@ -51,7 +51,7 @@ typeErrorToReport file fileContent spanMap = \case
     let srcLoc = getSourcePos file fileContent spanMap nodeId
         title = "Missing type definition"
         markers = [(srcLoc, This $ "Could not find a type definition for '" <> unId factName <> "'.")]
-        hints = ["You can solve this by adding a type definition for '" <> unId factName <> "'."]
+        hints = [Hint $ "You can solve this by adding a type definition for '" <> unId factName <> "'."]
     in err Nothing title markers hints
 
   ArgCountMismatch factName (typedefNodeId, expectedCount) (factNodeId, actualCount) ->
@@ -62,7 +62,7 @@ typeErrorToReport file fileContent spanMap = \case
                   , (expectedSrcLoc, Where $ "'" <> unId factName <> "' is defined with " <> show expectedCount <>
                     pluralize expectedCount " argument." " arguments.")
                   ]
-        hints = ["You can solve this by passing exactly " <> show expectedCount <> " arguments to '" <> unId factName <> "'."]
+        hints = [Hint $ "You can solve this by passing exactly " <> show expectedCount <> " arguments to '" <> unId factName <> "'."]
     in err Nothing title markers hints
 
   DuplicateTypeDeclaration factName decls ->
@@ -76,7 +76,7 @@ typeErrorToReport file fileContent spanMap = \case
       markers = tail decls & toList & map (\(nodeId, _tys) ->
         let srcLoc = getSourcePos file fileContent spanMap nodeId
          in (srcLoc, Where $ "'" <> unId factName <> "' is re-defined here."))
-      hints = ["You can solve this by removing the duplicate definitions for '" <> unId factName <> "'."]
+      hints = [Hint $ "You can solve this by removing the duplicate definitions for '" <> unId factName <> "'."]
 
 emptyModuleToReport :: FilePath -> Text -> SpanMap -> EmptyModule -> Report Text
 emptyModuleToReport file fileContent spanMap (EmptyModule nodeId) =
@@ -102,7 +102,7 @@ ungroundedVarToReport file fileContent spanMap (UngroundedVar ruleNodeId varNode
       markers = [ (srcLocVar, This $ "The variable '" <> unId var <> "' is ungrounded, meaning it is not directly bound as an argument to a relation.")
                 , (srcLocRule, Where $ "This rule contains no clauses that refer to '" <> unId var <> "'.")
                 ]
-      hints = ["Use the variable '" <> unId var <> "' as an argument in another clause in the same rule."]
+      hints = [Hint $ "Use the variable '" <> unId var <> "' as an argument in another clause in the same rule."]
    in err Nothing title markers hints
 
 wildcardInFactToReport :: FilePath -> Text -> SpanMap -> WildcardInFact -> Report Text

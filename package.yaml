@@ -47,7 +47,7 @@ dependencies:
   - dependent-sum-template == 0.1.*
   - some == 1.*
   - optparse-applicative == 0.16.*
-  - diagnose == 2.0.*
+  - diagnose == 2.3.*
 
 default-extensions:
   - OverloadedStrings
