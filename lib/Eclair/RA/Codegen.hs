@@ -228,7 +228,7 @@ and' lhs rhs = do
 equals :: CodegenM EIR -> CodegenM EIR -> CodegenM EIR
 equals lhs rhs = EIR.Equals <$> lhs <*> rhs
 
-lit :: AST.Number -> CodegenM EIR
+lit :: Word32 -> CodegenM EIR
 lit x = pure $ EIR.Lit x
 
 lookupId :: Text -> IdMapping -> CodegenM (Text, IdMapping)

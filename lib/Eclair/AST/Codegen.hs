@@ -66,15 +66,22 @@ emit m = do
   ra <- m
   tell [ra]
 
-data Term = VarTerm Id | LitTerm AST.Number
+data Term = VarTerm Id | LitTerm Word32
   deriving (Eq)
 
 toTerm :: AST.AST -> Term
 toTerm = \case
-  AST.Lit _ x -> LitTerm x
-  AST.Var _ x -> VarTerm x
+  AST.Lit _ lit ->
+    case lit of
+      AST.LNumber x ->
+        LitTerm x
+      AST.LString _ ->
+        panic "Unexpected string literal in 'toTerm' when lowering to RA"
+  AST.Var _ x ->
+    VarTerm x
   -- TODO fix, no catch-all
-  _ -> panic "Unknown pattern in 'toTerm'"
+  _ ->
+    panic "Unknown pattern in 'toTerm'"
 
 data ConstraintExpr
   = NotElem Id [Term]

@@ -1,4 +1,5 @@
-.decl literal(node_id: unsigned, value: unsigned)
+.decl lit_number(node_id: unsigned, value: unsigned)
+.decl lit_string(node_id: unsigned, value: symbol)
 .decl variable(node_id: unsigned, var_name: symbol)
 .decl assign(node_id: unsigned, lhs_node_id: unsigned, rhs_node_id: unsigned)
 .decl atom(node_id: unsigned, name: symbol)
@@ -20,7 +21,8 @@
 .decl wildcard_in_rule_head(rule_node_id: unsigned, rule_arg_id: unsigned, pos: unsigned)
 .decl wildcard_in_assignment(assign_node_id: unsigned, wildcard_node_id: unsigned)
 
-.input literal
+.input lit_number
+.input lit_string
 .input variable
 .input assign
 .input atom

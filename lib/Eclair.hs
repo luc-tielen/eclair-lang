@@ -183,7 +183,7 @@ compile = compileLLVM
 emitLLVM :: FilePath -> IO ()
 emitLLVM = runQuery . EmitLLVM
 
-run :: FilePath -> IO (M.Map Relation [[Number]])
+run :: FilePath -> IO (M.Map Relation [[Word32]])
 run =
   interpretRA <=< runQuery . CompileRA
 

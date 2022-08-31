@@ -5,15 +5,19 @@ module Eclair.RA.Interpreter
 -- NOTE: this is a "simple" interpreter, not meant to be performant in any way,
 -- but can be used to evaluate the resulting RA data.
 
+interpretRA = undefined
+
+  {-
+
 import Data.Maybe (fromJust)
 import Data.List ((!!))
 import Control.Monad.Catch
 import Eclair.RA.IR
-import Eclair.AST.IR (Number)
+import Eclair.AST.IR (Literal)
 import Eclair.Id
 import qualified Data.Map as M
 
-type Record = [Number]
+type Record = [Literal]
 type AliasMap = Map Id Record
 type DB = Map Relation [Record]
 
@@ -95,7 +99,7 @@ swap r1 r2 kb =
 purge :: Relation -> DB -> DB
 purge r = M.insert r mempty
 
-resolveValue :: RA -> InterpreterM Number
+resolveValue :: RA -> InterpreterM Literal
 resolveValue = \case
   Lit x -> pure x
   ColumnIndex r idx -> do
@@ -153,3 +157,4 @@ modifyRef f = do
   ref <- ask
   liftIO $ modifyIORef ref f
 
+-}

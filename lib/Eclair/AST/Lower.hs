@@ -50,10 +50,16 @@ compileToRA ast = RA.Module $ concatMap processDecls sortedDecls where
     _ -> unreachable         -- Because rejected by parser
     where unreachable = panic "Unreachable code in 'scc'"
 
-getLiterals :: [AST] -> [Number]
+getLiterals :: [AST] -> [Word32]
 getLiterals = mapMaybe $ \case
-  Lit _ x -> Just x
-  _ -> Nothing
+  Lit _ lit ->
+    case lit of
+      LNumber x ->
+        Just x
+      LString x ->
+        panic "Unexpected string literal in 'getLiterals'"
+  _ ->
+    Nothing
 
 -- NOTE: These rules can all be evaluated in parallel inside the fixpoint loop
 processMultipleRules :: [AST] -> CodegenM ()

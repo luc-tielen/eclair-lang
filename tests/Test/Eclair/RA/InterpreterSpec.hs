@@ -17,7 +17,7 @@ import qualified Data.Map as M
 import System.FilePath
 import NeatInterpolation
 
-type Record = [Number]
+type Record = [Word32]
 
 interpret :: Text -> IO (M.Map Relation [Record])
 interpret txt = do

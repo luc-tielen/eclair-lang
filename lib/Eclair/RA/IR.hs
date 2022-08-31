@@ -12,7 +12,7 @@ module Eclair.RA.IR
 
 import Data.Functor.Foldable.TH
 import Eclair.Id
-import Eclair.AST.IR (Number)
+import Eclair.AST.IR (Literal)
 import Eclair.Pretty
 
 
@@ -34,7 +34,7 @@ data RA
   | Exit [Relation] -- NOTE: counttuples check is 'builtin' atm
                     -- Later this needs to be changed to Clause to deal with 'X<100' etc as well.
   | Module [RA]
-  | Lit Number
+  | Lit Word32
   | ColumnIndex Relation ColumnIndex
   | Constrain RA RA  -- equality constraint
   | NotElem Relation [RA]
