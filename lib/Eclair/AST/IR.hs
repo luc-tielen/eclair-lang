@@ -35,6 +35,7 @@ type Decl = AST
 data Type
   = U32
   | Str
+  | TUnknown Int  -- NOTE: unification variable, only used internally!
   deriving (Eq, Ord, Show)
 
 data AST
@@ -59,6 +60,7 @@ instance Pretty Type where
   pretty = \case
     U32 -> "u32"
     Str -> "string"
+    TUnknown x -> "unknown@" <> show x
 
 data RenderPosition = TopLevel | Nested
 

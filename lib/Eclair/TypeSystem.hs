@@ -8,6 +8,7 @@ module Eclair.TypeSystem
 import qualified Data.List as List (head)
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
+import qualified Data.IntMap as IntMap
 import Data.Functor.Foldable
 import Eclair.AST.IR
 import Eclair.Id
@@ -29,8 +30,8 @@ data TypeError
   | DuplicateTypeDeclaration Id (NonEmpty (NodeId, [Type]))
   | TypeMismatch NodeId Type Type  -- 1st type is actual, 2nd is expected
                                    -- TODO add context to keep track of how this was deduced?
+  | UnificationFailure Type Type   -- No node id here? so need to get it from context?
   deriving (Eq, Ord, Show)
-
 
 typeCheck :: AST -> Either [TypeError] TypeInfo
 typeCheck ast
@@ -38,46 +39,100 @@ typeCheck ast
   | otherwise   = throwError errors
   where
     errors = checkDecls typedefMap ast ++ duplicateErrors typedefs
-
     typedefs = extractTypeDefs ast
     typedefMap = Map.fromList typedefs
 
 type TypedefMap = Map Id (NodeId, [Type])
 
-data TCState
-  = TCState
+data CheckState
+  = CheckState
   { typedefs :: TypedefMap
-  , typeEnv :: Map Id Type
+  , typeEnv :: Map Id Type  -- NOTE: should not contain unification variables (TUnknown)!
+  , substitution :: IntMap Type
+  , nextVar :: Int
   , errors :: [TypeError]
   }
 
--- TODO add context?
-type TypeCheckM = State TCState
+-- TODO add context for error reporting
+type TypeCheckM = State CheckState
 
 runM :: TypedefMap -> TypeCheckM a -> [TypeError]
 runM typedefMap m =
-  errors $ execState m (TCState typedefMap mempty mempty)
-
-lookupType :: Id -> TypeCheckM (Maybe (NodeId, [Type]))
-lookupType name = do
-  typedefMap <- gets typedefs
-  pure $ Map.lookup name typedefMap
-
--- TODO: rename to unifyVar?
-bindVar :: Id -> Type -> TypeCheckM ()
-bindVar var ty =
-  modify' $ \s -> s { typeEnv = Map.insert var ty (typeEnv s) }
+  errors $ execState m (CheckState typedefMap mempty mempty 0 mempty)
 
 emitError :: TypeError -> TypeCheckM ()
 emitError err =
-  modify' $ \s -> s { errors = err : errors s }
+  modify $ \s -> s { errors = err : errors s }
+
+bindVar :: Id -> Type -> TypeCheckM ()
+bindVar var ty =
+  modify $ \s -> s { typeEnv = Map.insert var ty (typeEnv s) }
+
+lookupRelationType :: Id -> TypeCheckM (Maybe (NodeId, [Type]))
+lookupRelationType name =
+  gets (Map.lookup name . typedefs)
+
+lookupVarType :: Id -> TypeCheckM (Maybe Type)
+lookupVarType var =
+  gets (Map.lookup var . typeEnv)
+
+-- Generates a fresh unification variable.
+freshType :: TypeCheckM Type
+freshType = do
+  x <- gets nextVar
+  modify $ \s -> s { nextVar = nextVar s + 1 }
+  pure $ TUnknown x
+
+-- | Tries to unify 2 types, emitting an error in case it fails to unify.
+unifyType :: Type -> Type -> TypeCheckM ()
+unifyType t1 t2 = do
+  -- TODO: add context for better error message
+  subst <- gets substitution
+  unifyType' (substituteType subst t1) (substituteType subst t2)
+  where
+    unifyType' ty1 ty2 =
+      case (ty1, ty2) of
+        (U32, U32) ->
+          pass
+        (Str, Str) ->
+          pass
+        (TUnknown x, TUnknown y) | x == y ->
+          pass
+        (TUnknown u, ty) ->
+          updateSubst u ty
+        (ty, TUnknown u) ->
+          updateSubst u ty
+        _ ->
+          emitError $ UnificationFailure ty1 ty2
+
+    -- Recursively applies a substitution to a type
+    substituteType :: IntMap Type -> Type -> Type
+    substituteType subst = \case
+      U32 ->
+        U32
+      Str ->
+        Str
+      TUnknown unknown ->
+        case IntMap.lookup unknown subst of
+          Nothing ->
+            TUnknown unknown
+          Just (TUnknown unknown') | unknown == unknown' ->
+            TUnknown unknown
+          Just ty ->
+            substituteType subst ty
+
+    -- Update the current substitutions
+    updateSubst u ty =
+      modify $ \s ->
+        s { substitution = IntMap.insert u ty (substitution s) }
 
 
 -- TODO: try to merge with checkDecl?
 checkDecls :: TypedefMap -> AST -> [TypeError]
 checkDecls typedefMap = \case
   Module _ decls ->
-    let state = TCState typedefMap mempty mempty
+    -- NOTE: By doing runM once per decl, each decl is checked with a clean state
+    let state = CheckState typedefMap mempty mempty
      in concatMap (runM typedefMap . checkDecl) decls
   _ ->
     panic "Unexpected AST node in 'checkDecls'"
@@ -87,29 +142,22 @@ checkDecl = \case
   DeclareType {} ->
     pass
   Atom nodeId name args ->
-    lookupType name >>= \case
+    lookupRelationType name >>= \case
       Nothing ->
         emitError $ UnknownAtom nodeId name
       Just (nodeId', types) -> do
         checkArgCount name (nodeId', types) (nodeId, args)
         zipWithM_ checkExpr args types
   Rule nodeId name args clauses ->
-    lookupType name >>= \case
+    lookupRelationType name >>= \case
       Nothing ->
         emitError $ UnknownAtom nodeId name
       Just (nodeId', types) -> do
         checkArgCount name (nodeId', types) (nodeId, args)
         zipWithM_ checkExpr args types
-
-        let (assignClauses, restClauses) = partition isAssign clauses
-            clauses' = restClauses ++ assignClauses
-        traverse_ checkDecl clauses'
+        traverse_ checkDecl clauses
   _ ->
     panic "Unexpected case in 'checkDecl'"
-  where
-    isAssign = \case
-      Assign {} -> True
-      _ -> False
 
 checkArgCount :: Id -> (NodeId, [Type]) -> (NodeId, [AST]) -> TypeCheckM ()
 checkArgCount name (nodeIdTypeDef, types) (nodeId, args) = do
@@ -129,19 +177,20 @@ checkExpr ast expectedTy = case ast of
     -- unique vars (and thus cannot cause type errors)
     pass
   Var nodeId var -> do
-    gets (Map.lookup var . typeEnv) >>= \case
+    lookupVarType var >>= \case
       Nothing ->
         -- TODO: also store in context a variable was bound here for better errors?
         bindVar var expectedTy
       Just actualTy -> do
+        -- NOTE: No need to call 'unifyType', typeEnv never contains unification variables!
         when (actualTy /= expectedTy) $
           emitError $ TypeMismatch nodeId actualTy expectedTy
   Assign nodeId lhs rhs -> do
     lhsTy <- inferExpr lhs
     rhsTy <- inferExpr rhs
-    when (lhsTy /= rhsTy) $
-      -- TODO better error?
-      emitError $ TypeMismatch nodeId lhsTy rhsTy
+    -- NOTE: Because inferred types of vars can contain unification variables,
+    -- we need to try and unify them.
+    unifyType lhsTy rhsTy
   _ ->
     panic "Unexpected case in 'checkExpr'"
 
@@ -154,11 +203,9 @@ inferExpr = \case
       LString {} ->
         pure Str
   Var _ var -> do
-    gets (Map.lookup var . typeEnv) >>= \case
+    lookupVarType var >>= \case
       Nothing ->
-        -- NOTE: should be impossible if all assigns are moved to end of rule body
-        -- though this probably needs to be made smarter when we come across more complicated statements.
-        panic "Variable with unknown type in 'inferExpr'"
+        freshType
       Just ty ->
         pure ty
   _ ->
