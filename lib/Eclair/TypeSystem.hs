@@ -11,6 +11,13 @@ import qualified Data.Map as Map
 import Data.Functor.Foldable
 import Eclair.AST.IR
 import Eclair.Id
+import Data.List ((!!), partition)
+import Data.Maybe (fromJust)
+
+-- NOTE: This module contains a lot of partial functions due to the fact
+-- that the rest of the compiler relies heavily on recursion-schemes.
+-- This is however one place where I have not figured out how to apply a
+-- recursion-scheme here.. yet!
 
 
 type TypeInfo = Map Id [Type]
@@ -20,6 +27,8 @@ data TypeError
   = UnknownAtom NodeId Id
   | ArgCountMismatch Id (NodeId, Int) (NodeId, Int)
   | DuplicateTypeDeclaration Id (NonEmpty (NodeId, [Type]))
+  | TypeMismatch NodeId Type Type  -- 1st type is actual, 2nd is expected
+                                   -- TODO add context to keep track of how this was deduced?
   deriving (Eq, Ord, Show)
 
 
@@ -28,39 +37,132 @@ typeCheck ast
   | null errors = pure $ map snd typedefMap
   | otherwise   = throwError errors
   where
-    errors = typeErrors ++ duplicateErrors typedefs
+    errors = checkDecls typedefMap ast ++ duplicateErrors typedefs
 
     typedefs = extractTypeDefs ast
     typedefMap = Map.fromList typedefs
 
-    lookupType name =
-      Map.lookup name typedefMap
+type TypedefMap = Map Id (NodeId, [Type])
 
-    typeErrors = execWriter $ flip cata ast $ \case
-      AtomF nodeId name args -> do
-        case lookupType name of
-          Nothing ->
-            tell [UnknownAtom nodeId name]
-          Just types ->
-            checkArgCount name types (nodeId, args)
+data TCState
+  = TCState
+  { typedefs :: TypedefMap
+  , typeEnv :: Map Id Type
+  , errors :: [TypeError]
+  }
 
-      RuleF nodeId name args clauses -> do
-        case lookupType name of
-          Nothing ->
-            tell [UnknownAtom nodeId name]
+-- TODO add context?
+type TypeCheckM = State TCState
 
-          Just types -> do
-            checkArgCount name types (nodeId, args)
+runM :: TypedefMap -> TypeCheckM a -> [TypeError]
+runM typedefMap m =
+  errors $ execState m (TCState typedefMap mempty mempty)
 
-        sequence_ clauses
+lookupType :: Id -> TypeCheckM (Maybe (NodeId, [Type]))
+lookupType name = do
+  typedefMap <- gets typedefs
+  pure $ Map.lookup name typedefMap
 
-      astf -> sequence_ astf
+-- TODO: rename to unifyVar?
+bindVar :: Id -> Type -> TypeCheckM ()
+bindVar var ty =
+  modify' $ \s -> s { typeEnv = Map.insert var ty (typeEnv s) }
 
-    checkArgCount name (nodeIdTypeDef, types) (nodeId, args) = do
-      let actualArgCount = length args
-          expectedArgCount = length types
-      when (actualArgCount /= expectedArgCount) $ do
-        tell [ArgCountMismatch name (nodeIdTypeDef, expectedArgCount) (nodeId, actualArgCount)]
+emitError :: TypeError -> TypeCheckM ()
+emitError err =
+  modify' $ \s -> s { errors = err : errors s }
+
+
+-- TODO: try to merge with checkDecl?
+checkDecls :: TypedefMap -> AST -> [TypeError]
+checkDecls typedefMap = \case
+  Module _ decls ->
+    let state = TCState typedefMap mempty mempty
+     in concatMap (runM typedefMap . checkDecl) decls
+  _ ->
+    panic "Unexpected AST node in 'checkDecls'"
+
+checkDecl :: AST -> TypeCheckM ()
+checkDecl = \case
+  DeclareType {} ->
+    pass
+  Atom nodeId name args ->
+    lookupType name >>= \case
+      Nothing ->
+        emitError $ UnknownAtom nodeId name
+      Just (nodeId', types) -> do
+        checkArgCount name (nodeId', types) (nodeId, args)
+        zipWithM_ checkExpr args types
+  Rule nodeId name args clauses ->
+    lookupType name >>= \case
+      Nothing ->
+        emitError $ UnknownAtom nodeId name
+      Just (nodeId', types) -> do
+        checkArgCount name (nodeId', types) (nodeId, args)
+        zipWithM_ checkExpr args types
+
+        let (assignClauses, restClauses) = partition isAssign clauses
+            clauses' = restClauses ++ assignClauses
+        traverse_ checkDecl clauses'
+  _ ->
+    panic "Unexpected case in 'checkDecl'"
+  where
+    isAssign = \case
+      Assign {} -> True
+      _ -> False
+
+checkArgCount :: Id -> (NodeId, [Type]) -> (NodeId, [AST]) -> TypeCheckM ()
+checkArgCount name (nodeIdTypeDef, types) (nodeId, args) = do
+  let actualArgCount = length args
+      expectedArgCount = length types
+  when (actualArgCount /= expectedArgCount) $
+    emitError $ ArgCountMismatch name (nodeIdTypeDef, expectedArgCount) (nodeId, actualArgCount)
+
+checkExpr :: AST -> Type -> TypeCheckM ()
+checkExpr ast expectedTy = case ast of
+  l@(Lit nodeId _) -> do
+    actualTy <- inferExpr l
+    when (actualTy /= expectedTy) $
+      emitError $ TypeMismatch nodeId actualTy expectedTy
+  PWildcard {} ->
+    -- NOTE: no checking happens for wildcards, since they always refer to
+    -- unique vars (and thus cannot cause type errors)
+    pass
+  Var nodeId var -> do
+    gets (Map.lookup var . typeEnv) >>= \case
+      Nothing ->
+        -- TODO: also store in context a variable was bound here for better errors?
+        bindVar var expectedTy
+      Just actualTy -> do
+        when (actualTy /= expectedTy) $
+          emitError $ TypeMismatch nodeId actualTy expectedTy
+  Assign nodeId lhs rhs -> do
+    lhsTy <- inferExpr lhs
+    rhsTy <- inferExpr rhs
+    when (lhsTy /= rhsTy) $
+      -- TODO better error?
+      emitError $ TypeMismatch nodeId lhsTy rhsTy
+  _ ->
+    panic "Unexpected case in 'checkExpr'"
+
+inferExpr :: AST -> TypeCheckM Type
+inferExpr = \case
+  Lit _ lit ->
+    case lit of
+      LNumber {} ->
+        pure U32
+      LString {} ->
+        pure Str
+  Var _ var -> do
+    gets (Map.lookup var . typeEnv) >>= \case
+      Nothing ->
+        -- NOTE: should be impossible if all assigns are moved to end of rule body
+        -- though this probably needs to be made smarter when we come across more complicated statements.
+        panic "Variable with unknown type in 'inferExpr'"
+      Just ty ->
+        pure ty
+  _ ->
+    panic "Unexpected case in 'inferExpr'"
 
 duplicateErrors :: [(Id, (NodeId, [Type]))] -> [TypeError]
 duplicateErrors typeDefs
