@@ -20,7 +20,6 @@ import qualified Language.Souffle.Analysis as S
 import qualified Eclair.AST.IR as IR
 import Eclair.Id
 import Data.Kind
-import Data.Functor.Foldable
 
 
 type NodeId = IR.NodeId

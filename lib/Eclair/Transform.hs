@@ -8,7 +8,6 @@ module Eclair.Transform
   , RewriteRuleT
   ) where
 
-import Data.Functor.Foldable (Base)
 import Control.Arrow
 import Eclair.AST.IR (NodeId(..))
 
@@ -26,12 +25,13 @@ freshNodeId = TransformM $ do
   pure node
 
 -- | The main type in this module. A transform is an effectful function from
---   one IR to another. These IRs can potentially be the same (which is useful
---   for creating "rewrite rules"). Transforms can be composed together using
---   instances and functions defined in this module.
-newtype Transform ir1 ir2
-  = Transform (ir1 -> TransformM ir2)
-  deriving (Semigroup, Monoid) via Ap (Kleisli TransformM ir1) ir2
+-- one type to another. Usually the type variables 'a' and 'b' represent IRs in
+-- the compiler. (These IRs can potentially be the same, which can be useful
+-- for creating "rewrite rules"). Transforms can be composed together using the
+-- instances and functions defined in this module.
+newtype Transform a b
+  = Transform (a -> TransformM b)
+  deriving (Semigroup, Monoid) via Ap (Kleisli TransformM a) b
   deriving (Category, Arrow) via Kleisli TransformM
 
 -- | Converts a 'Transform' to an equivalent pure function.

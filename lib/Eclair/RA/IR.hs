@@ -10,7 +10,6 @@ module Eclair.RA.IR
   , ColumnIndex
   ) where
 
-import Data.Functor.Foldable.TH
 import Eclair.Id
 import Eclair.AST.IR (Literal)
 import Eclair.Pretty

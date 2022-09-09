@@ -5,7 +5,6 @@ module Eclair.AST.Transforms.RemoveWildcards
 import qualified Data.Text as T
 import Eclair.Id
 import Eclair.AST.IR
-import Data.Functor.Foldable hiding (fold)
 import Eclair.Transform
 
 

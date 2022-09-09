@@ -12,7 +12,6 @@ import qualified Data.Foldable as F
 import Control.Monad.Morph
 import Control.Monad.Fix
 import qualified Data.Map as Map
-import Data.Functor.Foldable hiding (hoist)
 import LLVM.Codegen hiding (typeOf)
 import Eclair.LLVM.LLVM
 import Eclair.LLVM.Hash

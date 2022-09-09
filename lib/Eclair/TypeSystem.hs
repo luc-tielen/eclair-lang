@@ -9,7 +9,6 @@ import qualified Data.List as List (head)
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
 import qualified Data.IntMap as IntMap
-import Data.Functor.Foldable
 import Eclair.AST.IR
 import Eclair.Id
 import Data.List ((!!), partition)

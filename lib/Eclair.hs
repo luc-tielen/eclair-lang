@@ -49,7 +49,7 @@ data Query a where
   Parse :: FilePath -> Query (AST, NodeId, SpanMap)
   RunSemanticAnalysis :: FilePath -> Query SA.Result
   Typecheck :: FilePath -> Query TS.TypeInfo
-  TransformAST :: FilePath -> Query AST
+  TransformAST :: FilePath -> Query (AST, StringMap)
   EmitSimplifiedAST :: FilePath -> Query ()
   CompileRA :: FilePath -> Query RA
   EmitRA :: FilePath -> Query ()
@@ -57,6 +57,7 @@ data Query a where
   EmitEIR :: FilePath -> Query ()
   CompileLLVM :: FilePath -> Query Module
   EmitLLVM :: FilePath -> Query ()
+  StringMapping :: FilePath -> Query (Map Text Word32)
 
 queryFilePath :: Query a -> FilePath
 queryFilePath = \case
@@ -71,6 +72,7 @@ queryFilePath = \case
   EmitEIR path             -> path
   CompileLLVM path         -> path
   EmitLLVM path            -> path
+  StringMapping path       -> path
 
 queryEnum :: Query a -> Int
 queryEnum = \case
@@ -85,6 +87,7 @@ queryEnum = \case
   EmitEIR {}             -> 8
   CompileLLVM {}         -> 9
   EmitLLVM {}            -> 10
+  StringMapping {}       -> 11
 
 deriveGEq ''Query
 
@@ -117,10 +120,13 @@ rules = \case
     (ast, nodeId, spans) <- Rock.fetch (Parse path)
     pure $ simplify nodeId ast
   EmitSimplifiedAST path -> do
-    ast <- Rock.fetch (TransformAST path)
+    (ast, _) <- Rock.fetch (TransformAST path)
     liftIO $ putTextLn $ printDoc ast
+  StringMapping path -> do
+    (_, mapping) <- Rock.fetch (TransformAST path)
+    pure mapping
   CompileRA path -> do
-    ast <- Rock.fetch (TransformAST path)
+    ast <- fst <$> Rock.fetch (TransformAST path)
     pure $ compileToRA ast
   EmitRA path -> do
     ra <- Rock.fetch (CompileRA path)
@@ -139,6 +145,7 @@ rules = \case
     llvmModule <- Rock.fetch (CompileLLVM path)
     liftIO $ putTextLn $ ppllvm llvmModule
 
+
 runQuery :: Query a -> IO a
 runQuery query = do
   memoVar <- newIORef mempty
@@ -151,7 +158,7 @@ parse = map (\(ast, _, _) -> ast) . runQuery . Parse
 semanticAnalysis :: FilePath -> IO SA.Result
 semanticAnalysis = runQuery . RunSemanticAnalysis
 
-transformAST :: FilePath -> IO AST
+transformAST :: FilePath -> IO (AST, StringMap)
 transformAST = runQuery . TransformAST
 
 emitSimplifiedAST :: FilePath -> IO ()

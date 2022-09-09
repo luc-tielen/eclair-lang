@@ -6,7 +6,6 @@ module Eclair.EIR.Lower
 
 import Prelude hiding (void)
 import Data.Traversable (for)
-import Data.Functor.Foldable
 import qualified Data.Text as T
 import qualified Data.ByteString as BS
 import qualified Data.Map as M

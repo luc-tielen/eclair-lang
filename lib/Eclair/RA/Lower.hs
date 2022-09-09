@@ -4,7 +4,6 @@ module Eclair.RA.Lower ( compileToEIR ) where
 import Prelude hiding (head)
 import Data.Maybe (fromJust)
 import Data.List (head)
-import Data.Functor.Foldable hiding (fold)
 
 import qualified Data.List as List
 import qualified Data.Map as Map

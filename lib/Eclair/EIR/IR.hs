@@ -9,7 +9,6 @@ module Eclair.EIR.IR
   , LabelId(..)
   ) where
 
-import Data.Functor.Foldable.TH
 import Eclair.Id
 import Eclair.Pretty
 import Eclair.RA.IndexSelection (Index)

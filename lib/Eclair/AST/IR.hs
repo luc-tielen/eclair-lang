@@ -11,7 +11,6 @@ module Eclair.AST.IR
   , NodeId(..)
   ) where
 
-import Data.Functor.Foldable.TH
 import Prettyprinter
 import Eclair.Id
 import Eclair.Pretty
