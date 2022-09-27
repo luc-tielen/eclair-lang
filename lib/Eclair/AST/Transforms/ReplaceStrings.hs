@@ -3,9 +3,7 @@ module Eclair.AST.Transforms.ReplaceStrings
   , transform
   ) where
 
-import qualified Data.Text as T
 import qualified Data.Map as Map
-import Eclair.Id
 import Eclair.AST.IR
 import Eclair.Transform
 
