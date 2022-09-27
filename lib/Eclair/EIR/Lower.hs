@@ -228,7 +228,8 @@ createExternals = do
   mallocFn <- extern "malloc" [i32] (ptr i8)
   freeFn <- extern "free" [ptr i8] void
   memsetFn <- extern "llvm.memset.p0i8.i64" [ptr i8, i8, i64, i1] void
-  pure $ Externals mallocFn freeFn memsetFn
+  memcpyFn <- extern "llvm.memcpy.p0i8.p0i8.i64" [ptr i8, ptr i8, i64, i1] void
+  pure $ Externals mallocFn freeFn memsetFn memcpyFn
 
 
 generateAddFact :: MonadFix m => Operand -> CodegenInOutT (ModuleBuilderT m) Operand

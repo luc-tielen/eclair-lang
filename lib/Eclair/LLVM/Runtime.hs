@@ -7,6 +7,7 @@ module Eclair.LLVM.Runtime
 
 import LLVM.Codegen
 
+-- TODO better name, indicating this is the functionality needed for a "container" / table => "Table"?
 -- Like a vtable in C++, except here everything is guaranteed to be inlined
 -- because of specialization.
 data Functions
@@ -39,6 +40,7 @@ data Externals
   { extMalloc :: Operand
   , extFree :: Operand
   , extMemset :: Operand
+  , extMemcpy :: Operand
   }
 
 -- Appended to every LLVM type and function to make sure no collisions occur during codegen.

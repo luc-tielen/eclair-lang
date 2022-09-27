@@ -51,6 +51,7 @@ library
       Eclair.LLVM.LLVM
       Eclair.LLVM.Metadata
       Eclair.LLVM.Runtime
+      Eclair.LLVM.Vector
       Eclair.Parser
       Eclair.Pretty
       Eclair.RA.Codegen
