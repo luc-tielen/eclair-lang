@@ -5,6 +5,7 @@ module Eclair.EIR.Lower
   ) where
 
 import Prelude hiding (void)
+import Control.Monad.Morph hiding (embed)
 import Data.Traversable (for)
 import qualified Data.Text as T
 import qualified Data.ByteString as BS
@@ -15,8 +16,12 @@ import Data.Maybe (fromJust)
 import LLVM.Codegen as LLVM
 import qualified Eclair.EIR.IR as EIR
 import qualified Eclair.LLVM.BTree as BTree
+import qualified Eclair.LLVM.Symbol as Symbol
+import qualified Eclair.LLVM.Vector as Vector
+import qualified Eclair.LLVM.HashMap as HashMap
+import qualified Eclair.LLVM.SymbolTable as SymbolTable
 import Eclair.EIR.Codegen
-import Eclair.LLVM.LLVM hiding (mkType)
+import Eclair.LLVM.LLVM
 import Eclair.LLVM.Metadata
 import Eclair.LLVM.Hash
 import Eclair.LLVM.Runtime
@@ -36,11 +41,14 @@ compileToLLVM = \case
     exts <- createExternals
     (metaMapping, fnss) <- runCacheT $ traverse (codegenRuntime exts . snd) metas
     codegenDebugInfos metaMapping
-    let fnsInfo = zip (map (map getIndexFromMeta) metas) fnss
+    symbolTable <- codegenSymbolTable exts
+    let symbolTableTy = SymbolTable.tySymbolTable symbolTable
+        fnsInfo = zip (map (map getIndexFromMeta) metas) fnss
         fnsMap = M.fromList fnsInfo
-    programTy <- mkType "program" fnss
+    -- TODO: add hash based on filepath of the file we're compiling?
+    programTy <- typedef "program" Off (symbolTableTy : map typeObj fnss)
     programSize <- withLLVMTypeInfo $ \ctx td -> llvmSizeOf ctx td programTy
-    let lowerState = LowerState programTy programSize fnsMap mempty exts
+    let lowerState = LowerState programTy programSize symbolTable fnsMap mempty exts
     traverse_ (processDecl lowerState) decls
     usingReaderT (metas, lowerState) $ do
       addFactsFn <- generateAddFactsFn
@@ -92,6 +100,8 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
         valueA `eq` valueB
       EIR.CallF r idx fn (map snd -> args) ->
         doCall r idx fn args
+      EIR.PrimOpF op (map snd -> args) ->
+        doPrimOp op args
       EIR.HeapAllocateProgramF -> do
         (malloc, (programTy, programSize)) <- gets (extMalloc . externals &&& programType &&& programSizeBytes)
         let memorySize = int32 $ fromIntegral programSize
@@ -133,6 +143,8 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
         () <$ call freeFn [memory]
       EIR.CallF r idx fn (map toOperand -> args) ->
         () <$ doCall r idx fn args
+      EIR.PrimOpF op (map toOperand -> args) ->
+        () <$ doPrimOp op args
       EIR.LoopF stmts ->
         loop $ traverse_ toInstrs stmts
       EIR.IfF (toOperand -> cond) (toInstrs -> body) -> do
@@ -156,6 +168,11 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
       argOperands <- sequence args
       func <- lookupFunction r idx fn
       call func argOperands
+    doPrimOp :: EIR.Op -> [CodegenM Operand] -> CodegenM Operand
+    doPrimOp op args = do
+      argOperands <- sequence args
+      fn <- lookupPrimOp op
+      call fn argOperands
 
 -- Here be recursion-schemes dragons...
 --
@@ -212,6 +229,23 @@ codegenDebugInfos metaMapping =
           name = Name $ ("specialize_debug_info." <>) $ unHash hash
        in global name i32 (Int 32 $ toInteger i)
 
+codegenSymbolTable :: Externals -> ModuleBuilderT IO SymbolTable.SymbolTable
+codegenSymbolTable exts = do
+  symbol <- hoist intoIO $ Symbol.codegen exts
+
+  let tySymbol = Symbol.tySymbol symbol
+      freeFn = extFree exts
+      symbolDestructor iterPtr = do
+        call (Symbol.symbolDestroy symbol) [iterPtr]
+        pass
+
+  -- Only this vector does the cleanup of all the symbols, to prevent double frees
+  vec <- Vector.codegen tySymbol exts (Just symbolDestructor)
+  hashMap <- HashMap.codegen symbol exts
+  hoist intoIO $ SymbolTable.codegen tySymbol vec hashMap
+  where
+    intoIO = pure . runIdentity
+
 -- TODO: add hash based on filepath of the file we're compiling?
 mkType :: Name -> [Functions] -> ModuleBuilderT IO LLVM.Type
 mkType name fnss =
@@ -229,7 +263,8 @@ createExternals = do
   freeFn <- extern "free" [ptr i8] void
   memsetFn <- extern "llvm.memset.p0i8.i64" [ptr i8, i8, i64, i1] void
   memcpyFn <- extern "llvm.memcpy.p0i8.p0i8.i64" [ptr i8, ptr i8, i64, i1] void
-  pure $ Externals mallocFn freeFn memsetFn memcpyFn
+  memcmpFn <- extern "memcmp" [ptr i8, ptr i8, i64] i32
+  pure $ Externals mallocFn freeFn memsetFn memcpyFn memcmpFn
 
 
 generateAddFact :: MonadFix m => Operand -> CodegenInOutT (ModuleBuilderT m) Operand

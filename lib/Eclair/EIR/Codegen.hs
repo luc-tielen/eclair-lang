@@ -7,6 +7,7 @@ module Eclair.EIR.Codegen
   , labelToName
   , lsLookupFunction
   , lookupFunction
+  , lookupPrimOp
   , toLLVMType
   , lookupVar
   , addVarBinding
@@ -17,9 +18,10 @@ import Prelude hiding (void)
 import Data.Maybe (fromJust)
 import qualified Data.Text as T
 import qualified Data.Map as M
-import LLVM.Codegen
 import Data.ByteString.Short hiding (index)
+import LLVM.Codegen
 import Eclair.LLVM.Runtime
+import qualified Eclair.LLVM.SymbolTable as SymbolTable
 import qualified Eclair.EIR.IR as EIR
 import Eclair.RA.IndexSelection
 import Eclair.Id
@@ -35,6 +37,7 @@ data LowerState
   = LowerState
   { programType :: Type
   , programSizeBytes :: Word64
+  , symbolTableFns :: SymbolTable.SymbolTable
   , fnsMap :: FunctionsMap
   , varMap :: VarMap
   , externals :: Externals
@@ -76,6 +79,15 @@ lsLookupFunction r idx fn lowerState =
 lookupFunction :: Relation -> Index -> EIR.Function -> CodegenM Operand
 lookupFunction r idx fn =
   gets (lsLookupFunction r idx fn)
+
+lookupPrimOp :: EIR.Op -> CodegenM Operand
+lookupPrimOp = \case
+  EIR.SymbolTableInit -> do
+    symbolTable <- gets symbolTableFns
+    pure $ SymbolTable.symbolTableInit symbolTable
+  EIR.SymbolTableDestroy -> do
+    symbolTable <- gets symbolTableFns
+    pure $ SymbolTable.symbolTableDestroy symbolTable
 
 toLLVMType :: (MonadState LowerState m) => Relation -> Index -> EIR.Type -> m Type
 toLLVMType r idx = go

@@ -4,6 +4,7 @@ module Eclair.EIR.IR
   ( EIR(..)
   , EIRF(..)
   , Relation
+  , Op(..)
   , Type(..)
   , Function(..)
   , LabelId(..)
@@ -53,6 +54,11 @@ newtype LabelId
 instance IsString LabelId where
   fromString = LabelId . fromString
 
+data Op
+  = SymbolTableInit
+  | SymbolTableDestroy
+  deriving (Eq, Show)
+
 data EIR
   = Block [EIR]
   | Function Text [Type] Type EIR
@@ -61,7 +67,8 @@ data EIR
   | FieldAccess EIR Int
   | Var Text
   | Assign EIR EIR
-  | Call Relation Index Function [EIR]
+  | Call Relation Index Function [EIR]  -- A function call related to operations on relations
+  | PrimOp Op [EIR]                     -- A primitive operation, these tend to be simple function calls or operators
   | HeapAllocateProgram
   | FreeProgram EIR
   | StackAllocate Relation Index Type
@@ -120,6 +127,13 @@ instance Pretty Function where
 instance Pretty LabelId where
   pretty (LabelId label) = pretty label
 
+instance Pretty Op where
+  pretty = \case
+    SymbolTableInit ->
+      "symbol_table.init"
+    SymbolTableDestroy ->
+      "symbol_table.destroy"
+
 instance Pretty EIR where
   pretty = \case
     Block stmts ->
@@ -132,7 +146,7 @@ instance Pretty EIR where
     DeclareProgram metadatas ->
       vsep ["declare_type" <+> "Program"
            , braceBlock . vsep $
-             map (\(r, meta) -> pretty r <+> pretty meta) metadatas
+               "symbol_table" : map (\(r, meta) -> pretty r <+> pretty meta) metadatas
            ]
     FieldAccess ptr pos ->
       pretty ptr <> "." <> pretty pos
@@ -141,6 +155,8 @@ instance Pretty EIR where
       pretty var <+> "=" <+> pretty value
     Call r _idx fn args ->
       pretty r <> "." <> pretty fn <> parens (withCommas $ map pretty args)
+    PrimOp op args ->
+      pretty op <> parens (withCommas $ map pretty args)
     HeapAllocateProgram ->
       "heap_allocate_program"
     FreeProgram ptr ->

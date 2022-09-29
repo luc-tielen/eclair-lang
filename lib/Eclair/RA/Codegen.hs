@@ -20,6 +20,7 @@ module Eclair.RA.Codegen
   , fn
   , fnArg
   , call
+  , primOp
   , fieldAccess
   , heapAllocProgram
   , freeProgram
@@ -137,6 +138,10 @@ fnArg n = pure $ EIR.FunctionArg n
 call :: Relation -> Index -> EIR.Function -> [CodegenM EIR] -> CodegenM EIR
 call r idx fn args = EIR.Call r idx fn <$> sequence args
 
+primOp :: EIR.Op -> [CodegenM EIR] -> CodegenM EIR
+primOp op args =
+  EIR.PrimOp op <$> sequence args
+
 fieldAccess :: CodegenM EIR -> Int -> CodegenM EIR
 fieldAccess struct n = flip EIR.FieldAccess n <$> struct
 
@@ -245,7 +250,8 @@ lookupId name mapping = do
 getFieldOffset :: Relation -> Index -> CodegenM Int
 getFieldOffset r idx = do
   cis <- containerInfos <$> getLowerState
-  pure $ fromJust $ List.findIndex sameRelationAndIndex cis
+  -- + 1 due to symbol table at position 0 in program struct
+  pure $ (+1) . fromJust $ List.findIndex sameRelationAndIndex cis
   where
     sameRelationAndIndex (r', idx', _) =
       r == r' && idx == idx'
@@ -253,13 +259,15 @@ getFieldOffset r idx = do
 getFirstFieldOffset :: Relation -> CodegenM Int
 getFirstFieldOffset r = do
   cis <- containerInfos <$> getLowerState
-  pure $ fromJust $ List.findIndex sameRelation cis
+  -- + 1 due to symbol table at position 0 in program struct
+  pure $ (+1) . fromJust $ List.findIndex sameRelation cis
   where
     sameRelation (r', _, _) = r == r'
 
 getContainerInfoByOffset :: Int -> CodegenM ContainerInfo
 getContainerInfoByOffset offset =
-  (List.!! offset) . containerInfos <$> getLowerState
+  -- - 1 due to symbol table at position 0 in program struct
+  (List.!! (offset - 1)) . containerInfos <$> getLowerState
 
 lookupAlias :: Alias -> CodegenM EIR
 lookupAlias a = ask >>= \case

@@ -17,7 +17,7 @@ module Prelude
   , groupBy
   ) where
 
-import Relude hiding (Type, Constraint, swap, and, id, (.), map, first)
+import Relude hiding (Type, Constraint, Op, swap, and, id, (.), map, first)
 import Data.String (IsString(..))
 import Control.Arrow hiding (second, loop, (<+>))
 import Control.Comonad

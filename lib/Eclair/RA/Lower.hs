@@ -39,8 +39,10 @@ compileToEIR typeInfo ra =
 compileInit :: CodegenM EIR
 compileInit = do
   program <- var "program"
-  initActions <- forEachRelation program $ \(r, idx, _) relationPtr ->
+  let symbolTableInitAction = primOp EIR.SymbolTableInit [fieldAccess program 0]
+  relationInitActions <- forEachRelation program $ \(r, idx, _) relationPtr ->
     call r idx EIR.InitializeEmpty [relationPtr]
+  let initActions = symbolTableInitAction : relationInitActions
   fn "eclair_program_init" [] (EIR.Pointer EIR.Program) $
     assign program heapAllocProgram
     : initActions
@@ -50,8 +52,10 @@ compileInit = do
 compileDestroy :: CodegenM EIR
 compileDestroy = do
   let program = fnArg 0
-  destroyActions <- forEachRelation program $ \(r, idx, _) relationPtr ->
+      symbolTableDestroyAction = primOp EIR.SymbolTableDestroy [fieldAccess program 0]
+  relationDestroyActions <- forEachRelation program $ \(r, idx, _) relationPtr ->
     call r idx EIR.Destroy [relationPtr]
+  let destroyActions = symbolTableDestroyAction : relationDestroyActions
   fn "eclair_program_destroy" [EIR.Pointer EIR.Program] EIR.Void $
     destroyActions
     ++ [ freeProgram program ]
@@ -233,7 +237,7 @@ initValue r idx a bound eqs = do
 forEachRelation :: CodegenM EIR -> (ContainerInfo -> CodegenM EIR -> CodegenM EIR) -> CodegenM [CodegenM EIR]
 forEachRelation program f = do
   cis <- containerInfos <$> getLowerState
-  pure $ zipWith doCall [0..] cis
+  pure $ zipWith doCall [1..] cis
   where
     doCall fieldOffset ci =
       f ci (fieldAccess program fieldOffset)
