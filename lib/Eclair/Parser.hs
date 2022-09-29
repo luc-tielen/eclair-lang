@@ -155,7 +155,7 @@ assignParser = withNodeId $ \nodeId -> do
   pure $ Assign nodeId lhs rhs
 
 valueParser :: Parser AST
-valueParser = withNodeId $ \nodeId ->
+valueParser = lexeme $ withNodeId $ \nodeId ->
   Var nodeId <$> (identifier <|> wildcard) <|>
   Lit nodeId <$> literal
 
