@@ -147,14 +147,15 @@ checkDecl = \case
       Just (nodeId', types) -> do
         checkArgCount name (nodeId', types) (nodeId, args)
         zipWithM_ checkExpr args types
-  Rule nodeId name args clauses ->
+  Rule nodeId name args clauses -> do
     lookupRelationType name >>= \case
       Nothing ->
         emitError $ UnknownAtom nodeId name
       Just (nodeId', types) -> do
         checkArgCount name (nodeId', types) (nodeId, args)
         zipWithM_ checkExpr args types
-        traverse_ checkDecl clauses
+
+    traverse_ checkDecl clauses
   _ ->
     panic "Unexpected case in 'checkDecl'"
 

@@ -87,8 +87,8 @@ spec = describe "typesystem" $ parallel $ do
   it "checks for unknown atoms in mix of everything" $ do
     failsWith
       [ UnknownAtom (NodeId 1) $ Id "top_level_atom"
-      , UnknownAtom (NodeId 3) $ Id "path"
       , UnknownAtom (NodeId 6) $ Id "edge"
+      , UnknownAtom (NodeId 3) $ Id "path"
       ] [text|
       top_level_atom(1).
 
@@ -143,8 +143,8 @@ spec = describe "typesystem" $ parallel $ do
         edge(x, y, 123).
       |]
     failsWith
-      [ ArgCountMismatch (Id "b") (NodeId 2, 1) (NodeId 7, 2)
-      , ArgCountMismatch (Id "c") (NodeId 3, 1) (NodeId 10, 2)
+      [ ArgCountMismatch (Id "c") (NodeId 3, 1) (NodeId 10, 2)
+      , ArgCountMismatch (Id "b") (NodeId 2, 1) (NodeId 7, 2)
       ] [text|
       @def a(u32, u32).
       @def b(u32).
