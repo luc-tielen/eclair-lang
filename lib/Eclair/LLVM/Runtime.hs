@@ -41,6 +41,7 @@ data Externals
   , extFree :: Operand
   , extMemset :: Operand
   , extMemcpy :: Operand
+  , extMemcmp :: Operand
   }
 
 -- Appended to every LLVM type and function to make sure no collisions occur during codegen.

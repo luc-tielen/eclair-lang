@@ -1,6 +1,9 @@
 module Eclair.LLVM.Symbol
   ( Symbol(..)
   , codegen
+  , sizeOf
+  , dataOf
+  , byteAt
   ) where
 
 import Prelude hiding (Symbol, void)
@@ -94,9 +97,13 @@ data Index
   = SymbolIdx
   | SizeIdx
   | DataIdx
+  | ByteIdx
 
 sizeOf :: Path 'SymbolIdx 'SizeIdx
 sizeOf = mkPath [int32 0]
 
 dataOf :: Path 'SymbolIdx 'DataIdx
 dataOf = mkPath [int32 1]
+
+byteAt :: Operand -> Path 'DataIdx 'ByteIdx
+byteAt idx = mkPath [idx]

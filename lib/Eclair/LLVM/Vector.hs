@@ -1,7 +1,10 @@
 module Eclair.LLVM.Vector
   ( Vector(..)
+  , Types(..)
   , Destructor
   , codegen
+  , startPtrOf
+  , elemAt
   ) where
 
 import Prelude hiding (EQ, void)
@@ -28,28 +31,28 @@ data Vector
   , vectorGetValue :: Operand
   }
 
+-- Type representing what to do when an element of the vector is destroyed.
+-- The operand is a pointer to an element type that needs to be cleaned up.
+type Destructor = Operand -> IRCodegen ()
+
 data CGState
   = CGState
   { externals :: Externals
   , types :: Types
   , sizeElement :: Word64
+  , destructor :: Maybe Destructor
   }
 
 type ModuleCodegen = ReaderT CGState ModuleBuilder
 type IRCodegen = IRBuilderT ModuleCodegen
 
--- Type representing what to do when an element of the vector is destroyed.
--- The operand is a pointer to an element type that needs to be cleaned up.
-type Destructor = Operand -> IRCodegen ()
-
-codegen :: Externals -> Maybe Destructor -> ModuleBuilderT IO Vector
-codegen exts dtor = do
-  tyElem <- typedef "symbol_t" Off [i32, ptr i8]  -- TODO: move symbol type out of this module
+codegen :: Type -> Externals -> Maybe Destructor -> ModuleBuilderT IO Vector
+codegen tyElem exts dtor = do
   sizeOfElem <- withLLVMTypeInfo $ \ctx td -> llvmSizeOf ctx td tyElem
 
   hoist intoIO $ do
     tys <- generateTypes tyElem
-    runReaderT (generateFunctions dtor) $ CGState exts tys sizeOfElem
+    runReaderT generateFunctions $ CGState exts tys sizeOfElem dtor
   where
     intoIO = pure . runIdentity
 
@@ -66,11 +69,11 @@ generateTypes tyElem = do
     , tyVector = tyVec
     }
 
-generateFunctions :: Maybe Destructor -> ModuleCodegen Vector
-generateFunctions dtor = do
+generateFunctions :: ModuleCodegen Vector
+generateFunctions = do
   tys <- asks types
   vInit <- mkVectorInit
-  vDestroy <- mkVectorDestroy dtor
+  vDestroy <- mkVectorDestroy
   vSize <- mkVectorSize
   vPush <- mkVectorPush vSize
   vGetValue <- mkVectorGetValue
@@ -92,7 +95,7 @@ growFactor = 2  -- or 1.5? needs rounding then..
 -- NOTE: Assumes vector memory already allocated in other code
 mkVectorInit :: ModuleCodegen Operand
 mkVectorInit = do
-  CGState exts tys sizeOfElem <- ask
+  CGState exts tys sizeOfElem _ <- ask
   let (vecTy, elemTy) = (tyVector &&& tyElement) tys
       mallocFn = extMalloc exts
 
@@ -107,9 +110,9 @@ mkVectorInit = do
     assign capacityOf vec (int32 $ fromIntegral initialCapacity)
 
 -- NOTE: Assumes vector memory already allocated in other code
-mkVectorDestroy :: Maybe Destructor -> ModuleCodegen Operand
-mkVectorDestroy elemDestructor = do
-  CGState exts tys _ <- ask
+mkVectorDestroy ::  ModuleCodegen Operand
+mkVectorDestroy = do
+  CGState exts tys _ elemDestructor <- ask
   let (vecTy, elemTy) = (tyVector &&& tyElement) tys
       freeFn = extFree exts
 
@@ -133,7 +136,7 @@ mkVectorDestroy elemDestructor = do
 -- NOTE: does not check for uniqueness!
 mkVectorPush :: Operand -> ModuleCodegen Operand
 mkVectorPush vectorSize = do
-  CGState exts tys sizeElem <- ask
+  CGState exts tys sizeElem _ <- ask
   let (vecTy, elemTy) = (tyVector &&& tyElement) tys
       mallocFn = extMalloc exts
       freeFn = extFree exts
@@ -163,7 +166,7 @@ mkVectorPush vectorSize = do
     -- assert(vec && "Vector should not be null");
     numElems <- call vectorSize [vec]
     capacity <- deref capacityOf vec
-    isFull <- icmp EQ numElems capacity
+    isFull <- numElems `eq` capacity
     if' isFull $ do
       call vectorGrow [vec]
 
@@ -175,7 +178,7 @@ mkVectorPush vectorSize = do
 
 mkVectorSize :: ModuleCodegen Operand
 mkVectorSize = do
-  CGState _ tys sizeElem <- ask
+  CGState _ tys sizeElem _ <- ask
   let vecTy = tyVector tys
       sizeOfElem = int32 $ toInteger sizeElem
 
