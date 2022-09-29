@@ -48,9 +48,12 @@ library
       Eclair.Id
       Eclair.LLVM.BTree
       Eclair.LLVM.Hash
+      Eclair.LLVM.HashMap
       Eclair.LLVM.LLVM
       Eclair.LLVM.Metadata
       Eclair.LLVM.Runtime
+      Eclair.LLVM.Symbol
+      Eclair.LLVM.SymbolTable
       Eclair.LLVM.Vector
       Eclair.Parser
       Eclair.Pretty
