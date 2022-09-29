@@ -179,7 +179,7 @@ checkExpr ast expectedTy = case ast of
   Var nodeId var -> do
     lookupVarType var >>= \case
       Nothing ->
-        -- TODO: also store in context a variable was bound here for better errors?
+        -- TODO: also store in context a variable was bound here for better errors
         bindVar var expectedTy
       Just actualTy -> do
         -- NOTE: No need to call 'unifyType', typeEnv never contains unification variables!

@@ -96,6 +96,114 @@ spec = describe "typesystem" $ parallel $ do
         edge(x, y).
       |]
 
+  it "checks for type mismatch in top level atoms" $ do
+    failsWith
+      [ TypeMismatch (NodeId {unNodeId = 5}) U32 Str
+      , TypeMismatch (NodeId {unNodeId = 7}) Str U32
+      , TypeMismatch (NodeId {unNodeId = 11}) U32 Str
+      , TypeMismatch (NodeId {unNodeId = 10}) Str U32
+      , TypeMismatch (NodeId {unNodeId = 14}) U32 Str
+      , TypeMismatch (NodeId {unNodeId = 13}) U32 Str
+      ] [text|
+      @def fact1(u32, string).
+      @def fact2(string, string).
+      fact1(1, 2).
+      fact1("abc", "def").
+      fact1("abc", 2).
+      fact2(1, 2).
+      |]
+    typeChecks [text|
+      @def fact1(u32, string).
+      @def fact2(string, string).
+      fact1(1, "a").
+      fact2("abc", "def").
+      |]
+
+  it "checks for type mismatch in rule heads" $ do
+    failsWith
+      [ TypeMismatch (NodeId {unNodeId = 5}) Str U32
+      , TypeMismatch (NodeId {unNodeId = 10}) Str U32
+      , TypeMismatch (NodeId {unNodeId = 17}) Str U32
+      , TypeMismatch (NodeId {unNodeId = 16}) Str U32
+      ] [text|
+      @def edge(u32, u32).
+      @def reachable(u32, u32).
+      reachable(x, "abc") :- edge(x, x).
+      reachable("abc", x) :- edge(x, x).
+      reachable("abc", "abc") :- edge(x, x).
+      |]
+    typeChecks [text|
+      @def edge(u32, u32).
+      @def reachable(u32, u32).
+      reachable(x, y) :- edge(x, y).
+      reachable(1, 2) :- edge(x, x).
+      |]
+
+  it "checks for type mismatch in rule bodies" $ do
+    failsWith
+      [ TypeMismatch (NodeId {unNodeId = 13}) Str U32
+      , TypeMismatch (NodeId {unNodeId = 12}) Str U32
+      , TypeMismatch (NodeId {unNodeId = 10}) Str U32
+      , TypeMismatch (NodeId {unNodeId = 6}) Str U32
+      ] [text|
+      @def fact1(u32, u32).
+      @def fact2(u32).
+      fact2(123) :-
+        fact1("abc", 123),
+        fact1(456, "def"),
+        fact1("abc", "def").
+      |]
+    typeChecks [text|
+      @def fact1(u32, u32).
+      @def fact2(u32).
+      fact2(123) :-
+        fact1(123, 456).
+      |]
+
+  it "checks for type mismatch of variables in rule heads" $ do
+    failsWith
+      [ TypeMismatch (NodeId {unNodeId = 5}) U32 Str
+      ] [text|
+      @def fact1(u32).
+      @def fact2(u32, string).
+      fact2(x, x) :-
+        fact1(123).
+      |]
+
+  it "checks for type mismatch of variables in rule bodies" $ do
+    failsWith
+      [ TypeMismatch (NodeId {unNodeId = 7}) U32 Str
+      ] [text|
+      @def fact1(u32).
+      @def fact2(u32, string).
+      fact1(123) :-
+        fact2(x, x).
+      |]
+    typeChecks [text|
+      @def fact1(u32).
+      @def fact2(u32, u32).
+      fact1(123) :-
+        fact2(x, x).
+      |]
+
+  it "checks for type mismatch of variables in entire rule" $ do
+    failsWith
+      [ TypeMismatch (NodeId {unNodeId = 7}) Str U32
+      ] [text|
+      @def fact1(u32).
+      @def fact2(u32, string).
+      fact2(123, x) :-
+        fact1(x).
+      |]
+    typeChecks [text|
+      @def fact1(u32).
+      @def fact2(u32, string).
+      @def fact3(string).
+      fact2(x, y) :-
+        fact1(x),
+        fact3(y).
+      |]
+
   it "checks for mismatching argument count in top level atoms" $ do
     failsWith [ArgCountMismatch (Id "edge") (NodeId 1, 3) (NodeId 2, 2)] [text|
       @def edge(u32, u32, u32).
@@ -154,3 +262,13 @@ spec = describe "typesystem" $ parallel $ do
         b(x, 123),
         c(y, 456).
       |]
+
+  it "never emits error on wildcards" $ do
+    typeChecks [text|
+      @def fact1(u32, u32, string).
+      @def fact2(u32).
+      fact2(x) :-
+        fact1(x, _, _),
+        fact1(_, x, _).
+      |]
+
