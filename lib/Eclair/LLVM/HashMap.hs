@@ -208,13 +208,13 @@ symbolType =
 
 data Index
   = HashMapIdx
-  | BucketPtrIdx
+  | BucketIdx  -- A vector inside the hashmap
   | EntryIdx
   | SymbolIdx
   | ValueIdx
 
-bucketAt :: Operand -> Path 'HashMapIdx 'BucketPtrIdx
-bucketAt idx = mkPath [int32 0, int32 0, idx]
+bucketAt :: Operand -> Path 'HashMapIdx 'BucketIdx
+bucketAt idx = mkPath [int32 0, idx]
 
 symbolOf :: Path 'EntryIdx 'SymbolIdx
 symbolOf = mkPath [int32 0]

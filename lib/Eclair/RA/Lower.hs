@@ -9,20 +9,21 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
+import Eclair.Id
+import Eclair.Comonads hiding (Quad)
+import Eclair.TypeSystem
+import Eclair.AST.Transforms.ReplaceStrings (StringMap)
 import Eclair.RA.Codegen
 import Eclair.EIR.IR (EIR)
 import Eclair.RA.IR (RA)
 import Eclair.RA.IndexSelection
-import Eclair.Id
-import Eclair.Comonads hiding (Quad)
-import Eclair.TypeSystem
 import qualified Eclair.EIR.IR as EIR
 import qualified Eclair.RA.IR as RA
 import qualified Eclair.LLVM.Metadata as M
 
 
-compileToEIR :: TypeInfo -> RA -> EIR
-compileToEIR typeInfo ra =
+compileToEIR :: StringMap -> TypeInfo -> RA -> EIR
+compileToEIR stringMap typeInfo ra =
   let (indexMap, getIndexForSearch) = runIndexSelection typeInfo ra
       containerInfos = getContainerInfos indexMap typeInfo
       end = "the.end"
@@ -30,24 +31,31 @@ compileToEIR typeInfo ra =
       moduleStmts :: [CodegenM EIR]
       moduleStmts =
         [ declareProgram $ map (\(r, _, m) -> (r, m)) containerInfos
-        , compileInit
+        , compileInit stringMap
         , compileDestroy
         , compileRun ra
         ]
    in EIR.Block $ map (runCodegen lowerState) moduleStmts
 
-compileInit :: CodegenM EIR
-compileInit = do
+compileInit :: StringMap -> CodegenM EIR
+compileInit stringMap = do
   program <- var "program"
-  let symbolTableInitAction = primOp EIR.SymbolTableInit [fieldAccess program 0]
+  let symbolTable = fieldAccess program 0
+      symbolTableInitAction = primOp EIR.SymbolTableInit [symbolTable]
   relationInitActions <- forEachRelation program $ \(r, idx, _) relationPtr ->
     call r idx EIR.InitializeEmpty [relationPtr]
-  let initActions = symbolTableInitAction : relationInitActions
+  --let addSymbolActions = map (\str -> primOp EIR.SymbolTableInsert [_]) $ toSymbolTableEntries stringMap
+  let initActions = symbolTableInitAction : relationInitActions -- ++ addSymbolActions
   fn "eclair_program_init" [] (EIR.Pointer EIR.Program) $
     assign program heapAllocProgram
     : initActions
     -- Open question: if some facts are known at compile time, search for derived facts up front?
     ++ [ ret program ]
+
+-- TODO return actions here
+toSymbolTableEntries :: StringMap -> [Text]
+toSymbolTableEntries stringMap =
+  map fst $ sortWith snd $ Map.toList stringMap
 
 compileDestroy :: CodegenM EIR
 compileDestroy = do

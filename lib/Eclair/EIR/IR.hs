@@ -57,6 +57,7 @@ instance IsString LabelId where
 data Op
   = SymbolTableInit
   | SymbolTableDestroy
+  | SymbolTableInsert
   deriving (Eq, Show)
 
 data EIR
@@ -67,6 +68,7 @@ data EIR
   | FieldAccess EIR Int
   | Var Text
   | Assign EIR EIR
+  -- TODO merge call with primop: "RelationOp Relation Index Function"
   | Call Relation Index Function [EIR]  -- A function call related to operations on relations
   | PrimOp Op [EIR]                     -- A primitive operation, these tend to be simple function calls or operators
   | HeapAllocateProgram
@@ -133,6 +135,8 @@ instance Pretty Op where
       "symbol_table.init"
     SymbolTableDestroy ->
       "symbol_table.destroy"
+    SymbolTableInsert ->
+      "symbol_table.insert"
 
 instance Pretty EIR where
   pretty = \case

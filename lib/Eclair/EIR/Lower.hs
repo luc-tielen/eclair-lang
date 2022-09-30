@@ -417,6 +417,7 @@ getFactTypeMapping :: [(Relation, metadata)] -> [(Relation, Integer)]
 getFactTypeMapping metas =
   zip (getRelations metas) [0..]
 
+-- TODO +1 for correct offset due to symbol table?
 getContainerOffset :: [(Relation, Metadata)] -> Relation -> Index -> Int
 getContainerOffset metas r idx =
   fromJust $ L.findIndex (sameRelationAndIndex r idx) $ map (map getIndex) metas
