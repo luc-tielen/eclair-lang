@@ -121,6 +121,7 @@ unifyType t1 t2 = do
             substituteType subst ty
 
     -- Update the current substitutions
+    updateSubst :: Int -> Type -> TypeCheckM ()
     updateSubst u ty =
       modify $ \s ->
         s { substitution = IntMap.insert u ty (substitution s) }
@@ -156,6 +157,12 @@ checkDecl = \case
         zipWithM_ checkExpr args types
 
     traverse_ checkDecl clauses
+  Assign nodeId lhs rhs -> do
+    lhsTy <- inferExpr lhs
+    rhsTy <- inferExpr rhs
+    -- NOTE: Because inferred types of vars can contain unification variables,
+    -- we need to try and unify them.
+    unifyType lhsTy rhsTy
   _ ->
     panic "Unexpected case in 'checkDecl'"
 
@@ -170,6 +177,7 @@ checkExpr :: AST -> Type -> TypeCheckM ()
 checkExpr ast expectedTy = case ast of
   l@(Lit nodeId _) -> do
     actualTy <- inferExpr l
+    -- NOTE: No need to call 'unifyType', types of literals are always concrete types.
     when (actualTy /= expectedTy) $
       emitError $ TypeMismatch nodeId actualTy expectedTy
   PWildcard {} ->
@@ -185,12 +193,6 @@ checkExpr ast expectedTy = case ast of
         -- NOTE: No need to call 'unifyType', typeEnv never contains unification variables!
         when (actualTy /= expectedTy) $
           emitError $ TypeMismatch nodeId actualTy expectedTy
-  Assign nodeId lhs rhs -> do
-    lhsTy <- inferExpr lhs
-    rhsTy <- inferExpr rhs
-    -- NOTE: Because inferred types of vars can contain unification variables,
-    -- we need to try and unify them.
-    unifyType lhsTy rhsTy
   _ ->
     panic "Unexpected case in 'checkExpr'"
 
@@ -204,8 +206,10 @@ inferExpr = \case
         pure Str
   Var _ var -> do
     lookupVarType var >>= \case
-      Nothing ->
-        freshType
+      Nothing -> do
+        ty <- freshType
+        bindVar var ty
+        pure ty
       Just ty ->
         pure ty
   _ ->

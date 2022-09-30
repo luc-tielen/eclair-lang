@@ -272,3 +272,142 @@ spec = describe "typesystem" $ parallel $ do
         fact1(_, x, _).
       |]
 
+  it "checks types in equalities between a variable and a literal" $ do
+    typeChecks [text|
+      @def fact1(u32, u32).
+      @def fact2(u32).
+      fact2(x) :-
+        fact1(x, _),
+        x = 123.
+      |]
+    typeChecks [text|
+      @def fact1(u32, u32).
+      @def fact2(u32).
+      fact2(x) :-
+        fact1(x, _),
+        123 = x.
+      |]
+    typeChecks [text|
+      @def fact1(string, string).
+      @def fact2(string).
+      fact2(x) :-
+        fact1(x, _),
+        "abc" = x.
+      |]
+    typeChecks [text|
+      @def fact1(string, string).
+      @def fact2(string).
+      fact2(x) :-
+        fact1(x, _),
+        x = "abc".
+      |]
+
+  it "checks types in equalities between two variables" $ do
+    typeChecks [text|
+      @def fact1(u32, u32).
+      @def fact2(u32).
+      fact2(x) :-
+        fact1(x, y),
+        x = y.
+      |]
+    typeChecks [text|
+      @def fact1(u32, u32).
+      @def fact2(u32).
+      fact2(x) :-
+        x = y,
+        fact1(x, z),
+        y = z.
+      |]
+    typeChecks [text|
+      @def fact1(u32, u32).
+      @def fact2(u32).
+      fact2(x) :-
+        x = y,
+        y = z,
+        fact1(x, z).
+      |]
+
+  it "checks types in equalities between two literals" $ do
+    typeChecks [text|
+      @def fact1(u32, u32).
+      @def fact2(u32).
+      fact2(x) :-
+        fact1(x, _),
+        123 = 456.
+      |]
+    typeChecks [text|
+      @def fact1(u32, u32).
+      @def fact2(u32).
+      fact2(x) :-
+        fact1(x, _),
+        "abc" = "def".
+      |]
+
+  it "emits a type error when a variable fails to unify with type of a literal" $ do
+    failsWith
+      [UnificationFailure U32 Str
+      ] [text|
+        @def fact1(u32, u32).
+        @def fact2(u32).
+        fact2(x) :-
+          fact1(x, _),
+          x = "abc".
+      |]
+    failsWith
+      [UnificationFailure Str U32
+      ] [text|
+        @def fact1(u32, u32).
+        @def fact2(u32).
+        fact2(x) :-
+          fact1(x, _),
+          "abc" = x.
+      |]
+    failsWith
+      [UnificationFailure Str U32
+      ] [text|
+        @def fact1(string, string).
+        @def fact2(string).
+        fact2(x) :-
+          fact1(x, _),
+          x = 1.
+      |]
+    failsWith
+      [UnificationFailure U32 Str
+      ] [text|
+        @def fact1(string, string).
+        @def fact2(string).
+        fact2(x) :-
+          fact1(x, _),
+          1 = x.
+      |]
+
+  it "emits a type error when a variable fails to unify with another variable" $ do
+    failsWith
+      [ UnificationFailure Str U32
+      ] [text|
+        @def fact1(string, u32).
+        @def fact2(string).
+        fact2(x) :-
+          fact1(x, y),
+          x = y.
+      |]
+    failsWith
+      [ UnificationFailure U32 Str
+      ] [text|
+      @def fact1(u32, string).
+      @def fact2(u32).
+      fact2(x) :-
+        x = y,
+        fact1(x, z),
+        y = z.
+      |]
+    failsWith
+      [ UnificationFailure Str U32
+      ] [text|
+      @def fact1(u32, string).
+      @def fact2(u32).
+      fact2(x) :-
+        x = y,
+        y = z,
+        fact1(x, z).
+      |]
