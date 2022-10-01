@@ -170,8 +170,8 @@ generateProgramInstructions = gcata (distribute extractEqualities) $ \case
       currentAliasValue <- lookupAlias a'
       getColumn currentAliasValue col
     where
-      getColumn value col =
-        fieldAccess (pure value) col
+      getColumn value =
+        fieldAccess (pure value)
   where
     distribute :: Corecursive t
                => (Base t (t, a) -> a)

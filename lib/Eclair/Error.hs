@@ -140,7 +140,7 @@ wildcardInAssignmentToReport file fileContent spanMap (WildcardInAssignment assi
 
 -- NOTE: pattern match is done this way to keep track of additional errors that need to be reported
 semanticErrorsToReports :: FilePath -> Text -> SpanMap -> SemanticErrors -> [Report Text]
-semanticErrorsToReports file fileContent spanMap e@(SemanticErrors _ _ _ _ _ _) =
+semanticErrorsToReports file fileContent spanMap e@(SemanticErrors {}) =
   concat [ emptyModuleReports
          , ungroundedVarReports
          , variableInFactReports

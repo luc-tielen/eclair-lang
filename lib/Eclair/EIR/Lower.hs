@@ -5,6 +5,7 @@ module Eclair.EIR.Lower
   ) where
 
 import Prelude hiding (void)
+import qualified Prelude
 import Data.Traversable (for)
 import Data.Functor.Foldable
 import qualified Data.Text as T
@@ -131,9 +132,9 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
         freeFn <- gets (extFree . externals)
         program <- programVar
         memory <- program `bitcast` ptr i8 `named` "memory"
-        () <$ call freeFn [memory]
+        Prelude.void $ call freeFn [memory]
       EIR.CallF r idx fn (map toOperand -> args) ->
-        () <$ doCall r idx fn args
+        Prelude.void $ doCall r idx fn args
       EIR.LoopF stmts ->
         loop $ traverse_ toInstrs stmts
       EIR.IfF (toOperand -> cond) (toInstrs -> body) -> do

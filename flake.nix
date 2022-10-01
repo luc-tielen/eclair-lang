@@ -21,82 +21,85 @@
       # Use the same nixpkgs as souffle-haskell, to avoid weird issues with multiple versions of Haskell packages.
       np = shs.inputs.np;
     in
-      with np.lib;
-      with fu.lib;
-      eachSystem [ "x86_64-linux" ] (system:
-        let
-          ghcVersion = "902";
-          version = "${ghcVersion}.${substring 0 8 self.lastModifiedDate}.${
+    with np.lib;
+    with fu.lib;
+    eachSystem [ "x86_64-linux" ] (system:
+      let
+        ghcVersion = "902";
+        version = "${ghcVersion}.${substring 0 8 self.lastModifiedDate}.${
               self.shortRev or "dirty"
             }";
-          config = {};
-          overlay = final: _:
-            let
-              haskellPackages =
-                final.haskell.packages."ghc${ghcVersion}".override {
-                  overrides = hf: hp:
-                    with final.haskell.lib; rec {
-                      inherit (shs.packages."${system}") souffle-haskell;
-                      inherit (llvm-cg.packages."${system}") llvm-codegen;
+        config = { };
+        overlay = final: _:
+          let
+            haskellPackages =
+              final.haskell.packages."ghc${ghcVersion}".override {
+                overrides = hf: hp:
+                  with final.haskell.lib; rec {
+                    inherit (shs.packages."${system}") souffle-haskell;
+                    inherit (llvm-cg.packages."${system}") llvm-codegen;
 
-                      algebraic-graphs = with hf;
-                        dontCheck
+                    algebraic-graphs = with hf;
+                      dontCheck
                         (callCabal2nix "algebraic-graphs" (inputs.alga) { });
 
-                      dependent-hashmap = with hf;
-                        unmarkBroken (dontCheck hp.dependent-hashmap);
+                    dependent-hashmap = with hf;
+                      unmarkBroken (dontCheck hp.dependent-hashmap);
 
-                      diagnose = hf.callCabal2nixWithOptions "diagnose" (inputs.diagnose) "-fmegaparsec-compat" {};
+                    diagnose = hf.callCabal2nixWithOptions "diagnose" (inputs.diagnose) "-fmegaparsec-compat" { };
 
-                      eclair-lang = with hf;
-                        (callCabal2nix "eclair-lang" ./. { }).overrideAttrs
+                    eclair-lang = with hf;
+                      (callCabal2nix "eclair-lang" ./. { }).overrideAttrs
                         (o: {
                           version = "${o.version}.${version}";
                           checkPhase = ''
-                          runHook preCheck
-                          DATALOG_DIR="${o.src}/cbits/" SOUFFLE_BIN="${pkgs.souffle}/bin/souffle" ./Setup test
-                          runHook postCheck
+                            runHook preCheck
+                            DATALOG_DIR="${o.src}/cbits/" SOUFFLE_BIN="${pkgs.souffle}/bin/souffle" ./Setup test
+                            runHook postCheck
                           '';
                         });
-                    };
-                };
-            in { inherit haskellPackages; };
-          pkgs = import np {
-            inherit system config;
-            overlays = [
-              ds.overlay
-              shs.overlay."${system}"
-              llvm-cg.overlay."${system}"
-              overlay
+                  };
+              };
+          in
+          { inherit haskellPackages; };
+        pkgs = import np {
+          inherit system config;
+          overlays = [
+            ds.overlay
+            shs.overlay."${system}"
+            llvm-cg.overlay."${system}"
+            overlay
+          ];
+        };
+      in
+      with pkgs.lib; rec {
+        inherit overlay;
+        packages = { inherit (pkgs.haskellPackages) eclair-lang; };
+        defaultPackage = packages.eclair-lang;
+        devShell = pkgs.devshell.mkShell {
+          name = "ECLAIR-LANG";
+          imports = [ (pkgs.devshell.importTOML ./devshell.toml) ];
+          packages = with pkgs;
+            with haskellPackages; [
+              souffle
+              pkgs.llvmPackages_14.llvm.dev
+              pkgs.ghcid
+              (ghcWithPackages (p:
+                with p; [
+                  algebraic-graphs
+                  hspec-discover
+                  llvm-codegen
+                  souffle-haskell
+                  ghc
+                  cabal-install
+                  hsc2hs
+                  hpack
+                  haskell-language-server
+                  hlint
+                ]))
             ];
-          };
-        in with pkgs.lib; rec {
-          inherit overlay;
-          packages = { inherit (pkgs.haskellPackages) eclair-lang; };
-          defaultPackage = packages.eclair-lang;
-          devShell = pkgs.devshell.mkShell {
-            name = "ECLAIR-LANG";
-            imports = [ (pkgs.devshell.importTOML ./devshell.toml) ];
-            packages = with pkgs;
-              with haskellPackages; [
-                souffle
-                pkgs.llvmPackages_14.llvm.dev
-                pkgs.ghcid
-                (ghcWithPackages (p:
-                  with p; [
-                    algebraic-graphs
-                    hspec-discover
-                    llvm-codegen
-                    souffle-haskell
-                    ghc
-                    cabal-install
-                    hsc2hs
-                    hpack
-                    haskell-language-server
-                  ]))
-              ];
-            # Next line always sets DATALOG_DIR so souffle can find the datalog files in interpreted mode.
-            env = [{ name = "DATALOG_DIR"; value = "cbits/"; }];
-          };
-        });
+          # Next line always sets DATALOG_DIR so souffle can find the datalog files in interpreted mode.
+          env = [{ name = "DATALOG_DIR"; value = "cbits/"; }];
+        };
+      });
 }
