@@ -1787,11 +1787,11 @@
     name: "Use 'find' from Relude"
     note: "'find' is already exported from Relude"
     rhs: find
-- warn:
-    lhs: Data.Foldable.fold
-    name: "Use 'fold' from Relude"
-    note: "'fold' is already exported from Relude"
-    rhs: fold
+# - warn:
+#     lhs: Data.Foldable.fold
+#     name: "Use 'fold' from Relude"
+#     note: "'fold' is already exported from Relude"
+#     rhs: fold
 - warn:
     lhs: "Data.Foldable.foldl'"
     name: "Use 'foldl'' from Relude"

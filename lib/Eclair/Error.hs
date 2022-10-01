@@ -139,8 +139,9 @@ wildcardInAssignmentToReport file fileContent spanMap (WildcardInAssignment assi
    in Err Nothing title markers hints
 
 -- NOTE: pattern match is done this way to keep track of additional errors that need to be reported
+{-# ANN semanticErrorsToReports ("HLint: ignore Use record patterns" :: String) #-}
 semanticErrorsToReports :: FilePath -> Text -> SpanMap -> SemanticErrors -> [Report Text]
-semanticErrorsToReports file fileContent spanMap e@(SemanticErrors {}) =
+semanticErrorsToReports file fileContent spanMap e@(SemanticErrors _ _ _ _ _ _) =
   concat [ emptyModuleReports
          , ungroundedVarReports
          , variableInFactReports
