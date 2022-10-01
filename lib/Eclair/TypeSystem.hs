@@ -46,7 +46,7 @@ type TypedefMap = Map Id (NodeId, [Type])
 data CheckState
   = CheckState
   { typedefs :: TypedefMap
-  , typeEnv :: Map Id Type  -- NOTE: should not contain unification variables (TUnknown)!
+  , typeEnv :: Map Id Type
   , substitution :: IntMap Type
   , nextVar :: Int
   , errors :: [TypeError]
@@ -71,9 +71,16 @@ lookupRelationType :: Id -> TypeCheckM (Maybe (NodeId, [Type]))
 lookupRelationType name =
   gets (Map.lookup name . typedefs)
 
+-- A variable can either be a concrete type, or a unification variable.
+-- In case of unification variable, try looking it up in current substitution.
+-- As a result, this will make it so variables in a rule body with same name have the same type.
+-- NOTE: if this ends up not being powerful enough, probably need to upgrade to SCC + a solver for each group of "linked" variables.
 lookupVarType :: Id -> TypeCheckM (Maybe Type)
-lookupVarType var =
-  gets (Map.lookup var . typeEnv)
+lookupVarType var = do
+  (maybeVarTy, subst) <- gets (Map.lookup var . typeEnv &&& substitution)
+  case maybeVarTy of
+    Just (TUnknown u) -> pure $ IntMap.lookup u subst
+    maybeTy -> pure maybeTy
 
 -- Generates a fresh unification variable.
 freshType :: TypeCheckM Type
@@ -193,8 +200,10 @@ checkExpr ast expectedTy = case ast of
         -- NOTE: No need to call 'unifyType', typeEnv never contains unification variables!
         when (actualTy /= expectedTy) $
           emitError $ TypeMismatch nodeId actualTy expectedTy
-  _ ->
-    panic "Unexpected case in 'checkExpr'"
+  e -> do
+    -- Basically an unexpected / unhandled case => try inferring as a last resort.
+    actualTy <- inferExpr e
+    unifyType actualTy expectedTy
 
 inferExpr :: AST -> TypeCheckM Type
 inferExpr = \case
@@ -208,6 +217,9 @@ inferExpr = \case
     lookupVarType var >>= \case
       Nothing -> do
         ty <- freshType
+        -- This introduces potentially a unification variable into the type environment, but we need this
+        -- for complicated rule bodies where a variable occurs in more than one place.
+        -- (Otherwise a variable is treated as new each time).
         bindVar var ty
         pure ty
       Just ty ->

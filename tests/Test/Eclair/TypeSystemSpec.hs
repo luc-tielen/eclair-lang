@@ -402,7 +402,7 @@ spec = describe "typesystem" $ parallel $ do
         y = z.
       |]
     failsWith
-      [ UnificationFailure Str U32
+      [ TypeMismatch (NodeId 13) U32 Str
       ] [text|
       @def fact1(u32, string).
       @def fact2(u32).
@@ -410,4 +410,26 @@ spec = describe "typesystem" $ parallel $ do
         x = y,
         y = z,
         fact1(x, z).
+      |]
+    failsWith
+      [ TypeMismatch (NodeId 16) U32 Str
+      ] [text|
+      @def fact1(u32, string).
+      @def fact2(u32).
+      fact2(x) :-
+        x = y,
+        y = z,
+        z = a,
+        fact1(x, a).
+      |]
+    failsWith
+      [ UnificationFailure U32 Str
+      ] [text|
+      @def fact1(u32, string).
+      @def fact2(u32).
+      fact2(x) :-
+        x = y,
+        y = z,
+        fact1(x, a),
+        z = a.
       |]
