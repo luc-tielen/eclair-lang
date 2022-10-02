@@ -48,7 +48,7 @@ compileToLLVM = \case
     -- TODO: add hash based on filepath of the file we're compiling?
     programTy <- typedef "program" Off (symbolTableTy : map typeObj fnss)
     programSize <- withLLVMTypeInfo $ \ctx td -> llvmSizeOf ctx td programTy
-    let lowerState = LowerState programTy programSize symbolTable symbol fnsMap mempty exts
+    let lowerState = LowerState programTy programSize symbolTable symbol fnsMap mempty 0 exts
     traverse_ (processDecl lowerState) decls
     usingReaderT (metas, lowerState) $ do
       addFactsFn <- generateAddFactsFn
@@ -114,9 +114,9 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
         alloca theType (Just (int32 1)) 0
       EIR.LitF (LNumber value) ->
         pure $ int32 (fromIntegral value)
-      EIR.LitF (LString value) ->
-        -- TODO: unique name?
-        globalUtf8StringPtr value "string_literal"
+      EIR.LitF (LString value) -> do
+        varName <- newGlobalVarName "string_literal"
+        globalUtf8StringPtr value varName
       _ ->
         panic "Unhandled pattern match case in 'instrToOperand' while lowering EIR to LLVM!"
     instrToUnit :: (EIRF (Triple EIR (CodegenM Operand) (CodegenM ())) -> CodegenM ())

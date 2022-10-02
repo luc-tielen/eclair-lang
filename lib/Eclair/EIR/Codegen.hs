@@ -11,6 +11,7 @@ module Eclair.EIR.Codegen
   , toLLVMType
   , lookupVar
   , addVarBinding
+  , newGlobalVarName
   , loadIfNeeded
   ) where
 
@@ -42,6 +43,7 @@ data LowerState
   , symbolFns :: Symbol.Symbol
   , fnsMap :: FunctionsMap
   , varMap :: VarMap
+  , globalVarCounter :: Int
   , externals :: Externals
   }
 
@@ -116,6 +118,12 @@ lookupVar v = gets (fromJust . M.lookup v . varMap)
 addVarBinding :: Text -> Operand -> CodegenM ()
 addVarBinding var value =
   modify $ \s -> s { varMap = M.insert var value (varMap s) }
+
+newGlobalVarName :: Text -> CodegenM Name
+newGlobalVarName name = do
+  count <- gets globalVarCounter
+  modify $ \s -> s { globalVarCounter = count + 1 }
+  pure $ Name $ name <> "_" <> show count
 
 -- NOTE: this is for the case when we are assigning 1 field of a struct/array
 -- to another of the same kind, where the right side needs to be loaded before
