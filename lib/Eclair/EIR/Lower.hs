@@ -41,14 +41,14 @@ compileToLLVM = \case
     exts <- createExternals
     (metaMapping, fnss) <- runCacheT $ traverse (codegenRuntime exts . snd) metas
     codegenDebugInfos metaMapping
-    symbolTable <- codegenSymbolTable exts
+    (symbolTable, symbol) <- codegenSymbolTable exts
     let symbolTableTy = SymbolTable.tySymbolTable symbolTable
         fnsInfo = zip (map (map getIndexFromMeta) metas) fnss
         fnsMap = M.fromList fnsInfo
     -- TODO: add hash based on filepath of the file we're compiling?
     programTy <- typedef "program" Off (symbolTableTy : map typeObj fnss)
     programSize <- withLLVMTypeInfo $ \ctx td -> llvmSizeOf ctx td programTy
-    let lowerState = LowerState programTy programSize symbolTable fnsMap mempty exts
+    let lowerState = LowerState programTy programSize symbolTable symbol fnsMap mempty exts
     traverse_ (processDecl lowerState) decls
     usingReaderT (metas, lowerState) $ do
       addFactsFn <- generateAddFactsFn
@@ -56,6 +56,8 @@ compileToLLVM = \case
       generateGetFactsFn
       generateFreeBufferFn
       generateFactCountFn
+      generateEncodeStringFn
+      generateDecodeStringFn
   _ ->
     panic "Unexpected top level EIR declarations when compiling to LLVM!"
   where
@@ -229,7 +231,7 @@ codegenDebugInfos metaMapping =
           name = Name $ ("specialize_debug_info." <>) $ unHash hash
        in global name i32 (Int 32 $ toInteger i)
 
-codegenSymbolTable :: Externals -> ModuleBuilderT IO SymbolTable.SymbolTable
+codegenSymbolTable :: Externals -> ModuleBuilderT IO (SymbolTable.SymbolTable, Symbol.Symbol)
 codegenSymbolTable exts = do
   symbol <- hoist intoIO $ Symbol.codegen exts
 
@@ -242,7 +244,8 @@ codegenSymbolTable exts = do
   -- Only this vector does the cleanup of all the symbols, to prevent double frees
   vec <- Vector.codegen tySymbol exts (Just symbolDestructor)
   hashMap <- HashMap.codegen symbol exts
-  hoist intoIO $ SymbolTable.codegen tySymbol vec hashMap
+  symbolTable <- hoist intoIO $ SymbolTable.codegen tySymbol vec hashMap
+  pure (symbolTable, symbol)
   where
     intoIO = pure . runIdentity
 
@@ -380,7 +383,65 @@ generateFactCountFn = do
       relationSize <- doCall EIR.Size [relationPtr]
       ret relationSize
 
+-- NOTE: string does not need to be 0-terminated, length field is used to determine length (in bytes).
+-- Eclair makes an internal copy of the string, for simpler memory management.
+generateEncodeStringFn :: MonadFix m => CodegenInOutT (ModuleBuilderT m) Operand
+generateEncodeStringFn = do
+  lowerState <- asks snd
+  let args = [ (ptr (programType lowerState), "eclair_program")
+             , (i32, "string_length")
+             , (ptr i8, "string_data")
+             ]
+      (symbolTable, symbol) = (symbolTableFns &&& symbolFns) lowerState
+      exts = externals lowerState
+
+  function "eclair_encode_string" args i32 $ \[program, len, stringData] -> do
+    lenBytes <- zext len i64
+    stringDataCopy <- call (extMalloc exts) [lenBytes]
+    call (extMemcpy exts) [stringDataCopy, stringData, lenBytes, bit 0]
+
+    symbolPtr <- alloca (Symbol.tySymbol symbol) (Just (int32 1)) 0
+    call (Symbol.symbolInit symbol) [symbolPtr, len, stringDataCopy]
+
+    symbolTablePtr <- getSymbolTablePtr program
+    index <- call (SymbolTable.symbolTableLookupIndex symbolTable) [symbolTablePtr, symbolPtr]
+    alreadyContainsSymbol <- index `ne` int32 0xFFFFFFFF
+    if' alreadyContainsSymbol $ do
+      -- Since the string was not added to the table, the memory pointed to by
+      -- the symbol is not managed by the symbol table, so we need to manually free the data.
+      call (extFree exts) [stringDataCopy]
+      ret index
+
+    -- No free needed here, automatically called when symbol table is cleaned up.
+    ret =<< call (SymbolTable.symbolTableFindOrInsert symbolTable) [symbolTablePtr, symbolPtr]
+
+-- NOTE: do not free the returned string/byte array,
+-- this happens automatically when eclair_destroy is called
+generateDecodeStringFn :: MonadFix m => CodegenInOutT (ModuleBuilderT m) Operand
+generateDecodeStringFn = do
+  lowerState <- asks snd
+  let args = [ (ptr (programType lowerState), "eclair_program")
+             , (i32, "string_index")
+             ]
+      retTy = ptr i8  -- actually a pointer to a symbol (possibly null if not found),
+                      -- some extra decoding needs to happen on side of host language.
+      symbolTable = symbolTableFns lowerState
+
+  function "eclair_decode_string" args (ptr i8) $ \[program, idx] -> do
+    symbolTablePtr <- getSymbolTablePtr program
+    containsIndex <- call (SymbolTable.symbolTableContainsIndex symbolTable) [symbolTablePtr, idx]
+    if' containsIndex $ do
+      symbolPtr <- call (SymbolTable.symbolTableLookupSymbol symbolTable) [symbolTablePtr, idx]
+      ret =<< symbolPtr `bitcast` ptr i8
+
+    ret $ nullPtr i8
+
 -- TODO: move all lower level code below to Codegen.hs to keep high level overview here!
+
+getSymbolTablePtr :: (MonadNameSupply m, MonadModuleBuilder m, MonadIRBuilder m)
+                  => Operand -> m Operand
+getSymbolTablePtr program =
+  gep program [int32 0]
 
 type InOutState = ([(Relation, Metadata)], LowerState)
 
