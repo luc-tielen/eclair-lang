@@ -143,6 +143,8 @@ mkHashMapGetOrPutValue hashFn = do
     ret value
 
 -- NOTE: this is a unsafe lookup, assumes element is in there!
+-- NOTE: the index 0xFFFFFFFF is assumed to mean: not found.
+-- This should be a safe assumption as long as there are less keys than this in the hashmap
 mkHashMapLookup :: Operand -> ModuleCodegen Operand
 mkHashMapLookup hashFn = do
   (hmTy, symbolTy) <- asks (tyHashMap . types &&& Symbol.tySymbol . symbolCodegen)
@@ -152,8 +154,6 @@ mkHashMapLookup hashFn = do
     loopEntriesInBucket symbolPtr bucketPtr $
       ret <=< deref valueOf
 
-    --TODO handle missing lookup: should not occur! => panic
-    -- assert(false && "Hashmap lookup: missing element, should never happen!");
     ret $ int32 0xFFFFFFFF
 
 mkHashMapContains :: Operand -> ModuleCodegen Operand

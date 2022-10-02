@@ -21,6 +21,7 @@ import qualified Data.Map as M
 import Data.ByteString.Short hiding (index)
 import LLVM.Codegen
 import Eclair.LLVM.Runtime
+import qualified Eclair.LLVM.Symbol as Symbol
 import qualified Eclair.LLVM.SymbolTable as SymbolTable
 import qualified Eclair.EIR.IR as EIR
 import Eclair.RA.IndexSelection
@@ -38,6 +39,7 @@ data LowerState
   { programType :: Type
   , programSizeBytes :: Word64
   , symbolTableFns :: SymbolTable.SymbolTable
+  , symbolFns :: Symbol.Symbol
   , fnsMap :: FunctionsMap
   , varMap :: VarMap
   , externals :: Externals
