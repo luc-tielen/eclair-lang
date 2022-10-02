@@ -56,6 +56,7 @@
 # Ignore some builtin hints
 # - ignore: {name: Use let}
 # - ignore: {name: Use const, within: SpecialModule} # Only within certain modules
+- ignore: {name: Reduce duplication}
 
 
 # Define some custom infix operators
