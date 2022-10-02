@@ -107,7 +107,7 @@ If you run the resulting program, this should print the reachable node pairs
 - [x] Proper error handling
 - [ ] LSP support
 - [x] Support wildcards (`_`)
-- [ ] Support other data types than integers (strings, ...), add typesystem
+- [x] Support other data types than integers (strings, ...), add typesystem
 - [x] Support `=`
 - [ ] Support negation, `!=` operator
 - [ ] Support arithmetic / logical / ... operators
