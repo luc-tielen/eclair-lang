@@ -197,7 +197,6 @@ checkExpr ast expectedTy = case ast of
         -- TODO: also store in context a variable was bound here for better errors
         bindVar var expectedTy
       Just actualTy -> do
-        -- NOTE: No need to call 'unifyType', typeEnv never contains unification variables!
         when (actualTy /= expectedTy) $
           emitError $ TypeMismatch nodeId actualTy expectedTy
   e -> do
