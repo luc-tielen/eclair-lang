@@ -11,6 +11,7 @@ module Eclair.EIR.IR
   ) where
 
 import Eclair.Id
+import Eclair.Literal
 import Eclair.Pretty
 import Eclair.RA.IndexSelection (Index)
 import Eclair.LLVM.Metadata
@@ -83,7 +84,7 @@ data EIR
   | Jump LabelId
   | Label LabelId
   | Return EIR
-  | Lit Word32
+  | Lit Literal
   deriving (Eq, Show)
 
 makeBaseFunctor ''EIR

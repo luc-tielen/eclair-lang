@@ -46,6 +46,7 @@ library
       Eclair.EIR.Lower
       Eclair.Error
       Eclair.Id
+      Eclair.Literal
       Eclair.LLVM.BTree
       Eclair.LLVM.Hash
       Eclair.LLVM.HashMap

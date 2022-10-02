@@ -13,6 +13,7 @@ module Eclair.AST.IR
 
 import Prettyprinter
 import Eclair.Id
+import Eclair.Literal
 import Eclair.Pretty
 import qualified Language.Souffle.Marshal as S
 
@@ -21,11 +22,6 @@ newtype NodeId
   { unNodeId :: Word32
   } deriving (Eq, Ord, Show, Generic)
   deriving S.Marshal
-
-data Literal
-  = LNumber Word32
-  | LString Text
-  deriving (Eq, Show)
 
 type Value = AST
 type Clause = AST

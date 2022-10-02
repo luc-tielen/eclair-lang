@@ -72,7 +72,7 @@ mkSymbolDestroy = do
   let args = [(ptr symbolTy, "symbol")]
   function "symbol_destroy" args void $ \[symbol] -> do
     -- assert(symbol && "symbol cannot be NULL!");
-    dataPtr <- addr dataOf symbol
+    dataPtr <- deref dataOf symbol
     call freeFn [dataPtr]
 
 mkSymbolIsEqual :: ModuleCodegen Operand
@@ -90,7 +90,8 @@ mkSymbolIsEqual = do
 
     data1 <- deref dataOf symbol1
     data2 <- deref dataOf symbol2
-    isDataEqual <- (`eq` bit 0) =<< call memcmpFn [data1, data2, size1, bit 0]
+    size1' <- zext size1 i64
+    isDataEqual <- (`eq` bit 0) =<< call memcmpFn [data1, data2, size1']
     ret isDataEqual
 
 data Index

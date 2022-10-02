@@ -48,6 +48,7 @@ import qualified Data.Text as T
 import Eclair.RA.IndexSelection
 import Eclair.TypeSystem
 import Eclair.Id
+import Eclair.Literal
 import qualified Eclair.EIR.IR as EIR
 import qualified Eclair.RA.IR as RA
 import qualified Eclair.AST.IR as AST
@@ -234,7 +235,8 @@ equals :: CodegenM EIR -> CodegenM EIR -> CodegenM EIR
 equals lhs rhs = EIR.Equals <$> lhs <*> rhs
 
 lit :: Word32 -> CodegenM EIR
-lit x = pure $ EIR.Lit x
+lit x =
+  pure $ EIR.Lit $ LNumber x
 
 lookupId :: Text -> IdMapping -> CodegenM (Text, IdMapping)
 lookupId name mapping = do

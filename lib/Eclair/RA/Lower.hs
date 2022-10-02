@@ -10,6 +10,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import Eclair.Id
+import Eclair.Literal
 import Eclair.Comonads hiding (Quad)
 import Eclair.TypeSystem
 import Eclair.AST.Transforms.ReplaceStrings (StringMap)
@@ -44,18 +45,23 @@ compileInit stringMap = do
       symbolTableInitAction = primOp EIR.SymbolTableInit [symbolTable]
   relationInitActions <- forEachRelation program $ \(r, idx, _) relationPtr ->
     call r idx EIR.InitializeEmpty [relationPtr]
-  --let addSymbolActions = map (\str -> primOp EIR.SymbolTableInsert [_]) $ toSymbolTableEntries stringMap
-  let initActions = symbolTableInitAction : relationInitActions -- ++ addSymbolActions
+  let addSymbolActions = toSymbolTableInsertActions symbolTable stringMap
+      initActions = symbolTableInitAction : relationInitActions ++ addSymbolActions
   fn "eclair_program_init" [] (EIR.Pointer EIR.Program) $
     assign program heapAllocProgram
     : initActions
     -- Open question: if some facts are known at compile time, search for derived facts up front?
     ++ [ ret program ]
 
--- TODO return actions here
-toSymbolTableEntries :: StringMap -> [Text]
-toSymbolTableEntries stringMap =
-  map fst $ sortWith snd $ Map.toList stringMap
+toSymbolTableInsertActions :: CodegenM EIR -> StringMap -> [CodegenM EIR]
+toSymbolTableInsertActions symbolTable stringMap =
+  map (doInsert . fst) $ sortWith snd $ Map.toList stringMap
+  where
+    doInsert symbol =
+      primOp EIR.SymbolTableInsert [symbolTable, litStr symbol]
+    litStr =
+      pure . EIR.Lit . LString
+
 
 compileDestroy :: CodegenM EIR
 compileDestroy = do

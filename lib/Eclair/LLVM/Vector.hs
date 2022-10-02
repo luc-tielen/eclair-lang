@@ -129,7 +129,7 @@ mkVectorDestroy = do
         destructor iterPtr
         store iterPtrPtr 0 =<< incrementPtr iterPtr
 
-    startPtr <- deref startPtrOf vec
+    startPtr <- (`bitcast` ptr i8) =<< deref startPtrOf vec
     call freeFn [startPtr]
 
 -- NOTE: Returns the index at which the element was inserted => no size necessary

@@ -112,8 +112,11 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
       EIR.StackAllocateF r idx ty -> do
         theType <- toLLVMType r idx ty
         alloca theType (Just (int32 1)) 0
-      EIR.LitF value ->
+      EIR.LitF (LNumber value) ->
         pure $ int32 (fromIntegral value)
+      EIR.LitF (LString value) ->
+        -- TODO: unique name?
+        globalUtf8StringPtr value "string_literal"
       _ ->
         panic "Unhandled pattern match case in 'instrToOperand' while lowering EIR to LLVM!"
     instrToUnit :: (EIRF (Triple EIR (CodegenM Operand) (CodegenM ())) -> CodegenM ())

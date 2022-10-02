@@ -90,6 +90,9 @@ lookupPrimOp = \case
   EIR.SymbolTableDestroy -> do
     symbolTable <- gets symbolTableFns
     pure $ SymbolTable.symbolTableDestroy symbolTable
+  EIR.SymbolTableInsert -> do
+    symbolTable <- gets symbolTableFns
+    pure $ SymbolTable.symbolTableFindOrInsert symbolTable
 
 toLLVMType :: (MonadState LowerState m) => Relation -> Index -> EIR.Type -> m Type
 toLLVMType r idx = go
