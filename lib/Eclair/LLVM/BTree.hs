@@ -8,7 +8,7 @@ module Eclair.LLVM.BTree
   ) where
 
 import Prelude hiding (void)
-import qualified Data.Foldable as F
+import qualified Prelude
 import Control.Monad.Morph
 import Control.Monad.Fix
 import qualified Data.Map as Map
@@ -35,7 +35,7 @@ instance Pretty Meta where
   pretty meta =
     "num_columns=" <> pretty (numColumns meta) <> comma <+>
     -- TODO: use "withCommas"
-    "index=" <> brackets (F.fold $ intersperse comma $ map pretty (index meta)) <> comma <+>
+    "index=" <> brackets (Prelude.fold $ intersperse comma $ map pretty (index meta)) <> comma <+>
     "block_size=" <> pretty (blockSize meta) <> comma <+>
     "search_type=" <> pretty (searchType meta)
 
