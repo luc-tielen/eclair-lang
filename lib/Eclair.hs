@@ -12,7 +12,6 @@ module Eclair
   , emitRA
   , emitEIR
   , emitLLVM
-  , run
   , EclairError(..)
   , handleErrors
   ) where
@@ -29,7 +28,6 @@ import Eclair.AST.IR
 import Eclair.AST.Transforms
 import qualified Eclair.RA.IR as RA
 import qualified Eclair.EIR.IR as EIR
-import Eclair.RA.Interpreter
 import qualified Eclair.TypeSystem as TS
 import qualified Eclair.AST.Analysis as SA
 import LLVM.Codegen (Module, ppllvm)
@@ -190,8 +188,4 @@ compile = compileLLVM
 
 emitLLVM :: FilePath -> IO ()
 emitLLVM = runQuery . EmitLLVM
-
-run :: FilePath -> IO (M.Map Relation [[Word32]])
-run =
-  interpretRA <=< runQuery . CompileRA
 
