@@ -93,6 +93,7 @@
                     hsc2hs
                     hpack
                     haskell-language-server
+                    hlint
                   ]))
               ];
             # Next line always sets DATALOG_DIR so souffle can find the datalog files in interpreted mode.
