@@ -446,17 +446,17 @@
         "np": "np"
       },
       "locked": {
-        "lastModified": 1654152366,
-        "narHash": "sha256-ObPlUTJGe+FqH34qE4ZNTaHYPRzjDhXEtV9qalWgisY=",
+        "lastModified": 1664570718,
+        "narHash": "sha256-ySuqcpGH4FpdTDl8MR/IxRWbYYQDQPBVyLgc0nzxLMc=",
         "owner": "luc-tielen",
         "repo": "llvm-codegen",
-        "rev": "fbce3c709e6238c84029a98a8115f437c21cb507",
+        "rev": "83306c9da879b80be674ef7cf910aaf158160b69",
         "type": "github"
       },
       "original": {
         "owner": "luc-tielen",
         "repo": "llvm-codegen",
-        "rev": "fbce3c709e6238c84029a98a8115f437c21cb507",
+        "rev": "83306c9da879b80be674ef7cf910aaf158160b69",
         "type": "github"
       }
     },
