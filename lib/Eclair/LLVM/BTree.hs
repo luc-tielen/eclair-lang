@@ -12,8 +12,7 @@ import qualified Data.Foldable as F
 import Control.Monad.Morph
 import Control.Monad.Fix
 import qualified Data.Map as Map
-import LLVM.Codegen hiding (typeOf)
-import Eclair.LLVM.LLVM
+import Eclair.LLVM.Codegen
 import Eclair.LLVM.Hash
 import Eclair.LLVM.Runtime
 import Prettyprinter
@@ -55,16 +54,6 @@ instance Pretty SearchType where
   pretty Linear = "linear"
   pretty Binary = "binary"
 
--- State only used during generation of types
-data TGState
-  = TGState
-  { tgMeta :: Meta
-  , tgSuffix :: Suffix
-  }
-
-instance HasSuffix TGState where
-  getSuffix = tgSuffix
-
 data Types
   = Types
   { btreeTy :: Type
@@ -90,32 +79,29 @@ data Sizes
 -- State used during rest of the btree codegen
 data CGState
   = CGState
-  { cgSuffix :: Suffix
-  , meta :: Meta
-  , types :: Types
+  { types :: Types
   , typeSizes :: Sizes
   , externals :: Externals
   }
 
-instance HasSuffix CGState where
-  getSuffix = cgSuffix
-
 type IRCodegen = IRBuilderT ModuleCodegen
 
-type ModuleCodegen = ReaderT CGState ModuleBuilder
+type ModuleCodegen = ReaderT CGState (Template Meta)
 
 
-codegen :: Suffix -> Externals -> Meta -> ModuleBuilderT IO Functions
-codegen suffix exts settings = do
-  sizes <- computeSizes settings
+codegen :: Externals -> TemplateT Meta IO Functions
+codegen exts = do
+  settings <- getParams
+  sizes <- computeSizes
   hoist intoIO $ do
-    tys <- runReaderT (generateTypes sizes) $ TGState settings suffix
-    runReaderT generateFunctions $ CGState suffix settings tys sizes exts
+    tys <- generateTypes sizes
+    runReaderT generateFunctions $ CGState tys sizes exts
   where intoIO = pure . runIdentity
 
 -- TODO: can be merged with generateTypes now with llvm-codegen?
-computeSizes :: Meta -> ModuleBuilderT IO Sizes
-computeSizes settings = do
+computeSizes :: TemplateT Meta IO Sizes
+computeSizes = do
+  settings <- getParams
   let nodeDataTy = StructureType Off
         [ -- Next type doesn't matter here, but we need to break the
           -- cyclic loop or Haskell will throw an exception.
@@ -144,11 +130,11 @@ computeSizes settings = do
 
   pure $ Sizes ptrSz valueSz nodeDataSz leafNodeSz innerNodeSz
 
-generateTypes :: (MonadModuleBuilder m, MonadReader TGState m, MonadFix m)
+generateTypes :: (MonadModuleBuilder m, MonadFix m, MonadTemplate Meta m, HasSuffix m)
               => Sizes -> m Types
 generateTypes sizes = mdo
-  meta <- asks tgMeta
-  suffix <- asks tgSuffix
+  meta <- getParams
+  suffix <- getSuffix
   let numKeys' = fromIntegral $ numKeys meta sizes
 
   let columnTy = i32
@@ -157,26 +143,26 @@ generateTypes sizes = mdo
       nodeSizeTy = i16  -- Note: used to be size_t/i64
       nodeTypeTy = i1
       nodeDataName = "node_data_t"
-  nodeDataTy <- mkType nodeDataName Off
+  nodeDataTy <- typedef nodeDataName Off
     [ ptr nodeTy  -- parent
     , positionTy  -- position_in_parent
     , nodeSizeTy  -- num_elements
     , nodeTypeTy  -- node type
     ]
-  nodeTy <- mkType "node_t" Off
+  nodeTy <- typedef "node_t" Off
     [ nodeDataTy                  -- meta
     , ArrayType numKeys' valueTy  -- values
     ]
   let leafNodeTy = nodeTy
-  innerNodeTy <- mkType "inner_node_t" Off
+  innerNodeTy <- typedef "inner_node_t" Off
     [ nodeTy                                 -- base
     , ArrayType (numKeys' + 1) (ptr nodeTy)  -- children
     ]
-  btreeIteratorTy <- mkType "btree_iterator_t" Off
+  btreeIteratorTy <- typedef "btree_iterator_t" Off
     [ ptr nodeTy  -- current
     , positionTy  -- value pos
     ]
-  btreeTy <- mkType "btree_t" Off
+  btreeTy <- typedef "btree_t" Off
     [ ptr nodeTy  -- root
     , ptr nodeTy  -- first
     ]
@@ -254,17 +240,18 @@ generateFunctions = mdo
 
 mkCompare :: ModuleCodegen Operand
 mkCompare = do
-  (tys, settings) <- asks (types &&& meta)
+  settings <- getParams
+  tys <- asks types
   let column = columnTy tys
       value = valueTy tys
-  compare <- def "btree_value_compare" [(column, "lhs"), (column, "rhs")] i8 $ \[lhs, rhs] -> mdo
+  compare <- function "btree_value_compare" [(column, "lhs"), (column, "rhs")] i8 $ \[lhs, rhs] -> mdo
     result1 <- lhs `ult` rhs
     if' result1 $
       ret $ int8 (-1)
     result2 <- lhs `ugt` rhs
     ret =<< select result2 (int8 1) (int8 0)
 
-  def "btree_value_compare_values" [(ptr value, "lhs"), (ptr value, "rhs")] i8 $ \[lhs, rhs] -> mdo
+  function "btree_value_compare_values" [(ptr value, "lhs"), (ptr value, "rhs")] i8 $ \[lhs, rhs] -> mdo
     let columns = map fromIntegral $ index settings
     results <- flip execStateT mempty $ flip (zygo endCheck) columns $ \case
       Nil -> pass
@@ -296,7 +283,7 @@ data ControlFlow = Continue | End
 
 mkNodeNew :: ModuleCodegen Operand
 mkNodeNew = mdo
-  md <- asks meta
+  md <- getParams
   nodeType <- typeOf NodeType
   node <- typeOf Node
   innerNode <- typeOf InnerNode
@@ -310,7 +297,7 @@ mkNodeNew = mdo
 
   malloc <- asks (extMalloc . externals)
 
-  def "btree_node_new" [(nodeType, "type")] (ptr node) $ \[ty] -> mdo
+  function "btree_node_new" [(nodeType, "type")] (ptr node) $ \[ty] -> mdo
     structSize <- select ty leafSize innerSize
     memory <- call malloc [structSize]
     n <- memory `bitcast` ptr node
@@ -338,7 +325,7 @@ mkNodeDelete = mdo
   innerNode <- typeOf InnerNode
   free <- asks (extFree . externals)
 
-  nodeDelete <- def "btree_node_delete" [(ptr node, "node")] void $ \[n] -> mdo
+  nodeDelete <- function "btree_node_delete" [(ptr node, "node")] void $ \[n] -> mdo
     nodeTy <- deref (metaOf ->> nodeTypeOf) n
     isInner <- nodeTy `eq` innerNodeTypeVal
     if' isInner $ do  -- Delete children of inner node
@@ -361,7 +348,7 @@ mkNodeCountEntries :: ModuleCodegen Operand
 mkNodeCountEntries = mdo
   node <- typeOf Node
 
-  countEntries <- def "node_count_entries" [(ptr node, "node")] i64 $ \[n] -> mdo
+  countEntries <- function "node_count_entries" [(ptr node, "node")] i64 $ \[n] -> mdo
     numElements <- deref (metaOf ->> numElemsOf) n
     ty <- deref (metaOf ->> nodeTypeOf) n
     isLeaf <- ty `eq` leafNodeTypeVal
@@ -395,7 +382,7 @@ mkNodeSplitPoint = mdo
   nodeSize <- typeOf NodeSize
   numberOfKeys <- numKeysAsOperand
 
-  def "btree_node_split_point" [] nodeSize $ \_ -> mdo
+  function "btree_node_split_point" [] nodeSize $ \_ -> mdo
     a' <- mul (int16 3) numberOfKeys
     a <- udiv a' (int16 4)
     b <- sub numberOfKeys (int16 2)
@@ -407,7 +394,7 @@ mkSplit nodeNew nodeSplitPoint growParent = mdo
   innerNode <- typeOf InnerNode
   numberOfKeys <- numKeysAsOperand
 
-  def "btree_node_split" [(ptr node, "node"), (ptr (ptr node), "root")] void $ \[n, root] -> mdo
+  function "btree_node_split" [(ptr node, "node"), (ptr (ptr node), "root")] void $ \[n, root] -> mdo
     -- TODO: how to do assertions in LLVM?
     -- assert(n->meta.num_elements == NUM_KEYS);
     splitPoint <- call nodeSplitPoint []
@@ -447,7 +434,7 @@ mkGrowParent nodeNew insertInner = mdo
   node <- typeOf Node
   innerNode <- typeOf InnerNode
 
-  def "btree_node_grow_parent" [(ptr node, "node"), (ptr (ptr node), "root"), (ptr node, "sibling")] void $
+  function "btree_node_grow_parent" [(ptr node, "node"), (ptr (ptr node), "root"), (ptr node, "sibling")] void $
     \[n, root, sibling] -> mdo
     parent <- deref (metaOf ->> parentOf) n
     isNull <- parent `eq` nullPtr node
@@ -490,7 +477,7 @@ mkInsertInner rebalanceOrSplit = mdo
              ]
   numberOfKeys <- numKeysAsOperand
 
-  insertInner <- def "btree_node_insert_inner" args void $
+  insertInner <- function "btree_node_insert_inner" args void $
     \[n, root, pos, predecessor, key, newNode] -> mdo
     -- Need to allocate pos on the stack, otherwise pos updates are
     -- not visible later on!
@@ -550,7 +537,7 @@ mkRebalanceOrSplit splitFn = mdo
   numberOfKeys <- numKeysAsOperand
 
   let args = [(ptr node, "node"), (ptr (ptr node), "root"), (nodeSize, "idx")]
-  def "btree_node_rebalance_or_split" args nodeSize $ \[n, root, idx] -> mdo
+  function "btree_node_rebalance_or_split" args nodeSize $ \[n, root, idx] -> mdo
     -- TODO assert(n->meta.num_elements == NUM_KEYS);
 
     parent <- deref (metaOf ->> parentOf) n >>= (`bitcast` ptr innerNode)
@@ -640,7 +627,7 @@ mkIteratorInit = do
   nodeSize <- typeOf NodeSize
   let args = [(ptr iter, "iter"), (ptr node, "cur"), (nodeSize, "pos")]
 
-  def "btree_iterator_init" args void $ \[it, cur, pos] -> do
+  function "btree_iterator_init" args void $ \[it, cur, pos] -> do
     assign currentPtrOf it cur
     assign valuePosOf it pos
 
@@ -649,7 +636,7 @@ mkIteratorInitEnd iterInit = do
   iter <- typeOf Iterator
   node <- typeOf Node
 
-  def "btree_iterator_end_init" [(ptr iter, "iter")] void $ \[it] -> do
+  function "btree_iterator_end_init" [(ptr iter, "iter")] void $ \[it] -> do
     _ <- call iterInit [it, nullPtr node, int16 0]
     retVoid
 
@@ -657,7 +644,7 @@ mkIteratorIsEqual :: ModuleCodegen Operand
 mkIteratorIsEqual = do
   iter <- typeOf Iterator
 
-  def "btree_iterator_is_equal" [(ptr iter, "lhs"), (ptr iter, "rhs")] i1 $ \[lhs, rhs] -> mdo
+  function "btree_iterator_is_equal" [(ptr iter, "lhs"), (ptr iter, "rhs")] i1 $ \[lhs, rhs] -> mdo
     currentLhs <- deref currentPtrOf lhs
     currentRhs <- deref currentPtrOf rhs
 
@@ -674,7 +661,7 @@ mkIteratorCurrent = do
   iter <- typeOf Iterator
   value <- typeOf Value
 
-  def "btree_iterator_current" [(ptr iter, "iter")] (ptr value) $ \[it] -> mdo
+  function "btree_iterator_current" [(ptr iter, "iter")] (ptr value) $ \[it] -> mdo
     valuePos <- deref valuePosOf it
     currentNode <- deref currentPtrOf it
     ret =<< addr (valueAt valuePos) currentNode
@@ -683,7 +670,7 @@ mkIteratorNext :: ModuleCodegen Operand
 mkIteratorNext = do
   iter <- typeOf Iterator
 
-  def "btree_iterator_next" [(ptr iter, "iter")] void $ \[it] -> mdo
+  function "btree_iterator_next" [(ptr iter, "iter")] void $ \[it] -> mdo
     current <- deref currentPtrOf it
     isLeaf <- deref (metaOf ->> nodeTypeOf) current >>= (`eq` leafNodeTypeVal)
     if' isLeaf $ do
@@ -747,7 +734,7 @@ mkLinearSearchLowerBound compareValues = do
   value <- typeOf Value
   let args = [(ptr value, "val"), (ptr value, "current"), (ptr value, "end")]
 
-  def "btree_linear_search_lower_bound" args (ptr value) $ \[val, curr, end] -> mdo
+  function "btree_linear_search_lower_bound" args (ptr value) $ \[val, curr, end] -> mdo
     -- Finds an iterator to first element not less than given value.
     currentPtr <- allocate (ptr value) curr
     let loopCondition = do
@@ -770,7 +757,7 @@ mkLinearSearchUpperBound compareValues = do
   value <- typeOf Value
   let args = [(ptr value, "val"), (ptr value, "current"), (ptr value, "end")]
 
-  def "btree_linear_search_upper_bound" args (ptr value) $ \[val, curr, end] -> mdo
+  function "btree_linear_search_upper_bound" args (ptr value) $ \[val, curr, end] -> mdo
     -- Finds an iterator to first element that is greater than given value.
     currentPtr <- allocate (ptr value) curr
     let loopCondition = do
@@ -793,7 +780,7 @@ mkBtreeInitEmpty = do
   tree <- typeOf BTree
   node <- typeOf Node
 
-  def "btree_init_empty" [(ptr tree, "tree")] void $ \[t] -> mdo
+  function "btree_init_empty" [(ptr tree, "tree")] void $ \[t] -> mdo
     assign rootPtrOf t (nullPtr node)
     assign firstPtrOf t (nullPtr node)
 
@@ -803,7 +790,7 @@ mkBtreeInit btreeInsertRange = do
   iter <- typeOf Iterator
   let args = [(ptr tree, "tree"), (ptr iter, "start"), (ptr iter, "end")]
 
-  def "btree_init" args void $ \[t, start, end] -> mdo
+  function "btree_init" args void $ \[t, start, end] -> mdo
     _ <- call btreeInsertRange [t, start, end]
     pass
 
@@ -811,7 +798,7 @@ mkBtreeDestroy :: Operand -> ModuleCodegen Operand
 mkBtreeDestroy btreeClear = do
   tree <- typeOf BTree
 
-  def "btree_destroy" [(ptr tree, "tree")] void $ \[t] -> do
+  function "btree_destroy" [(ptr tree, "tree")] void $ \[t] -> do
     _ <- call btreeClear [t]
     pass
 
@@ -820,7 +807,7 @@ mkBtreeIsEmpty = do
   tree <- typeOf BTree
   node <- typeOf Node
 
-  def "btree_is_empty" [(ptr tree, "tree")] i1 $ \[t] -> do
+  function "btree_is_empty" [(ptr tree, "tree")] i1 $ \[t] -> do
     root <- deref rootPtrOf t
     ret =<< root `eq` nullPtr node
 
@@ -829,7 +816,7 @@ mkBtreeSize nodeCountEntries = do
   tree <- typeOf BTree
   node <- typeOf Node
 
-  def "btree_size" [(ptr tree, "tree")] i64 $ \[t] -> mdo
+  function "btree_size" [(ptr tree, "tree")] i64 $ \[t] -> mdo
     root <- deref rootPtrOf t
     isNull <- root `eq` nullPtr node
     condBr isNull nullBlock notNullBlock
@@ -848,7 +835,7 @@ mkBtreeInsertValue nodeNew rebalanceOrSplit compareValues searchLowerBound searc
   value <- typeOf Value
   numberOfKeys <- numKeysAsOperand
 
-  def "btree_insert_value" [(ptr tree, "tree"), (ptr value, "val")] i1 $ \[t, val] -> mdo
+  function "btree_insert_value" [(ptr tree, "tree"), (ptr value, "val")] i1 $ \[t, val] -> mdo
     isEmpty <- call isEmptyTree [t]
     condBr isEmpty emptyCase nonEmptyCase
 
@@ -963,7 +950,7 @@ mkBtreeInsertRange iterIsEqual iterCurrent iterNext btreeInsertValue = do
   iter <- typeOf Iterator
   let args = [(ptr tree, "tree"), (ptr iter, "begin"), (ptr iter, "end")]
 
-  def "btree_insert_range" args void $ \[t, begin, end] -> do
+  function "btree_insert_range" args void $ \[t, begin, end] -> do
     let loopCondition = do
           isEqual <- call iterIsEqual [begin, end]
           not' isEqual
@@ -977,7 +964,7 @@ mkBtreeBegin = do
   tree <- typeOf BTree
   iter <- typeOf Iterator
 
-  def "btree_begin" [(ptr tree, "tree"), (ptr iter, "result")] void $ \[t, result] -> do
+  function "btree_begin" [(ptr tree, "tree"), (ptr iter, "result")] void $ \[t, result] -> do
     assign currentPtrOf result =<< deref firstPtrOf t
     assign valuePosOf result (int16 0)
 
@@ -986,7 +973,7 @@ mkBtreeEnd iteratorInitEnd = do
   tree <- typeOf BTree
   iter <- typeOf Iterator
 
-  def "btree_end" [(ptr tree, "tree"), (ptr iter, "result")] void $ \[_t, result] -> do
+  function "btree_end" [(ptr tree, "tree"), (ptr iter, "result")] void $ \[_t, result] -> do
     _ <- call iteratorInitEnd [result]
     pass
 
@@ -995,7 +982,7 @@ mkBtreeContains iterIsEqual btreeFind btreeEnd = do
   tree <- typeOf BTree
   value <- typeOf Value
 
-  def "btree_contains" [(ptr tree, "tree"), (ptr value, "val")] i1 $ \[t, val] -> do
+  function "btree_contains" [(ptr tree, "tree"), (ptr value, "val")] i1 $ \[t, val] -> do
     iterPtr <- allocateIter
     endIterPtr <- allocateIter
     _ <- call btreeFind [t, val, iterPtr]
@@ -1014,7 +1001,7 @@ mkBtreeFind isEmptyTree searchLowerBound compareValues iterInit iterInitEnd = do
 
   let args = [(ptr tree, "tree"), (ptr value, "val"), (ptr iter, "result")]
 
-  def "btree_find" args void $ \[t, val, result] -> mdo
+  function "btree_find" args void $ \[t, val, result] -> mdo
     isEmpty <- call isEmptyTree [t]
     if' isEmpty $ do
       _ <- call iterInitEnd [result]
@@ -1057,7 +1044,7 @@ mkBtreeLowerBound isEmptyTree iterInit iterInitEnd searchLowerBound compareValue
   valSize <- asks (valueSize . typeSizes)
   let args = [(ptr tree, "tree"), (ptr value, "val"), (ptr iter, "result")]
 
-  def "btree_lower_bound" args void $ \[t, val, result] -> mdo
+  function "btree_lower_bound" args void $ \[t, val, result] -> mdo
     isEmpty <- call isEmptyTree [t]
     if' isEmpty $ do
       _ <- call iterInitEnd [result]
@@ -1112,7 +1099,7 @@ mkBtreeUpperBound isEmptyTree iterInit iterInitEnd searchUpperBound = do
   valSize <- asks (valueSize . typeSizes)
   let args = [(ptr tree, "tree"), (ptr value, "val"), (ptr iter, "result")]
 
-  def "btree_upper_bound" args void $ \[t, val, result] -> mdo
+  function "btree_upper_bound" args void $ \[t, val, result] -> mdo
     isEmpty <- call isEmptyTree [t]
     if' isEmpty $ do
       _ <- call iterInitEnd [result]
@@ -1156,7 +1143,7 @@ mkBtreeClear nodeDelete = do
   tree <- typeOf BTree
   node <- typeOf Node
 
-  def "btree_clear" [(ptr tree, "tree")] void $ \[t] -> do
+  function "btree_clear" [(ptr tree, "tree")] void $ \[t] -> do
     root <- deref rootPtrOf t
     isNotNull <- root `ne` nullPtr node
     if' isNotNull $ do
@@ -1168,7 +1155,7 @@ mkBtreeSwap :: ModuleCodegen Operand
 mkBtreeSwap = do
   tree <- typeOf BTree
 
-  def "btree_swap" [(ptr tree, "lhs"), (ptr tree, "rhs")] void $ \[lhs, rhs] ->
+  function "btree_swap" [(ptr tree, "lhs"), (ptr tree, "rhs")] void $ \[lhs, rhs] ->
     for_ [rootPtrOf, firstPtrOf] $ \path ->
       swap path lhs rhs
 
@@ -1197,7 +1184,8 @@ numKeysHelper settings nodeMetaSize valueByteSize =
 
 numKeysAsOperand :: ModuleCodegen Operand
 numKeysAsOperand = do
-  (metadata, sizes) <- asks (meta &&& typeSizes)
+  metadata <- getParams
+  sizes <- asks typeSizes
   pure $ int16 $ toInteger $ numKeys metadata sizes
 
 

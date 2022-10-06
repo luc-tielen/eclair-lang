@@ -48,13 +48,14 @@ library
       Eclair.Id
       Eclair.Literal
       Eclair.LLVM.BTree
+      Eclair.LLVM.Codegen
       Eclair.LLVM.Hash
       Eclair.LLVM.HashMap
-      Eclair.LLVM.LLVM
       Eclair.LLVM.Metadata
       Eclair.LLVM.Runtime
       Eclair.LLVM.Symbol
       Eclair.LLVM.SymbolTable
+      Eclair.LLVM.Template
       Eclair.LLVM.Vector
       Eclair.Parser
       Eclair.Pretty

@@ -6,7 +6,7 @@ module Eclair.LLVM.HashMap
 
 import Prelude hiding (void, HashMap)
 import Control.Monad.Morph
-import LLVM.Codegen
+import Eclair.LLVM.Codegen
 import qualified Eclair.LLVM.Symbol as Symbol
 import qualified Eclair.LLVM.Vector as Vector
 import Eclair.LLVM.Runtime
@@ -45,13 +45,13 @@ type ModuleCodegen = ReaderT CGState ModuleBuilder
 type IRCodegen = IRBuilderT ModuleCodegen
 
 
--- NOTE: no need to turn into template? then entry type can be moved here too..
+-- NOTE: no need to turn into template (for now)
 codegen :: Symbol.Symbol -> Externals -> ModuleBuilderT IO HashMap
 codegen symbol exts = do
   let keyTy = ptr (Symbol.tySymbol symbol)  -- TODO: no pointer to symbol needed here?
       valueTy = i32
   entryTy <- typedef "entry_t" Off [keyTy, valueTy]
-  vec <- Vector.codegen entryTy exts Nothing
+  vec <- instantiate "entry" entryTy $ Vector.codegen exts Nothing
   let vecTy = Vector.tyVector $ Vector.vectorTypes vec
   hashMapTy <- typedef "hashmap_t" Off [ArrayType capacity vecTy]
   let tys = Types

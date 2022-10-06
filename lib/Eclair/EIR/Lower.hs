@@ -13,7 +13,6 @@ import qualified Data.Map as M
 import qualified Data.List as L
 import Data.List ((!!))
 import Data.Maybe (fromJust)
-import LLVM.Codegen as LLVM
 import qualified Eclair.EIR.IR as EIR
 import qualified Eclair.LLVM.BTree as BTree
 import qualified Eclair.LLVM.Symbol as Symbol
@@ -21,7 +20,7 @@ import qualified Eclair.LLVM.Vector as Vector
 import qualified Eclair.LLVM.HashMap as HashMap
 import qualified Eclair.LLVM.SymbolTable as SymbolTable
 import Eclair.EIR.Codegen
-import Eclair.LLVM.LLVM
+import Eclair.LLVM.Codegen as LLVM
 import Eclair.LLVM.Metadata
 import Eclair.LLVM.Hash
 import Eclair.LLVM.Runtime
@@ -206,9 +205,12 @@ lowerM f = gcata (distribute f)
           base_t_a = map tThd m
        in Triple (embed base_t_t) (g base_t_tb) base_t_a
 
-type CacheT = StateT (Map Metadata (Suffix, Functions))
+-- We need an Int somewhere later on during codegen.
+-- So we don't convert to a 'Suffix' at this point yet.
+type IntSuffix = Int
+type CacheT = StateT (Map Metadata (IntSuffix, Functions))
 
-runCacheT :: Monad m => CacheT m a -> m (Map Metadata Suffix, a)
+runCacheT :: Monad m => CacheT m a -> m (Map Metadata IntSuffix, a)
 runCacheT m = do
   (a, s) <- runStateT m mempty
   pure (map fst s, a)
@@ -223,7 +225,7 @@ codegenRuntime exts meta = gets (M.lookup meta) >>= \case
   Just (_, cachedFns) -> pure cachedFns
   where
     cgRuntime suffix = lift $ case meta of
-      BTree meta -> BTree.codegen suffix exts meta
+      BTree meta -> instantiate (show suffix) meta $ BTree.codegen exts
 
 codegenDebugInfos :: Monad m => Map Metadata Int -> ModuleBuilderT m ()
 codegenDebugInfos metaMapping =
@@ -245,7 +247,7 @@ codegenSymbolTable exts = do
         pass
 
   -- Only this vector does the cleanup of all the symbols, to prevent double frees
-  vec <- Vector.codegen tySymbol exts (Just symbolDestructor)
+  vec <- instantiate "symbol" tySymbol $ Vector.codegen exts (Just symbolDestructor)
   hashMap <- HashMap.codegen symbol exts
   symbolTable <- hoist intoIO $ SymbolTable.codegen tySymbol vec hashMap
   pure (symbolTable, symbol)

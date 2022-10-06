@@ -9,9 +9,8 @@ module Eclair.LLVM.Vector
 
 import Prelude hiding (EQ, void)
 import Control.Monad.Morph
-import LLVM.Codegen
 import Eclair.LLVM.Runtime
-import Eclair.LLVM.LLVM
+import Eclair.LLVM.Codegen
 
 data Types
   = Types
@@ -20,7 +19,6 @@ data Types
   , tyVector :: Type
   }
 
--- TODO: template? + unique function names
 data Vector
   = Vector
   { vectorTypes :: Types
@@ -43,21 +41,24 @@ data CGState
   , destructor :: Maybe Destructor
   }
 
-type ModuleCodegen = ReaderT CGState ModuleBuilder
+type ModuleCodegen = ReaderT CGState (Template Type)
 type IRCodegen = IRBuilderT ModuleCodegen
 
-codegen :: Type -> Externals -> Maybe Destructor -> ModuleBuilderT IO Vector
-codegen tyElem exts dtor = do
+
+codegen :: Externals -> Maybe Destructor -> TemplateT Type IO Vector
+codegen exts dtor = do
+  tyElem <- getParams
   sizeOfElem <- withLLVMTypeInfo $ \ctx td -> llvmSizeOf ctx td tyElem
 
   hoist intoIO $ do
-    tys <- generateTypes tyElem
+    tys <- generateTypes
     runReaderT generateFunctions $ CGState exts tys sizeOfElem dtor
   where
     intoIO = pure . runIdentity
 
-generateTypes :: Type -> ModuleBuilder Types
-generateTypes tyElem = do
+generateTypes :: Template Type Types
+generateTypes = do
+  tyElem <- getParams
   tyVec <- typedef "vector_t" Off
             [ ptr tyElem  -- pointer to start of the vector
             , ptr tyElem  -- pointer to one element past end of the vector

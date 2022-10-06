@@ -1,8 +1,6 @@
 module Eclair.LLVM.Runtime
   ( Functions(..)
   , Externals(..)
-  , Suffix
-  , HasSuffix(..)
   ) where
 
 import LLVM.Codegen
@@ -43,9 +41,3 @@ data Externals
   , extMemcpy :: Operand
   , extMemcmp :: Operand
   }
-
--- Appended to every LLVM type and function to make sure no collisions occur during codegen.
-type Suffix = Int
-
-class HasSuffix a where
-  getSuffix :: a -> Suffix
