@@ -402,8 +402,8 @@ generateEncodeStringFn = do
       exts = externals lowerState
 
   function "eclair_encode_string" args i32 $ \[program, len, stringData] -> do
+    stringDataCopy <- call (extMalloc exts) [len]
     lenBytes <- zext len i64
-    stringDataCopy <- call (extMalloc exts) [lenBytes]
     call (extMemcpy exts) [stringDataCopy, stringData, lenBytes, bit 0]
 
     symbolPtr <- alloca (Symbol.tySymbol symbol) (Just (int32 1)) 0
@@ -447,7 +447,7 @@ generateDecodeStringFn = do
 getSymbolTablePtr :: (MonadNameSupply m, MonadModuleBuilder m, MonadIRBuilder m)
                   => Operand -> m Operand
 getSymbolTablePtr program =
-  gep program [int32 0]
+  gep program [int32 0, int32 0]
 
 type InOutState = ([(Relation, Metadata)], LowerState)
 

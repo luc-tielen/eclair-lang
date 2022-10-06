@@ -4,7 +4,6 @@ module Eclair.LLVM.Vector
   , Destructor
   , codegen
   , startPtrOf
-  , elemAt
   ) where
 
 import Prelude hiding (EQ, void)
@@ -148,15 +147,16 @@ mkVectorPush vectorSize = do
     -- NOTE: size == capacity in this function
     -- assert(vec && "Vector should not be null");
     currentCapacity <- deref capacityOf vec
-    currentNumBytes <- mul currentCapacity sizeOfElem
+    currentNumBytes <- mul currentCapacity sizeOfElem >>= (`zext` i64)
 
     newCapacity <- mul currentCapacity (int32 $ toInteger growFactor)
     newNumBytes <- mul newCapacity sizeOfElem
     newMemoryPtr <- (`bitcast` ptr elemTy) =<< call mallocFn [newNumBytes]
     -- assert(new_memory && "Failed to allocate more memory for vector!");
     newMemoryEndPtr <- gep newMemoryPtr [newCapacity]  -- TODO check
-    startPtr <- deref startPtrOf vec
-    call memcpyFn [newMemoryPtr, startPtr, currentNumBytes, bit 0]
+    startPtr <- deref startPtrOf vec >>= (`bitcast` ptr i8)
+    newMemoryPtrBytes <- newMemoryPtr `bitcast` ptr i8
+    call memcpyFn [newMemoryPtrBytes, startPtr, currentNumBytes, bit 0]
     call freeFn [startPtr]
 
     assign startPtrOf vec newMemoryPtr
@@ -194,8 +194,9 @@ mkVectorGetValue :: ModuleCodegen Operand
 mkVectorGetValue = do
   (vecTy, elemTy) <- asks ((tyVector &&& tyElement) . types)
   function "vector_get_value" [(ptr vecTy, "vec"), (i32, "idx")] (ptr elemTy) $ \[vec, idx] -> do
-    -- TODO check
-    ret =<< addr (startPtrOf ->> elemAt idx) vec
+    startPtr <- deref startPtrOf vec
+    -- We need a raw gep here, since this is a dynamically allocated pointer that we need to offset.
+    ret =<< gep startPtr [idx]
 
 
 -- Helper functions:
@@ -208,7 +209,6 @@ data Index
   | StartPtrIdx
   | EndPtrIdx
   | CapacityIdx
-  | ElemIdx
 
 startPtrOf :: Path 'VectorIdx 'StartPtrIdx
 startPtrOf = mkPath [int32 0]
@@ -218,6 +218,3 @@ endPtrOf = mkPath [int32 1]
 
 capacityOf :: Path 'VectorIdx 'CapacityIdx
 capacityOf = mkPath [int32 2]
-
-elemAt :: Operand -> Path 'StartPtrIdx 'ElemIdx
-elemAt idx = mkPath [idx]

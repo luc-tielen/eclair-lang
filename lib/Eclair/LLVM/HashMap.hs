@@ -48,7 +48,7 @@ type IRCodegen = IRBuilderT ModuleCodegen
 -- NOTE: no need to turn into template (for now)
 codegen :: Symbol.Symbol -> Externals -> ModuleBuilderT IO HashMap
 codegen symbol exts = do
-  let keyTy = ptr (Symbol.tySymbol symbol)  -- TODO: no pointer to symbol needed here?
+  let keyTy = Symbol.tySymbol symbol
       valueTy = i32
   entryTy <- typedef "entry_t" Off [keyTy, valueTy]
   vec <- instantiate "entry" entryTy $ Vector.codegen exts Nothing
@@ -98,7 +98,10 @@ mkHash = do
     symbolSize <- deref Symbol.sizeOf symbol
 
     loopFor (int32 0) (`ult` symbolSize) (add (int32 1)) $ \i -> do
-      byte <- deref (Symbol.dataOf ->> Symbol.byteAt i) symbol
+      dataPtr <- deref Symbol.dataOf symbol
+      -- We need a raw gep here, since the data is dynamically allocated.
+      bytePtr <- gep dataPtr [i]
+      byte <- load bytePtr 0 >>= (`zext` i32)
       currentHashCode <- load hashPtr 0
       result1 <- mul (int32 31) currentHashCode
       result2 <- add byte result1
@@ -129,15 +132,16 @@ mkHashMapGetOrPutValue hashFn = do
   symbolTy <- asks (Symbol.tySymbol . symbolCodegen)
   vec <- asks vectorCodegen
 
-  let args = [(ptr hmTy, "hashmap"), (symbolTy, "symbol"), (i32, "value")]
+  let args = [(ptr hmTy, "hashmap"), (ptr symbolTy, "symbol"), (i32, "value")]
 
   function "hashmap_get_or_put_value" args i32 $ \[hm, symbolPtr, value] -> do
     bucketPtr <- bucketForHash hashFn hm symbolPtr
     loopEntriesInBucket symbolPtr bucketPtr $
       ret <=< deref valueOf
 
+    symbolValue <- load symbolPtr 0
     newEntryPtr <- alloca entryTy Nothing 0
-    assign symbolOf newEntryPtr symbolPtr
+    assign symbolOf newEntryPtr symbolValue
     assign valueOf newEntryPtr value
     call (Vector.vectorPush vec) [bucketPtr, newEntryPtr]
     ret value
@@ -148,7 +152,7 @@ mkHashMapGetOrPutValue hashFn = do
 mkHashMapLookup :: Operand -> ModuleCodegen Operand
 mkHashMapLookup hashFn = do
   (hmTy, symbolTy) <- asks (tyHashMap . types &&& Symbol.tySymbol . symbolCodegen)
-  let args = [(ptr hmTy, "hashmap"), (symbolTy, "symbol")]
+  let args = [(ptr hmTy, "hashmap"), (ptr symbolTy, "symbol")]
   function "hashmap_lookup" args i32 $ \[hm, symbolPtr] -> do
     bucketPtr <- bucketForHash hashFn hm symbolPtr
     loopEntriesInBucket symbolPtr bucketPtr $
@@ -159,7 +163,7 @@ mkHashMapLookup hashFn = do
 mkHashMapContains :: Operand -> ModuleCodegen Operand
 mkHashMapContains hashFn = do
   (hmTy, symbolTy) <- asks (tyHashMap . types &&& Symbol.tySymbol . symbolCodegen)
-  let args = [(ptr hmTy, "hashmap"), (symbolTy, "symbol")]
+  let args = [(ptr hmTy, "hashmap"), (ptr symbolTy, "symbol")]
   function "hashmap_contains" args i1 $ \[hm, symbolPtr] -> do
     bucketPtr <- bucketForHash hashFn hm symbolPtr
     loopEntriesInBucket symbolPtr bucketPtr $
@@ -180,7 +184,7 @@ loopEntriesInBucket symbolPtr bucketPtr instrsForMatch = do
   entryCount <- call (Vector.vectorSize vec) [bucketPtr]
 
   loopFor (int32 0) (`ult` entryCount) (add (int32 1)) $ \i -> do
-    entryPtr <- addr (Vector.startPtrOf ->> Vector.elemAt i) bucketPtr
+    entryPtr <- call (Vector.vectorGetValue vec) [bucketPtr, i]
     entrySymbolPtr <- addr symbolOf entryPtr
 
     isMatch <- call (Symbol.symbolIsEqual symbol) [entrySymbolPtr, symbolPtr]
