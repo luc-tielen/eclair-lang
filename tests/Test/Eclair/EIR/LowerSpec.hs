@@ -53,16 +53,18 @@ spec = describe "LLVM Code Generation" $ parallel $ do
 
   it "generates code for a single fact" $ do
     llvmIR <- cg "single_fact"
-    extractDeclTypeSnippet llvmIR `shouldBe` "%program = type {%btree_t_0, %btree_t_1}"
+    extractDeclTypeSnippet llvmIR `shouldBe` "%program = type {%symbol_table, %btree_t_0, %btree_t_1}"
     extractFnSnippet llvmIR "eclair_program_init" `shouldBe` Just [text|
       define external ccc %program* @eclair_program_init() {
       start:
-        %memory_0 = call ccc i8* @malloc(i32 32)
+        %memory_0 = call ccc i8* @malloc(i32 1592)
         %program_0 = bitcast i8* %memory_0 to %program*
         %0 = getelementptr %program, %program* %program_0, i32 0, i32 0
-        call ccc void @btree_init_empty_0(%btree_t_0* %0)
+        call ccc void @symbol_table_init(%symbol_table* %0)
         %1 = getelementptr %program, %program* %program_0, i32 0, i32 1
-        call ccc void @btree_init_empty_1(%btree_t_1* %1)
+        call ccc void @btree_init_empty_0(%btree_t_0* %1)
+        %2 = getelementptr %program, %program* %program_0, i32 0, i32 2
+        call ccc void @btree_init_empty_1(%btree_t_1* %2)
         ret %program* %program_0
       }
       |]
@@ -70,9 +72,11 @@ spec = describe "LLVM Code Generation" $ parallel $ do
       define external ccc void @eclair_program_destroy(%program* %arg_0) {
       start:
         %0 = getelementptr %program, %program* %arg_0, i32 0, i32 0
-        call ccc void @btree_destroy_0(%btree_t_0* %0)
+        call ccc void @symbol_table_destroy(%symbol_table* %0)
         %1 = getelementptr %program, %program* %arg_0, i32 0, i32 1
-        call ccc void @btree_destroy_1(%btree_t_1* %1)
+        call ccc void @btree_destroy_0(%btree_t_0* %1)
+        %2 = getelementptr %program, %program* %arg_0, i32 0, i32 2
+        call ccc void @btree_destroy_1(%btree_t_1* %2)
         %memory_0 = bitcast %program* %arg_0 to i8*
         call ccc void @free(i8* %memory_0)
         ret void
@@ -88,21 +92,21 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         store i32 2, i32* %1
         %2 = getelementptr [3 x i32], [3 x i32]* %value_0, i32 0, i32 2
         store i32 3, i32* %2
-        %3 = getelementptr %program, %program* %arg_0, i32 0, i32 0
+        %3 = getelementptr %program, %program* %arg_0, i32 0, i32 1
         %4 = call ccc i1 @btree_insert_value_0(%btree_t_0* %3, [3 x i32]* %value_0)
         %value_1_0 = alloca [2 x i32], i32 1
         %5 = getelementptr [2 x i32], [2 x i32]* %value_1_0, i32 0, i32 0
         store i32 2, i32* %5
         %6 = getelementptr [2 x i32], [2 x i32]* %value_1_0, i32 0, i32 1
         store i32 3, i32* %6
-        %7 = getelementptr %program, %program* %arg_0, i32 0, i32 1
+        %7 = getelementptr %program, %program* %arg_0, i32 0, i32 2
         %8 = call ccc i1 @btree_insert_value_1(%btree_t_1* %7, [2 x i32]* %value_1_0)
         %value_2_0 = alloca [2 x i32], i32 1
         %9 = getelementptr [2 x i32], [2 x i32]* %value_2_0, i32 0, i32 0
         store i32 1, i32* %9
         %10 = getelementptr [2 x i32], [2 x i32]* %value_2_0, i32 0, i32 1
         store i32 2, i32* %10
-        %11 = getelementptr %program, %program* %arg_0, i32 0, i32 1
+        %11 = getelementptr %program, %program* %arg_0, i32 0, i32 2
         %12 = call ccc i1 @btree_insert_value_1(%btree_t_1* %11, [2 x i32]* %value_2_0)
         ret void
       }
@@ -110,16 +114,18 @@ spec = describe "LLVM Code Generation" $ parallel $ do
 
   it "generates code for a single non-recursive rule" $ do
     llvmIR <- cg "single_nonrecursive_rule"
-    extractDeclTypeSnippet llvmIR `shouldBe` "%program = type {%btree_t_0, %btree_t_0}"
+    extractDeclTypeSnippet llvmIR `shouldBe` "%program = type {%symbol_table, %btree_t_0, %btree_t_0}"
     extractFnSnippet llvmIR "eclair_program_init" `shouldBe` Just [text|
       define external ccc %program* @eclair_program_init() {
       start:
-        %memory_0 = call ccc i8* @malloc(i32 32)
+        %memory_0 = call ccc i8* @malloc(i32 1592)
         %program_0 = bitcast i8* %memory_0 to %program*
         %0 = getelementptr %program, %program* %program_0, i32 0, i32 0
-        call ccc void @btree_init_empty_0(%btree_t_0* %0)
+        call ccc void @symbol_table_init(%symbol_table* %0)
         %1 = getelementptr %program, %program* %program_0, i32 0, i32 1
         call ccc void @btree_init_empty_0(%btree_t_0* %1)
+        %2 = getelementptr %program, %program* %program_0, i32 0, i32 2
+        call ccc void @btree_init_empty_0(%btree_t_0* %2)
         ret %program* %program_0
       }
       |]
@@ -127,9 +133,11 @@ spec = describe "LLVM Code Generation" $ parallel $ do
       define external ccc void @eclair_program_destroy(%program* %arg_0) {
       start:
         %0 = getelementptr %program, %program* %arg_0, i32 0, i32 0
-        call ccc void @btree_destroy_0(%btree_t_0* %0)
+        call ccc void @symbol_table_destroy(%symbol_table* %0)
         %1 = getelementptr %program, %program* %arg_0, i32 0, i32 1
         call ccc void @btree_destroy_0(%btree_t_0* %1)
+        %2 = getelementptr %program, %program* %arg_0, i32 0, i32 2
+        call ccc void @btree_destroy_0(%btree_t_0* %2)
         %memory_0 = bitcast %program* %arg_0 to i8*
         call ccc void @free(i8* %memory_0)
         ret void
@@ -143,7 +151,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         store i32 1, i32* %0
         %1 = getelementptr [2 x i32], [2 x i32]* %value_0, i32 0, i32 1
         store i32 2, i32* %1
-        %2 = getelementptr %program, %program* %arg_0, i32 0, i32 0
+        %2 = getelementptr %program, %program* %arg_0, i32 0, i32 1
         %3 = call ccc i1 @btree_insert_value_0(%btree_t_0* %2, [2 x i32]* %value_0)
         %value_1_0 = alloca [2 x i32], i32 1
         %4 = getelementptr [2 x i32], [2 x i32]* %value_1_0, i32 0, i32 0
@@ -157,9 +165,9 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         store i32 4294967295, i32* %7
         %begin_iter_0 = alloca %btree_iterator_t_0, i32 1
         %end_iter_0 = alloca %btree_iterator_t_0, i32 1
-        %8 = getelementptr %program, %program* %arg_0, i32 0, i32 0
+        %8 = getelementptr %program, %program* %arg_0, i32 0, i32 1
         call ccc void @btree_lower_bound_0(%btree_t_0* %8, [2 x i32]* %value_1_0, %btree_iterator_t_0* %begin_iter_0)
-        %9 = getelementptr %program, %program* %arg_0, i32 0, i32 0
+        %9 = getelementptr %program, %program* %arg_0, i32 0, i32 1
         call ccc void @btree_upper_bound_0(%btree_t_0* %9, [2 x i32]* %value_2_0, %btree_iterator_t_0* %end_iter_0)
         br label %loop_0
       loop_0:
@@ -178,7 +186,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         %14 = getelementptr [2 x i32], [2 x i32]* %current_0, i32 0, i32 1
         %15 = load i32, i32* %14
         store i32 %15, i32* %13
-        %16 = getelementptr %program, %program* %arg_0, i32 0, i32 1
+        %16 = getelementptr %program, %program* %arg_0, i32 0, i32 2
         %17 = call ccc i1 @btree_insert_value_0(%btree_t_0* %16, [2 x i32]* %value_3_0)
         call ccc void @btree_iterator_next_0(%btree_iterator_t_0* %begin_iter_0)
         br label %loop_0
@@ -189,18 +197,20 @@ spec = describe "LLVM Code Generation" $ parallel $ do
 
   it "generates nested searches correctly" $ do
     llvmIR <- cg "multiple_rule_clauses"
-    extractDeclTypeSnippet llvmIR `shouldBe` "%program = type {%btree_t_0, %btree_t_1, %btree_t_2}"
+    extractDeclTypeSnippet llvmIR `shouldBe` "%program = type {%symbol_table, %btree_t_0, %btree_t_1, %btree_t_2}"
     extractFnSnippet llvmIR "eclair_program_init" `shouldBe` Just [text|
       define external ccc %program* @eclair_program_init() {
       start:
-        %memory_0 = call ccc i8* @malloc(i32 48)
+        %memory_0 = call ccc i8* @malloc(i32 1608)
         %program_0 = bitcast i8* %memory_0 to %program*
         %0 = getelementptr %program, %program* %program_0, i32 0, i32 0
-        call ccc void @btree_init_empty_0(%btree_t_0* %0)
+        call ccc void @symbol_table_init(%symbol_table* %0)
         %1 = getelementptr %program, %program* %program_0, i32 0, i32 1
-        call ccc void @btree_init_empty_1(%btree_t_1* %1)
+        call ccc void @btree_init_empty_0(%btree_t_0* %1)
         %2 = getelementptr %program, %program* %program_0, i32 0, i32 2
-        call ccc void @btree_init_empty_2(%btree_t_2* %2)
+        call ccc void @btree_init_empty_1(%btree_t_1* %2)
+        %3 = getelementptr %program, %program* %program_0, i32 0, i32 3
+        call ccc void @btree_init_empty_2(%btree_t_2* %3)
         ret %program* %program_0
       }
       |]
@@ -208,11 +218,13 @@ spec = describe "LLVM Code Generation" $ parallel $ do
       define external ccc void @eclair_program_destroy(%program* %arg_0) {
       start:
         %0 = getelementptr %program, %program* %arg_0, i32 0, i32 0
-        call ccc void @btree_destroy_0(%btree_t_0* %0)
+        call ccc void @symbol_table_destroy(%symbol_table* %0)
         %1 = getelementptr %program, %program* %arg_0, i32 0, i32 1
-        call ccc void @btree_destroy_1(%btree_t_1* %1)
+        call ccc void @btree_destroy_0(%btree_t_0* %1)
         %2 = getelementptr %program, %program* %arg_0, i32 0, i32 2
-        call ccc void @btree_destroy_2(%btree_t_2* %2)
+        call ccc void @btree_destroy_1(%btree_t_1* %2)
+        %3 = getelementptr %program, %program* %arg_0, i32 0, i32 3
+        call ccc void @btree_destroy_2(%btree_t_2* %3)
         %memory_0 = bitcast %program* %arg_0 to i8*
         call ccc void @free(i8* %memory_0)
         ret void
@@ -226,12 +238,12 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         store i32 2, i32* %0
         %1 = getelementptr [2 x i32], [2 x i32]* %value_0, i32 0, i32 1
         store i32 3, i32* %1
-        %2 = getelementptr %program, %program* %arg_0, i32 0, i32 1
+        %2 = getelementptr %program, %program* %arg_0, i32 0, i32 2
         %3 = call ccc i1 @btree_insert_value_1(%btree_t_1* %2, [2 x i32]* %value_0)
         %value_1_0 = alloca [1 x i32], i32 1
         %4 = getelementptr [1 x i32], [1 x i32]* %value_1_0, i32 0, i32 0
         store i32 1, i32* %4
-        %5 = getelementptr %program, %program* %arg_0, i32 0, i32 0
+        %5 = getelementptr %program, %program* %arg_0, i32 0, i32 1
         %6 = call ccc i1 @btree_insert_value_0(%btree_t_0* %5, [1 x i32]* %value_1_0)
         %value_2_0 = alloca [1 x i32], i32 1
         %7 = getelementptr [1 x i32], [1 x i32]* %value_2_0, i32 0, i32 0
@@ -241,9 +253,9 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         store i32 4294967295, i32* %8
         %begin_iter_0 = alloca %btree_iterator_t_0, i32 1
         %end_iter_0 = alloca %btree_iterator_t_0, i32 1
-        %9 = getelementptr %program, %program* %arg_0, i32 0, i32 0
+        %9 = getelementptr %program, %program* %arg_0, i32 0, i32 1
         call ccc void @btree_lower_bound_0(%btree_t_0* %9, [1 x i32]* %value_2_0, %btree_iterator_t_0* %begin_iter_0)
-        %10 = getelementptr %program, %program* %arg_0, i32 0, i32 0
+        %10 = getelementptr %program, %program* %arg_0, i32 0, i32 1
         call ccc void @btree_upper_bound_0(%btree_t_0* %10, [1 x i32]* %value_3_0, %btree_iterator_t_0* %end_iter_0)
         br label %loop_0
       loop_0:
@@ -269,9 +281,9 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         store i32 %18, i32* %16
         %begin_iter_1_0 = alloca %btree_iterator_t_1, i32 1
         %end_iter_1_0 = alloca %btree_iterator_t_1, i32 1
-        %19 = getelementptr %program, %program* %arg_0, i32 0, i32 1
+        %19 = getelementptr %program, %program* %arg_0, i32 0, i32 2
         call ccc void @btree_lower_bound_1(%btree_t_1* %19, [2 x i32]* %value_4_0, %btree_iterator_t_1* %begin_iter_1_0)
-        %20 = getelementptr %program, %program* %arg_0, i32 0, i32 1
+        %20 = getelementptr %program, %program* %arg_0, i32 0, i32 2
         call ccc void @btree_upper_bound_1(%btree_t_1* %20, [2 x i32]* %value_5_0, %btree_iterator_t_1* %end_iter_1_0)
         br label %loop_1
       loop_1:
@@ -290,7 +302,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         %25 = getelementptr [1 x i32], [1 x i32]* %current_0, i32 0, i32 0
         %26 = load i32, i32* %25
         store i32 %26, i32* %24
-        %27 = getelementptr %program, %program* %arg_0, i32 0, i32 2
+        %27 = getelementptr %program, %program* %arg_0, i32 0, i32 3
         %28 = call ccc i1 @btree_insert_value_2(%btree_t_2* %27, [2 x i32]* %value_6_0)
         call ccc void @btree_iterator_next_1(%btree_iterator_t_1* %begin_iter_1_0)
         br label %loop_1
@@ -304,16 +316,18 @@ spec = describe "LLVM Code Generation" $ parallel $ do
 
   it "generates code for a rule with 2 clauses of same name" $ do
     llvmIR <- cg "multiple_clauses_same_name"
-    extractDeclTypeSnippet llvmIR `shouldBe` "%program = type {%btree_t_0, %btree_t_1}"
+    extractDeclTypeSnippet llvmIR `shouldBe` "%program = type {%symbol_table, %btree_t_0, %btree_t_1}"
     extractFnSnippet llvmIR "eclair_program_init" `shouldBe` Just [text|
       define external ccc %program* @eclair_program_init() {
       start:
-        %memory_0 = call ccc i8* @malloc(i32 32)
+        %memory_0 = call ccc i8* @malloc(i32 1592)
         %program_0 = bitcast i8* %memory_0 to %program*
         %0 = getelementptr %program, %program* %program_0, i32 0, i32 0
-        call ccc void @btree_init_empty_0(%btree_t_0* %0)
+        call ccc void @symbol_table_init(%symbol_table* %0)
         %1 = getelementptr %program, %program* %program_0, i32 0, i32 1
-        call ccc void @btree_init_empty_1(%btree_t_1* %1)
+        call ccc void @btree_init_empty_0(%btree_t_0* %1)
+        %2 = getelementptr %program, %program* %program_0, i32 0, i32 2
+        call ccc void @btree_init_empty_1(%btree_t_1* %2)
         ret %program* %program_0
       }
       |]
@@ -321,9 +335,11 @@ spec = describe "LLVM Code Generation" $ parallel $ do
       define external ccc void @eclair_program_destroy(%program* %arg_0) {
       start:
         %0 = getelementptr %program, %program* %arg_0, i32 0, i32 0
-        call ccc void @btree_destroy_0(%btree_t_0* %0)
+        call ccc void @symbol_table_destroy(%symbol_table* %0)
         %1 = getelementptr %program, %program* %arg_0, i32 0, i32 1
-        call ccc void @btree_destroy_1(%btree_t_1* %1)
+        call ccc void @btree_destroy_0(%btree_t_0* %1)
+        %2 = getelementptr %program, %program* %arg_0, i32 0, i32 2
+        call ccc void @btree_destroy_1(%btree_t_1* %2)
         %memory_0 = bitcast %program* %arg_0 to i8*
         call ccc void @free(i8* %memory_0)
         ret void
@@ -337,7 +353,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         store i32 1, i32* %0
         %1 = getelementptr [2 x i32], [2 x i32]* %value_0, i32 0, i32 1
         store i32 2, i32* %1
-        %2 = getelementptr %program, %program* %arg_0, i32 0, i32 1
+        %2 = getelementptr %program, %program* %arg_0, i32 0, i32 2
         %3 = call ccc i1 @btree_insert_value_1(%btree_t_1* %2, [2 x i32]* %value_0)
         %value_1_0 = alloca [2 x i32], i32 1
         %4 = getelementptr [2 x i32], [2 x i32]* %value_1_0, i32 0, i32 0
@@ -351,9 +367,9 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         store i32 4294967295, i32* %7
         %begin_iter_0 = alloca %btree_iterator_t_1, i32 1
         %end_iter_0 = alloca %btree_iterator_t_1, i32 1
-        %8 = getelementptr %program, %program* %arg_0, i32 0, i32 1
+        %8 = getelementptr %program, %program* %arg_0, i32 0, i32 2
         call ccc void @btree_lower_bound_1(%btree_t_1* %8, [2 x i32]* %value_1_0, %btree_iterator_t_1* %begin_iter_0)
-        %9 = getelementptr %program, %program* %arg_0, i32 0, i32 1
+        %9 = getelementptr %program, %program* %arg_0, i32 0, i32 2
         call ccc void @btree_upper_bound_1(%btree_t_1* %9, [2 x i32]* %value_2_0, %btree_iterator_t_1* %end_iter_0)
         br label %loop_0
       loop_0:
@@ -379,9 +395,9 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         store i32 4294967295, i32* %17
         %begin_iter_1_0 = alloca %btree_iterator_t_1, i32 1
         %end_iter_1_0 = alloca %btree_iterator_t_1, i32 1
-        %18 = getelementptr %program, %program* %arg_0, i32 0, i32 1
+        %18 = getelementptr %program, %program* %arg_0, i32 0, i32 2
         call ccc void @btree_lower_bound_1(%btree_t_1* %18, [2 x i32]* %value_3_0, %btree_iterator_t_1* %begin_iter_1_0)
-        %19 = getelementptr %program, %program* %arg_0, i32 0, i32 1
+        %19 = getelementptr %program, %program* %arg_0, i32 0, i32 2
         call ccc void @btree_upper_bound_1(%btree_t_1* %19, [2 x i32]* %value_4_0, %btree_iterator_t_1* %end_iter_1_0)
         br label %loop_1
       loop_1:
@@ -404,7 +420,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         %27 = getelementptr [2 x i32], [2 x i32]* %current_1_0, i32 0, i32 1
         %28 = load i32, i32* %27
         store i32 %28, i32* %26
-        %29 = getelementptr %program, %program* %arg_0, i32 0, i32 0
+        %29 = getelementptr %program, %program* %arg_0, i32 0, i32 1
         %30 = call ccc i1 @btree_insert_value_0(%btree_t_0* %29, [3 x i32]* %value_5_0)
         call ccc void @btree_iterator_next_1(%btree_iterator_t_1* %begin_iter_1_0)
         br label %loop_1
@@ -445,9 +461,9 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         store i32 4294967295, i32* %9
         %begin_iter_0 = alloca %btree_iterator_t_2, i32 1
         %end_iter_0 = alloca %btree_iterator_t_2, i32 1
-        %10 = getelementptr %program, %program* %arg_0, i32 0, i32 2
+        %10 = getelementptr %program, %program* %arg_0, i32 0, i32 3
         call ccc void @btree_lower_bound_2(%btree_t_2* %10, [5 x i32]* %value_0, %btree_iterator_t_2* %begin_iter_0)
-        %11 = getelementptr %program, %program* %arg_0, i32 0, i32 2
+        %11 = getelementptr %program, %program* %arg_0, i32 0, i32 3
         call ccc void @btree_upper_bound_2(%btree_t_2* %11, [5 x i32]* %value_1_0, %btree_iterator_t_2* %end_iter_0)
         br label %loop_0
       loop_0:
@@ -469,9 +485,9 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         store i32 %17, i32* %15
         %begin_iter_1_0 = alloca %btree_iterator_t_0, i32 1
         %end_iter_1_0 = alloca %btree_iterator_t_0, i32 1
-        %18 = getelementptr %program, %program* %arg_0, i32 0, i32 3
+        %18 = getelementptr %program, %program* %arg_0, i32 0, i32 4
         call ccc void @btree_lower_bound_0(%btree_t_0* %18, [1 x i32]* %value_2_0, %btree_iterator_t_0* %begin_iter_1_0)
-        %19 = getelementptr %program, %program* %arg_0, i32 0, i32 3
+        %19 = getelementptr %program, %program* %arg_0, i32 0, i32 4
         call ccc void @btree_upper_bound_0(%btree_t_0* %19, [1 x i32]* %value_3_0, %btree_iterator_t_0* %end_iter_1_0)
         br label %loop_1
       loop_1:
@@ -500,7 +516,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         %21 = getelementptr [5 x i32], [5 x i32]* %current_0, i32 0, i32 0
         %22 = load i32, i32* %21
         store i32 %22, i32* %20
-        %23 = getelementptr %program, %program* %arg_0, i32 0, i32 0
+        %23 = getelementptr %program, %program* %arg_0, i32 0, i32 1
         %24 = call ccc i1 @btree_insert_value_0(%btree_t_0* %23, [1 x i32]* %value_4_0)
         br label %end_if_2
       end_if_2:
@@ -524,9 +540,9 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         store i32 4294967295, i32* %28
         %begin_iter_2_0 = alloca %btree_iterator_t_1, i32 1
         %end_iter_2_0 = alloca %btree_iterator_t_1, i32 1
-        %29 = getelementptr %program, %program* %arg_0, i32 0, i32 1
+        %29 = getelementptr %program, %program* %arg_0, i32 0, i32 2
         call ccc void @btree_lower_bound_1(%btree_t_1* %29, [2 x i32]* %value_5_0, %btree_iterator_t_1* %begin_iter_2_0)
-        %30 = getelementptr %program, %program* %arg_0, i32 0, i32 1
+        %30 = getelementptr %program, %program* %arg_0, i32 0, i32 2
         call ccc void @btree_upper_bound_1(%btree_t_1* %30, [2 x i32]* %value_6_0, %btree_iterator_t_1* %end_iter_2_0)
         br label %loop_2
       loop_2:
@@ -548,9 +564,9 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         store i32 %36, i32* %34
         %begin_iter_3_0 = alloca %btree_iterator_t_0, i32 1
         %end_iter_3_0 = alloca %btree_iterator_t_0, i32 1
-        %37 = getelementptr %program, %program* %arg_0, i32 0, i32 3
+        %37 = getelementptr %program, %program* %arg_0, i32 0, i32 4
         call ccc void @btree_lower_bound_0(%btree_t_0* %37, [1 x i32]* %value_7_0, %btree_iterator_t_0* %begin_iter_3_0)
-        %38 = getelementptr %program, %program* %arg_0, i32 0, i32 3
+        %38 = getelementptr %program, %program* %arg_0, i32 0, i32 4
         call ccc void @btree_upper_bound_0(%btree_t_0* %38, [1 x i32]* %value_8_0, %btree_iterator_t_0* %end_iter_3_0)
         br label %loop_3
       loop_3:
@@ -572,7 +588,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         %40 = getelementptr [2 x i32], [2 x i32]* %current_2_0, i32 0, i32 0
         %41 = load i32, i32* %40
         store i32 %41, i32* %39
-        %42 = getelementptr %program, %program* %arg_0, i32 0, i32 0
+        %42 = getelementptr %program, %program* %arg_0, i32 0, i32 1
         %43 = call ccc i1 @btree_insert_value_0(%btree_t_0* %42, [1 x i32]* %value_9_0)
         br label %end_if_6
       end_if_6:
@@ -588,20 +604,22 @@ spec = describe "LLVM Code Generation" $ parallel $ do
 
   it "generates code for a single recursive rule" $ do
     llvmIR <- cg "single_recursive_rule"
-    extractDeclTypeSnippet llvmIR `shouldBe` "%program = type {%btree_t_0, %btree_t_0, %btree_t_0, %btree_t_0}"
+    extractDeclTypeSnippet llvmIR `shouldBe` "%program = type {%symbol_table, %btree_t_0, %btree_t_0, %btree_t_0, %btree_t_0}"
     extractFnSnippet llvmIR "eclair_program_init" `shouldBe` Just [text|
       define external ccc %program* @eclair_program_init() {
       start:
-        %memory_0 = call ccc i8* @malloc(i32 64)
+        %memory_0 = call ccc i8* @malloc(i32 1624)
         %program_0 = bitcast i8* %memory_0 to %program*
         %0 = getelementptr %program, %program* %program_0, i32 0, i32 0
-        call ccc void @btree_init_empty_0(%btree_t_0* %0)
+        call ccc void @symbol_table_init(%symbol_table* %0)
         %1 = getelementptr %program, %program* %program_0, i32 0, i32 1
         call ccc void @btree_init_empty_0(%btree_t_0* %1)
         %2 = getelementptr %program, %program* %program_0, i32 0, i32 2
         call ccc void @btree_init_empty_0(%btree_t_0* %2)
         %3 = getelementptr %program, %program* %program_0, i32 0, i32 3
         call ccc void @btree_init_empty_0(%btree_t_0* %3)
+        %4 = getelementptr %program, %program* %program_0, i32 0, i32 4
+        call ccc void @btree_init_empty_0(%btree_t_0* %4)
         ret %program* %program_0
       }
       |]
@@ -609,13 +627,15 @@ spec = describe "LLVM Code Generation" $ parallel $ do
       define external ccc void @eclair_program_destroy(%program* %arg_0) {
       start:
         %0 = getelementptr %program, %program* %arg_0, i32 0, i32 0
-        call ccc void @btree_destroy_0(%btree_t_0* %0)
+        call ccc void @symbol_table_destroy(%symbol_table* %0)
         %1 = getelementptr %program, %program* %arg_0, i32 0, i32 1
         call ccc void @btree_destroy_0(%btree_t_0* %1)
         %2 = getelementptr %program, %program* %arg_0, i32 0, i32 2
         call ccc void @btree_destroy_0(%btree_t_0* %2)
         %3 = getelementptr %program, %program* %arg_0, i32 0, i32 3
         call ccc void @btree_destroy_0(%btree_t_0* %3)
+        %4 = getelementptr %program, %program* %arg_0, i32 0, i32 4
+        call ccc void @btree_destroy_0(%btree_t_0* %4)
         %memory_0 = bitcast %program* %arg_0 to i8*
         call ccc void @free(i8* %memory_0)
         ret void
@@ -629,19 +649,19 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         store i32 1, i32* %0
         %1 = getelementptr [2 x i32], [2 x i32]* %value_0, i32 0, i32 1
         store i32 2, i32* %1
-        %2 = getelementptr %program, %program* %arg_0, i32 0, i32 1
+        %2 = getelementptr %program, %program* %arg_0, i32 0, i32 2
         %3 = call ccc i1 @btree_insert_value_0(%btree_t_0* %2, [2 x i32]* %value_0)
         %begin_iter_0 = alloca %btree_iterator_t_0, i32 1
         %end_iter_0 = alloca %btree_iterator_t_0, i32 1
-        %4 = getelementptr %program, %program* %arg_0, i32 0, i32 3
+        %4 = getelementptr %program, %program* %arg_0, i32 0, i32 4
         call ccc void @btree_begin_0(%btree_t_0* %4, %btree_iterator_t_0* %begin_iter_0)
-        %5 = getelementptr %program, %program* %arg_0, i32 0, i32 3
+        %5 = getelementptr %program, %program* %arg_0, i32 0, i32 4
         call ccc void @btree_end_0(%btree_t_0* %5, %btree_iterator_t_0* %end_iter_0)
-        %6 = getelementptr %program, %program* %arg_0, i32 0, i32 0
+        %6 = getelementptr %program, %program* %arg_0, i32 0, i32 1
         call ccc void @btree_insert_range_0(%btree_t_0* %6, %btree_iterator_t_0* %begin_iter_0, %btree_iterator_t_0* %end_iter_0)
         br label %loop_0
       loop_0:
-        %7 = getelementptr %program, %program* %arg_0, i32 0, i32 2
+        %7 = getelementptr %program, %program* %arg_0, i32 0, i32 3
         call ccc void @btree_clear_0(%btree_t_0* %7)
         %value_1_0 = alloca [2 x i32], i32 1
         %8 = getelementptr [2 x i32], [2 x i32]* %value_1_0, i32 0, i32 0
@@ -655,9 +675,9 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         store i32 4294967295, i32* %11
         %begin_iter_1_0 = alloca %btree_iterator_t_0, i32 1
         %end_iter_1_0 = alloca %btree_iterator_t_0, i32 1
-        %12 = getelementptr %program, %program* %arg_0, i32 0, i32 1
+        %12 = getelementptr %program, %program* %arg_0, i32 0, i32 2
         call ccc void @btree_lower_bound_0(%btree_t_0* %12, [2 x i32]* %value_1_0, %btree_iterator_t_0* %begin_iter_1_0)
-        %13 = getelementptr %program, %program* %arg_0, i32 0, i32 1
+        %13 = getelementptr %program, %program* %arg_0, i32 0, i32 2
         call ccc void @btree_upper_bound_0(%btree_t_0* %13, [2 x i32]* %value_2_0, %btree_iterator_t_0* %end_iter_1_0)
         br label %loop_1
       loop_1:
@@ -683,9 +703,9 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         store i32 4294967295, i32* %21
         %begin_iter_2_0 = alloca %btree_iterator_t_0, i32 1
         %end_iter_2_0 = alloca %btree_iterator_t_0, i32 1
-        %22 = getelementptr %program, %program* %arg_0, i32 0, i32 0
+        %22 = getelementptr %program, %program* %arg_0, i32 0, i32 1
         call ccc void @btree_lower_bound_0(%btree_t_0* %22, [2 x i32]* %value_3_0, %btree_iterator_t_0* %begin_iter_2_0)
-        %23 = getelementptr %program, %program* %arg_0, i32 0, i32 0
+        %23 = getelementptr %program, %program* %arg_0, i32 0, i32 1
         call ccc void @btree_upper_bound_0(%btree_t_0* %23, [2 x i32]* %value_4_0, %btree_iterator_t_0* %end_iter_2_0)
         br label %loop_2
       loop_2:
@@ -704,7 +724,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         %28 = getelementptr [2 x i32], [2 x i32]* %current_1_0, i32 0, i32 1
         %29 = load i32, i32* %28
         store i32 %29, i32* %27
-        %contains_result_0 = getelementptr %program, %program* %arg_0, i32 0, i32 3
+        %contains_result_0 = getelementptr %program, %program* %arg_0, i32 0, i32 4
         %contains_result_1 = call ccc i1 @btree_contains_0(%btree_t_0* %contains_result_0, [2 x i32]* %value_5_0)
         %condition_2_0 = select i1 %contains_result_1, i1 0, i1 1
         br i1 %condition_2_0, label %if_2, label %end_if_2
@@ -718,7 +738,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         %34 = getelementptr [2 x i32], [2 x i32]* %current_1_0, i32 0, i32 1
         %35 = load i32, i32* %34
         store i32 %35, i32* %33
-        %36 = getelementptr %program, %program* %arg_0, i32 0, i32 2
+        %36 = getelementptr %program, %program* %arg_0, i32 0, i32 3
         %37 = call ccc i1 @btree_insert_value_0(%btree_t_0* %36, [2 x i32]* %value_6_0)
         br label %end_if_2
       end_if_2:
@@ -728,7 +748,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         call ccc void @btree_iterator_next_0(%btree_iterator_t_0* %begin_iter_1_0)
         br label %loop_1
       range_query.end:
-        %condition_3_0 = getelementptr %program, %program* %arg_0, i32 0, i32 2
+        %condition_3_0 = getelementptr %program, %program* %arg_0, i32 0, i32 3
         %condition_3_1 = call ccc i1 @btree_is_empty_0(%btree_t_0* %condition_3_0)
         br i1 %condition_3_1, label %if_3, label %end_if_3
       if_3:
@@ -736,14 +756,14 @@ spec = describe "LLVM Code Generation" $ parallel $ do
       end_if_3:
         %begin_iter_3_0 = alloca %btree_iterator_t_0, i32 1
         %end_iter_3_0 = alloca %btree_iterator_t_0, i32 1
-        %38 = getelementptr %program, %program* %arg_0, i32 0, i32 2
+        %38 = getelementptr %program, %program* %arg_0, i32 0, i32 3
         call ccc void @btree_begin_0(%btree_t_0* %38, %btree_iterator_t_0* %begin_iter_3_0)
-        %39 = getelementptr %program, %program* %arg_0, i32 0, i32 2
+        %39 = getelementptr %program, %program* %arg_0, i32 0, i32 3
         call ccc void @btree_end_0(%btree_t_0* %39, %btree_iterator_t_0* %end_iter_3_0)
-        %40 = getelementptr %program, %program* %arg_0, i32 0, i32 3
+        %40 = getelementptr %program, %program* %arg_0, i32 0, i32 4
         call ccc void @btree_insert_range_0(%btree_t_0* %40, %btree_iterator_t_0* %begin_iter_3_0, %btree_iterator_t_0* %end_iter_3_0)
-        %41 = getelementptr %program, %program* %arg_0, i32 0, i32 2
-        %42 = getelementptr %program, %program* %arg_0, i32 0, i32 0
+        %41 = getelementptr %program, %program* %arg_0, i32 0, i32 3
+        %42 = getelementptr %program, %program* %arg_0, i32 0, i32 1
         call ccc void @btree_swap_0(%btree_t_0* %41, %btree_t_0* %42)
         br label %loop_0
       loop.end:
@@ -755,14 +775,14 @@ spec = describe "LLVM Code Generation" $ parallel $ do
   it "generates code for mutually recursive rules" $ do
     llvmIR <- cg "mutually_recursive_rules"
     extractDeclTypeSnippet llvmIR `shouldBe`
-      "%program = type {%btree_t_0, %btree_t_0, %btree_t_0, %btree_t_0, %btree_t_0, %btree_t_0, %btree_t_0, %btree_t_0}"
+      "%program = type {%symbol_table, %btree_t_0, %btree_t_0, %btree_t_0, %btree_t_0, %btree_t_0, %btree_t_0, %btree_t_0, %btree_t_0}"
     extractFnSnippet llvmIR "eclair_program_init" `shouldBe` Just [text|
       define external ccc %program* @eclair_program_init() {
       start:
-        %memory_0 = call ccc i8* @malloc(i32 128)
+        %memory_0 = call ccc i8* @malloc(i32 1688)
         %program_0 = bitcast i8* %memory_0 to %program*
         %0 = getelementptr %program, %program* %program_0, i32 0, i32 0
-        call ccc void @btree_init_empty_0(%btree_t_0* %0)
+        call ccc void @symbol_table_init(%symbol_table* %0)
         %1 = getelementptr %program, %program* %program_0, i32 0, i32 1
         call ccc void @btree_init_empty_0(%btree_t_0* %1)
         %2 = getelementptr %program, %program* %program_0, i32 0, i32 2
@@ -777,6 +797,8 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         call ccc void @btree_init_empty_0(%btree_t_0* %6)
         %7 = getelementptr %program, %program* %program_0, i32 0, i32 7
         call ccc void @btree_init_empty_0(%btree_t_0* %7)
+        %8 = getelementptr %program, %program* %program_0, i32 0, i32 8
+        call ccc void @btree_init_empty_0(%btree_t_0* %8)
         ret %program* %program_0
       }
       |]
@@ -784,7 +806,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
       define external ccc void @eclair_program_destroy(%program* %arg_0) {
       start:
         %0 = getelementptr %program, %program* %arg_0, i32 0, i32 0
-        call ccc void @btree_destroy_0(%btree_t_0* %0)
+        call ccc void @symbol_table_destroy(%symbol_table* %0)
         %1 = getelementptr %program, %program* %arg_0, i32 0, i32 1
         call ccc void @btree_destroy_0(%btree_t_0* %1)
         %2 = getelementptr %program, %program* %arg_0, i32 0, i32 2
@@ -799,6 +821,8 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         call ccc void @btree_destroy_0(%btree_t_0* %6)
         %7 = getelementptr %program, %program* %arg_0, i32 0, i32 7
         call ccc void @btree_destroy_0(%btree_t_0* %7)
+        %8 = getelementptr %program, %program* %arg_0, i32 0, i32 8
+        call ccc void @btree_destroy_0(%btree_t_0* %8)
         %memory_0 = bitcast %program* %arg_0 to i8*
         call ccc void @free(i8* %memory_0)
         ret void
@@ -810,39 +834,39 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         %value_0 = alloca [1 x i32], i32 1
         %0 = getelementptr [1 x i32], [1 x i32]* %value_0, i32 0, i32 0
         store i32 3, i32* %0
-        %1 = getelementptr %program, %program* %arg_0, i32 0, i32 3
+        %1 = getelementptr %program, %program* %arg_0, i32 0, i32 4
         %2 = call ccc i1 @btree_insert_value_0(%btree_t_0* %1, [1 x i32]* %value_0)
         %value_1_0 = alloca [1 x i32], i32 1
         %3 = getelementptr [1 x i32], [1 x i32]* %value_1_0, i32 0, i32 0
         store i32 2, i32* %3
-        %4 = getelementptr %program, %program* %arg_0, i32 0, i32 2
+        %4 = getelementptr %program, %program* %arg_0, i32 0, i32 3
         %5 = call ccc i1 @btree_insert_value_0(%btree_t_0* %4, [1 x i32]* %value_1_0)
         %value_2_0 = alloca [1 x i32], i32 1
         %6 = getelementptr [1 x i32], [1 x i32]* %value_2_0, i32 0, i32 0
         store i32 1, i32* %6
-        %7 = getelementptr %program, %program* %arg_0, i32 0, i32 1
+        %7 = getelementptr %program, %program* %arg_0, i32 0, i32 2
         %8 = call ccc i1 @btree_insert_value_0(%btree_t_0* %7, [1 x i32]* %value_2_0)
         %begin_iter_0 = alloca %btree_iterator_t_0, i32 1
         %end_iter_0 = alloca %btree_iterator_t_0, i32 1
-        %9 = getelementptr %program, %program* %arg_0, i32 0, i32 2
+        %9 = getelementptr %program, %program* %arg_0, i32 0, i32 3
         call ccc void @btree_begin_0(%btree_t_0* %9, %btree_iterator_t_0* %begin_iter_0)
-        %10 = getelementptr %program, %program* %arg_0, i32 0, i32 2
+        %10 = getelementptr %program, %program* %arg_0, i32 0, i32 3
         call ccc void @btree_end_0(%btree_t_0* %10, %btree_iterator_t_0* %end_iter_0)
-        %11 = getelementptr %program, %program* %arg_0, i32 0, i32 5
+        %11 = getelementptr %program, %program* %arg_0, i32 0, i32 6
         call ccc void @btree_insert_range_0(%btree_t_0* %11, %btree_iterator_t_0* %begin_iter_0, %btree_iterator_t_0* %end_iter_0)
         %begin_iter_1_0 = alloca %btree_iterator_t_0, i32 1
         %end_iter_1_0 = alloca %btree_iterator_t_0, i32 1
-        %12 = getelementptr %program, %program* %arg_0, i32 0, i32 1
+        %12 = getelementptr %program, %program* %arg_0, i32 0, i32 2
         call ccc void @btree_begin_0(%btree_t_0* %12, %btree_iterator_t_0* %begin_iter_1_0)
-        %13 = getelementptr %program, %program* %arg_0, i32 0, i32 1
+        %13 = getelementptr %program, %program* %arg_0, i32 0, i32 2
         call ccc void @btree_end_0(%btree_t_0* %13, %btree_iterator_t_0* %end_iter_1_0)
-        %14 = getelementptr %program, %program* %arg_0, i32 0, i32 4
+        %14 = getelementptr %program, %program* %arg_0, i32 0, i32 5
         call ccc void @btree_insert_range_0(%btree_t_0* %14, %btree_iterator_t_0* %begin_iter_1_0, %btree_iterator_t_0* %end_iter_1_0)
         br label %loop_0
       loop_0:
-        %15 = getelementptr %program, %program* %arg_0, i32 0, i32 7
+        %15 = getelementptr %program, %program* %arg_0, i32 0, i32 8
         call ccc void @btree_clear_0(%btree_t_0* %15)
-        %16 = getelementptr %program, %program* %arg_0, i32 0, i32 6
+        %16 = getelementptr %program, %program* %arg_0, i32 0, i32 7
         call ccc void @btree_clear_0(%btree_t_0* %16)
         %value_3_0 = alloca [1 x i32], i32 1
         %17 = getelementptr [1 x i32], [1 x i32]* %value_3_0, i32 0, i32 0
@@ -852,9 +876,9 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         store i32 4294967295, i32* %18
         %begin_iter_2_0 = alloca %btree_iterator_t_0, i32 1
         %end_iter_2_0 = alloca %btree_iterator_t_0, i32 1
-        %19 = getelementptr %program, %program* %arg_0, i32 0, i32 1
+        %19 = getelementptr %program, %program* %arg_0, i32 0, i32 2
         call ccc void @btree_lower_bound_0(%btree_t_0* %19, [1 x i32]* %value_3_0, %btree_iterator_t_0* %begin_iter_2_0)
-        %20 = getelementptr %program, %program* %arg_0, i32 0, i32 1
+        %20 = getelementptr %program, %program* %arg_0, i32 0, i32 2
         call ccc void @btree_upper_bound_0(%btree_t_0* %20, [1 x i32]* %value_4_0, %btree_iterator_t_0* %end_iter_2_0)
         br label %loop_1
       loop_1:
@@ -876,9 +900,9 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         store i32 %26, i32* %24
         %begin_iter_3_0 = alloca %btree_iterator_t_0, i32 1
         %end_iter_3_0 = alloca %btree_iterator_t_0, i32 1
-        %27 = getelementptr %program, %program* %arg_0, i32 0, i32 3
+        %27 = getelementptr %program, %program* %arg_0, i32 0, i32 4
         call ccc void @btree_lower_bound_0(%btree_t_0* %27, [1 x i32]* %value_5_0, %btree_iterator_t_0* %begin_iter_3_0)
-        %28 = getelementptr %program, %program* %arg_0, i32 0, i32 3
+        %28 = getelementptr %program, %program* %arg_0, i32 0, i32 4
         call ccc void @btree_upper_bound_0(%btree_t_0* %28, [1 x i32]* %value_6_0, %btree_iterator_t_0* %end_iter_3_0)
         br label %loop_2
       loop_2:
@@ -893,7 +917,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         %30 = getelementptr [1 x i32], [1 x i32]* %current_0, i32 0, i32 0
         %31 = load i32, i32* %30
         store i32 %31, i32* %29
-        %contains_result_0 = getelementptr %program, %program* %arg_0, i32 0, i32 2
+        %contains_result_0 = getelementptr %program, %program* %arg_0, i32 0, i32 3
         %contains_result_1 = call ccc i1 @btree_contains_0(%btree_t_0* %contains_result_0, [1 x i32]* %value_7_0)
         %condition_2_0 = select i1 %contains_result_1, i1 0, i1 1
         br i1 %condition_2_0, label %if_2, label %end_if_2
@@ -903,7 +927,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         %33 = getelementptr [1 x i32], [1 x i32]* %current_0, i32 0, i32 0
         %34 = load i32, i32* %33
         store i32 %34, i32* %32
-        %35 = getelementptr %program, %program* %arg_0, i32 0, i32 7
+        %35 = getelementptr %program, %program* %arg_0, i32 0, i32 8
         %36 = call ccc i1 @btree_insert_value_0(%btree_t_0* %35, [1 x i32]* %value_8_0)
         br label %end_if_2
       end_if_2:
@@ -921,9 +945,9 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         store i32 4294967295, i32* %38
         %begin_iter_4_0 = alloca %btree_iterator_t_0, i32 1
         %end_iter_4_0 = alloca %btree_iterator_t_0, i32 1
-        %39 = getelementptr %program, %program* %arg_0, i32 0, i32 2
+        %39 = getelementptr %program, %program* %arg_0, i32 0, i32 3
         call ccc void @btree_lower_bound_0(%btree_t_0* %39, [1 x i32]* %value_9_0, %btree_iterator_t_0* %begin_iter_4_0)
-        %40 = getelementptr %program, %program* %arg_0, i32 0, i32 2
+        %40 = getelementptr %program, %program* %arg_0, i32 0, i32 3
         call ccc void @btree_upper_bound_0(%btree_t_0* %40, [1 x i32]* %value_10_0, %btree_iterator_t_0* %end_iter_4_0)
         br label %loop_3
       loop_3:
@@ -945,9 +969,9 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         store i32 %46, i32* %44
         %begin_iter_5_0 = alloca %btree_iterator_t_0, i32 1
         %end_iter_5_0 = alloca %btree_iterator_t_0, i32 1
-        %47 = getelementptr %program, %program* %arg_0, i32 0, i32 3
+        %47 = getelementptr %program, %program* %arg_0, i32 0, i32 4
         call ccc void @btree_lower_bound_0(%btree_t_0* %47, [1 x i32]* %value_11_0, %btree_iterator_t_0* %begin_iter_5_0)
-        %48 = getelementptr %program, %program* %arg_0, i32 0, i32 3
+        %48 = getelementptr %program, %program* %arg_0, i32 0, i32 4
         call ccc void @btree_upper_bound_0(%btree_t_0* %48, [1 x i32]* %value_12_0, %btree_iterator_t_0* %end_iter_5_0)
         br label %loop_4
       loop_4:
@@ -962,7 +986,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         %50 = getelementptr [1 x i32], [1 x i32]* %current_2_0, i32 0, i32 0
         %51 = load i32, i32* %50
         store i32 %51, i32* %49
-        %contains_result_1_0 = getelementptr %program, %program* %arg_0, i32 0, i32 1
+        %contains_result_1_0 = getelementptr %program, %program* %arg_0, i32 0, i32 2
         %contains_result_1_1 = call ccc i1 @btree_contains_0(%btree_t_0* %contains_result_1_0, [1 x i32]* %value_13_0)
         %condition_5_0 = select i1 %contains_result_1_1, i1 0, i1 1
         br i1 %condition_5_0, label %if_5, label %end_if_5
@@ -972,7 +996,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         %53 = getelementptr [1 x i32], [1 x i32]* %current_2_0, i32 0, i32 0
         %54 = load i32, i32* %53
         store i32 %54, i32* %52
-        %55 = getelementptr %program, %program* %arg_0, i32 0, i32 6
+        %55 = getelementptr %program, %program* %arg_0, i32 0, i32 7
         %56 = call ccc i1 @btree_insert_value_0(%btree_t_0* %55, [1 x i32]* %value_14_0)
         br label %end_if_5
       end_if_5:
@@ -982,11 +1006,11 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         call ccc void @btree_iterator_next_0(%btree_iterator_t_0* %begin_iter_4_0)
         br label %loop_3
       range_query.end_2:
-        %condition_6_0 = getelementptr %program, %program* %arg_0, i32 0, i32 6
+        %condition_6_0 = getelementptr %program, %program* %arg_0, i32 0, i32 7
         %condition_6_1 = call ccc i1 @btree_is_empty_0(%btree_t_0* %condition_6_0)
         br i1 %condition_6_1, label %if_6, label %end_if_7
       if_6:
-        %condition_7_0 = getelementptr %program, %program* %arg_0, i32 0, i32 7
+        %condition_7_0 = getelementptr %program, %program* %arg_0, i32 0, i32 8
         %condition_7_1 = call ccc i1 @btree_is_empty_0(%btree_t_0* %condition_7_0)
         br i1 %condition_7_1, label %if_7, label %end_if_6
       if_7:
@@ -996,25 +1020,25 @@ spec = describe "LLVM Code Generation" $ parallel $ do
       end_if_7:
         %begin_iter_6_0 = alloca %btree_iterator_t_0, i32 1
         %end_iter_6_0 = alloca %btree_iterator_t_0, i32 1
-        %57 = getelementptr %program, %program* %arg_0, i32 0, i32 7
+        %57 = getelementptr %program, %program* %arg_0, i32 0, i32 8
         call ccc void @btree_begin_0(%btree_t_0* %57, %btree_iterator_t_0* %begin_iter_6_0)
-        %58 = getelementptr %program, %program* %arg_0, i32 0, i32 7
+        %58 = getelementptr %program, %program* %arg_0, i32 0, i32 8
         call ccc void @btree_end_0(%btree_t_0* %58, %btree_iterator_t_0* %end_iter_6_0)
-        %59 = getelementptr %program, %program* %arg_0, i32 0, i32 2
+        %59 = getelementptr %program, %program* %arg_0, i32 0, i32 3
         call ccc void @btree_insert_range_0(%btree_t_0* %59, %btree_iterator_t_0* %begin_iter_6_0, %btree_iterator_t_0* %end_iter_6_0)
-        %60 = getelementptr %program, %program* %arg_0, i32 0, i32 7
-        %61 = getelementptr %program, %program* %arg_0, i32 0, i32 5
+        %60 = getelementptr %program, %program* %arg_0, i32 0, i32 8
+        %61 = getelementptr %program, %program* %arg_0, i32 0, i32 6
         call ccc void @btree_swap_0(%btree_t_0* %60, %btree_t_0* %61)
         %begin_iter_7_0 = alloca %btree_iterator_t_0, i32 1
         %end_iter_7_0 = alloca %btree_iterator_t_0, i32 1
-        %62 = getelementptr %program, %program* %arg_0, i32 0, i32 6
+        %62 = getelementptr %program, %program* %arg_0, i32 0, i32 7
         call ccc void @btree_begin_0(%btree_t_0* %62, %btree_iterator_t_0* %begin_iter_7_0)
-        %63 = getelementptr %program, %program* %arg_0, i32 0, i32 6
+        %63 = getelementptr %program, %program* %arg_0, i32 0, i32 7
         call ccc void @btree_end_0(%btree_t_0* %63, %btree_iterator_t_0* %end_iter_7_0)
-        %64 = getelementptr %program, %program* %arg_0, i32 0, i32 1
+        %64 = getelementptr %program, %program* %arg_0, i32 0, i32 2
         call ccc void @btree_insert_range_0(%btree_t_0* %64, %btree_iterator_t_0* %begin_iter_7_0, %btree_iterator_t_0* %end_iter_7_0)
-        %65 = getelementptr %program, %program* %arg_0, i32 0, i32 6
-        %66 = getelementptr %program, %program* %arg_0, i32 0, i32 4
+        %65 = getelementptr %program, %program* %arg_0, i32 0, i32 7
+        %66 = getelementptr %program, %program* %arg_0, i32 0, i32 5
         call ccc void @btree_swap_0(%btree_t_0* %65, %btree_t_0* %66)
         br label %loop_0
       loop.end:
@@ -1026,9 +1050,9 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         store i32 4294967295, i32* %68
         %begin_iter_8_0 = alloca %btree_iterator_t_0, i32 1
         %end_iter_8_0 = alloca %btree_iterator_t_0, i32 1
-        %69 = getelementptr %program, %program* %arg_0, i32 0, i32 1
+        %69 = getelementptr %program, %program* %arg_0, i32 0, i32 2
         call ccc void @btree_lower_bound_0(%btree_t_0* %69, [1 x i32]* %value_15_0, %btree_iterator_t_0* %begin_iter_8_0)
-        %70 = getelementptr %program, %program* %arg_0, i32 0, i32 1
+        %70 = getelementptr %program, %program* %arg_0, i32 0, i32 2
         call ccc void @btree_upper_bound_0(%btree_t_0* %70, [1 x i32]* %value_16_0, %btree_iterator_t_0* %end_iter_8_0)
         br label %loop_5
       loop_5:
@@ -1050,9 +1074,9 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         store i32 %76, i32* %74
         %begin_iter_9_0 = alloca %btree_iterator_t_0, i32 1
         %end_iter_9_0 = alloca %btree_iterator_t_0, i32 1
-        %77 = getelementptr %program, %program* %arg_0, i32 0, i32 2
+        %77 = getelementptr %program, %program* %arg_0, i32 0, i32 3
         call ccc void @btree_lower_bound_0(%btree_t_0* %77, [1 x i32]* %value_17_0, %btree_iterator_t_0* %begin_iter_9_0)
-        %78 = getelementptr %program, %program* %arg_0, i32 0, i32 2
+        %78 = getelementptr %program, %program* %arg_0, i32 0, i32 3
         call ccc void @btree_upper_bound_0(%btree_t_0* %78, [1 x i32]* %value_18_0, %btree_iterator_t_0* %end_iter_9_0)
         br label %loop_6
       loop_6:
@@ -1067,7 +1091,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         %80 = getelementptr [1 x i32], [1 x i32]* %current_4_0, i32 0, i32 0
         %81 = load i32, i32* %80
         store i32 %81, i32* %79
-        %82 = getelementptr %program, %program* %arg_0, i32 0, i32 0
+        %82 = getelementptr %program, %program* %arg_0, i32 0, i32 1
         %83 = call ccc i1 @btree_insert_value_0(%btree_t_0* %82, [1 x i32]* %value_19_0)
         call ccc void @btree_iterator_next_0(%btree_iterator_t_0* %begin_iter_9_0)
         br label %loop_6
@@ -1082,20 +1106,22 @@ spec = describe "LLVM Code Generation" $ parallel $ do
 
   it "can generate code for program with no top level facts" $ do
     llvmIR <- cg "no_top_level_facts"
-    extractDeclTypeSnippet llvmIR `shouldBe` "%program = type {%btree_t_0, %btree_t_0, %btree_t_0, %btree_t_0}"
+    extractDeclTypeSnippet llvmIR `shouldBe` "%program = type {%symbol_table, %btree_t_0, %btree_t_0, %btree_t_0, %btree_t_0}"
     extractFnSnippet llvmIR "eclair_program_init" `shouldBe` Just [text|
       define external ccc %program* @eclair_program_init() {
       start:
-        %memory_0 = call ccc i8* @malloc(i32 64)
+        %memory_0 = call ccc i8* @malloc(i32 1624)
         %program_0 = bitcast i8* %memory_0 to %program*
         %0 = getelementptr %program, %program* %program_0, i32 0, i32 0
-        call ccc void @btree_init_empty_0(%btree_t_0* %0)
+        call ccc void @symbol_table_init(%symbol_table* %0)
         %1 = getelementptr %program, %program* %program_0, i32 0, i32 1
         call ccc void @btree_init_empty_0(%btree_t_0* %1)
         %2 = getelementptr %program, %program* %program_0, i32 0, i32 2
         call ccc void @btree_init_empty_0(%btree_t_0* %2)
         %3 = getelementptr %program, %program* %program_0, i32 0, i32 3
         call ccc void @btree_init_empty_0(%btree_t_0* %3)
+        %4 = getelementptr %program, %program* %program_0, i32 0, i32 4
+        call ccc void @btree_init_empty_0(%btree_t_0* %4)
         ret %program* %program_0
       }
       |]
@@ -1103,13 +1129,15 @@ spec = describe "LLVM Code Generation" $ parallel $ do
       define external ccc void @eclair_program_destroy(%program* %arg_0) {
       start:
         %0 = getelementptr %program, %program* %arg_0, i32 0, i32 0
-        call ccc void @btree_destroy_0(%btree_t_0* %0)
+        call ccc void @symbol_table_destroy(%symbol_table* %0)
         %1 = getelementptr %program, %program* %arg_0, i32 0, i32 1
         call ccc void @btree_destroy_0(%btree_t_0* %1)
         %2 = getelementptr %program, %program* %arg_0, i32 0, i32 2
         call ccc void @btree_destroy_0(%btree_t_0* %2)
         %3 = getelementptr %program, %program* %arg_0, i32 0, i32 3
         call ccc void @btree_destroy_0(%btree_t_0* %3)
+        %4 = getelementptr %program, %program* %arg_0, i32 0, i32 4
+        call ccc void @btree_destroy_0(%btree_t_0* %4)
         %memory_0 = bitcast %program* %arg_0 to i8*
         call ccc void @free(i8* %memory_0)
         ret void
@@ -1130,9 +1158,9 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         store i32 4294967295, i32* %3
         %begin_iter_0 = alloca %btree_iterator_t_0, i32 1
         %end_iter_0 = alloca %btree_iterator_t_0, i32 1
-        %4 = getelementptr %program, %program* %arg_0, i32 0, i32 1
+        %4 = getelementptr %program, %program* %arg_0, i32 0, i32 2
         call ccc void @btree_lower_bound_0(%btree_t_0* %4, [2 x i32]* %value_0, %btree_iterator_t_0* %begin_iter_0)
-        %5 = getelementptr %program, %program* %arg_0, i32 0, i32 1
+        %5 = getelementptr %program, %program* %arg_0, i32 0, i32 2
         call ccc void @btree_upper_bound_0(%btree_t_0* %5, [2 x i32]* %value_1_0, %btree_iterator_t_0* %end_iter_0)
         br label %loop_0
       loop_0:
@@ -1151,22 +1179,22 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         %10 = getelementptr [2 x i32], [2 x i32]* %current_0, i32 0, i32 1
         %11 = load i32, i32* %10
         store i32 %11, i32* %9
-        %12 = getelementptr %program, %program* %arg_0, i32 0, i32 3
+        %12 = getelementptr %program, %program* %arg_0, i32 0, i32 4
         %13 = call ccc i1 @btree_insert_value_0(%btree_t_0* %12, [2 x i32]* %value_2_0)
         call ccc void @btree_iterator_next_0(%btree_iterator_t_0* %begin_iter_0)
         br label %loop_0
       range_query.end:
         %begin_iter_1_0 = alloca %btree_iterator_t_0, i32 1
         %end_iter_1_0 = alloca %btree_iterator_t_0, i32 1
-        %14 = getelementptr %program, %program* %arg_0, i32 0, i32 3
+        %14 = getelementptr %program, %program* %arg_0, i32 0, i32 4
         call ccc void @btree_begin_0(%btree_t_0* %14, %btree_iterator_t_0* %begin_iter_1_0)
-        %15 = getelementptr %program, %program* %arg_0, i32 0, i32 3
+        %15 = getelementptr %program, %program* %arg_0, i32 0, i32 4
         call ccc void @btree_end_0(%btree_t_0* %15, %btree_iterator_t_0* %end_iter_1_0)
-        %16 = getelementptr %program, %program* %arg_0, i32 0, i32 0
+        %16 = getelementptr %program, %program* %arg_0, i32 0, i32 1
         call ccc void @btree_insert_range_0(%btree_t_0* %16, %btree_iterator_t_0* %begin_iter_1_0, %btree_iterator_t_0* %end_iter_1_0)
         br label %loop_1
       loop_1:
-        %17 = getelementptr %program, %program* %arg_0, i32 0, i32 2
+        %17 = getelementptr %program, %program* %arg_0, i32 0, i32 3
         call ccc void @btree_clear_0(%btree_t_0* %17)
         %value_3_0 = alloca [2 x i32], i32 1
         %18 = getelementptr [2 x i32], [2 x i32]* %value_3_0, i32 0, i32 0
@@ -1180,9 +1208,9 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         store i32 4294967295, i32* %21
         %begin_iter_2_0 = alloca %btree_iterator_t_0, i32 1
         %end_iter_2_0 = alloca %btree_iterator_t_0, i32 1
-        %22 = getelementptr %program, %program* %arg_0, i32 0, i32 1
+        %22 = getelementptr %program, %program* %arg_0, i32 0, i32 2
         call ccc void @btree_lower_bound_0(%btree_t_0* %22, [2 x i32]* %value_3_0, %btree_iterator_t_0* %begin_iter_2_0)
-        %23 = getelementptr %program, %program* %arg_0, i32 0, i32 1
+        %23 = getelementptr %program, %program* %arg_0, i32 0, i32 2
         call ccc void @btree_upper_bound_0(%btree_t_0* %23, [2 x i32]* %value_4_0, %btree_iterator_t_0* %end_iter_2_0)
         br label %loop_2
       loop_2:
@@ -1208,9 +1236,9 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         store i32 4294967295, i32* %31
         %begin_iter_3_0 = alloca %btree_iterator_t_0, i32 1
         %end_iter_3_0 = alloca %btree_iterator_t_0, i32 1
-        %32 = getelementptr %program, %program* %arg_0, i32 0, i32 0
+        %32 = getelementptr %program, %program* %arg_0, i32 0, i32 1
         call ccc void @btree_lower_bound_0(%btree_t_0* %32, [2 x i32]* %value_5_0, %btree_iterator_t_0* %begin_iter_3_0)
-        %33 = getelementptr %program, %program* %arg_0, i32 0, i32 0
+        %33 = getelementptr %program, %program* %arg_0, i32 0, i32 1
         call ccc void @btree_upper_bound_0(%btree_t_0* %33, [2 x i32]* %value_6_0, %btree_iterator_t_0* %end_iter_3_0)
         br label %loop_3
       loop_3:
@@ -1229,7 +1257,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         %38 = getelementptr [2 x i32], [2 x i32]* %current_2_0, i32 0, i32 1
         %39 = load i32, i32* %38
         store i32 %39, i32* %37
-        %contains_result_0 = getelementptr %program, %program* %arg_0, i32 0, i32 3
+        %contains_result_0 = getelementptr %program, %program* %arg_0, i32 0, i32 4
         %contains_result_1 = call ccc i1 @btree_contains_0(%btree_t_0* %contains_result_0, [2 x i32]* %value_7_0)
         %condition_3_0 = select i1 %contains_result_1, i1 0, i1 1
         br i1 %condition_3_0, label %if_3, label %end_if_3
@@ -1243,7 +1271,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         %44 = getelementptr [2 x i32], [2 x i32]* %current_2_0, i32 0, i32 1
         %45 = load i32, i32* %44
         store i32 %45, i32* %43
-        %46 = getelementptr %program, %program* %arg_0, i32 0, i32 2
+        %46 = getelementptr %program, %program* %arg_0, i32 0, i32 3
         %47 = call ccc i1 @btree_insert_value_0(%btree_t_0* %46, [2 x i32]* %value_8_0)
         br label %end_if_3
       end_if_3:
@@ -1253,7 +1281,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         call ccc void @btree_iterator_next_0(%btree_iterator_t_0* %begin_iter_2_0)
         br label %loop_2
       range_query.end_1:
-        %condition_4_0 = getelementptr %program, %program* %arg_0, i32 0, i32 2
+        %condition_4_0 = getelementptr %program, %program* %arg_0, i32 0, i32 3
         %condition_4_1 = call ccc i1 @btree_is_empty_0(%btree_t_0* %condition_4_0)
         br i1 %condition_4_1, label %if_4, label %end_if_4
       if_4:
@@ -1261,14 +1289,14 @@ spec = describe "LLVM Code Generation" $ parallel $ do
       end_if_4:
         %begin_iter_4_0 = alloca %btree_iterator_t_0, i32 1
         %end_iter_4_0 = alloca %btree_iterator_t_0, i32 1
-        %48 = getelementptr %program, %program* %arg_0, i32 0, i32 2
+        %48 = getelementptr %program, %program* %arg_0, i32 0, i32 3
         call ccc void @btree_begin_0(%btree_t_0* %48, %btree_iterator_t_0* %begin_iter_4_0)
-        %49 = getelementptr %program, %program* %arg_0, i32 0, i32 2
+        %49 = getelementptr %program, %program* %arg_0, i32 0, i32 3
         call ccc void @btree_end_0(%btree_t_0* %49, %btree_iterator_t_0* %end_iter_4_0)
-        %50 = getelementptr %program, %program* %arg_0, i32 0, i32 3
+        %50 = getelementptr %program, %program* %arg_0, i32 0, i32 4
         call ccc void @btree_insert_range_0(%btree_t_0* %50, %btree_iterator_t_0* %begin_iter_4_0, %btree_iterator_t_0* %end_iter_4_0)
-        %51 = getelementptr %program, %program* %arg_0, i32 0, i32 2
-        %52 = getelementptr %program, %program* %arg_0, i32 0, i32 0
+        %51 = getelementptr %program, %program* %arg_0, i32 0, i32 3
+        %52 = getelementptr %program, %program* %arg_0, i32 0, i32 1
         call ccc void @btree_swap_0(%btree_t_0* %51, %btree_t_0* %52)
         br label %loop_1
       loop.end:
@@ -1284,7 +1312,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         start:
           switch i16 %fact_type_0, label %switch.default_0 [i16 0, label %edge_0 i16 1, label %path_0]
         edge_0:
-          %0 = getelementptr %program, %program* %eclair_program_0, i32 0, i32 1
+          %0 = getelementptr %program, %program* %eclair_program_0, i32 0, i32 2
           %1 = bitcast i32* %memory_0 to [2 x i32]*
           br label %for_begin_0
         for_begin_0:
@@ -1299,7 +1327,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         for_end_0:
           br label %path_0
         path_0:
-          %7 = getelementptr %program, %program* %eclair_program_0, i32 0, i32 3
+          %7 = getelementptr %program, %program* %eclair_program_0, i32 0, i32 4
           %8 = bitcast i32* %memory_0 to [2 x i32]*
           br label %for_begin_1
         for_begin_1:
@@ -1322,7 +1350,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         start:
           switch i16 %fact_type_0, label %switch.default_0 [i16 0, label %edge_0 i16 1, label %path_0]
         edge_0:
-          %0 = getelementptr %program, %program* %eclair_program_0, i32 0, i32 1
+          %0 = getelementptr %program, %program* %eclair_program_0, i32 0, i32 2
           %fact_count_0 = call ccc i64 @btree_size_0(%btree_t_0* %0)
           %fact_count_1 = trunc i64 %fact_count_0 to i32
           %byte_count_0 = mul i32 %fact_count_1, 8
@@ -1355,7 +1383,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
           %8 = bitcast i8* %memory_0 to i32*
           ret i32* %8
         path_0:
-          %9 = getelementptr %program, %program* %eclair_program_0, i32 0, i32 3
+          %9 = getelementptr %program, %program* %eclair_program_0, i32 0, i32 4
           %fact_count_2 = call ccc i64 @btree_size_0(%btree_t_0* %9)
           %fact_count_3 = trunc i64 %fact_count_2 to i32
           %byte_count_1 = mul i32 %fact_count_3, 8
@@ -1399,7 +1427,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         start:
           switch i16 %fact_type_0, label %switch.default_0 [i16 0, label %a_0 i16 1, label %b_0]
         a_0:
-          %0 = getelementptr %program, %program* %eclair_program_0, i32 0, i32 0
+          %0 = getelementptr %program, %program* %eclair_program_0, i32 0, i32 1
           %1 = bitcast i32* %memory_0 to [1 x i32]*
           br label %for_begin_0
         for_begin_0:
@@ -1414,7 +1442,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         for_end_0:
           br label %b_0
         b_0:
-          %7 = getelementptr %program, %program* %eclair_program_0, i32 0, i32 1
+          %7 = getelementptr %program, %program* %eclair_program_0, i32 0, i32 2
           %8 = bitcast i32* %memory_0 to [3 x i32]*
           br label %for_begin_1
         for_begin_1:
@@ -1437,7 +1465,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         start:
           switch i16 %fact_type_0, label %switch.default_0 [i16 0, label %a_0 i16 1, label %b_0]
         a_0:
-          %0 = getelementptr %program, %program* %eclair_program_0, i32 0, i32 0
+          %0 = getelementptr %program, %program* %eclair_program_0, i32 0, i32 1
           %fact_count_0 = call ccc i64 @btree_size_0(%btree_t_0* %0)
           %fact_count_1 = trunc i64 %fact_count_0 to i32
           %byte_count_0 = mul i32 %fact_count_1, 4
@@ -1470,7 +1498,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
           %8 = bitcast i8* %memory_0 to i32*
           ret i32* %8
         b_0:
-          %9 = getelementptr %program, %program* %eclair_program_0, i32 0, i32 1
+          %9 = getelementptr %program, %program* %eclair_program_0, i32 0, i32 2
           %fact_count_2 = call ccc i64 @btree_size_1(%btree_t_1* %9)
           %fact_count_3 = trunc i64 %fact_count_2 to i32
           %byte_count_1 = mul i32 %fact_count_3, 12

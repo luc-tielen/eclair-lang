@@ -104,8 +104,10 @@ declParser = do
     _ -> factOrRuleParser
 
 typeParser :: Parser Type
-typeParser = lexeme $
-  U32 <$ P.chunk "u32"
+typeParser = lexeme $ u32 <|> str
+  where
+    u32 = U32 <$ P.chunk "u32"
+    str = Str <$ P.chunk "string"
 
 typedefParser :: Parser AST
 typedefParser = withNodeId $ \nodeId -> do
@@ -153,9 +155,10 @@ assignParser = withNodeId $ \nodeId -> do
   pure $ Assign nodeId lhs rhs
 
 valueParser :: Parser AST
-valueParser = withNodeId $ \nodeId ->
+valueParser = lexeme $ withNodeId $ \nodeId ->
   Var nodeId <$> (identifier <|> wildcard) <|>
-  Lit nodeId <$> number
+  Lit nodeId <$> literal
+
 
 -- Not sure if we want to support something like _abc?
 wildcard :: Parser Id
@@ -173,14 +176,22 @@ identifier = Id <$> do
   where isIdentifierChar c = isAlphaNum c || c == '_'
         reserved = []
 
-number :: Parser Number
-number = do
+literal :: Parser Literal
+literal = number <|> string
+
+number :: Parser Literal
+number = LNumber <$> do
   firstDigit <- P.satisfy (`V.elem` ['1'..'9']) P.<?> "non-zero digit"
   digits <- P.takeWhileP Nothing isDigit
   P.notFollowedBy P.letterChar
   case TR.decimal $ T.cons firstDigit digits of
     Right (result, _) -> pure result
     Left err -> panic . toText $ "Error occurred during parsing of decimal number: " <> err
+
+string :: Parser Literal
+string = LString <$> do
+  P.between ("\"" P.<?> "string literal") "\"" $
+    P.takeWhileP Nothing (/= '"')
 
 lexeme :: Parser a -> Parser a
 lexeme = L.lexeme whitespace

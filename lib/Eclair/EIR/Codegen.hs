@@ -7,9 +7,11 @@ module Eclair.EIR.Codegen
   , labelToName
   , lsLookupFunction
   , lookupFunction
+  , lookupPrimOp
   , toLLVMType
   , lookupVar
   , addVarBinding
+  , newGlobalVarName
   , loadIfNeeded
   ) where
 
@@ -17,9 +19,11 @@ import Prelude hiding (void)
 import Data.Maybe (fromJust)
 import qualified Data.Text as T
 import qualified Data.Map as M
-import LLVM.Codegen
 import Data.ByteString.Short hiding (index)
+import LLVM.Codegen
 import Eclair.LLVM.Runtime
+import qualified Eclair.LLVM.Symbol as Symbol
+import qualified Eclair.LLVM.SymbolTable as SymbolTable
 import qualified Eclair.EIR.IR as EIR
 import Eclair.RA.IndexSelection
 import Eclair.Id
@@ -35,8 +39,11 @@ data LowerState
   = LowerState
   { programType :: Type
   , programSizeBytes :: Word64
+  , symbolTableFns :: SymbolTable.SymbolTable
+  , symbolFns :: Symbol.Symbol
   , fnsMap :: FunctionsMap
   , varMap :: VarMap
+  , globalVarCounter :: Int
   , externals :: Externals
   }
 
@@ -77,6 +84,18 @@ lookupFunction :: Relation -> Index -> EIR.Function -> CodegenM Operand
 lookupFunction r idx fn =
   gets (lsLookupFunction r idx fn)
 
+lookupPrimOp :: EIR.Op -> CodegenM Operand
+lookupPrimOp = \case
+  EIR.SymbolTableInit -> do
+    symbolTable <- gets symbolTableFns
+    pure $ SymbolTable.symbolTableInit symbolTable
+  EIR.SymbolTableDestroy -> do
+    symbolTable <- gets symbolTableFns
+    pure $ SymbolTable.symbolTableDestroy symbolTable
+  EIR.SymbolTableInsert -> do
+    symbolTable <- gets symbolTableFns
+    pure $ SymbolTable.symbolTableFindOrInsert symbolTable
+
 toLLVMType :: (MonadState LowerState m) => Relation -> Index -> EIR.Type -> m Type
 toLLVMType r idx = go
   where
@@ -99,6 +118,12 @@ lookupVar v = gets (fromJust . M.lookup v . varMap)
 addVarBinding :: Text -> Operand -> CodegenM ()
 addVarBinding var value =
   modify $ \s -> s { varMap = M.insert var value (varMap s) }
+
+newGlobalVarName :: Text -> CodegenM Name
+newGlobalVarName name = do
+  count <- gets globalVarCounter
+  modify $ \s -> s { globalVarCounter = count + 1 }
+  pure $ Name $ name <> "_" <> show count
 
 -- NOTE: this is for the case when we are assigning 1 field of a struct/array
 -- to another of the same kind, where the right side needs to be loaded before

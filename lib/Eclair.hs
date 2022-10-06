@@ -12,7 +12,6 @@ module Eclair
   , emitRA
   , emitEIR
   , emitLLVM
-  , run
   , EclairError(..)
   , handleErrors
   ) where
@@ -29,7 +28,6 @@ import Eclair.AST.IR
 import Eclair.AST.Transforms
 import qualified Eclair.RA.IR as RA
 import qualified Eclair.EIR.IR as EIR
-import Eclair.RA.Interpreter
 import qualified Eclair.TypeSystem as TS
 import qualified Eclair.AST.Analysis as SA
 import LLVM.Codegen (Module, ppllvm)
@@ -49,7 +47,7 @@ data Query a where
   Parse :: FilePath -> Query (AST, NodeId, SpanMap)
   RunSemanticAnalysis :: FilePath -> Query SA.Result
   Typecheck :: FilePath -> Query TS.TypeInfo
-  TransformAST :: FilePath -> Query AST
+  TransformAST :: FilePath -> Query (AST, StringMap)
   EmitSimplifiedAST :: FilePath -> Query ()
   CompileRA :: FilePath -> Query RA
   EmitRA :: FilePath -> Query ()
@@ -57,6 +55,7 @@ data Query a where
   EmitEIR :: FilePath -> Query ()
   CompileLLVM :: FilePath -> Query Module
   EmitLLVM :: FilePath -> Query ()
+  StringMapping :: FilePath -> Query (Map Text Word32)
 
 queryFilePath :: Query a -> FilePath
 queryFilePath = \case
@@ -71,6 +70,7 @@ queryFilePath = \case
   EmitEIR path             -> path
   CompileLLVM path         -> path
   EmitLLVM path            -> path
+  StringMapping path       -> path
 
 queryEnum :: Query a -> Int
 queryEnum = \case
@@ -85,6 +85,7 @@ queryEnum = \case
   EmitEIR {}             -> 8
   CompileLLVM {}         -> 9
   EmitLLVM {}            -> 10
+  StringMapping {}       -> 11
 
 deriveGEq ''Query
 
@@ -117,18 +118,22 @@ rules = \case
     (ast, nodeId, spans) <- Rock.fetch (Parse path)
     pure $ simplify nodeId ast
   EmitSimplifiedAST path -> do
-    ast <- Rock.fetch (TransformAST path)
+    (ast, _) <- Rock.fetch (TransformAST path)
     liftIO $ putTextLn $ printDoc ast
+  StringMapping path -> do
+    (_, mapping) <- Rock.fetch (TransformAST path)
+    pure mapping
   CompileRA path -> do
-    ast <- Rock.fetch (TransformAST path)
+    ast <- fst <$> Rock.fetch (TransformAST path)
     pure $ compileToRA ast
   EmitRA path -> do
     ra <- Rock.fetch (CompileRA path)
     liftIO $ putTextLn $ printDoc ra
   CompileEIR path -> do
+    stringMapping <- Rock.fetch (StringMapping path)
     ra <- Rock.fetch (CompileRA path)
     typeInfo <- Rock.fetch (Typecheck path)
-    pure $ compileToEIR typeInfo ra
+    pure $ compileToEIR stringMapping typeInfo ra
   EmitEIR path -> do
     eir <- Rock.fetch (CompileEIR path)
     liftIO $ putTextLn $ printDoc eir
@@ -138,6 +143,7 @@ rules = \case
   EmitLLVM path -> do
     llvmModule <- Rock.fetch (CompileLLVM path)
     liftIO $ putTextLn $ ppllvm llvmModule
+
 
 runQuery :: Query a -> IO a
 runQuery query = do
@@ -151,7 +157,7 @@ parse = map (\(ast, _, _) -> ast) . runQuery . Parse
 semanticAnalysis :: FilePath -> IO SA.Result
 semanticAnalysis = runQuery . RunSemanticAnalysis
 
-transformAST :: FilePath -> IO AST
+transformAST :: FilePath -> IO (AST, StringMap)
 transformAST = runQuery . TransformAST
 
 emitSimplifiedAST :: FilePath -> IO ()
@@ -182,8 +188,4 @@ compile = compileLLVM
 
 emitLLVM :: FilePath -> IO ()
 emitLLVM = runQuery . EmitLLVM
-
-run :: FilePath -> IO (M.Map Relation [[Number]])
-run =
-  interpretRA <=< runQuery . CompileRA
 

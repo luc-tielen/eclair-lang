@@ -30,6 +30,18 @@ spec = describe "parsing" $ parallel $ do
        @def  fact  (  u32  ,  u32  ).
       |]
 
+  it "parses strings in facts" $ do
+    shouldParseText [text|
+      @def fact(string).
+      @def fact(u32, string).
+      @def fact(string  ,  string,string  ).
+
+      fact("").
+      fact("a").
+      fact(  "b"   ).
+      fact(  "c"   , "d","e"   ).
+      |]
+
   it "parses top level facts" $ do
     shouldParseFile "single_fact.dl"
 
@@ -57,6 +69,11 @@ spec = describe "parsing" $ parallel $ do
       path(x, y) :-
         edge(x, z),
         path(z, y).
+
+      literals_in_rule(x) :-
+        int(  123 ),
+        string( "abc"),
+        mix(456, "def").
       |]
 
 -- TODO: failure cases, more thorough testing in general

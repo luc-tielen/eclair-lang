@@ -78,6 +78,30 @@ typeErrorToReport file fileContent spanMap = \case
          in (srcLoc, Where $ "'" <> unId factName <> "' is re-defined here."))
       hints = [Hint $ "You can solve this by removing the duplicate definitions for '" <> unId factName <> "'."]
 
+  TypeMismatch nodeId actualTy expectedTy ->
+    Err Nothing title markers hints
+      where
+        title = "Type mismatch"
+        srcLoc = getSourcePos file fileContent spanMap nodeId
+        markers = [ (srcLoc, This $ "Expected this to be of type " <> renderType expectedTy <> ","
+                  <> " but it actually has type " <> renderType actualTy <> ".")
+                  ]
+        hints = []  -- Can we even give a meaningful error here? Look in type env? (if a var is used)
+        renderType ty =
+          let userFacingType = case ty of
+                U32 -> "u32"
+                Str -> "string"
+                TUnknown u -> "unresolved type"
+          in "'" <> userFacingType <> "'"
+
+  -- TODO add context to type errors so we can actually show some source code here
+  UnificationFailure ty1 ty2 ->
+    Err Nothing title markers hints
+      where
+        title = "Type error"
+        markers = []
+        hints = [Hint "Failed to unify two types during type checking."]
+
 emptyModuleToReport :: FilePath -> Text -> SpanMap -> EmptyModule -> Report Text
 emptyModuleToReport file fileContent spanMap (EmptyModule nodeId) =
   let title = "Empty module"

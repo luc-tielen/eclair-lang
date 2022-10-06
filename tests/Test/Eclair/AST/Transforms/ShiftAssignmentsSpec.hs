@@ -13,8 +13,8 @@ import Eclair.Pretty
 rewrite :: FilePath -> IO Text
 rewrite path = do
   let file = "tests/fixtures" </> path <.> "dl"
-  eir <- transformAST file
-  pure $ printDoc eir
+  (ast, _) <- transformAST file
+  pure $ printDoc ast
 
 
 spec :: Spec

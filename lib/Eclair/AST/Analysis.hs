@@ -20,7 +20,6 @@ import qualified Language.Souffle.Analysis as S
 import qualified Eclair.AST.IR as IR
 import Eclair.Id
 import Data.Kind
-import Data.Functor.Foldable
 
 
 type NodeId = IR.NodeId
@@ -30,11 +29,17 @@ type Position = Word32
 -- The facts submitted to Datalog closely follow the AST structure,
 -- but are denormalized so that Datalog can easily process it.
 
-data Lit
-  = Lit NodeId IR.Number
+data LitNumber
+  = LitNumber NodeId Word32
   deriving stock Generic
   deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions Lit "literal" 'S.Input
+  deriving S.Fact via S.FactOptions LitNumber "lit_number" 'S.Input
+
+data LitString
+  = LitString NodeId Text
+  deriving stock Generic
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions LitString "lit_string" 'S.Input
 
 data Var
   = Var NodeId Id
@@ -152,7 +157,8 @@ data SemanticAnalysis
   = SemanticAnalysis
   deriving S.Program
   via S.ProgramOptions SemanticAnalysis "semantic_analysis"
-      '[ Lit
+      '[ LitNumber
+       , LitString
        , Var
        , Assign
        , Atom
@@ -213,7 +219,11 @@ analysis prog = S.mkAnalysis addFacts run getFacts
     addFacts :: IR.AST -> S.SouffleM ()
     addFacts = zygo getNodeId $ \case
       IR.LitF nodeId lit ->
-        S.addFact prog $ Lit nodeId lit
+        case lit of
+          IR.LNumber x ->
+            S.addFact prog $ LitNumber nodeId x
+          IR.LString x ->
+            S.addFact prog $ LitString nodeId x
       IR.VarF nodeId var ->
         S.addFact prog $ Var nodeId var
       IR.AssignF nodeId (lhsId, lhsAction) (rhsId, rhsAction) -> do

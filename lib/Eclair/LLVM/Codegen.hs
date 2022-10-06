@@ -1,8 +1,9 @@
 {-# LANGUAGE RoleAnnotations, PolyKinds #-}
-{-# OPTIONS_GHC -Wno-orphans #-}
 
-module Eclair.LLVM.LLVM
-  ( module Eclair.LLVM.LLVM
+module Eclair.LLVM.Codegen
+  ( module Eclair.LLVM.Codegen
+  , module Eclair.LLVM.Template
+  , module LLVM.Codegen
   ) where
 
 import qualified Data.Text as T
@@ -10,35 +11,21 @@ import qualified Data.Map as M
 import Control.Monad.Morph
 import Foreign.ForeignPtr
 import Foreign.Ptr
-import LLVM.Codegen
 import qualified LLVM.C.API as LibLLVM
 import Eclair.LLVM.Runtime
+import Eclair.LLVM.Template
+import LLVM.Codegen hiding (function, typedef, typeOf)
 
-def :: (MonadModuleBuilder m, MonadReader r m, HasSuffix r)
-    => Text
-    -> [(Type, ParameterName)]
-    -> Type
-    -> ([Operand] -> IRBuilderT m ())
-    -> m Operand
-def funcName args retTy body = do
-  s <- asks (show . getSuffix)
-  let funcNameWithHash = Name $ funcName <> "_" <> s
-  function funcNameWithHash args retTy body
 
-mkType :: (MonadModuleBuilder m, MonadReader r m, HasSuffix r)
-       => Text -> Flag Packed -> [Type] -> m Type
-mkType typeName packed tys = do
-  s <- asks (show . getSuffix)
-  let typeNameWithHash = Name $ typeName <> "_" <> s
-  typedef typeNameWithHash packed tys
-
-llvmSizeOf :: ForeignPtr LibLLVM.Context -> Ptr LibLLVM.TargetData -> Type -> ModuleBuilderT IO Word64
+llvmSizeOf :: (MonadModuleBuilder m, MonadIO m)
+           => ForeignPtr LibLLVM.Context -> Ptr LibLLVM.TargetData -> Type -> m Word64
 llvmSizeOf ctx td ty = liftIO $ do
   ty' <- encodeType ctx ty
   LibLLVM.sizeOfType td ty'
 
-withLLVMTypeInfo :: (ForeignPtr LibLLVM.Context -> Ptr LibLLVM.TargetData -> ModuleBuilderT IO a)
-                 -> ModuleBuilderT IO a
+withLLVMTypeInfo :: (MonadModuleBuilder m, MonadIO m)
+                 => (ForeignPtr LibLLVM.Context -> Ptr LibLLVM.TargetData -> m a)
+                 -> m a
 withLLVMTypeInfo f = do
   (ctx, td) <- liftIO $ do
     ctx <- LibLLVM.mkContext

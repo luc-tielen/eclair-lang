@@ -4,26 +4,27 @@ module Eclair.RA.Lower ( compileToEIR ) where
 import Prelude hiding (head)
 import Data.Maybe (fromJust)
 import Data.List (head)
-import Data.Functor.Foldable hiding (fold)
 
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
+import Eclair.Id
+import Eclair.Literal
+import Eclair.Comonads hiding (Quad)
+import Eclair.TypeSystem
+import Eclair.AST.Transforms.ReplaceStrings (StringMap)
 import Eclair.RA.Codegen
 import Eclair.EIR.IR (EIR)
 import Eclair.RA.IR (RA)
 import Eclair.RA.IndexSelection
-import Eclair.Id
-import Eclair.Comonads hiding (Quad)
-import Eclair.TypeSystem
 import qualified Eclair.EIR.IR as EIR
 import qualified Eclair.RA.IR as RA
 import qualified Eclair.LLVM.Metadata as M
 
 
-compileToEIR :: TypeInfo -> RA -> EIR
-compileToEIR typeInfo ra =
+compileToEIR :: StringMap -> TypeInfo -> RA -> EIR
+compileToEIR stringMap typeInfo ra =
   let (indexMap, getIndexForSearch) = runIndexSelection typeInfo ra
       containerInfos = getContainerInfos indexMap typeInfo
       end = "the.end"
@@ -31,28 +32,44 @@ compileToEIR typeInfo ra =
       moduleStmts :: [CodegenM EIR]
       moduleStmts =
         [ declareProgram $ map (\(r, _, m) -> (r, m)) containerInfos
-        , compileInit
+        , compileInit stringMap
         , compileDestroy
         , compileRun ra
         ]
    in EIR.Block $ map (runCodegen lowerState) moduleStmts
 
-compileInit :: CodegenM EIR
-compileInit = do
+compileInit :: StringMap -> CodegenM EIR
+compileInit stringMap = do
   program <- var "program"
-  initActions <- forEachRelation program $ \(r, idx, _) relationPtr ->
+  let symbolTable = fieldAccess program 0
+      symbolTableInitAction = primOp EIR.SymbolTableInit [symbolTable]
+  relationInitActions <- forEachRelation program $ \(r, idx, _) relationPtr ->
     call r idx EIR.InitializeEmpty [relationPtr]
+  let addSymbolActions = toSymbolTableInsertActions symbolTable stringMap
+      initActions = symbolTableInitAction : relationInitActions ++ addSymbolActions
   fn "eclair_program_init" [] (EIR.Pointer EIR.Program) $
     assign program heapAllocProgram
     : initActions
     -- Open question: if some facts are known at compile time, search for derived facts up front?
     ++ [ ret program ]
 
+toSymbolTableInsertActions :: CodegenM EIR -> StringMap -> [CodegenM EIR]
+toSymbolTableInsertActions symbolTable stringMap =
+  map (doInsert . fst) $ sortWith snd $ Map.toList stringMap
+  where
+    doInsert symbol =
+      primOp EIR.SymbolTableInsert [symbolTable, litStr symbol]
+    litStr =
+      pure . EIR.Lit . LString
+
+
 compileDestroy :: CodegenM EIR
 compileDestroy = do
   let program = fnArg 0
-  destroyActions <- forEachRelation program $ \(r, idx, _) relationPtr ->
+      symbolTableDestroyAction = primOp EIR.SymbolTableDestroy [fieldAccess program 0]
+  relationDestroyActions <- forEachRelation program $ \(r, idx, _) relationPtr ->
     call r idx EIR.Destroy [relationPtr]
+  let destroyActions = symbolTableDestroyAction : relationDestroyActions
   fn "eclair_program_destroy" [EIR.Pointer EIR.Program] EIR.Void $
     destroyActions
     ++ [ freeProgram program ]
@@ -234,7 +251,7 @@ initValue r idx a bound eqs = do
 forEachRelation :: CodegenM EIR -> (ContainerInfo -> CodegenM EIR -> CodegenM EIR) -> CodegenM [CodegenM EIR]
 forEachRelation program f = do
   cis <- containerInfos <$> getLowerState
-  pure $ zipWith doCall [0..] cis
+  pure $ zipWith doCall [1..] cis
   where
     doCall fieldOffset ci =
       f ci (fieldAccess program fieldOffset)

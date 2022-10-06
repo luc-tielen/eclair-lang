@@ -4,15 +4,15 @@ module Eclair.EIR.IR
   ( EIR(..)
   , EIRF(..)
   , Relation
+  , Op(..)
   , Type(..)
   , Function(..)
   , LabelId(..)
   ) where
 
-import Data.Functor.Foldable.TH
 import Eclair.Id
+import Eclair.Literal
 import Eclair.Pretty
-import Eclair.AST.IR (Number)
 import Eclair.RA.IndexSelection (Index)
 import Eclair.LLVM.Metadata
 
@@ -55,6 +55,12 @@ newtype LabelId
 instance IsString LabelId where
   fromString = LabelId . fromString
 
+data Op
+  = SymbolTableInit
+  | SymbolTableDestroy
+  | SymbolTableInsert
+  deriving (Eq, Show)
+
 data EIR
   = Block [EIR]
   | Function Text [Type] Type EIR
@@ -63,7 +69,9 @@ data EIR
   | FieldAccess EIR Int
   | Var Text
   | Assign EIR EIR
-  | Call Relation Index Function [EIR]
+  -- TODO merge call with primop: "RelationOp Relation Index Function"
+  | Call Relation Index Function [EIR]  -- A function call related to operations on relations
+  | PrimOp Op [EIR]                     -- A primitive operation, these tend to be simple function calls or operators
   | HeapAllocateProgram
   | FreeProgram EIR
   | StackAllocate Relation Index Type
@@ -76,7 +84,7 @@ data EIR
   | Jump LabelId
   | Label LabelId
   | Return EIR
-  | Lit Number
+  | Lit Literal
   deriving (Eq, Show)
 
 makeBaseFunctor ''EIR
@@ -122,6 +130,15 @@ instance Pretty Function where
 instance Pretty LabelId where
   pretty (LabelId label) = pretty label
 
+instance Pretty Op where
+  pretty = \case
+    SymbolTableInit ->
+      "symbol_table.init"
+    SymbolTableDestroy ->
+      "symbol_table.destroy"
+    SymbolTableInsert ->
+      "symbol_table.insert"
+
 instance Pretty EIR where
   pretty = \case
     Block stmts ->
@@ -134,7 +151,7 @@ instance Pretty EIR where
     DeclareProgram metadatas ->
       vsep ["declare_type" <+> "Program"
            , braceBlock . vsep $
-             map (\(r, meta) -> pretty r <+> pretty meta) metadatas
+               "symbol_table" : map (\(r, meta) -> pretty r <+> pretty meta) metadatas
            ]
     FieldAccess ptr pos ->
       pretty ptr <> "." <> pretty pos
@@ -143,6 +160,8 @@ instance Pretty EIR where
       pretty var <+> "=" <+> pretty value
     Call r _idx fn args ->
       pretty r <> "." <> pretty fn <> parens (withCommas $ map pretty args)
+    PrimOp op args ->
+      pretty op <> parens (withCommas $ map pretty args)
     HeapAllocateProgram ->
       "heap_allocate_program"
     FreeProgram ptr ->

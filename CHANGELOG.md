@@ -9,8 +9,9 @@ The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-has
 
 - Wildcards are now supported in rule bodies.
 - Assignments are now supported in rule bodies.
-- Support for multiple occurences of the same variable in one clause of rule
-  bodies.
+- Support for multiple occurences of the same variable in a single clause of
+  a rule body.
+- (UTF-8) strings in relations are now supported.
 
 ### Changed
 

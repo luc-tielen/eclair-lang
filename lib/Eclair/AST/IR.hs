@@ -6,14 +6,14 @@ module Eclair.AST.IR
   , Value
   , Clause
   , Decl
-  , Number
+  , Literal(..)
   , Type(..)
   , NodeId(..)
   ) where
 
-import Data.Functor.Foldable.TH
 import Prettyprinter
 import Eclair.Id
+import Eclair.Literal
 import Eclair.Pretty
 import qualified Language.Souffle.Marshal as S
 
@@ -23,18 +23,18 @@ newtype NodeId
   } deriving (Eq, Ord, Show, Generic)
   deriving S.Marshal
 
-type Number = Word32
-
 type Value = AST
 type Clause = AST
 type Decl = AST
 
 data Type
   = U32
+  | Str
+  | TUnknown Int  -- NOTE: unification variable, only used internally!
   deriving (Eq, Ord, Show)
 
 data AST
-  = Lit NodeId Number
+  = Lit NodeId Literal
   | Var NodeId Id
   | Assign NodeId AST AST
   | Atom NodeId Id [Value]
@@ -54,8 +54,15 @@ pattern PWildcardF nodeId
 instance Pretty Type where
   pretty = \case
     U32 -> "u32"
+    Str -> "string"
+    TUnknown x -> "unknown@" <> show x
 
 data RenderPosition = TopLevel | Nested
+
+instance Pretty Literal where
+  pretty = \case
+    LNumber x -> pretty x
+    LString x -> pretty x
 
 instance Pretty AST where
   pretty ast = runReader (pretty' ast) TopLevel

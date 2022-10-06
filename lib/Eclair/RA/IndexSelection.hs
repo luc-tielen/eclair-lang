@@ -16,7 +16,6 @@ module Eclair.RA.IndexSelection
 -- http://www.vldb.org/pvldb/vol12/p141-subotic.pdf
 
 import Data.Maybe (fromJust)
-import Data.Functor.Foldable hiding (fold)
 import Eclair.RA.IR
 import Eclair.Pretty
 import Eclair.Comonads
