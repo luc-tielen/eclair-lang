@@ -100,8 +100,6 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
         valueA <- loadIfNeeded lhs a
         valueB <- loadIfNeeded rhs b
         valueA `eq` valueB
-      EIR.CallF r idx fn (map snd -> args) ->
-        doCall r idx fn args
       EIR.PrimOpF op (map snd -> args) ->
         doPrimOp op args
       EIR.HeapAllocateProgramF -> do
@@ -146,8 +144,6 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
         program <- programVar
         memory <- program `bitcast` ptr i8 `named` "memory"
         Prelude.void $ call freeFn [memory]
-      EIR.CallF r idx fn (map toOperand -> args) ->
-        Prelude.void $ doCall r idx fn args
       EIR.PrimOpF op (map toOperand -> args) ->
         Prelude.void $ doPrimOp op args
       EIR.LoopF stmts ->
@@ -168,11 +164,6 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
     toOperandWithContext (Triple eir operand _) =
       (operand, eir)
     toInstrs (Triple _ _ instrs) = instrs
-    doCall :: Relation -> Index -> EIR.Function -> [CodegenM Operand] -> CodegenM Operand
-    doCall r idx fn args = do
-      argOperands <- sequence args
-      func <- lookupFunction r idx fn
-      call func argOperands
     doPrimOp :: EIR.Op -> [CodegenM Operand] -> CodegenM Operand
     doPrimOp op args = do
       argOperands <- sequence args

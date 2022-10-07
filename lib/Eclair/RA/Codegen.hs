@@ -137,7 +137,8 @@ fnArg :: Int -> CodegenM EIR
 fnArg n = pure $ EIR.FunctionArg n
 
 call :: Relation -> Index -> EIR.Function -> [CodegenM EIR] -> CodegenM EIR
-call r idx fn args = EIR.Call r idx fn <$> sequence args
+call r idx fn =
+  primOp (EIR.RelationOp r idx fn)
 
 primOp :: EIR.Op -> [CodegenM EIR] -> CodegenM EIR
 primOp op args =

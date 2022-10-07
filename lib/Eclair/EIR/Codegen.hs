@@ -6,7 +6,6 @@ module Eclair.EIR.Codegen
   , Functions(..)
   , labelToName
   , lsLookupFunction
-  , lookupFunction
   , lookupPrimOp
   , toLLVMType
   , lookupVar
@@ -80,21 +79,20 @@ lsLookupFunction r idx fn lowerState =
       EIR.IterBegin -> fnBegin
       EIR.IterEnd -> fnEnd
 
-lookupFunction :: Relation -> Index -> EIR.Function -> CodegenM Operand
-lookupFunction r idx fn =
-  gets (lsLookupFunction r idx fn)
-
 lookupPrimOp :: EIR.Op -> CodegenM Operand
 lookupPrimOp = \case
-  EIR.SymbolTableInit -> do
-    symbolTable <- gets symbolTableFns
-    pure $ SymbolTable.symbolTableInit symbolTable
-  EIR.SymbolTableDestroy -> do
-    symbolTable <- gets symbolTableFns
-    pure $ SymbolTable.symbolTableDestroy symbolTable
-  EIR.SymbolTableInsert -> do
-    symbolTable <- gets symbolTableFns
-    pure $ SymbolTable.symbolTableFindOrInsert symbolTable
+  EIR.SymbolTableInit ->
+    toSymbolTableOp SymbolTable.symbolTableInit
+  EIR.SymbolTableDestroy ->
+    toSymbolTableOp SymbolTable.symbolTableDestroy
+  EIR.SymbolTableInsert ->
+    toSymbolTableOp SymbolTable.symbolTableFindOrInsert
+  EIR.RelationOp r idx fn ->
+    gets (lsLookupFunction r idx fn)
+  where
+    toSymbolTableOp llvmOp = do
+      symbolTable <- gets symbolTableFns
+      pure $ llvmOp symbolTable
 
 toLLVMType :: (MonadState LowerState m) => Relation -> Index -> EIR.Type -> m Type
 toLLVMType r idx = go
