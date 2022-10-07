@@ -89,13 +89,13 @@ type IRCodegen = IRBuilderT ModuleCodegen
 type ModuleCodegen = ReaderT CGState (Template Meta)
 
 
-codegen :: Externals -> TemplateT Meta IO Functions
+codegen :: Externals -> TemplateT Meta IO Table
 codegen exts = do
   settings <- getParams
   sizes <- computeSizes
   hoist intoIO $ do
     tys <- generateTypes sizes
-    runReaderT generateFunctions $ CGState tys sizes exts
+    runReaderT generateTableFunctions $ CGState tys sizes exts
   where intoIO = pure . runIdentity
 
 -- TODO: can be merged with generateTypes now with llvm-codegen?
@@ -178,8 +178,8 @@ generateTypes sizes = mdo
     , columnTy = columnTy
     }
 
-generateFunctions :: ModuleCodegen Functions
-generateFunctions = mdo
+generateTableFunctions :: ModuleCodegen Table
+generateTableFunctions = mdo
   compareValues <- mkCompare
   nodeNew <- mkNodeNew
   nodeDelete <- mkNodeDelete
@@ -215,7 +215,7 @@ generateFunctions = mdo
   tree <- typeOf BTree
   iter <- typeOf Iterator
   value <- typeOf Value
-  pure Functions
+  pure Table
         { fnInit = btreeInit
         , fnInitEmpty = btreeInitEmpty
         , fnDestroy = btreeDestroy

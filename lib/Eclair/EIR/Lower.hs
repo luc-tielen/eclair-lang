@@ -200,14 +200,14 @@ lowerM f = gcata (distribute f)
 -- We need an Int somewhere later on during codegen.
 -- So we don't convert to a 'Suffix' at this point yet.
 type IntSuffix = Int
-type CacheT = StateT (Map Metadata (IntSuffix, Functions))
+type CacheT = StateT (Map Metadata (IntSuffix, Table))
 
 runCacheT :: Monad m => CacheT m a -> m (Map Metadata IntSuffix, a)
 runCacheT m = do
   (a, s) <- runStateT m mempty
   pure (map fst s, a)
 
-codegenRuntime :: Externals -> Metadata -> CacheT (ModuleBuilderT IO) Functions
+codegenRuntime :: Externals -> Metadata -> CacheT (ModuleBuilderT IO) Table
 codegenRuntime exts meta = gets (M.lookup meta) >>= \case
   Nothing -> do
     suffix <- gets length
@@ -247,7 +247,7 @@ codegenSymbolTable exts = do
     intoIO = pure . runIdentity
 
 -- TODO: add hash based on filepath of the file we're compiling?
-mkType :: Name -> [Functions] -> ModuleBuilderT IO LLVM.Type
+mkType :: Name -> [Table] -> ModuleBuilderT IO LLVM.Type
 mkType name fnss =
   typedef name Off tys
   where

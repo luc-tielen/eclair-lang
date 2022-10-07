@@ -2,8 +2,8 @@ module Eclair.EIR.Codegen
   ( CodegenM(..)
   , runCodegenM
   , LowerState(..)
+  , Table(..)
   , Externals(..)
-  , Functions(..)
   , labelToName
   , lsLookupFunction
   , lookupPrimOp
@@ -32,7 +32,7 @@ type Relation = EIR.Relation
 type EIR = EIR.EIR
 
 type VarMap = Map Text Operand
-type FunctionsMap = Map (Relation, Index) Functions
+type TableMap = Map (Relation, Index) Table
 
 data LowerState
   = LowerState
@@ -40,7 +40,7 @@ data LowerState
   , programSizeBytes :: Word64
   , symbolTableFns :: SymbolTable.SymbolTable
   , symbolFns :: Symbol.Symbol
-  , fnsMap :: FunctionsMap
+  , fnsMap :: TableMap
   , varMap :: VarMap
   , globalVarCounter :: Int
   , externals :: Externals

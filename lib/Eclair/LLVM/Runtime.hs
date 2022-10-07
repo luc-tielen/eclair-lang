@@ -1,15 +1,16 @@
 module Eclair.LLVM.Runtime
-  ( Functions(..)
+  ( Table(..)
   , Externals(..)
   ) where
 
 import LLVM.Codegen
 
--- TODO better name, indicating this is the functionality needed for a "container" / table => "Table"?
--- Like a vtable in C++, except here everything is guaranteed to be inlined
--- because of specialization.
-data Functions
-  = Functions
+-- A data type representing all functionality of a Datalog table / container.
+-- This is similar to a vtable in C++, except here everything is guaranteed to be inlined
+-- because of specialization. Each of the operands refers to a different LLVM function.
+-- The types are also "exported" because they are used in other parts of the code.
+data Table
+  = Table
   { fnInit :: Operand
   , fnInitEmpty :: Operand
   , fnDestroy :: Operand
@@ -32,7 +33,7 @@ data Functions
   , typeValue :: Type
   }
 
--- Functions that are defined outside of LLVM
+-- Functions that are defined outside of LLVM.
 data Externals
   = Externals
   { extMalloc :: Operand
