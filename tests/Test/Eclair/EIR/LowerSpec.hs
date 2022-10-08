@@ -658,7 +658,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         %5 = getelementptr %program, %program* %arg_0, i32 0, i32 4
         call ccc void @btree_end_0(%btree_t_0* %5, %btree_iterator_t_0* %end_iter_0)
         %6 = getelementptr %program, %program* %arg_0, i32 0, i32 1
-        call ccc void @btree_insert_range_0(%btree_t_0* %6, %btree_iterator_t_0* %begin_iter_0, %btree_iterator_t_0* %end_iter_0)
+        call ccc void @btree_insert_range_delta_path_path(%btree_t_0* %6, %btree_iterator_t_0* %begin_iter_0, %btree_iterator_t_0* %end_iter_0)
         br label %loop_0
       loop_0:
         %7 = getelementptr %program, %program* %arg_0, i32 0, i32 3
@@ -761,7 +761,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         %39 = getelementptr %program, %program* %arg_0, i32 0, i32 3
         call ccc void @btree_end_0(%btree_t_0* %39, %btree_iterator_t_0* %end_iter_3_0)
         %40 = getelementptr %program, %program* %arg_0, i32 0, i32 4
-        call ccc void @btree_insert_range_0(%btree_t_0* %40, %btree_iterator_t_0* %begin_iter_3_0, %btree_iterator_t_0* %end_iter_3_0)
+        call ccc void @btree_insert_range_path_new_path(%btree_t_0* %40, %btree_iterator_t_0* %begin_iter_3_0, %btree_iterator_t_0* %end_iter_3_0)
         %41 = getelementptr %program, %program* %arg_0, i32 0, i32 3
         %42 = getelementptr %program, %program* %arg_0, i32 0, i32 1
         call ccc void @btree_swap_0(%btree_t_0* %41, %btree_t_0* %42)
@@ -853,7 +853,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         %10 = getelementptr %program, %program* %arg_0, i32 0, i32 3
         call ccc void @btree_end_0(%btree_t_0* %10, %btree_iterator_t_0* %end_iter_0)
         %11 = getelementptr %program, %program* %arg_0, i32 0, i32 6
-        call ccc void @btree_insert_range_0(%btree_t_0* %11, %btree_iterator_t_0* %begin_iter_0, %btree_iterator_t_0* %end_iter_0)
+        call ccc void @btree_insert_range_delta_c_c(%btree_t_0* %11, %btree_iterator_t_0* %begin_iter_0, %btree_iterator_t_0* %end_iter_0)
         %begin_iter_1_0 = alloca %btree_iterator_t_0, i32 1
         %end_iter_1_0 = alloca %btree_iterator_t_0, i32 1
         %12 = getelementptr %program, %program* %arg_0, i32 0, i32 2
@@ -861,7 +861,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         %13 = getelementptr %program, %program* %arg_0, i32 0, i32 2
         call ccc void @btree_end_0(%btree_t_0* %13, %btree_iterator_t_0* %end_iter_1_0)
         %14 = getelementptr %program, %program* %arg_0, i32 0, i32 5
-        call ccc void @btree_insert_range_0(%btree_t_0* %14, %btree_iterator_t_0* %begin_iter_1_0, %btree_iterator_t_0* %end_iter_1_0)
+        call ccc void @btree_insert_range_delta_b_b(%btree_t_0* %14, %btree_iterator_t_0* %begin_iter_1_0, %btree_iterator_t_0* %end_iter_1_0)
         br label %loop_0
       loop_0:
         %15 = getelementptr %program, %program* %arg_0, i32 0, i32 8
@@ -1025,7 +1025,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         %58 = getelementptr %program, %program* %arg_0, i32 0, i32 8
         call ccc void @btree_end_0(%btree_t_0* %58, %btree_iterator_t_0* %end_iter_6_0)
         %59 = getelementptr %program, %program* %arg_0, i32 0, i32 3
-        call ccc void @btree_insert_range_0(%btree_t_0* %59, %btree_iterator_t_0* %begin_iter_6_0, %btree_iterator_t_0* %end_iter_6_0)
+        call ccc void @btree_insert_range_c_new_c(%btree_t_0* %59, %btree_iterator_t_0* %begin_iter_6_0, %btree_iterator_t_0* %end_iter_6_0)
         %60 = getelementptr %program, %program* %arg_0, i32 0, i32 8
         %61 = getelementptr %program, %program* %arg_0, i32 0, i32 6
         call ccc void @btree_swap_0(%btree_t_0* %60, %btree_t_0* %61)
@@ -1036,7 +1036,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         %63 = getelementptr %program, %program* %arg_0, i32 0, i32 7
         call ccc void @btree_end_0(%btree_t_0* %63, %btree_iterator_t_0* %end_iter_7_0)
         %64 = getelementptr %program, %program* %arg_0, i32 0, i32 2
-        call ccc void @btree_insert_range_0(%btree_t_0* %64, %btree_iterator_t_0* %begin_iter_7_0, %btree_iterator_t_0* %end_iter_7_0)
+        call ccc void @btree_insert_range_b_new_b(%btree_t_0* %64, %btree_iterator_t_0* %begin_iter_7_0, %btree_iterator_t_0* %end_iter_7_0)
         %65 = getelementptr %program, %program* %arg_0, i32 0, i32 7
         %66 = getelementptr %program, %program* %arg_0, i32 0, i32 5
         call ccc void @btree_swap_0(%btree_t_0* %65, %btree_t_0* %66)
@@ -1191,7 +1191,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         %15 = getelementptr %program, %program* %arg_0, i32 0, i32 4
         call ccc void @btree_end_0(%btree_t_0* %15, %btree_iterator_t_0* %end_iter_1_0)
         %16 = getelementptr %program, %program* %arg_0, i32 0, i32 1
-        call ccc void @btree_insert_range_0(%btree_t_0* %16, %btree_iterator_t_0* %begin_iter_1_0, %btree_iterator_t_0* %end_iter_1_0)
+        call ccc void @btree_insert_range_delta_path_path(%btree_t_0* %16, %btree_iterator_t_0* %begin_iter_1_0, %btree_iterator_t_0* %end_iter_1_0)
         br label %loop_1
       loop_1:
         %17 = getelementptr %program, %program* %arg_0, i32 0, i32 3
@@ -1294,7 +1294,7 @@ spec = describe "LLVM Code Generation" $ parallel $ do
         %49 = getelementptr %program, %program* %arg_0, i32 0, i32 3
         call ccc void @btree_end_0(%btree_t_0* %49, %btree_iterator_t_0* %end_iter_4_0)
         %50 = getelementptr %program, %program* %arg_0, i32 0, i32 4
-        call ccc void @btree_insert_range_0(%btree_t_0* %50, %btree_iterator_t_0* %begin_iter_4_0, %btree_iterator_t_0* %end_iter_4_0)
+        call ccc void @btree_insert_range_path_new_path(%btree_t_0* %50, %btree_iterator_t_0* %begin_iter_4_0, %btree_iterator_t_0* %end_iter_4_0)
         %51 = getelementptr %program, %program* %arg_0, i32 0, i32 3
         %52 = getelementptr %program, %program* %arg_0, i32 0, i32 1
         call ccc void @btree_swap_0(%btree_t_0* %51, %btree_t_0* %52)

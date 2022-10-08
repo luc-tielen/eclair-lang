@@ -6,9 +6,9 @@ module Eclair.LLVM.Symbol
   ) where
 
 import Prelude hiding (Symbol, void)
-import LLVM.Codegen
 import Control.Monad.Morph
-import Eclair.LLVM.Runtime
+import Eclair.LLVM.Codegen
+import Eclair.LLVM.Externals
 
 
 data Symbol

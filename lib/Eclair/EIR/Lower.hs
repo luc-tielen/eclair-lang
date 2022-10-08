@@ -24,7 +24,7 @@ import Eclair.EIR.Codegen
 import Eclair.LLVM.Codegen as LLVM
 import Eclair.LLVM.Metadata
 import Eclair.LLVM.Hash
-import Eclair.LLVM.Runtime
+import Eclair.LLVM.Externals
 import Eclair.RA.IndexSelection
 import Eclair.Comonads
 import Eclair.AST.IR
@@ -74,10 +74,10 @@ compileToLLVM = \case
       _ ->
         panic "Unexpected top level EIR declaration when compiling to LLVM!"
 
-fnBodyToLLVM :: [Operand] -> EIR -> CodegenM ()
+fnBodyToLLVM :: MonadFix m => [Operand] -> EIR -> CodegenT m ()
 fnBodyToLLVM args = lowerM instrToOperand instrToUnit
   where
-    instrToOperand :: EIRF (EIR, CodegenM Operand) -> CodegenM Operand
+    instrToOperand :: Monad m => EIRF (EIR, CodegenT m Operand) -> CodegenT m Operand
     instrToOperand = \case
       EIR.FunctionArgF pos ->
         pure $ args !! pos
@@ -100,8 +100,6 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
         valueA <- loadIfNeeded lhs a
         valueB <- loadIfNeeded rhs b
         valueA `eq` valueB
-      EIR.CallF r idx fn (map snd -> args) ->
-        doCall r idx fn args
       EIR.PrimOpF op (map snd -> args) ->
         doPrimOp op args
       EIR.HeapAllocateProgramF -> do
@@ -119,7 +117,7 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
         globalUtf8StringPtr value varName
       _ ->
         panic "Unhandled pattern match case in 'instrToOperand' while lowering EIR to LLVM!"
-    instrToUnit :: (EIRF (Triple EIR (CodegenM Operand) (CodegenM ())) -> CodegenM ())
+    instrToUnit :: MonadFix m => (EIRF (Triple EIR (CodegenT m Operand) (CodegenT m ())) -> CodegenT m ())
     instrToUnit = \case
       EIR.BlockF stmts -> do
         traverse_ toInstrs stmts
@@ -146,8 +144,6 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
         program <- programVar
         memory <- program `bitcast` ptr i8 `named` "memory"
         Prelude.void $ call freeFn [memory]
-      EIR.CallF r idx fn (map toOperand -> args) ->
-        Prelude.void $ doCall r idx fn args
       EIR.PrimOpF op (map toOperand -> args) ->
         Prelude.void $ doPrimOp op args
       EIR.LoopF stmts ->
@@ -168,12 +164,7 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
     toOperandWithContext (Triple eir operand _) =
       (operand, eir)
     toInstrs (Triple _ _ instrs) = instrs
-    doCall :: Relation -> Index -> EIR.Function -> [CodegenM Operand] -> CodegenM Operand
-    doCall r idx fn args = do
-      argOperands <- sequence args
-      func <- lookupFunction r idx fn
-      call func argOperands
-    doPrimOp :: EIR.Op -> [CodegenM Operand] -> CodegenM Operand
+    doPrimOp :: Monad m => EIR.Op -> [CodegenT m Operand] -> CodegenT m Operand
     doPrimOp op args = do
       argOperands <- sequence args
       fn <- lookupPrimOp op
@@ -190,10 +181,10 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
 -- para effect is needed since we need access to the original subtree in the
 -- assignment case to check if we are assigning to a variable or not, allowing
 -- us to easily transform an "expression-oriented" EIR to statement based LLVM IR.
-lowerM :: (EIRF (EIR, CodegenM Operand) -> CodegenM Operand)
-       -> (EIRF (Triple EIR (CodegenM Operand) (CodegenM ())) -> CodegenM ())
+lowerM :: (EIRF (EIR, CodegenT m Operand) -> CodegenT m Operand)
+       -> (EIRF (Triple EIR (CodegenT m Operand) (CodegenT m ())) -> CodegenT m ())
        -> EIR
-       -> CodegenM ()
+       -> CodegenT m ()
 lowerM f = gcata (distribute f)
   where
     distribute
@@ -209,14 +200,14 @@ lowerM f = gcata (distribute f)
 -- We need an Int somewhere later on during codegen.
 -- So we don't convert to a 'Suffix' at this point yet.
 type IntSuffix = Int
-type CacheT = StateT (Map Metadata (IntSuffix, Functions))
+type CacheT = StateT (Map Metadata (IntSuffix, Table))
 
 runCacheT :: Monad m => CacheT m a -> m (Map Metadata IntSuffix, a)
 runCacheT m = do
   (a, s) <- runStateT m mempty
   pure (map fst s, a)
 
-codegenRuntime :: Externals -> Metadata -> CacheT (ModuleBuilderT IO) Functions
+codegenRuntime :: Externals -> Metadata -> CacheT (ModuleBuilderT IO) Table
 codegenRuntime exts meta = gets (M.lookup meta) >>= \case
   Nothing -> do
     suffix <- gets length
@@ -256,7 +247,7 @@ codegenSymbolTable exts = do
     intoIO = pure . runIdentity
 
 -- TODO: add hash based on filepath of the file we're compiling?
-mkType :: Name -> [Functions] -> ModuleBuilderT IO LLVM.Type
+mkType :: Name -> [Table] -> ModuleBuilderT IO LLVM.Type
 mkType name fnss =
   typedef name Off tys
   where
@@ -295,7 +286,7 @@ generateAddFactsFn = do
   let relations = getRelations metas
       mapping = getFactTypeMapping metas
 
-  -- NOTE: this assumes there are no more than 65536 facts in a single Datalog program
+  -- NOTE: this assumes there are no more than 65536 fact types in a single Datalog program
   let args = [ (ptr (programType lowerState), ParameterName "eclair_program")
              , (i16, ParameterName "fact_type")
              , (ptr i32, ParameterName "memory")
@@ -314,7 +305,8 @@ generateAddFactsFn = do
 
         loopFor (int32 0) (`ult` factCount) (add (int32 1)) $ \i -> do
           valuePtr <- gep arrayPtr [i]
-          call (lsLookupFunction r idx EIR.Insert lowerState) [relationPtr, valuePtr]
+          fn <- toCodegenInOut lowerState $ lookupFunction r idx EIR.Insert
+          call fn [relationPtr, valuePtr]
 
 generateGetFactsFn :: MonadFix m => CodegenInOutT (ModuleBuilderT m) Operand
 generateGetFactsFn = do
@@ -328,8 +320,9 @@ generateGetFactsFn = do
     switchOnFactType metas (ret $ nullPtr i32) factType $ \r -> do
       let indexes = indexesFor lowerState r
           idx = fromJust $ viaNonEmpty head indexes  -- TODO: which idx? just select first matching?
-          lookupFn fn = lsLookupFunction r idx fn lowerState
-          doCall fn = call (lookupFn fn)
+          doCall op args = do
+            fn <- toCodegenInOut lowerState $ lookupFunction r idx op
+            call fn args
           numCols = factNumColumns r metas
           valueSize = 4 * numCols  -- TODO: should use LLVM "valueSize" instead of re-calculating here
           treeOffset = int32 $ toInteger $ getContainerOffset metas r idx
@@ -381,9 +374,10 @@ generateFactCountFn = do
   function "eclair_fact_count" args returnType $ \[program, factType] -> do
     switchOnFactType metas (ret $ int64 0) factType $ \r -> do
       let indexes = indexesFor lowerState r
-          idx = fromJust $ viaNonEmpty head indexes  -- TODO: which idx? just select first matching?
-          lookupFn fn = lsLookupFunction r idx fn lowerState
-          doCall fn = call (lookupFn fn)
+          idx = fromJust $ viaNonEmpty head indexes  -- TODO: which idx? just select first matching? or idx on all columns?
+          doCall op args = do
+            fn <- toCodegenInOut lowerState $ lookupFunction r idx op
+            call fn args
           treeOffset = int32 $ toInteger $ getContainerOffset metas r idx
       relationPtr <- gep program [int32 0, treeOffset]
       relationSize <- doCall EIR.Size [relationPtr]
@@ -443,6 +437,10 @@ generateDecodeStringFn = do
     ret $ nullPtr i8
 
 -- TODO: move all lower level code below to Codegen.hs to keep high level overview here!
+
+toCodegenInOut :: Monad m => LowerState -> CodegenT m Operand -> IRBuilderT (CodegenInOutT (ModuleBuilderT m)) Operand
+toCodegenInOut lowerState m =
+  hoist lift $ runCodegenM m lowerState
 
 getSymbolTablePtr :: (MonadNameSupply m, MonadModuleBuilder m, MonadIRBuilder m)
                   => Operand -> m Operand

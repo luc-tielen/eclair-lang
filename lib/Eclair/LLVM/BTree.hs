@@ -13,8 +13,9 @@ import Control.Monad.Morph
 import Control.Monad.Fix
 import qualified Data.Map as Map
 import Eclair.LLVM.Codegen
+import Eclair.LLVM.Table
+import Eclair.LLVM.Externals
 import Eclair.LLVM.Hash
-import Eclair.LLVM.Runtime
 import Prettyprinter
 
 
@@ -89,13 +90,13 @@ type IRCodegen = IRBuilderT ModuleCodegen
 type ModuleCodegen = ReaderT CGState (Template Meta)
 
 
-codegen :: Externals -> TemplateT Meta IO Functions
+codegen :: Externals -> TemplateT Meta IO Table
 codegen exts = do
   settings <- getParams
   sizes <- computeSizes
   hoist intoIO $ do
     tys <- generateTypes sizes
-    runReaderT generateFunctions $ CGState tys sizes exts
+    runReaderT generateTableFunctions $ CGState tys sizes exts
   where intoIO = pure . runIdentity
 
 -- TODO: can be merged with generateTypes now with llvm-codegen?
@@ -178,8 +179,13 @@ generateTypes sizes = mdo
     , columnTy = columnTy
     }
 
-generateFunctions :: ModuleCodegen Functions
-generateFunctions = mdo
+generateTableFunctions :: ModuleCodegen Table
+generateTableFunctions = mdo
+  meta <- getParams
+  tree <- typeOf BTree
+  iter <- typeOf Iterator
+  value <- typeOf Value
+
   compareValues <- mkCompare
   nodeNew <- mkNodeNew
   nodeDelete <- mkNodeDelete
@@ -202,7 +208,15 @@ generateFunctions = mdo
   isEmptyTree <- mkBtreeIsEmpty
   btreeSize <- mkBtreeSize nodeCountEntries
   btreeInsert <- mkBtreeInsertValue nodeNew rebalanceOrSplit compareValues searchLowerBound searchUpperBound isEmptyTree
-  btreeInsertRange <- mkBtreeInsertRange iterIsEqual iterCurrent iterNext btreeInsert
+  btreeInsertRangeTemplate <- mkBtreeInsertRangeTemplate btreeInsert
+  -- We need to instantiate it atleast once for use in the BTree itself.
+  let iterParams = IteratorParams
+        { ipIterCurrent = iterCurrent
+        , ipIterNext = iterNext
+        , ipIterIsEqual = iterIsEqual
+        , ipTypeIter = iter
+        }
+  btreeInsertRange <- lift $ partialInstantiate iterParams btreeInsertRangeTemplate
   btreeBegin <- mkBtreeBegin
   btreeEnd <- mkBtreeEnd iterInitEnd
   btreeContains <- mkBtreeContains iterIsEqual btreeFind btreeEnd
@@ -212,10 +226,7 @@ generateFunctions = mdo
   btreeClear <- mkBtreeClear nodeDelete
   btreeSwap <- mkBtreeSwap
 
-  tree <- typeOf BTree
-  iter <- typeOf Iterator
-  value <- typeOf Value
-  pure Functions
+  pure Table
         { fnInit = btreeInit
         , fnInitEmpty = btreeInitEmpty
         , fnDestroy = btreeDestroy
@@ -224,7 +235,7 @@ generateFunctions = mdo
         , fnBegin = btreeBegin
         , fnEnd = btreeEnd
         , fnInsert = btreeInsert
-        , fnInsertRange = btreeInsertRange
+        , fnInsertRangeTemplate = btreeInsertRangeTemplate
         , fnIsEmpty = isEmptyTree
         , fnSize = btreeSize
         , fnLowerBound = btreeLowerBound
@@ -944,20 +955,24 @@ mkBtreeInsertValue nodeNew rebalanceOrSplit compareValues searchLowerBound searc
       update (metaOf ->> numElemsOf) current (add (int16 1))
       br inserted
 
-mkBtreeInsertRange :: Operand -> Operand -> Operand -> Operand -> ModuleCodegen Operand
-mkBtreeInsertRange iterIsEqual iterCurrent iterNext btreeInsertValue = do
+mkBtreeInsertRangeTemplate :: Operand -> ModuleCodegen (Template IteratorParams Operand)
+mkBtreeInsertRangeTemplate btreeInsertValue = do
+  -- Context of BTree template
   tree <- typeOf BTree
-  iter <- typeOf Iterator
-  let args = [(ptr tree, "tree"), (ptr iter, "begin"), (ptr iter, "end")]
-
-  function "btree_insert_range" args void $ \[t, begin, end] -> do
-    let loopCondition = do
-          isEqual <- call iterIsEqual [begin, end]
-          not' isEqual
-    loopWhile loopCondition $ do
-      val <- call iterCurrent [begin]
-      _ <- call btreeInsertValue [t, val]
-      call iterNext [begin]
+  pure $ do
+    -- Context of insert range template
+    iterParams <- getParams
+    let iterTy = ipTypeIter iterParams
+        args = [(ptr tree, "tree"), (ptr iterTy, "begin"), (ptr iterTy, "end")]
+    function "btree_insert_range" args void $ \[t, begin, end] -> do
+      let loopCondition = do
+            isEqual <- call (ipIterIsEqual iterParams) [begin, end]
+            not' isEqual
+      loopWhile loopCondition $ do
+        -- NOTE: Can directly insert value in other btree, same array type!
+        val <- call (ipIterCurrent iterParams) [begin]
+        _ <- call btreeInsertValue [t, val]
+        call (ipIterNext iterParams) [begin]
 
 mkBtreeBegin :: ModuleCodegen Operand
 mkBtreeBegin = do

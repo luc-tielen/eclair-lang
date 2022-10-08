@@ -8,6 +8,7 @@ module Eclair.LLVM.Template
   , Suffix
   , cmapParams
   , instantiate
+  , partialInstantiate
   , function
   , typedef
   ) where
@@ -112,6 +113,19 @@ cmapParams f (TemplateT m) =
 instantiate :: Suffix -> p -> TemplateT p m a -> ModuleBuilderT m a
 instantiate suffix p (TemplateT t) =
   runReaderT t (suffix, p)
+
+-- This instantiates a template and wraps it into another template.
+-- Useful for templated member functions on a templated object.
+partialInstantiate :: Monad m => p1 -> TemplateT p1 m a -> TemplateT p2 m a
+partialInstantiate p t = do
+  suffix <- getSuffix
+  embedIntoTemplate $ instantiate suffix p t
+  where
+    -- This embeds a plain ModuleBuilderT action into a template.
+    -- This action has no access to the actual template params from this point onwards.
+    embedIntoTemplate :: ModuleBuilderT m a -> TemplateT p m a
+    embedIntoTemplate m = TemplateT $ ReaderT $ const m
+
 
 -- The next functions replace the corresponding functions defined in llvm-codegen.
 -- The functions automatically add a suffix if needed, to guarantee unique function names.
