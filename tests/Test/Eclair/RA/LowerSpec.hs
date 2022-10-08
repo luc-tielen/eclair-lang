@@ -636,7 +636,7 @@ spec = describe "EIR Code Generation" $ parallel $ do
         end_iter = path.stack_allocate Iter
         path.iter_begin(FN_ARG[0].4, begin_iter)
         path.iter_end(FN_ARG[0].4, end_iter)
-        path.insert_range(FN_ARG[0].1, begin_iter, end_iter)
+        delta_path.insert_range<path[0, 1]>(FN_ARG[0].1, begin_iter, end_iter)
         loop
         {
           new_path.purge(FN_ARG[0].3)
@@ -703,7 +703,7 @@ spec = describe "EIR Code Generation" $ parallel $ do
           end_iter_3 = path.stack_allocate Iter
           new_path.iter_begin(FN_ARG[0].3, begin_iter_3)
           new_path.iter_end(FN_ARG[0].3, end_iter_3)
-          new_path.insert_range(FN_ARG[0].4, begin_iter_3, end_iter_3)
+          path.insert_range<new_path[0, 1]>(FN_ARG[0].4, begin_iter_3, end_iter_3)
           new_path.swap(FN_ARG[0].3, FN_ARG[0].1)
         }
         loop.end:
@@ -776,12 +776,12 @@ spec = describe "EIR Code Generation" $ parallel $ do
         end_iter = c.stack_allocate Iter
         c.iter_begin(FN_ARG[0].3, begin_iter)
         c.iter_end(FN_ARG[0].3, end_iter)
-        c.insert_range(FN_ARG[0].6, begin_iter, end_iter)
+        delta_c.insert_range<c[0]>(FN_ARG[0].6, begin_iter, end_iter)
         begin_iter_1 = b.stack_allocate Iter
         end_iter_1 = b.stack_allocate Iter
         b.iter_begin(FN_ARG[0].2, begin_iter_1)
         b.iter_end(FN_ARG[0].2, end_iter_1)
-        b.insert_range(FN_ARG[0].5, begin_iter_1, end_iter_1)
+        delta_b.insert_range<b[0]>(FN_ARG[0].5, begin_iter_1, end_iter_1)
         loop
         {
           new_c.purge(FN_ARG[0].8)
@@ -898,13 +898,13 @@ spec = describe "EIR Code Generation" $ parallel $ do
           end_iter_6 = c.stack_allocate Iter
           new_c.iter_begin(FN_ARG[0].8, begin_iter_6)
           new_c.iter_end(FN_ARG[0].8, end_iter_6)
-          new_c.insert_range(FN_ARG[0].3, begin_iter_6, end_iter_6)
+          c.insert_range<new_c[0]>(FN_ARG[0].3, begin_iter_6, end_iter_6)
           new_c.swap(FN_ARG[0].8, FN_ARG[0].6)
           begin_iter_7 = b.stack_allocate Iter
           end_iter_7 = b.stack_allocate Iter
           new_b.iter_begin(FN_ARG[0].7, begin_iter_7)
           new_b.iter_end(FN_ARG[0].7, end_iter_7)
-          new_b.insert_range(FN_ARG[0].2, begin_iter_7, end_iter_7)
+          b.insert_range<new_b[0]>(FN_ARG[0].2, begin_iter_7, end_iter_7)
           new_b.swap(FN_ARG[0].7, FN_ARG[0].5)
         }
         loop.end:
@@ -1023,7 +1023,7 @@ spec = describe "EIR Code Generation" $ parallel $ do
         end_iter_1 = path.stack_allocate Iter
         path.iter_begin(FN_ARG[0].4, begin_iter_1)
         path.iter_end(FN_ARG[0].4, end_iter_1)
-        path.insert_range(FN_ARG[0].1, begin_iter_1, end_iter_1)
+        delta_path.insert_range<path[0, 1]>(FN_ARG[0].1, begin_iter_1, end_iter_1)
         loop
         {
           new_path.purge(FN_ARG[0].3)
@@ -1090,7 +1090,7 @@ spec = describe "EIR Code Generation" $ parallel $ do
           end_iter_4 = path.stack_allocate Iter
           new_path.iter_begin(FN_ARG[0].3, begin_iter_4)
           new_path.iter_end(FN_ARG[0].3, end_iter_4)
-          new_path.insert_range(FN_ARG[0].4, begin_iter_4, end_iter_4)
+          path.insert_range<new_path[0, 1]>(FN_ARG[0].4, begin_iter_4, end_iter_4)
           new_path.swap(FN_ARG[0].3, FN_ARG[0].1)
         }
         loop.end:

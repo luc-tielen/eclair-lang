@@ -101,7 +101,6 @@ searchesForProgram typeInfo ra =
         let cs = columnsFor cols
             signature = SearchSignature $ Set.fromList cs
         addFact $ SearchOn r signature
-      MergeF r1 r2 -> addFact $ Related r1 r2
       SwapF r1 r2  -> addFact $ Related r1 r2
       raf -> traverse_ tThd raf
 

@@ -8,8 +8,8 @@ module Eclair.LLVM.Vector
 
 import Prelude hiding (EQ, void)
 import Control.Monad.Morph
-import Eclair.LLVM.Runtime
 import Eclair.LLVM.Codegen
+import Eclair.LLVM.Externals
 
 data Types
   = Types

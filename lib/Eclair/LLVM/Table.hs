@@ -1,9 +1,18 @@
-module Eclair.LLVM.Runtime
+module Eclair.LLVM.Table
   ( Table(..)
-  , Externals(..)
+  , IteratorParams(..)
   ) where
 
-import LLVM.Codegen
+import Eclair.LLVM.Codegen (Operand, Type, Template)
+
+-- A data type used as template params for 'fnInsertRange' defined below.
+data IteratorParams
+  = IteratorParams
+  { ipIterCurrent :: Operand
+  , ipIterNext :: Operand
+  , ipIterIsEqual :: Operand
+  , ipTypeIter :: Type
+  }
 
 -- A data type representing all functionality of a Datalog table / container.
 -- This is similar to a vtable in C++, except here everything is guaranteed to be inlined
@@ -24,21 +33,11 @@ data Table
   , fnUpperBound :: Operand
   , fnContains :: Operand
   , fnInsert :: Operand
-  , fnInsertRange :: Operand
+  , fnInsertRangeTemplate :: Template IteratorParams Operand
   , fnIterIsEqual :: Operand
   , fnIterCurrent :: Operand
   , fnIterNext :: Operand
   , typeObj :: Type
   , typeIter :: Type
   , typeValue :: Type
-  }
-
--- Functions that are defined outside of LLVM.
-data Externals
-  = Externals
-  { extMalloc :: Operand
-  , extFree :: Operand
-  , extMemset :: Operand
-  , extMemcpy :: Operand
-  , extMemcmp :: Operand
   }

@@ -7,9 +7,9 @@ module Eclair.LLVM.HashMap
 import Prelude hiding (void, HashMap)
 import Control.Monad.Morph
 import Eclair.LLVM.Codegen
+import Eclair.LLVM.Externals
 import qualified Eclair.LLVM.Symbol as Symbol
 import qualified Eclair.LLVM.Vector as Vector
-import Eclair.LLVM.Runtime
 
 -- NOTE: this is a really naive hashmap (no growing / re-hashing yet),
 -- should be replaced by something more sophisticated, like:

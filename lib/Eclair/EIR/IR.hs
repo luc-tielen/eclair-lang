@@ -34,7 +34,7 @@ data Function
   | Destroy
   | Purge
   | Swap
-  | InsertRange
+  | InsertRange Relation Index  -- InsertRange specialized for this relation and index
   | IsEmpty
   | Size
   | Contains
@@ -113,7 +113,7 @@ instance Pretty Function where
     Destroy -> "destroy"
     Purge -> "purge"
     Swap -> "swap"
-    InsertRange -> "insert_range"
+    InsertRange r idx -> "insert_range" <> angles (pretty r <> pretty idx)
     IsEmpty -> "is_empty"
     Contains -> "contains"
     Insert -> "insert"

@@ -12,7 +12,6 @@ import Control.Monad.Morph
 import Foreign.ForeignPtr
 import Foreign.Ptr
 import qualified LLVM.C.API as LibLLVM
-import Eclair.LLVM.Runtime
 import Eclair.LLVM.Template
 import LLVM.Codegen hiding (function, typedef, typeOf)
 

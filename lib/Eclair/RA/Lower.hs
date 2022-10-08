@@ -133,19 +133,22 @@ generateProgramInstructions = gcata (distribute extractEqualities) $ \case
   RA.SwapF r1 r2 ->
     block =<< relationBinFn r1 r2 EIR.Swap
   RA.MergeF r1 r2 -> do
-    -- NOTE: r1 = from/src, r2 = to/dst, r1 and r2 have same underlying structure
-    indices <- indexesForRelation r1
-    block $ flip map indices $ \idx -> do
+    -- NOTE: r1 = from/src, r2 = to/dst
+    -- TODO: which idx? just select first matching? or idx on all columns?
+    idxR1 <- head <$> indexesForRelation r1
+    let relation1Ptr = lookupRelationByIndex r1 idxR1
+
+    indices2 <- indexesForRelation r2
+    block $ flip map indices2 $ \idxR2 -> do
       beginIter <- var "begin_iter"
       endIter <- var "end_iter"
-      let relation1Ptr = lookupRelationByIndex r1 idx
-          relation2Ptr = lookupRelationByIndex r2 idx
+      let relation2Ptr = lookupRelationByIndex r2 idxR2
       block
-        [ assign beginIter $ stackAlloc r1 idx EIR.Iter
-        , assign endIter $ stackAlloc r1 idx EIR.Iter
-        , call r1 idx EIR.IterBegin [relation1Ptr, beginIter]
-        , call r1 idx EIR.IterEnd [relation1Ptr, endIter]
-        , call r1 idx EIR.InsertRange [relation2Ptr, beginIter, endIter]
+        [ assign beginIter $ stackAlloc r1 idxR1 EIR.Iter
+        , assign endIter $ stackAlloc r1 idxR1 EIR.Iter
+        , call r1 idxR1 EIR.IterBegin [relation1Ptr, beginIter]
+        , call r1 idxR1 EIR.IterEnd [relation1Ptr, endIter]
+        , call r2 idxR2 (EIR.InsertRange r1 idxR1) [relation2Ptr, beginIter, endIter]
         ]
   RA.LoopF (map extract -> actions) -> do
     end <- labelId "loop.end"
