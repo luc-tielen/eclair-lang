@@ -40,6 +40,7 @@ spec = describe "parsing" $ parallel $ do
       fact("a").
       fact(  "b"   ).
       fact(  "c"   , "d","e"   ).
+      fact("\"\n\r\t\b\f\v\0").
       |]
 
   it "parses top level facts" $ do

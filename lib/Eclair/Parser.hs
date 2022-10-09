@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedLists #-}
-
 module Eclair.Parser
   ( parseFile
   , parseText
@@ -173,15 +171,22 @@ identifier = Id <$> do
   when (parsed `V.elem` reserved) $ do
     fail . toString $ "Reserved keyword: " <> parsed
   pure parsed
-  where isIdentifierChar c = isAlphaNum c || c == '_'
-        reserved = []
+  where
+    isIdentifierChar c = isAlphaNum c || c == '_'
+
+-- List of reserved words, not allowed to be used in identifiers.
+reserved :: V.Vector Text
+reserved = V.fromList []
 
 literal :: Parser Literal
 literal = number <|> string
 
+digitVector :: V.Vector Char
+digitVector = V.fromList ['1'..'9']
+
 number :: Parser Literal
 number = LNumber <$> do
-  firstDigit <- P.satisfy (`V.elem` ['1'..'9']) P.<?> "non-zero digit"
+  firstDigit <- P.satisfy (`V.elem` digitVector) P.<?> "non-zero digit"
   digits <- P.takeWhileP Nothing isDigit
   P.notFollowedBy P.letterChar
   case TR.decimal $ T.cons firstDigit digits of
@@ -191,7 +196,25 @@ number = LNumber <$> do
 string :: Parser Literal
 string = LString <$> do
   P.between ("\"" P.<?> "string literal") "\"" $
-    P.takeWhileP Nothing (/= '"')
+    toText <$> many (P.try escaped <|> normal)
+  where
+    escaped = do
+      void $ P.char '\\'
+      toEscapedChar <$> P.satisfy isEscapeChar
+    isEscapeChar c =
+      c `elem` ['"', '\\', 'n', 'r', 't', 'b', 'f', 'v', '0']
+    toEscapedChar = \case
+      '"' -> '\"'
+      '\\' -> '\\'
+      'n' -> '\n'
+      'r' -> '\r'
+      't' -> '\t'
+      'b' -> '\b'
+      'f' -> '\f'
+      'v' -> '\v'
+      '0' -> '\0'
+      _ -> panic "Unreachable code in string parser!"
+    normal = P.anySingleBut '"'
 
 lexeme :: Parser a -> Parser a
 lexeme = L.lexeme whitespace
