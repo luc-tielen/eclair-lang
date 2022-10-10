@@ -26,12 +26,17 @@
       eachSystem [ "x86_64-linux" ] (system:
         let
           ghcVersion = "902";
+          llvmVersion = 14;
           version = "${ghcVersion}.${substring 0 8 self.lastModifiedDate}.${
               self.shortRev or "dirty"
             }";
           config = {};
           overlay = final: _:
             let
+              wasmPackages = rec {
+                llvmPkgs = final."llvmPackages_${toString llvmVersion}";
+                inherit (llvmPkgs) llvm libllvm bintools-unwrapped;
+              };
               haskellPackages =
                 final.haskell.packages."ghc${ghcVersion}".override {
                   overrides = hf: hp:
@@ -60,7 +65,7 @@
                         });
                     };
                 };
-            in { inherit haskellPackages; };
+            in { inherit haskellPackages wasmPackages; };
           pkgs = import np {
             inherit system config;
             overlays = [
@@ -80,20 +85,22 @@
             packages = with pkgs;
               with haskellPackages; [
                 souffle
-                pkgs.llvmPackages_14.llvm.dev
                 pkgs.ghcid
+                wasmPackages.libllvm
+                wasmPackages.llvm.dev
+                wasmPackages.bintools-unwrapped
                 (ghcWithPackages (p:
                   with p; [
                     algebraic-graphs
-                    hspec-discover
-                    llvm-codegen
-                    souffle-haskell
-                    ghc
                     cabal-install
+                    ghc
                     hsc2hs
                     hpack
                     haskell-language-server
                     hlint
+                    hspec-discover
+                    llvm-codegen
+                    souffle-haskell
                   ]))
               ];
             # Next line always sets DATALOG_DIR so souffle can find the datalog files in interpreted mode.
