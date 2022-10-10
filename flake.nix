@@ -9,7 +9,8 @@
     hls.url = "github:haskell/haskell-language-server?ref=master";
     shs.url =
       "github:luc-tielen/souffle-haskell?rev=c46d0677e4bc830df89ec1de2396c562eb9d86d3";
-    llvm-cg.url = "github:smunix/llvm-codegen?fix.x86_64-linux";
+    llvm-cg.url = "github:luc-tielen/llvm-codegen";
+    llvm-cg.flake = false;
     alga.url =
       "github:snowleopard/alga?rev=75de41a4323ab9e58ca49dbd78b77f307b189795";
     alga.flake = false;
@@ -33,7 +34,7 @@
         config = { };
         overlay = final: _:
           let
-            wasmPackages = rec {
+            llvmPackages = rec {
               llvmPkgs = final."llvmPackages_${toString llvmVersion}";
               inherit (llvmPkgs) llvm libllvm bintools-unwrapped;
             };
@@ -51,11 +52,11 @@
                               root = inputs.llvm-cg;
                               exclude = [ ("Setup.hs") ];
                             }) {
-                              llvm-config = wasmPackages.llvm;
+                              llvm-config = llvmPackages.llvm;
                             }).overrideAttrs
                             (old: { version = "${old.version}-${version}"; }))
                           [ "--ghc-option=-optl=-lLLVM" ])))))
-                      [ wasmPackages.llvm.dev ];
+                      [ llvmPackages.llvm.dev ];
 
                     algebraic-graphs = with hf;
                       dontCheck
@@ -82,10 +83,10 @@
                                   runHook postCheck
                                 '';
                               })) [ "--ghc-option=-optl=-lLLVM" ])))))
-                      [ wasmPackages.llvm.dev ];
+                      [ llvmPackages.llvm.dev ];
                   };
               };
-          in { inherit haskellPackages wasmPackages; };
+          in { inherit haskellPackages llvmPackages; };
         pkgs = import np {
           inherit system config;
           overlays = [
@@ -105,9 +106,9 @@
             with haskellPackages; [
               souffle
               pkgs.ghcid
-              wasmPackages.libllvm
-              wasmPackages.llvm.dev
-              wasmPackages.bintools-unwrapped
+              llvmPackages.libllvm
+              llvmPackages.llvm.dev
+              llvmPackages.bintools-unwrapped
               (ghcWithPackages (p:
                 with p; [
                   algebraic-graphs
