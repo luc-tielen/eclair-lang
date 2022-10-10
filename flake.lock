@@ -471,15 +471,14 @@
       "locked": {
         "lastModified": 1664570718,
         "narHash": "sha256-ySuqcpGH4FpdTDl8MR/IxRWbYYQDQPBVyLgc0nzxLMc=",
-        "owner": "luc-tielen",
+        "owner": "smunix",
         "repo": "llvm-codegen",
         "rev": "83306c9da879b80be674ef7cf910aaf158160b69",
         "type": "github"
       },
       "original": {
-        "owner": "luc-tielen",
+        "owner": "smunix",
         "repo": "llvm-codegen",
-        "rev": "83306c9da879b80be674ef7cf910aaf158160b69",
         "type": "github"
       }
     },
@@ -517,6 +516,22 @@
       "original": {
         "type": "tarball",
         "url": "https://hackage.haskell.org/package/lsp-types-1.6.0.0/lsp-types-1.6.0.0.tar.gz"
+      }
+    },
+    "nf": {
+      "locked": {
+        "lastModified": 1661201956,
+        "narHash": "sha256-RizGJH/buaw9A2+fiBf9WnXYw4LZABB5kMAZIEE5/T8=",
+        "owner": "numtide",
+        "repo": "nix-filter",
+        "rev": "3b821578685d661a10b563cba30b1861eec05748",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "ref": "master",
+        "repo": "nix-filter",
+        "type": "github"
       }
     },
     "nixpkgs": {
@@ -647,6 +662,7 @@
         "fu": "fu",
         "hls": "hls",
         "llvm-cg": "llvm-cg",
+        "nf": "nf",
         "shs": "shs"
       }
     },
