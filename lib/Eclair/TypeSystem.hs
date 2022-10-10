@@ -14,6 +14,8 @@ import Eclair.AST.IR
 import Eclair.Id
 import Data.List ((!!), partition)
 import Data.Maybe (fromJust)
+import qualified Data.DList.DNonEmpty as DNonEmpty
+import Data.DList.DNonEmpty (DNonEmpty)
 
 -- NOTE: This module contains a lot of partial functions due to the fact
 -- that the rest of the compiler relies heavily on recursion-schemes.
@@ -58,8 +60,7 @@ data CheckState
   , errors :: [TypeError]
   }
 
--- TODO DNonEmpty for performance
-type TypeCheckM = ReaderT (NonEmpty Context) (State CheckState)
+type TypeCheckM = ReaderT (DNonEmpty Context) (State CheckState)
 
 runM :: Context -> TypedefMap -> TypeCheckM a -> [TypeError]
 runM ctx typedefMap m =
@@ -67,10 +68,10 @@ runM ctx typedefMap m =
    in errors $ execState (runReaderT m (pure ctx)) tcState
 
 addContext :: Context -> (TypeCheckM a -> TypeCheckM a)
-addContext ctx = local (\c -> c <> pure ctx)
+addContext ctx = local (`DNonEmpty.snoc` ctx)
 
 getContext :: TypeCheckM (NonEmpty Context)
-getContext = ask
+getContext = asks DNonEmpty.toNonEmpty
 
 emitError :: TypeError -> TypeCheckM ()
 emitError err =

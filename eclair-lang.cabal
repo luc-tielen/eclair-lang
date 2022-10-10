@@ -99,6 +99,7 @@ library
     , containers ==0.*
     , dependent-sum-template ==0.1.*
     , diagnose ==2.3.*
+    , dlist ==1.*
     , exceptions ==0.10.*
     , extra ==1.*
     , llvm-codegen
@@ -169,6 +170,7 @@ executable eclair
     , dependent-sum-template ==0.1.*
     , diagnose ==2.3.*
     , directory ==1.*
+    , dlist ==1.*
     , eclair-lang
     , exceptions ==0.10.*
     , extra ==1.*
@@ -249,6 +251,7 @@ test-suite eclair-test
     , containers ==0.*
     , dependent-sum-template ==0.1.*
     , diagnose ==2.3.*
+    , dlist ==1.*
     , eclair-lang
     , exceptions ==0.10.*
     , extra ==1.*
