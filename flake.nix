@@ -68,10 +68,7 @@
                       doLibraryProfiling = enableLibraryProfiling;
                     });
 
-                    dependent-hashmap = unmarkBroken (dontCheck (mkCabal2nix {
-                      name = "dependent-hashmap";
-                      source = inputs.alga;
-                    }));
+                    dependent-hashmap = unmarkBroken (dontCheck hp.dependent-hashmap);
 
                     diagnose =
                       hf.callCabal2nixWithOptions "diagnose" (inputs.diagnose)
