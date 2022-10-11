@@ -6,6 +6,7 @@
     fu.url = "github:numtide/flake-utils?ref=master";
     ds.url = "github:numtide/devshell?ref=master";
     nf.url = "github:numtide/nix-filter?ref=master";
+    nu.url = "github:smunix/nix-utils?ref=main";
     hls.url = "github:haskell/haskell-language-server?ref=master";
     shs.url =
       "github:luc-tielen/souffle-haskell?rev=c46d0677e4bc830df89ec1de2396c562eb9d86d3";
@@ -18,12 +19,13 @@
       "github:luc-tielen/diagnose?rev=d58752f062c105ec0f8831357f3c688965e13add";
     diagnose.flake = false;
   };
-  outputs = { self, fu, nf, ds, shs, llvm-cg, ... }@inputs:
+  outputs = { self, fu, nf, nu, ds, shs, llvm-cg, ... }@inputs:
     let
       # Use the same nixpkgs as souffle-haskell, to avoid weird issues with multiple versions of Haskell packages.
       np = shs.inputs.np;
     in with np.lib;
     with fu.lib;
+    with nu.lib;
     eachSystem [ "x86_64-linux" ] (system:
       let
         ghcVersion = "902";
@@ -44,9 +46,8 @@
                   with final.haskell.lib; rec {
                     inherit (shs.packages."${system}") souffle-haskell;
 
-                    llvm-codegen = addExtraLibraries (enableSharedExecutables
-                      (disableStaticLibraries (disableLibraryProfiling
-                        (enableSharedLibraries (appendConfigureFlags
+                    llvm-codegen = addExtraLibraries ( haskellSharedLibExe final
+                        (appendConfigureFlags
                           ((hf.callCabal2nix "llvm-codegen" (with nf.lib;
                             filter {
                               root = inputs.llvm-cg;
@@ -55,7 +56,7 @@
                               llvm-config = llvmPackages.llvm;
                             }).overrideAttrs
                             (old: { version = "${old.version}-${version}"; }))
-                          [ "--ghc-option=-optl=-lLLVM" ])))))
+                          [ "--ghc-option=-optl=-lLLVM" ]))
                       [ llvmPackages.llvm.dev ];
 
                     algebraic-graphs = with hf;
@@ -71,9 +72,8 @@
 
                     eclair-lang = with hf;
                       with final.haskell.lib;
-                      addExtraLibraries (disableLibraryProfiling
-                        (disableStaticLibraries (enableSharedExecutables
-                          (enableSharedLibraries (appendConfigureFlags
+                      addExtraLibraries (
+                          haskellSharedLibExe final (appendConfigureFlags
                             ((callCabal2nix "eclair-lang" ./. { }).overrideAttrs
                               (o: {
                                 version = "${o.version}.${version}";
@@ -82,7 +82,7 @@
                                   DATALOG_DIR="${o.src}/cbits/" SOUFFLE_BIN="${pkgs.souffle}/bin/souffle" ./Setup test
                                   runHook postCheck
                                 '';
-                              })) [ "--ghc-option=-optl=-lLLVM" ])))))
+                              })) [ "--ghc-option=-optl=-lLLVM" ]))
                       [ llvmPackages.llvm.dev ];
                   };
               };
