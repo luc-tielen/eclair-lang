@@ -463,7 +463,7 @@
         "url": "https://hackage.haskell.org/package/lsp-types-1.6.0.0/lsp-types-1.6.0.0.tar.gz"
       }
     },
-    "nf": {
+    "nix-filter": {
       "locked": {
         "lastModified": 1661201956,
         "narHash": "sha256-RizGJH/buaw9A2+fiBf9WnXYw4LZABB5kMAZIEE5/T8=",
@@ -474,7 +474,6 @@
       },
       "original": {
         "owner": "numtide",
-        "ref": "master",
         "repo": "nix-filter",
         "type": "github"
       }
@@ -558,14 +557,15 @@
     },
     "nu": {
       "inputs": {
+        "nix-filter": "nix-filter",
         "nixpkgs": "nixpkgs_3"
       },
       "locked": {
-        "lastModified": 1665450992,
-        "narHash": "sha256-PIOVcabas+OUeQdYA0xC0vqiYCQCsXXYwn7nPxAGp2o=",
+        "lastModified": 1665458179,
+        "narHash": "sha256-PzCYFrA+y63hrXu5wFdFruY1a5EKzgqPL92eTvGjvzE=",
         "owner": "smunix",
         "repo": "nix-utils",
-        "rev": "98dec8fa8880275a6f9096617627335edc6266d6",
+        "rev": "c0b0b55939884cc695ecae6db37eaef9cbaf4748",
         "type": "github"
       },
       "original": {
@@ -607,7 +607,6 @@
         "fu": "fu",
         "hls": "hls",
         "llvm-cg": "llvm-cg",
-        "nf": "nf",
         "nu": "nu",
         "shs": "shs"
       }
