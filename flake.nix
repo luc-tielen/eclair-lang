@@ -91,27 +91,26 @@
         pkgs.devshell.mkShell {
           name = "Eclair";
           imports = [ (pkgs.devshell.importTOML ./devshell.toml) ];
-          packages = with pkgs;
-            with haskellPackages; [
-              souffle
-              pkgs.ghcid
-              llvmPackages.libllvm
-              llvmPackages.llvm.dev
-              llvmPackages.bintools-unwrapped
-              (ghcWithPackages (p:
-                with p; [
-                  algebraic-graphs
-                  cabal-install
-                  ghc
-                  hsc2hs
-                  hpack
-                  haskell-language-server
-                  hlint
-                  hspec-discover
-                  llvm-codegen
-                  souffle-haskell
-                ]))
-            ];
+          packages = with pkgs; [
+            souffle
+            pkgs.ghcid
+            pkgs.llvmPackages.libllvm
+            pkgs.llvmPackages.llvm.dev
+            pkgs.llvmPackages.bintools-unwrapped
+            (haskellPackages.ghcWithPackages (p:
+              with p; [
+                algebraic-graphs
+                cabal-install
+                ghc
+                hsc2hs
+                hpack
+                haskell-language-server
+                hlint
+                hspec-discover
+                llvm-codegen
+                souffle-haskell
+              ]))
+          ];
           # Next line always sets DATALOG_DIR so souffle can find the datalog files in interpreted mode.
           env = [{
             name = "DATALOG_DIR";
@@ -131,5 +130,5 @@
           default = eclair-lang;
         };
         devShells.default = mkDevShell pkgs;
-      in { inherit overlays packages devShells; });
+      in { inherit overlays packages devShells pkgs; });
 }
