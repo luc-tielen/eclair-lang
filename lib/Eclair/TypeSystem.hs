@@ -1,6 +1,7 @@
 module Eclair.TypeSystem
   ( Type(..)
   , TypeError(..)
+  , Context(..)
   , TypeInfo
   , typeCheck
   ) where
@@ -13,6 +14,8 @@ import Eclair.AST.IR
 import Eclair.Id
 import Data.List ((!!), partition)
 import Data.Maybe (fromJust)
+import qualified Data.DList.DNonEmpty as DNonEmpty
+import Data.DList.DNonEmpty (DNonEmpty)
 
 -- NOTE: This module contains a lot of partial functions due to the fact
 -- that the rest of the compiler relies heavily on recursion-schemes.
@@ -22,14 +25,19 @@ import Data.Maybe (fromJust)
 
 type TypeInfo = Map Id [Type]
 
+data Context
+  = WhileChecking NodeId
+  | WhileInferring NodeId
+  | WhileUnifying NodeId
+  deriving (Eq, Ord, Show)
+
 -- NOTE: for now, no actual types are checked since everything is a u32.
 data TypeError
   = UnknownAtom NodeId Id
   | ArgCountMismatch Id (NodeId, Int) (NodeId, Int)
   | DuplicateTypeDeclaration Id (NonEmpty (NodeId, [Type]))
-  | TypeMismatch NodeId Type Type  -- 1st type is actual, 2nd is expected
-                                   -- TODO add context to keep track of how this was deduced?
-  | UnificationFailure Type Type   -- No node id here? so need to get it from context?
+  | TypeMismatch NodeId Type Type (NonEmpty Context)  -- 1st type is actual, 2nd is expected
+  | UnificationFailure Type Type (NonEmpty Context)
   deriving (Eq, Ord, Show)
 
 typeCheck :: AST -> Either [TypeError] TypeInfo
@@ -52,12 +60,18 @@ data CheckState
   , errors :: [TypeError]
   }
 
--- TODO add context for error reporting
-type TypeCheckM = State CheckState
+type TypeCheckM = ReaderT (DNonEmpty Context) (State CheckState)
 
-runM :: TypedefMap -> TypeCheckM a -> [TypeError]
-runM typedefMap m =
-  errors $ execState m (CheckState typedefMap mempty mempty 0 mempty)
+runM :: Context -> TypedefMap -> TypeCheckM a -> [TypeError]
+runM ctx typedefMap m =
+  let tcState = CheckState typedefMap mempty mempty 0 mempty
+   in errors $ execState (runReaderT m (pure ctx)) tcState
+
+addContext :: Context -> (TypeCheckM a -> TypeCheckM a)
+addContext ctx = local (`DNonEmpty.snoc` ctx)
+
+getContext :: TypeCheckM (NonEmpty Context)
+getContext = asks DNonEmpty.toNonEmpty
 
 emitError :: TypeError -> TypeCheckM ()
 emitError err =
@@ -90,9 +104,8 @@ freshType = do
   pure $ TUnknown x
 
 -- | Tries to unify 2 types, emitting an error in case it fails to unify.
-unifyType :: Type -> Type -> TypeCheckM ()
-unifyType t1 t2 = do
-  -- TODO: add context for better error message
+unifyType :: NodeId -> Type -> Type -> TypeCheckM ()
+unifyType nodeId t1 t2 = addContext (WhileUnifying nodeId) $ do
   subst <- gets substitution
   unifyType' (substituteType subst t1) (substituteType subst t2)
   where
@@ -108,8 +121,9 @@ unifyType t1 t2 = do
           updateSubst u ty
         (ty, TUnknown u) ->
           updateSubst u ty
-        _ ->
-          emitError $ UnificationFailure ty1 ty2
+        _ -> do
+          ctx <- getContext
+          emitError $ UnificationFailure ty1 ty2 ctx
 
     -- Recursively applies a substitution to a type
     substituteType :: IntMap Type -> Type -> Type
@@ -140,16 +154,21 @@ checkDecls typedefMap = \case
   Module _ decls ->
     -- NOTE: By doing runM once per decl, each decl is checked with a clean state
     let state = CheckState typedefMap mempty mempty
-     in concatMap (runM typedefMap . checkDecl) decls
+        beginContext d =
+          WhileChecking (getNodeId d)
+     in concatMap (\d -> runM (beginContext d) typedefMap $ checkDecl d) decls
   _ ->
     panic "Unexpected AST node in 'checkDecls'"
 
 checkDecl :: AST -> TypeCheckM ()
-checkDecl = \case
+checkDecl ast = case ast of
   DeclareType {} ->
     pass
-  Atom nodeId name args ->
-    lookupRelationType name >>= \case
+  Atom nodeId name args -> do
+    ctx <- getContext
+    -- TODO find better way to update context only for non-top level atoms
+    let updateCtx = if isTopLevel ctx then id else addCtx
+    updateCtx $ lookupRelationType name >>= \case
       Nothing ->
         emitError $ UnknownAtom nodeId name
       Just (nodeId', types) -> do
@@ -164,14 +183,17 @@ checkDecl = \case
         zipWithM_ checkExpr args types
 
     traverse_ checkDecl clauses
-  Assign nodeId lhs rhs -> do
+  Assign nodeId lhs rhs -> addCtx $ do
     lhsTy <- inferExpr lhs
     rhsTy <- inferExpr rhs
     -- NOTE: Because inferred types of vars can contain unification variables,
     -- we need to try and unify them.
-    unifyType lhsTy rhsTy
+    unifyType nodeId lhsTy rhsTy
   _ ->
     panic "Unexpected case in 'checkDecl'"
+  where
+    addCtx = addContext (WhileChecking $ getNodeId ast)
+    isTopLevel = (==1) . length
 
 checkArgCount :: Id -> (NodeId, [Type]) -> (NodeId, [AST]) -> TypeCheckM ()
 checkArgCount name (nodeIdTypeDef, types) (nodeId, args) = do
@@ -181,12 +203,13 @@ checkArgCount name (nodeIdTypeDef, types) (nodeId, args) = do
     emitError $ ArgCountMismatch name (nodeIdTypeDef, expectedArgCount) (nodeId, actualArgCount)
 
 checkExpr :: AST -> Type -> TypeCheckM ()
-checkExpr ast expectedTy = case ast of
+checkExpr ast expectedTy = addContext (WhileChecking $ getNodeId ast) $case ast of
   l@(Lit nodeId _) -> do
     actualTy <- inferExpr l
     -- NOTE: No need to call 'unifyType', types of literals are always concrete types.
-    when (actualTy /= expectedTy) $
-      emitError $ TypeMismatch nodeId actualTy expectedTy
+    when (actualTy /= expectedTy) $ do
+      ctx <- getContext
+      emitError $ TypeMismatch nodeId actualTy expectedTy ctx
   PWildcard {} ->
     -- NOTE: no checking happens for wildcards, since they always refer to
     -- unique vars (and thus cannot cause type errors)
@@ -194,18 +217,19 @@ checkExpr ast expectedTy = case ast of
   Var nodeId var -> do
     lookupVarType var >>= \case
       Nothing ->
-        -- TODO: also store in context a variable was bound here for better errors
+        -- TODO: also store in context/state a variable was bound here for better errors?
         bindVar var expectedTy
       Just actualTy -> do
-        when (actualTy /= expectedTy) $
-          emitError $ TypeMismatch nodeId actualTy expectedTy
+        when (actualTy /= expectedTy) $ do
+          ctx <- getContext
+          emitError $ TypeMismatch nodeId actualTy expectedTy ctx
   e -> do
     -- Basically an unexpected / unhandled case => try inferring as a last resort.
     actualTy <- inferExpr e
-    unifyType actualTy expectedTy
+    unifyType (getNodeId e) actualTy expectedTy
 
 inferExpr :: AST -> TypeCheckM Type
-inferExpr = \case
+inferExpr ast = addContext (WhileInferring $ getNodeId ast) $ case ast of
   Lit _ lit ->
     case lit of
       LNumber {} ->
@@ -246,3 +270,13 @@ extractTypeDefs = cata $ \case
   AtomF {} -> mempty
   RuleF {} -> mempty
   astf -> foldMap identity astf
+
+getNodeId :: AST -> NodeId
+getNodeId = \case
+  Module nodeId _ -> nodeId
+  DeclareType nodeId _ _ -> nodeId
+  Rule nodeId _ _ _ -> nodeId
+  Atom nodeId _ _ -> nodeId
+  Assign nodeId _ _ -> nodeId
+  Lit nodeId _ -> nodeId
+  Var nodeId _ -> nodeId

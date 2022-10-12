@@ -98,13 +98,14 @@ spec = describe "typesystem" $ parallel $ do
 
   it "checks for type mismatch in top level atoms" $ do
     failsWith
-      [ TypeMismatch (NodeId {unNodeId = 5}) U32 Str
-      , TypeMismatch (NodeId {unNodeId = 7}) Str U32
-      , TypeMismatch (NodeId {unNodeId = 11}) U32 Str
-      , TypeMismatch (NodeId {unNodeId = 10}) Str U32
-      , TypeMismatch (NodeId {unNodeId = 14}) U32 Str
-      , TypeMismatch (NodeId {unNodeId = 13}) U32 Str
-      ] [text|
+      [ TypeMismatch (NodeId {unNodeId = 5}) U32 Str (WhileChecking (NodeId {unNodeId = 3}) :| [WhileChecking (NodeId {unNodeId = 5})])
+      , TypeMismatch (NodeId {unNodeId = 7}) Str U32 (WhileChecking (NodeId {unNodeId = 6}) :| [WhileChecking (NodeId {unNodeId = 7})])
+      , TypeMismatch (NodeId {unNodeId = 11}) U32 Str (WhileChecking (NodeId {unNodeId = 9}) :| [WhileChecking (NodeId {unNodeId = 11})])
+      , TypeMismatch (NodeId {unNodeId = 10}) Str U32 (WhileChecking (NodeId {unNodeId = 9}) :| [WhileChecking (NodeId {unNodeId = 10})])
+      , TypeMismatch (NodeId {unNodeId = 14}) U32 Str (WhileChecking (NodeId {unNodeId = 12}) :| [WhileChecking (NodeId {unNodeId = 14})])
+      , TypeMismatch (NodeId {unNodeId = 13}) U32 Str (WhileChecking (NodeId {unNodeId = 12}) :| [WhileChecking (NodeId {unNodeId = 13})])
+      ]
+      [text|
       @def fact1(u32, string).
       @def fact2(string, string).
       fact1(1, 2).
@@ -121,10 +122,10 @@ spec = describe "typesystem" $ parallel $ do
 
   it "checks for type mismatch in rule heads" $ do
     failsWith
-      [ TypeMismatch (NodeId {unNodeId = 5}) Str U32
-      , TypeMismatch (NodeId {unNodeId = 10}) Str U32
-      , TypeMismatch (NodeId {unNodeId = 17}) Str U32
-      , TypeMismatch (NodeId {unNodeId = 16}) Str U32
+      [ TypeMismatch (NodeId {unNodeId = 5}) Str U32 (WhileChecking (NodeId {unNodeId = 3}) :| [WhileChecking (NodeId {unNodeId = 5})])
+      , TypeMismatch (NodeId {unNodeId = 10}) Str U32 (WhileChecking (NodeId {unNodeId = 9}) :| [WhileChecking (NodeId {unNodeId = 10})])
+      , TypeMismatch (NodeId {unNodeId = 17}) Str U32 (WhileChecking (NodeId {unNodeId = 15}) :| [WhileChecking (NodeId {unNodeId = 17})])
+      , TypeMismatch (NodeId {unNodeId = 16}) Str U32 (WhileChecking (NodeId {unNodeId = 15}) :| [WhileChecking (NodeId {unNodeId = 16})])
       ] [text|
       @def edge(u32, u32).
       @def reachable(u32, u32).
@@ -141,10 +142,10 @@ spec = describe "typesystem" $ parallel $ do
 
   it "checks for type mismatch in rule bodies" $ do
     failsWith
-      [ TypeMismatch (NodeId {unNodeId = 13}) Str U32
-      , TypeMismatch (NodeId {unNodeId = 12}) Str U32
-      , TypeMismatch (NodeId {unNodeId = 10}) Str U32
-      , TypeMismatch (NodeId {unNodeId = 6}) Str U32
+      [ TypeMismatch (NodeId {unNodeId = 13}) Str U32 (WhileChecking (NodeId {unNodeId = 3}) :| [WhileChecking (NodeId {unNodeId = 13})])
+      , TypeMismatch (NodeId {unNodeId = 12}) Str U32 (WhileChecking (NodeId {unNodeId = 3}) :| [WhileChecking (NodeId {unNodeId = 12})])
+      , TypeMismatch (NodeId {unNodeId = 10}) Str U32 (WhileChecking (NodeId {unNodeId = 3}) :| [WhileChecking (NodeId {unNodeId = 10})])
+      , TypeMismatch (NodeId {unNodeId = 6}) Str U32 (WhileChecking (NodeId {unNodeId = 3}) :| [WhileChecking (NodeId {unNodeId = 6})])
       ] [text|
       @def fact1(u32, u32).
       @def fact2(u32).
@@ -162,7 +163,7 @@ spec = describe "typesystem" $ parallel $ do
 
   it "checks for type mismatch of variables in rule heads" $ do
     failsWith
-      [ TypeMismatch (NodeId {unNodeId = 5}) U32 Str
+      [ TypeMismatch (NodeId {unNodeId = 5}) U32 Str (WhileChecking (NodeId 3) :| [WhileChecking (NodeId 5)])
       ] [text|
       @def fact1(u32).
       @def fact2(u32, string).
@@ -172,7 +173,7 @@ spec = describe "typesystem" $ parallel $ do
 
   it "checks for type mismatch of variables in rule bodies" $ do
     failsWith
-      [ TypeMismatch (NodeId {unNodeId = 7}) U32 Str
+      [ TypeMismatch (NodeId {unNodeId = 7}) U32 Str (WhileChecking (NodeId 3) :| [WhileChecking (NodeId 7)])
       ] [text|
       @def fact1(u32).
       @def fact2(u32, string).
@@ -188,7 +189,7 @@ spec = describe "typesystem" $ parallel $ do
 
   it "checks for type mismatch of variables in entire rule" $ do
     failsWith
-      [ TypeMismatch (NodeId {unNodeId = 7}) Str U32
+      [ TypeMismatch (NodeId {unNodeId = 7}) Str U32 (WhileChecking (NodeId 3) :| [WhileChecking (NodeId 7)])
       ] [text|
       @def fact1(u32).
       @def fact2(u32, string).
@@ -345,7 +346,7 @@ spec = describe "typesystem" $ parallel $ do
 
   it "emits a type error when a variable fails to unify with type of a literal" $ do
     failsWith
-      [UnificationFailure U32 Str
+      [ UnificationFailure U32 Str (WhileChecking (NodeId {unNodeId = 3}) :| [WhileChecking (NodeId {unNodeId = 8}),WhileUnifying (NodeId {unNodeId = 8})])
       ] [text|
         @def fact1(u32, u32).
         @def fact2(u32).
@@ -354,7 +355,7 @@ spec = describe "typesystem" $ parallel $ do
           x = "abc".
       |]
     failsWith
-      [UnificationFailure Str U32
+      [ UnificationFailure Str U32 (WhileChecking (NodeId {unNodeId = 3}) :| [WhileChecking (NodeId {unNodeId = 9}),WhileUnifying (NodeId {unNodeId = 9})])
       ] [text|
         @def fact1(u32, u32).
         @def fact2(u32).
@@ -363,7 +364,7 @@ spec = describe "typesystem" $ parallel $ do
           "abc" = x.
       |]
     failsWith
-      [UnificationFailure Str U32
+      [ UnificationFailure Str U32 (WhileChecking (NodeId {unNodeId = 3}) :| [WhileChecking (NodeId {unNodeId = 8}),WhileUnifying (NodeId {unNodeId = 8})])
       ] [text|
         @def fact1(string, string).
         @def fact2(string).
@@ -372,7 +373,7 @@ spec = describe "typesystem" $ parallel $ do
           x = 1.
       |]
     failsWith
-      [UnificationFailure U32 Str
+      [ UnificationFailure U32 Str (WhileChecking (NodeId {unNodeId = 3}) :| [WhileChecking (NodeId {unNodeId = 9}),WhileUnifying (NodeId {unNodeId = 9})])
       ] [text|
         @def fact1(string, string).
         @def fact2(string).
@@ -383,7 +384,7 @@ spec = describe "typesystem" $ parallel $ do
 
   it "emits a type error when a variable fails to unify with another variable" $ do
     failsWith
-      [ UnificationFailure Str U32
+      [ UnificationFailure Str U32 (WhileChecking (NodeId {unNodeId = 3}) :| [WhileChecking (NodeId {unNodeId = 8}),WhileUnifying (NodeId {unNodeId = 8})])
       ] [text|
         @def fact1(string, u32).
         @def fact2(string).
@@ -392,7 +393,7 @@ spec = describe "typesystem" $ parallel $ do
           x = y.
       |]
     failsWith
-      [ UnificationFailure U32 Str
+      [ UnificationFailure U32 Str (WhileChecking (NodeId {unNodeId = 3}) :| [WhileChecking (NodeId {unNodeId = 11}),WhileUnifying (NodeId {unNodeId = 11})])
       ] [text|
       @def fact1(u32, string).
       @def fact2(u32).
@@ -402,7 +403,7 @@ spec = describe "typesystem" $ parallel $ do
         y = z.
       |]
     failsWith
-      [ TypeMismatch (NodeId 13) U32 Str
+      [ TypeMismatch (NodeId {unNodeId = 13}) U32 Str (WhileChecking (NodeId {unNodeId = 3}) :| [WhileChecking (NodeId {unNodeId = 13})])
       ] [text|
       @def fact1(u32, string).
       @def fact2(u32).
@@ -412,7 +413,7 @@ spec = describe "typesystem" $ parallel $ do
         fact1(x, z).
       |]
     failsWith
-      [ TypeMismatch (NodeId 16) U32 Str
+      [ TypeMismatch (NodeId {unNodeId = 16}) U32 Str (WhileChecking (NodeId {unNodeId = 3}) :| [WhileChecking (NodeId {unNodeId = 16})])
       ] [text|
       @def fact1(u32, string).
       @def fact2(u32).
@@ -423,7 +424,7 @@ spec = describe "typesystem" $ parallel $ do
         fact1(x, a).
       |]
     failsWith
-      [ UnificationFailure U32 Str
+      [ UnificationFailure U32 Str (WhileChecking (NodeId {unNodeId = 3}) :| [WhileChecking (NodeId {unNodeId = 14}),WhileUnifying (NodeId {unNodeId = 14})])
       ] [text|
       @def fact1(u32, string).
       @def fact2(u32).

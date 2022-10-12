@@ -78,29 +78,47 @@ typeErrorToReport file fileContent spanMap = \case
          in (srcLoc, Where $ "'" <> unId factName <> "' is re-defined here."))
       hints = [Hint $ "You can solve this by removing the duplicate definitions for '" <> unId factName <> "'."]
 
-  TypeMismatch nodeId actualTy expectedTy ->
+  TypeMismatch nodeId actualTy expectedTy ctx ->
     Err Nothing title markers hints
       where
         title = "Type mismatch"
         srcLoc = getSourcePos file fileContent spanMap nodeId
-        markers = [ (srcLoc, This $ "Expected this to be of type " <> renderType expectedTy <> ","
-                  <> " but it actually has type " <> renderType actualTy <> ".")
-                  ]
+        lastMarker = (srcLoc, This $ show (length ctx + 1) <> ") Expected this to be of type " <> renderType expectedTy <> ","
+                    <> " but it actually has type " <> renderType actualTy <> ".")
+        markers = zipWith renderDeduction markerTypes (toList ctx) ++ [lastMarker]
+        markerTypes = zip [1..] $ repeat Where
         hints = []  -- Can we even give a meaningful error here? Look in type env? (if a var is used)
-        renderType ty =
-          let userFacingType = case ty of
-                U32 -> "u32"
-                Str -> "string"
-                TUnknown u -> "unresolved type"
-          in "'" <> userFacingType <> "'"
 
-  -- TODO add context to type errors so we can actually show some source code here
-  UnificationFailure ty1 ty2 ->
+  UnificationFailure ty1 ty2 ctx ->
     Err Nothing title markers hints
       where
-        title = "Type error"
-        markers = []
-        hints = [Hint "Failed to unify two types during type checking."]
+        title = "Type unification failure"
+        markerTypes = markersForTypeError ctx
+        markers = zipWith renderDeduction markerTypes (toList ctx)
+        hints = []  -- What can we even give as a hint here? That it is a logical error?
+
+  where
+    renderType ty =
+      let userFacingType = case ty of
+            U32 -> "u32"
+            Str -> "string"
+            TUnknown u -> "unresolved type"
+      in "'" <> userFacingType <> "'"
+
+    markersForTypeError ctx =
+      zip [1..] $ replicate (length ctx - 1) Where ++ [This]
+
+    renderDeduction :: (Int, Text -> Marker a) -> Context -> (Position, Marker a)
+    renderDeduction (i, mkMarker) = \case
+      WhileChecking nodeId ->
+        let srcLoc = getSourcePos file fileContent spanMap nodeId
+          in (srcLoc, mkMarker $ show i <> ") While checking the type of this..")
+      WhileInferring nodeId ->
+        let srcLoc = getSourcePos file fileContent spanMap nodeId
+          in (srcLoc, mkMarker $ show i <> ") While inferring the type of this..")
+      WhileUnifying nodeId ->
+        let srcLoc = getSourcePos file fileContent spanMap nodeId
+          in (srcLoc, mkMarker $ show i <> ") While unifying these types..")
 
 emptyModuleToReport :: FilePath -> Text -> SpanMap -> EmptyModule -> Report Text
 emptyModuleToReport file fileContent spanMap (EmptyModule nodeId) =
