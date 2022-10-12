@@ -78,7 +78,7 @@
                     overrideAttrs = _: {
                       checkPhase = ''
                         runHook preCheck
-                        DATALOG_DIR="${self}/cbits/" SOUFFLE_BIN="${pkgs.souffle}/bin/souffle" ./Setup test
+                        DATALOG_DIR="${self}/cbits/" SOUFFLE_BIN="${final.souffle}/bin/souffle" ./Setup test
                         runHook postCheck
                       '';
                     };
