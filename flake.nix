@@ -93,10 +93,11 @@
           imports = [ (pkgs.devshell.importTOML ./devshell.toml) ];
           packages = with pkgs; [
             souffle
-            pkgs.ghcid
-            pkgs.llvmPackages.libllvm
-            pkgs.llvmPackages.llvm.dev
-            pkgs.llvmPackages.bintools-unwrapped
+            ghcid
+            llvmPackages.libllvm
+            llvmPackages.llvm.dev
+            llvmPackages.bintools-unwrapped
+            lit
             (haskellPackages.ghcWithPackages (p:
               with p; [
                 algebraic-graphs

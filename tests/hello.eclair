@@ -1,0 +1,13 @@
+// RUN: %eclair compile %s | FileCheck %s
+
+@def edge(u32, u32).
+@def reachable(u32, u32).
+
+reachable(x, y) :-
+  edge(x, y).
+
+reachable(x, y) :-
+  edge(x, z),
+  reachable(z, y).
+
+// CHECK: i32
