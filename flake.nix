@@ -32,6 +32,11 @@
         }";
       version = mkVersion (toString ghcVersion);
 
+      testOverlay = final: prev: {
+        llvmPackages = prev.llvmPackages // {
+          inherit (prev.llvmPackages.llvmPkgs) clang;
+        };
+      };
       overlayForSystem = system: final: _:
         let
           mkCabal2nix = nu.lib.mkCabal {
@@ -98,6 +103,7 @@
             llvmPackages.llvm.dev
             llvmPackages.bintools-unwrapped
             lit
+            clang
             (haskellPackages.ghcWithPackages (p:
               with p; [
                 algebraic-graphs
@@ -121,15 +127,21 @@
     in fu.lib.eachSystem [ "x86_64-linux" ] (system:
       let
         config = { };
+        mkPkgs = overlays: import np { inherit system config overlays; };
+
         overlays.default = overlayForSystem system;
-        pkgs = import np {
-          inherit system config;
-          overlays = [ ds.overlay shs.overlay.${system} overlays.default ];
-        };
+        pkgs = mkPkgs [ ds.overlay shs.overlay.${system} overlays.default ];
         packages = rec {
           inherit (pkgs.haskellPackages) eclair-lang;
           default = eclair-lang;
         };
-        devShells.default = mkDevShell pkgs;
+
+        devShellPkgs = mkPkgs [
+          ds.overlay
+          shs.overlay.${system}
+          overlays.default
+          testOverlay
+        ];
+        devShells.default = mkDevShell devShellPkgs;
       in { inherit overlays packages devShells pkgs; });
 }

@@ -2,7 +2,7 @@
 
 // RUN: split-file %s %t
 // RUN: %eclair compile %t/program.eclair > %t/program.ll
-// RUN: clang-10 -o %t/program -O0 %t/main.c %t/program.ll
+// RUN: clang -o %t/program -O0 %t/main.c %t/program.ll
 // RUN: ./program | FileCheck %s
 
 // CHECK: (1, 2)
