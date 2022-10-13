@@ -1,3 +1,6 @@
+// This is mostly a sanity check that the test-suite works
+// (and that LLVM can compile to LLVM correctly).
+
 // RUN: %eclair compile %s | FileCheck %s
 
 @def edge(u32, u32).
@@ -10,4 +13,4 @@ reachable(x, y) :-
   edge(x, z),
   reachable(z, y).
 
-// CHECK: i32
+// CHECK: eclair_program_run
