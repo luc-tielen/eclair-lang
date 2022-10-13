@@ -3,11 +3,11 @@
 // RUN: split-file %s %t
 // RUN: %eclair compile %t/program.eclair > %t/program.ll
 // RUN: clang -o %t/program -O0 %t/main.c %t/program.ll
-// RUN: ./program | FileCheck %s
+// RUN: %t/program | FileCheck %s
 
 // CHECK: (1, 2)
-// CHECK-NEXT: (2, 3)
 // CHECK-NEXT: (1, 3)
+// CHECK-NEXT: (2, 3)
 
 //--- program.eclair
 
