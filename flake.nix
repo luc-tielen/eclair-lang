@@ -117,7 +117,7 @@
             value = "cbits/";
           }];
         };
-    in fu.lib.eachSystem [ "x86_64-linux" ] (system:
+    in fu.lib.eachSystem [ "x86_64-linux" "x86_64-darwin" ] (system:
       let
         config = { };
         overlays.default = overlayForSystem system;
