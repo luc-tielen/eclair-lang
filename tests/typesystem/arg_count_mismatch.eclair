@@ -1,0 +1,157 @@
+// RUN: split-file %s %t
+
+// RUN: %eclair compile %t/program.eclair 2> %t/actual.out
+// RUN: diff -w %t/expected.out %t/actual.out
+
+//--- program.eclair
+@def edge(u32, u32, u32).
+@def path(u32).
+edge(1, 2).
+path(3, 4).
+
+@def fact1(u32, u32).
+@def fact2(u32, u32, u32).
+
+fact2(x, y) :-
+  fact1(x, y).
+
+@def fact3(u32, u32).
+@def fact4(u32).
+
+fact4(x, y) :-
+  fact3(x, y).
+
+@def fact5(u32, u32, u32).
+@def fact6(u32, u32).
+
+fact6(x, y) :-
+  fact5(x, y).
+
+@def fact7(u32, u32).
+@def fact8(u32, u32).
+
+fact8(x, y) :-
+  fact7(x, y, 123).
+
+@def a(u32, u32).
+@def b(u32).
+@def c(u32).
+
+a(x, y) :-
+  b(x, 123),
+  c(y, 456).
+
+//--- expected.out
+[error]: Found an unexpected amount of arguments for fact 'edge'
+     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/arg_count_mismatch.eclair.tmp/program.eclair@3:1-3:12
+     │
+   1 │ @def edge(u32, u32, u32).
+     • ┬────────────────────────
+     • ╰╸ 'edge' is defined with 3 arguments.
+     •
+   3 │ edge(1, 2).
+     • ┬──────────
+     • ╰╸ 2 arguments are provided here.
+     •
+     │ Hint: You can solve this by passing exactly 3 arguments to 'edge'.
+─────╯
+
+[error]: Found an unexpected amount of arguments for fact 'path'
+     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/arg_count_mismatch.eclair.tmp/program.eclair@4:1-4:12
+     │
+   2 │ @def path(u32).
+     • ┬──────────────
+     • ╰╸ 'path' is defined with 1 argument.
+     •
+   4 │ path(3, 4).
+     • ┬──────────
+     • ╰╸ 2 arguments are provided here.
+     •
+     │ Hint: You can solve this by passing exactly 1 arguments to 'path'.
+─────╯
+
+[error]: Found an unexpected amount of arguments for fact 'fact2'
+     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/arg_count_mismatch.eclair.tmp/program.eclair@9:1-10:15
+     │
+   7 │    @def fact2(u32, u32, u32).
+     •    ┬─────────────────────────
+     •    ╰╸ 'fact2' is defined with 3 arguments.
+     •
+   9 │ ╭┤ fact2(x, y) :-
+  10 │ ├┤   fact1(x, y).
+     • │
+     • ╰╸ 2 arguments are provided here.
+     •
+     │ Hint: You can solve this by passing exactly 3 arguments to 'fact2'.
+─────╯
+
+[error]: Found an unexpected amount of arguments for fact 'fact4'
+     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/arg_count_mismatch.eclair.tmp/program.eclair@15:1-16:15
+     │
+  13 │    @def fact4(u32).
+     •    ┬───────────────
+     •    ╰╸ 'fact4' is defined with 1 argument.
+     •
+  15 │ ╭┤ fact4(x, y) :-
+  16 │ ├┤   fact3(x, y).
+     • │
+     • ╰╸ 2 arguments are provided here.
+     •
+     │ Hint: You can solve this by passing exactly 1 arguments to 'fact4'.
+─────╯
+
+[error]: Found an unexpected amount of arguments for fact 'fact5'
+     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/arg_count_mismatch.eclair.tmp/program.eclair@22:3-22:14
+     │
+  18 │ @def fact5(u32, u32, u32).
+     • ┬─────────────────────────
+     • ╰╸ 'fact5' is defined with 3 arguments.
+     •
+  22 │   fact5(x, y).
+     •   ┬──────────
+     •   ╰╸ 2 arguments are provided here.
+     •
+     │ Hint: You can solve this by passing exactly 3 arguments to 'fact5'.
+─────╯
+
+[error]: Found an unexpected amount of arguments for fact 'fact7'
+     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/arg_count_mismatch.eclair.tmp/program.eclair@28:3-28:19
+     │
+  24 │ @def fact7(u32, u32).
+     • ┬────────────────────
+     • ╰╸ 'fact7' is defined with 2 arguments.
+     •
+  28 │   fact7(x, y, 123).
+     •   ┬───────────────
+     •   ╰╸ 3 arguments are provided here.
+     •
+     │ Hint: You can solve this by passing exactly 2 arguments to 'fact7'.
+─────╯
+
+[error]: Found an unexpected amount of arguments for fact 'c'
+     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/arg_count_mismatch.eclair.tmp/program.eclair@36:3-36:12
+     │
+  32 │ @def c(u32).
+     • ┬───────────
+     • ╰╸ 'c' is defined with 1 argument.
+     •
+  36 │   c(y, 456).
+     •   ┬────────
+     •   ╰╸ 2 arguments are provided here.
+     •
+     │ Hint: You can solve this by passing exactly 1 arguments to 'c'.
+─────╯
+
+[error]: Found an unexpected amount of arguments for fact 'b'
+     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/arg_count_mismatch.eclair.tmp/program.eclair@35:3-35:12
+     │
+  31 │ @def b(u32).
+     • ┬───────────
+     • ╰╸ 'b' is defined with 1 argument.
+     •
+  35 │   b(x, 123),
+     •   ┬────────
+     •   ╰╸ 2 arguments are provided here.
+     •
+     │ Hint: You can solve this by passing exactly 1 arguments to 'b'.
+─────╯

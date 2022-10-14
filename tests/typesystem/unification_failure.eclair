@@ -1,0 +1,189 @@
+// RUN: split-file %s %t
+
+// RUN: %eclair compile %t/program.eclair 2> %t/actual.out
+// RUN: diff -w %t/expected.out %t/actual.out
+
+//--- program.eclair
+@def fact1(u32, u32).
+@def fact2(u32).
+fact2(x) :-
+  fact1(x, _),
+  x = "abc".
+
+@def fact3(u32, u32).
+@def fact4(u32).
+fact4(x) :-
+  fact3(x, _),
+  "abc" = x.
+
+@def fact5(string, string).
+@def fact6(string).
+fact6(x) :-
+  fact5(x, _),
+  x = 1.
+
+@def fact7(string, string).
+@def fact8(string).
+fact8(x) :-
+  fact7(x, _),
+  1 = x.
+
+@def fact9(string, u32).
+@def fact10(string).
+fact10(x) :-
+  fact9(x, y),
+  x = y.
+
+@def fact11(u32, string).
+@def fact12(u32).
+fact12(x) :-
+  x = y,
+  fact11(x, z),
+  y = z.
+
+@def fact13(u32, string).
+@def fact14(u32).
+fact14(x) :-
+  x = y,
+  y = z,
+  fact13(x, z).
+
+@def fact15(u32, string).
+@def fact16(u32).
+fact16(x) :-
+  x = y,
+  y = z,
+  z = a,
+  fact15(x, a).
+
+@def fact17(u32, string).
+@def fact18(u32).
+fact18(x) :-
+  x = y,
+  y = z,
+  fact17(x, a),
+  z = a.
+
+//--- expected.out
+[error]: Type unification failure
+     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/unification_failure.eclair.tmp/program.eclair@5:3-5:12
+     │
+   3 │ ╭┤ fact2(x) :-
+   4 │ │    fact1(x, _),
+   5 │ ├┤   x = "abc".
+     • │    ┬────────
+     • │    ├╸ 2) While checking the type of this..
+     • │    ╰╸ 3) While unifying these types..
+     • │
+     • ╰╸ 1) While checking the type of this..
+─────╯
+
+[error]: Type unification failure
+     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/unification_failure.eclair.tmp/program.eclair@11:3-11:12
+     │
+   9 │ ╭┤ fact4(x) :-
+  10 │ │    fact3(x, _),
+  11 │ ├┤   "abc" = x.
+     • │    ┬────────
+     • │    ├╸ 2) While checking the type of this..
+     • │    ╰╸ 3) While unifying these types..
+     • │
+     • ╰╸ 1) While checking the type of this..
+─────╯
+
+[error]: Type unification failure
+     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/unification_failure.eclair.tmp/program.eclair@17:3-17:8
+     │
+  15 │ ╭┤ fact6(x) :-
+  16 │ │    fact5(x, _),
+  17 │ ├┤   x = 1.
+     • │    ┬────
+     • │    ├╸ 2) While checking the type of this..
+     • │    ╰╸ 3) While unifying these types..
+     • │
+     • ╰╸ 1) While checking the type of this..
+─────╯
+
+[error]: Type unification failure
+     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/unification_failure.eclair.tmp/program.eclair@23:3-23:8
+     │
+  21 │ ╭┤ fact8(x) :-
+  22 │ │    fact7(x, _),
+  23 │ ├┤   1 = x.
+     • │    ┬────
+     • │    ├╸ 2) While checking the type of this..
+     • │    ╰╸ 3) While unifying these types..
+     • │
+     • ╰╸ 1) While checking the type of this..
+─────╯
+
+[error]: Type unification failure
+     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/unification_failure.eclair.tmp/program.eclair@29:3-29:8
+     │
+  27 │ ╭┤ fact10(x) :-
+  28 │ │    fact9(x, y),
+  29 │ ├┤   x = y.
+     • │    ┬────
+     • │    ├╸ 2) While checking the type of this..
+     • │    ╰╸ 3) While unifying these types..
+     • │
+     • ╰╸ 1) While checking the type of this..
+─────╯
+
+[error]: Type unification failure
+     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/unification_failure.eclair.tmp/program.eclair@36:3-36:8
+     │
+  33 │ ╭┤ fact12(x) :-
+  34 │ │    x = y,
+  35 │ │    fact11(x, z),
+  36 │ ├┤   y = z.
+     • │    ┬────
+     • │    ├╸ 2) While checking the type of this..
+     • │    ╰╸ 3) While unifying these types..
+     • │
+     • ╰╸ 1) While checking the type of this..
+─────╯
+
+[error]: Type mismatch
+     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/unification_failure.eclair.tmp/program.eclair@43:13-43:14
+     │
+  40 │ ╭┤ fact14(x) :-
+  41 │ │    x = y,
+  42 │ │    y = z,
+  43 │ ├┤   fact13(x, z).
+     • │              ┬
+     • │              ├╸ 2) While checking the type of this..
+     • │              ╰╸ 3) Expected this to be of type 'string', but it actually has type 'u32'.
+     • │
+     • ╰╸ 1) While checking the type of this..
+─────╯
+
+[error]: Type mismatch
+     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/unification_failure.eclair.tmp/program.eclair@51:13-51:14
+     │
+  47 │ ╭┤ fact16(x) :-
+  48 │ │    x = y,
+  49 │ │    y = z,
+  50 │ │    z = a,
+  51 │ ├┤   fact15(x, a).
+     • │              ┬
+     • │              ├╸ 2) While checking the type of this..
+     • │              ╰╸ 3) Expected this to be of type 'string', but it actually has type 'u32'.
+     • │
+     • ╰╸ 1) While checking the type of this..
+─────╯
+
+[error]: Type unification failure
+     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/unification_failure.eclair.tmp/program.eclair@59:3-59:8
+     │
+  55 │ ╭┤ fact18(x) :-
+  56 │ │    x = y,
+  57 │ │    y = z,
+  58 │ │    fact17(x, a),
+  59 │ ├┤   z = a.
+     • │    ┬────
+     • │    ├╸ 2) While checking the type of this..
+     • │    ╰╸ 3) While unifying these types..
+     • │
+     • ╰╸ 1) While checking the type of this..
+─────╯
