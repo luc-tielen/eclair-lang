@@ -84,6 +84,7 @@
                       checkPhase = ''
                         runHook preCheck
                         DATALOG_DIR="${self}/cbits/" SOUFFLE_BIN="${final.souffle}/bin/souffle" ./Setup test
+                        ${final.lit}/bin/lit tests -v
                         runHook postCheck
                       '';
                     };
