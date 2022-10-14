@@ -1,0 +1,80 @@
+// RUN: split-file %s %t
+
+// RUN: %eclair compile %t/program.eclair 2> %t/actual.out
+// RUN: diff -w %t/expected.out %t/actual.out
+
+//--- program.eclair
+@def edge(u32, u32).
+@def reachable(u32, u32).
+reachable(x, "abc") :-
+  edge(x, x).
+reachable("abc", x) :-
+  edge(x, x).
+reachable("abc", "abc") :-
+  edge(x, x).
+
+@def fact1(u32).
+@def fact2(u32, string).
+fact2(x, x) :-
+  fact1(x).
+
+//--- expected.out
+[error]: Type mismatch
+     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/type_mismatch_in_rule_head.eclair.tmp/program.eclair@3:14-3:19
+     │
+   3 │ ╭┤ reachable(x, "abc") :-
+     • │               ┬────
+     • │               ├╸ 2) While checking the type of this..
+     • │               ╰╸ 3) Expected this to be of type 'u32', but it actually has type 'string'.
+   4 │ ├┤   edge(x, x).
+     • │
+     • ╰╸ 1) While checking the type of this..
+─────╯
+
+[error]: Type mismatch
+     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/type_mismatch_in_rule_head.eclair.tmp/program.eclair@5:11-5:16
+     │
+   5 │ ╭┤ reachable("abc", x) :-
+     • │            ┬────
+     • │            ├╸ 2) While checking the type of this..
+     • │            ╰╸ 3) Expected this to be of type 'u32', but it actually has type 'string'.
+   6 │ ├┤   edge(x, x).
+     • │
+     • ╰╸ 1) While checking the type of this..
+─────╯
+
+[error]: Type mismatch
+     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/type_mismatch_in_rule_head.eclair.tmp/program.eclair@7:18-7:23
+     │
+   7 │ ╭┤ reachable("abc", "abc") :-
+     • │                   ┬────
+     • │                   ├╸ 2) While checking the type of this..
+     • │                   ╰╸ 3) Expected this to be of type 'u32', but it actually has type 'string'.
+   8 │ ├┤   edge(x, x).
+     • │
+     • ╰╸ 1) While checking the type of this..
+─────╯
+
+[error]: Type mismatch
+     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/type_mismatch_in_rule_head.eclair.tmp/program.eclair@7:11-7:16
+     │
+   7 │ ╭┤ reachable("abc", "abc") :-
+     • │            ┬────
+     • │            ├╸ 2) While checking the type of this..
+     • │            ╰╸ 3) Expected this to be of type 'u32', but it actually has type 'string'.
+   8 │ ├┤   edge(x, x).
+     • │
+     • ╰╸ 1) While checking the type of this..
+─────╯
+
+[error]: Type mismatch
+     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/type_mismatch_in_rule_head.eclair.tmp/program.eclair@12:10-12:11
+     │
+  12 │ ╭┤ fact2(x, x) :-
+     • │           ┬
+     • │           ├╸ 2) While checking the type of this..
+     • │           ╰╸ 3) Expected this to be of type 'string', but it actually has type 'u32'.
+  13 │ ├┤   fact1(x).
+     • │
+     • ╰╸ 1) While checking the type of this..
+─────╯

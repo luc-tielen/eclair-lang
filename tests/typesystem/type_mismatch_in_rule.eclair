@@ -1,0 +1,23 @@
+// RUN: split-file %s %t
+
+// RUN: %eclair compile %t/program.eclair 2> %t/actual.out
+// RUN: diff -w %t/expected.out %t/actual.out
+
+//--- program.eclair
+@def fact1(u32).
+@def fact2(u32, string).
+fact2(123, x) :-
+  fact1(x).
+
+//--- expected.out
+[error]: Type mismatch
+     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/type_mismatch_in_rule.eclair.tmp/program.eclair@4:9-4:10
+     │
+   3 │ ╭┤ fact2(123, x) :-
+   4 │ ├┤   fact1(x).
+     • │          ┬
+     • │          ├╸ 2) While checking the type of this..
+     • │          ╰╸ 3) Expected this to be of type 'u32', but it actually has type 'string'.
+     • │
+     • ╰╸ 1) While checking the type of this..
+─────╯
