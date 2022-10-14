@@ -1,0 +1,29 @@
+// RUN: split-file %s %t
+
+// RUN: %eclair compile --emit ra %t/program.eclair > %t/actual.out
+// RUN: diff %t/expected.out %t/actual.out
+
+//--- program.eclair
+@def a(u32).
+@def b(u32, u32).
+@def c(u32, u32, u32, u32, u32).
+@def other(u32).
+
+a(x) :-
+  b(x, x),
+  other(x).
+
+a(y) :-
+  c(y, y, 42, x, y),
+  other(y).
+
+//--- expected.out
+search c as c0 where (c0[2] = 42) do
+  search other as other1 where (other1[0] = c0[0]) do
+    if c0[0] = c0[4] do
+      if c0[0] = c0[1] do
+        project (c0[0]) into a
+search b as b0 do
+  search other as other1 where (other1[0] = b0[0]) do
+    if b0[0] = b0[1] do
+      project (b0[0]) into a

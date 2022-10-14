@@ -1,0 +1,18 @@
+// RUN: split-file %s %t
+
+// RUN: %eclair compile --emit ra %t/program.eclair > %t/actual.out
+// RUN: diff %t/expected.out %t/actual.out
+
+//--- program.eclair
+@def edge(u32, u32).
+@def path(u32, u32).
+
+edge(1,2).
+
+path(x,y) :-
+  edge(x,y).
+
+//--- expected.out
+project (1, 2) into edge
+search edge as edge0 do
+  project (edge0[0], edge0[1]) into path

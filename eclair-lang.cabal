@@ -206,13 +206,11 @@ test-suite eclair-test
   other-modules:
       Test.Eclair.ArgParserSpec
       Test.Eclair.AST.AnalysisSpec
-      Test.Eclair.AST.LowerSpec
       Test.Eclair.EIR.LowerSpec
       Test.Eclair.LLVM.HashSpec
       Test.Eclair.ParserSpec
       Test.Eclair.RA.IndexSelectionSpec
       Test.Eclair.RA.LowerSpec
-      Test.Eclair.TypeSystemSpec
       Paths_eclair_lang
   autogen-modules:
       Paths_eclair_lang

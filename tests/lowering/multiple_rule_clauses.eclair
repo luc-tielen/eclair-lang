@@ -1,0 +1,23 @@
+// RUN: split-file %s %t
+
+// RUN: %eclair compile --emit ra %t/program.eclair > %t/actual.out
+// RUN: diff %t/expected.out %t/actual.out
+
+//--- program.eclair
+@def first(u32).
+@def second(u32, u32).
+@def third(u32, u32).
+
+first(1).
+second(2, 3).
+
+third(x, y) :-
+  first(y),
+  second(x, y).
+
+//--- expected.out
+project (2, 3) into second
+project (1) into first
+search first as first0 do
+  search second as second1 where (second1[1] = first0[0]) do
+    project (second1[0], first0[0]) into third

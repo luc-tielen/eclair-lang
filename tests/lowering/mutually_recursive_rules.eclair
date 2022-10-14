@@ -1,0 +1,45 @@
+// TODO variant where one is recursive
+// TODO tests for rules with >2 clauses, ...
+
+// RUN: split-file %s %t
+
+// RUN: %eclair compile --emit ra %t/program.eclair > %t/actual.out
+// RUN: diff %t/expected.out %t/actual.out
+
+//--- program.eclair
+@def a(u32).
+@def b(u32).
+@def c(u32).
+@def d(u32).
+
+a(x) :- b(x), c(x).
+b(1).
+b(x) :- c(x), d(x).
+c(2).
+c(x) :- b(x), d(x).
+d(3).
+
+//--- expected.out
+project (3) into d
+project (2) into c
+project (1) into b
+merge c delta_c
+merge b delta_b
+loop do
+  purge new_c
+  purge new_b
+  parallel do
+    search b as b0 do
+      search d as d1 where (d1[0] = b0[0] and (b0[0]) ∉ c) do
+        project (b0[0]) into new_c
+    search c as c0 do
+      search d as d1 where (d1[0] = c0[0] and (c0[0]) ∉ b) do
+        project (c0[0]) into new_b
+  exit if counttuples(new_c) = 0 and counttuples(new_b) = 0
+  merge new_c c
+  swap new_c delta_c
+  merge new_b b
+  swap new_b delta_b
+search b as b0 do
+  search c as c1 where (c1[0] = b0[0]) do
+    project (b0[0]) into a

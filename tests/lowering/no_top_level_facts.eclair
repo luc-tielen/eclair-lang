@@ -1,0 +1,28 @@
+// RUN: split-file %s %t
+
+// RUN: %eclair compile --emit ra %t/program.eclair > %t/actual.out
+// RUN: diff %t/expected.out %t/actual.out
+
+//--- program.eclair
+@def edge(u32, u32).
+@def path(u32, u32).
+
+path(x, y) :-
+  edge(x, y).
+
+path(x, z) :-
+  edge(x, y),
+  path(y, z).
+
+//--- expected.out
+search edge as edge0 do
+  project (edge0[0], edge0[1]) into path
+merge path delta_path
+loop do
+  purge new_path
+  search edge as edge0 do
+    search delta_path as delta_path1 where (delta_path1[0] = edge0[1] and (edge0[0], delta_path1[1]) ∉ path) do
+      project (edge0[0], delta_path1[1]) into new_path
+  exit if counttuples(new_path) = 0
+  merge new_path path
+  swap new_path delta_path

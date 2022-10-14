@@ -1,0 +1,20 @@
+// RUN: split-file %s %t
+
+// RUN: %eclair compile --emit ra %t/program.eclair > %t/actual.out
+// RUN: diff %t/expected.out %t/actual.out
+
+//--- program.eclair
+@def link(u32, u32).
+@def chain(u32, u32, u32).
+
+link(1,2).
+
+chain(x, y, z) :-
+  link(x, y),
+  link(y, z).
+
+//--- expected.out
+project (1, 2) into link
+search link as link0 do
+  search link as link1 where (link1[0] = link0[1]) do
+    project (link0[0], link0[1], link1[1]) into chain
