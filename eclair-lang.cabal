@@ -207,7 +207,6 @@ test-suite eclair-test
       Test.Eclair.ArgParserSpec
       Test.Eclair.EIR.LowerSpec
       Test.Eclair.LLVM.HashSpec
-      Test.Eclair.ParserSpec
       Test.Eclair.RA.IndexSelectionSpec
       Test.Eclair.RA.LowerSpec
       Paths_eclair_lang

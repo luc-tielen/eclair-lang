@@ -1,0 +1,47 @@
+// RUN: %eclair compile --emit ra %s | FileCheck %s
+// CHECK: eclair_program_run
+
+// u32
+@def fact1(u32).
+@def fact2(u32, u32, u32).
+  @def  fact3  (  u32  ,  u32  ).
+
+fact3(1, 2).
+fact3(2, 3).
+
+fact2(1,2,3).
+
+// strings
+@def fact4(string).
+@def fact5(u32, string).
+@def fact6(string  ,  string,string  ).
+
+fact4("").
+fact4("a").
+fact4(  "b"   ).
+fact6(  "c"   , "d","e"   ).
+fact4("\"\n\r\t\b\f\v\0").
+
+// NOTE: rules and assignments are tested implicitly in other tests
+
+// mix of everything
+@def edge(u32, u32).
+@def path(u32, u32).
+@def literals_in_rule(u32).
+
+edge(1, 2).
+edge(2, 3).
+
+path(x, y) :-
+  edge(x, y).
+
+path(x, y) :-
+  edge(x, z),
+  path(z, y).
+
+literals_in_rule(x) :-
+  int(  123 ),
+  string( "abc"),
+  mix(456, "def").
+
+// TODO: failure cases, more thorough testing in general
