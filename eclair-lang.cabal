@@ -205,7 +205,6 @@ test-suite eclair-test
   main-is: test.hs
   other-modules:
       Test.Eclair.ArgParserSpec
-      Test.Eclair.AST.AnalysisSpec
       Test.Eclair.EIR.LowerSpec
       Test.Eclair.LLVM.HashSpec
       Test.Eclair.ParserSpec
