@@ -2,7 +2,7 @@
   description =
     "Eclair: An experimental and minimal Datalog that compiles to LLVM";
   inputs = {
-    # np.url = "github:nixos/nixpkgs?ref=haskell-updates";
+    np.url = "github:nixos/nixpkgs?ref=master";
     fu.url = "github:numtide/flake-utils?ref=master";
     ds.url = "github:numtide/devshell?ref=master";
     nu.url = "github:smunix/nix-utils?ref=main";
@@ -18,12 +18,9 @@
       "github:luc-tielen/diagnose?rev=d58752f062c105ec0f8831357f3c688965e13add";
     diagnose.flake = false;
   };
-  outputs = { self, fu, nu, ds, shs, llvm-cg, ... }@inputs:
+  outputs = { self, np, fu, nu, ds, shs, llvm-cg, ... }@inputs:
     fu.lib.eachSystem [ "x86_64-linux" ] (system:
       let
-        # Use the same nixpkgs as souffle-haskell, to avoid weird issues with multiple versions of Haskell packages.
-        np = shs.inputs.np;
-
         ghcVersion = 902;
         llvmVersion = 14;
 

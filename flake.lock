@@ -512,15 +512,18 @@
     },
     "nixpkgs_3": {
       "locked": {
-        "lastModified": 1665243495,
-        "narHash": "sha256-ql3V30h8VIu5Un14ekQ4YwcXDhOuToBTATtsMZjpf1U=",
-        "path": "/nix/store/ljjaycxhhp83rpf9z26n2nf1c1rd4rpm-source",
-        "rev": "b504f7c3e194aeec1e4891491cac3bc59875b033",
-        "type": "path"
+        "lastModified": 1665850450,
+        "narHash": "sha256-iZehvDFlS1/YFw1MRPqLVRaOL6Xm7zCsnEdIJlWQnPY=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "5ec1699ec06a700da4c1289b877654665546b2c5",
+        "type": "github"
       },
       "original": {
-        "id": "nixpkgs",
-        "type": "indirect"
+        "owner": "nixos",
+        "ref": "master",
+        "repo": "nixpkgs",
+        "type": "github"
       }
     },
     "nixpkgs_4": {
@@ -540,6 +543,22 @@
       }
     },
     "np": {
+      "locked": {
+        "lastModified": 1665850450,
+        "narHash": "sha256-iZehvDFlS1/YFw1MRPqLVRaOL6Xm7zCsnEdIJlWQnPY=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "5ec1699ec06a700da4c1289b877654665546b2c5",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nixos",
+        "ref": "master",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "np_2": {
       "locked": {
         "lastModified": 1652527621,
         "narHash": "sha256-hHqY6n8nAKk8St2+BDkCOvXaUQSeN8GHgQR1jDuc+to=",
@@ -561,11 +580,11 @@
         "nixpkgs": "nixpkgs_3"
       },
       "locked": {
-        "lastModified": 1665486434,
-        "narHash": "sha256-EIv6HTdX3sbWrUVSL5wyHr+W4Yyps2W1rAnVXG6Jufs=",
+        "lastModified": 1665854413,
+        "narHash": "sha256-IyNQe+BldSbQ6HmqFqOMsEuW6g77uaXtoLEV8QUyBC0=",
         "owner": "smunix",
         "repo": "nix-utils",
-        "rev": "fd9f3914d045ec5196907ed6436ad2c51a52f1d2",
+        "rev": "a6e8c5f76ce2c0640e027dde1bdee9b1fb4ae046",
         "type": "github"
       },
       "original": {
@@ -607,6 +626,7 @@
         "fu": "fu",
         "hls": "hls",
         "llvm-cg": "llvm-cg",
+        "np": "np",
         "nu": "nu",
         "shs": "shs"
       }
@@ -615,7 +635,7 @@
       "inputs": {
         "ds": "ds_2",
         "fu": "fu_2",
-        "np": "np"
+        "np": "np_2"
       },
       "locked": {
         "lastModified": 1653686988,
