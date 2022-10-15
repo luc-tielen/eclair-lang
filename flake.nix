@@ -19,132 +19,120 @@
     diagnose.flake = false;
   };
   outputs = { self, fu, nu, ds, shs, llvm-cg, ... }@inputs:
-    let
-      # Use the same nixpkgs as souffle-haskell, to avoid weird issues with multiple versions of Haskell packages.
-      np = shs.inputs.np;
+    fu.lib.eachSystem [ "x86_64-linux" ] (system:
+      let
+        # Use the same nixpkgs as souffle-haskell, to avoid weird issues with multiple versions of Haskell packages.
+        np = shs.inputs.np;
 
-      ghcVersion = 902;
-      llvmVersion = 14;
+        ghcVersion = 902;
+        llvmVersion = 14;
 
-      mkVersion = v:
-        "${v}.${np.lib.substring 0 8 self.lastModifiedDate}.${
-          self.shortRev or "dirty"
-        }";
-      version = mkVersion (toString ghcVersion);
+        mkVersion = v:
+          "${v}.${np.lib.substring 0 8 self.lastModifiedDate}.${
+            self.shortRev or "dirty"
+          }";
+        version = mkVersion (toString ghcVersion);
 
-      testOverlay = final: prev: {
-        llvmPackages = prev.llvmPackages // {
-          inherit (prev.llvmPackages.llvmPkgs) clang;
+        config = { };
+
+        pkgs = import np {
+          inherit system config;
+          overlays = [ ds.overlay shs.overlay.${system} overlays.default ];
         };
-      };
-      overlayForSystem = system: final: _:
-        let
-          mkCabal2nix = nu.lib.mkCabal {
-            inherit ghcVersion mkVersion;
-            packages = final;
-          };
-          llvmPackages = rec {
-            llvmPkgs = final."llvmPackages_${toString llvmVersion}";
-            inherit (llvmPkgs) llvm libllvm bintools-unwrapped;
-          };
-          haskellPackages =
-            final.haskell.packages."ghc${toString ghcVersion}".override {
-              overrides = hf: hp:
-                with final.haskell.lib; rec {
-                  inherit (shs.packages.${system}) souffle-haskell;
 
-                  llvm-codegen = mkCabal2nix {
-                    name = "llvm-codegen";
-                    source = inputs.llvm-cg;
-                    dependencies = { llvm-config = llvmPackages.llvm.dev; };
-                    configureFlags = [ "--ghc-option=-optl=-lLLVM" ];
-                    extraLibraries = [ llvmPackages.llvm.dev ];
-                  };
+        overlays.default = final: prev:
+          let
+            mkCabal2nix = nu.lib.mkCabal {
+              inherit ghcVersion mkVersion;
+              packages = final;
+            };
 
-                  algebraic-graphs = dontCheck (mkCabal2nix {
-                    name = "algebraic-graphs";
-                    source = inputs.alga;
-                    doLibraryProfiling = enableLibraryProfiling;
-                  });
+            llvmPackages = final."llvmPackages_${toString llvmVersion}";
 
-                  dependent-hashmap =
-                    unmarkBroken (dontCheck hp.dependent-hashmap);
+            haskellPackages =
+              final.haskell.packages."ghc${toString ghcVersion}".override {
+                overrides = hf: hp:
+                  with final.haskell.lib; rec {
+                    inherit (prev.haskellPackages)
+                      souffle-haskell souffle-haskell-lint;
 
-                  diagnose =
-                    hf.callCabal2nixWithOptions "diagnose" (inputs.diagnose)
-                    "-fmegaparsec-compat" { };
+                    llvm-codegen = mkCabal2nix {
+                      name = "llvm-codegen";
+                      source = inputs.llvm-cg;
+                      dependencies = { llvm-config = llvmPackages.llvm.dev; };
+                      configureFlags = [ "--ghc-option=-optl=-lLLVM" ];
+                      extraLibraries = [ llvmPackages.llvm.dev ];
+                    };
 
-                  eclair-lang = mkCabal2nix {
-                    name = "eclair-lang";
-                    source = self;
-                    configureFlags = [ "--ghc-option=-optl=-lLLVM" ];
-                    haskellPackages = hf;
-                    extraLibraries = [ llvmPackages.llvm.dev ];
-                    doStaticLibraries = enableStaticLibraries;
-                    doSharedExecutables = disableSharedExecutables;
-                    overrideAttrs = _: {
-                      checkPhase = ''
-                        runHook preCheck
-                        DATALOG_DIR="${self}/cbits/" SOUFFLE_BIN="${final.souffle}/bin/souffle" ./Setup test
-                        ECLAIR_BIN="/build/source/dist/build/eclair/eclair" ${final.lit}/bin/lit tests -v
-                        runHook postCheck
-                      '';
+                    algebraic-graphs = dontCheck (mkCabal2nix {
+                      name = "algebraic-graphs";
+                      source = inputs.alga;
+                      doLibraryProfiling = enableLibraryProfiling;
+                    });
+
+                    dependent-hashmap =
+                      unmarkBroken (dontCheck hp.dependent-hashmap);
+
+                    diagnose =
+                      hf.callCabal2nixWithOptions "diagnose" (inputs.diagnose)
+                      "-fmegaparsec-compat" { };
+
+                    eclair-lang = mkCabal2nix {
+                      name = "eclair-lang";
+                      source = self;
+                      configureFlags = [ "--ghc-option=-optl=-lLLVM" ];
+                      haskellPackages = hf;
+                      extraLibraries = [ llvmPackages.llvm.dev ];
+                      doStaticLibraries = enableStaticLibraries;
+                      doSharedExecutables = disableSharedExecutables;
+                      overrideAttrs = _: {
+                        checkPhase = ''
+                          runHook preCheck
+                          DATALOG_DIR="${self}/cbits/" SOUFFLE_BIN="${final.souffle}/bin/souffle" ./Setup test
+                          runHook postCheck
+                        '';
+                      };
                     };
                   };
-                };
-            };
-        in { inherit haskellPackages llvmPackages; };
+              };
+          in {
+            inherit haskellPackages llvmPackages;
+            inherit (prev) souffle;
+          };
 
-      mkDevShell = pkgs:
-        pkgs.devshell.mkShell {
+        devShells.default = pkgs.devshell.mkShell {
           name = "Eclair";
           imports = [ (pkgs.devshell.importTOML ./devshell.toml) ];
-          packages = with pkgs; [
-            souffle
-            ghcid
-            llvmPackages.libllvm
-            llvmPackages.llvm.dev
-            llvmPackages.bintools-unwrapped
-            lit
-            clang
-            (haskellPackages.ghcWithPackages (p:
-              with p; [
-                algebraic-graphs
-                cabal-install
-                ghc
-                hsc2hs
-                hpack
-                haskell-language-server
-                hlint
-                hspec-discover
-                llvm-codegen
-                souffle-haskell
-              ]))
+          # packages are ordered lexicographically below
+          packages = [
+            pkgs.ghcid
+            pkgs.lit
+            pkgs.llvmPackages.bintools-unwrapped
+            pkgs.llvmPackages.clang
+            pkgs.llvmPackages.libllvm
+            pkgs.llvmPackages.llvm.dev
+            pkgs.souffle
+            (pkgs.haskellPackages.ghcWithPackages (p: [
+              p.algebraic-graphs
+              p.cabal-install
+              p.ghc
+              p.hsc2hs
+              p.hpack
+              p.haskell-language-server
+              p.hlint
+              p.hspec-discover
+              p.llvm-codegen
+              p.souffle-haskell
+            ]))
           ];
           # Next line always sets DATALOG_DIR so souffle can find the datalog files in interpreted mode.
           env = [{
             name = "DATALOG_DIR";
-            value = "cbits/";
+            value = "${self}/cbits/";
           }];
         };
-    in fu.lib.eachSystem [ "x86_64-linux" ] (system:
-      let
-        config = { };
-        mkPkgs = overlays: import np { inherit system config overlays; };
 
-        overlays.default = overlayForSystem system;
-        pkgs = mkPkgs [ ds.overlay shs.overlay.${system} overlays.default ];
-        packages = rec {
-          inherit (pkgs.haskellPackages) eclair-lang;
-          default = eclair-lang;
-        };
+        packages.default = pkgs.haskellPackages.eclair-lang;
 
-        devShellPkgs = mkPkgs [
-          ds.overlay
-          shs.overlay.${system}
-          overlays.default
-          testOverlay
-        ];
-        devShells.default = mkDevShell devShellPkgs;
-      in { inherit overlays packages devShells pkgs; });
+      in { inherit overlays packages devShells; });
 }
