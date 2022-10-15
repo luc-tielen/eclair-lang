@@ -13,7 +13,7 @@ jobs:
           fetch-depth: 0
       - uses: cachix/install-nix-action@v15
         with:
-          install_url: https://releases.nixos.org/nix/nix-2.9.2/install
+          install_url: https://releases.nixos.org/nix/nix-2.11.1/install
           extra_nix_config: |
             experimental-features = nix-command flakes
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
@@ -22,7 +22,7 @@ jobs:
           cachix use cachix
           cachix use luctielen
       - name: nix build
-        run: nix build
+        run: nix build --show-trace
       - name: nix log
         if: ${{ always() }}
         run: |
