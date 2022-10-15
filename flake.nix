@@ -31,7 +31,6 @@
           "${v}.${np.lib.substring 0 8 self.lastModifiedDate}.${
             self.shortRev or "dirty"
           }";
-        version = mkVersion (toString ghcVersion);
 
         config = { };
 
