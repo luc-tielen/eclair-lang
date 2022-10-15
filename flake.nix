@@ -80,7 +80,7 @@
                       name = "eclair-lang";
                       source = self;
                       configureFlags = [ "--ghc-option=-optl=-lLLVM" ];
-                      haskellPackages = hf;
+                      haskellPackages = hp;
                       extraLibraries = [ llvmPackages.llvm.dev ];
                       doStaticLibraries = enableStaticLibraries;
                       doSharedExecutables = disableSharedExecutables;
