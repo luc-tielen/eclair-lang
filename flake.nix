@@ -44,7 +44,7 @@
           let
             mkCabal2nix = nu.lib.mkCabal {
               inherit ghcVersion mkVersion;
-              packages = final;
+              packages = prev;
             };
 
             llvmPackages = final."llvmPackages_${toString llvmVersion}";

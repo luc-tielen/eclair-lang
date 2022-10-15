@@ -22,7 +22,7 @@ jobs:
           cachix use cachix
           cachix use luctielen
       - name: nix build
-        run: nix build
+        run: nix build --show-trace
       - name: nix log
         if: ${{ always() }}
         run: |
