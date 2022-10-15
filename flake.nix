@@ -80,11 +80,13 @@
                     configureFlags = [ "--ghc-option=-optl=-lLLVM" ];
                     haskellPackages = hf;
                     extraLibraries = [ llvmPackages.llvm.dev ];
+                    doStaticLibraries = enableStaticLibraries;
+                    doSharedExecutables = disableSharedExecutables;
                     overrideAttrs = _: {
                       checkPhase = ''
                         runHook preCheck
                         DATALOG_DIR="${self}/cbits/" SOUFFLE_BIN="${final.souffle}/bin/souffle" ./Setup test
-                        ${final.lit}/bin/lit tests -v
+                        ECLAIR_BIN="/build/source/dist/build/eclair/eclair" ${final.lit}/bin/lit tests -v
                         runHook postCheck
                       '';
                     };
