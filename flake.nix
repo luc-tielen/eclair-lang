@@ -85,6 +85,7 @@
                         checkPhase = ''
                           runHook preCheck
                           DATALOG_DIR="${self}/cbits/" SOUFFLE_BIN="${final.souffle}/bin/souffle" ./Setup test
+                          PATH="${final.which}/bin:${final.souffle}/bin:$PATH" ECLAIR_BIN="/build/source/dist/build/eclair/eclair" ${final.lit}/bin/lit tests -v
                           runHook postCheck
                         '';
                       };
