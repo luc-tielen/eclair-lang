@@ -1,4 +1,5 @@
-// RUN: split-file %s %t
+// RUN: mkdir -p %t && sed s@TEST_DIR@%t@g %s > %t/input.test
+// RUN: split-file %t/input.test %t
 
 // RUN: %eclair compile %t/program.eclair 2> %t/actual.out
 // RUN: diff %t/expected.out %t/actual.out
@@ -9,7 +10,7 @@ path(3, 4).
 
 //--- expected.out
 [error]: Missing type definition
-     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/unknown_top_level_atoms.eclair.tmp/program.eclair@1:1-1:12
+     ╭──▶ TEST_DIR/program.eclair@1:1-1:12
      │
    1 │ edge(1, 2).
      • ┬──────────
@@ -19,7 +20,7 @@ path(3, 4).
 ─────╯
 
 [error]: Missing type definition
-     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/unknown_top_level_atoms.eclair.tmp/program.eclair@2:1-2:12
+     ╭──▶ TEST_DIR/program.eclair@2:1-2:12
      │
    2 │ path(3, 4).
      • ┬──────────

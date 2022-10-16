@@ -1,4 +1,5 @@
-// RUN: split-file %s %t
+// RUN: mkdir -p %t && sed s@TEST_DIR@%t@g %s > %t/input.test
+// RUN: split-file %t/input.test %t
 
 // RUN: %eclair compile %t/program.eclair 2> %t/actual.out
 // RUN: diff -w %t/expected.out %t/actual.out
@@ -12,7 +13,7 @@
 
 //--- expected.out
 [error]: Multiple type declarations for fact 'edge'
-     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/duplicate_type_declarations.eclair.tmp/program.eclair@1:1-1:21
+     ╭──▶ TEST_DIR/program.eclair@1:1-1:21
      │
    1 │ @def edge(u32, u32).
      • ┬───────────────────
@@ -29,7 +30,7 @@
 ─────╯
 
 [error]: Multiple type declarations for fact 'path'
-     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/duplicate_type_declarations.eclair.tmp/program.eclair@3:1-3:21
+     ╭──▶ TEST_DIR/program.eclair@3:1-3:21
      │
    3 │ @def path(u32, u32).
      • ┬───────────────────

@@ -1,4 +1,5 @@
-// RUN: split-file %s %t
+// RUN: mkdir -p %t && sed s@TEST_DIR@%t@g %s > %t/input.test
+// RUN: split-file %t/input.test %t
 
 // RUN: %eclair compile %t/program.eclair 2> %t/actual.out
 // RUN: diff -w %t/expected.out %t/actual.out
@@ -43,7 +44,7 @@ a(x, y) :-
 
 //--- expected.out
 [error]: Found an unexpected amount of arguments for fact 'edge'
-     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/arg_count_mismatch.eclair.tmp/program.eclair@3:1-3:12
+     ╭──▶ TEST_DIR/program.eclair@3:1-3:12
      │
    1 │ @def edge(u32, u32, u32).
      • ┬────────────────────────
@@ -57,7 +58,7 @@ a(x, y) :-
 ─────╯
 
 [error]: Found an unexpected amount of arguments for fact 'path'
-     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/arg_count_mismatch.eclair.tmp/program.eclair@4:1-4:12
+     ╭──▶ TEST_DIR/program.eclair@4:1-4:12
      │
    2 │ @def path(u32).
      • ┬──────────────
@@ -71,7 +72,7 @@ a(x, y) :-
 ─────╯
 
 [error]: Found an unexpected amount of arguments for fact 'fact2'
-     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/arg_count_mismatch.eclair.tmp/program.eclair@9:1-10:15
+     ╭──▶ TEST_DIR/program.eclair@9:1-10:15
      │
    7 │    @def fact2(u32, u32, u32).
      •    ┬─────────────────────────
@@ -86,7 +87,7 @@ a(x, y) :-
 ─────╯
 
 [error]: Found an unexpected amount of arguments for fact 'fact4'
-     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/arg_count_mismatch.eclair.tmp/program.eclair@15:1-16:15
+     ╭──▶ TEST_DIR/program.eclair@15:1-16:15
      │
   13 │    @def fact4(u32).
      •    ┬───────────────
@@ -101,7 +102,7 @@ a(x, y) :-
 ─────╯
 
 [error]: Found an unexpected amount of arguments for fact 'fact5'
-     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/arg_count_mismatch.eclair.tmp/program.eclair@22:3-22:14
+     ╭──▶ TEST_DIR/program.eclair@22:3-22:14
      │
   18 │ @def fact5(u32, u32, u32).
      • ┬─────────────────────────
@@ -115,7 +116,7 @@ a(x, y) :-
 ─────╯
 
 [error]: Found an unexpected amount of arguments for fact 'fact7'
-     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/arg_count_mismatch.eclair.tmp/program.eclair@28:3-28:19
+     ╭──▶ TEST_DIR/program.eclair@28:3-28:19
      │
   24 │ @def fact7(u32, u32).
      • ┬────────────────────
@@ -129,7 +130,7 @@ a(x, y) :-
 ─────╯
 
 [error]: Found an unexpected amount of arguments for fact 'c'
-     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/arg_count_mismatch.eclair.tmp/program.eclair@36:3-36:12
+     ╭──▶ TEST_DIR/program.eclair@36:3-36:12
      │
   32 │ @def c(u32).
      • ┬───────────
@@ -143,7 +144,7 @@ a(x, y) :-
 ─────╯
 
 [error]: Found an unexpected amount of arguments for fact 'b'
-     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/arg_count_mismatch.eclair.tmp/program.eclair@35:3-35:12
+     ╭──▶ TEST_DIR/program.eclair@35:3-35:12
      │
   31 │ @def b(u32).
      • ┬───────────

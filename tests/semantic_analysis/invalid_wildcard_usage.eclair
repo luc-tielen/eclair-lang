@@ -1,7 +1,8 @@
 // NOTE: happy path is mostly skipped, this is tested implicitly by running
 // the compiler end-to-end in most other tests
 
-// RUN: split-file %s %t
+// RUN: mkdir -p %t && sed s@TEST_DIR@%t@g %s > %t/input.test
+// RUN: split-file %t/input.test %t
 
 // RUN: %eclair compile %t/program1.eclair 2> %t/top_level_facts_actual.out
 // RUN: diff %t/top_level_facts_expected.out %t/top_level_facts_actual.out
@@ -14,7 +15,7 @@ a(_, 123).
 
 //--- top_level_facts_expected.out
 [error]: Wildcard in top level fact
-     ╭──▶ /home/luc/personal/eclair-lang/tests/semantic_analysis/Output/invalid_wildcard_usage.eclair.tmp/program1.eclair@3:8-3:9
+     ╭──▶ TEST_DIR/program1.eclair@3:8-3:9
      │
    3 │ a(123, _).
      • ┬──────┬──
@@ -26,7 +27,7 @@ a(_, 123).
 ─────╯
 
 [error]: Wildcard in top level fact
-     ╭──▶ /home/luc/personal/eclair-lang/tests/semantic_analysis/Output/invalid_wildcard_usage.eclair.tmp/program1.eclair@4:3-4:4
+     ╭──▶ TEST_DIR/program1.eclair@4:3-4:4
      │
    4 │ a(_, 123).
      • ┬─┬───────
@@ -52,7 +53,7 @@ a(_, x) :-
 
 //--- wildcard_in_rule_head_expected.out
 [error]: Wildcard in 'head' of rule
-     ╭──▶ /home/luc/personal/eclair-lang/tests/semantic_analysis/Output/invalid_wildcard_usage.eclair.tmp/program2.eclair@8:6-8:7
+     ╭──▶ TEST_DIR/program2.eclair@8:6-8:7
      │
    8 │ ╭┤ a(x, _) :-
      • │       ┬
@@ -66,7 +67,7 @@ a(_, x) :-
 ─────╯
 
 [error]: Wildcard in 'head' of rule
-     ╭──▶ /home/luc/personal/eclair-lang/tests/semantic_analysis/Output/invalid_wildcard_usage.eclair.tmp/program2.eclair@11:3-11:4
+     ╭──▶ TEST_DIR/program2.eclair@11:3-11:4
      │
   11 │ ╭┤ a(_, x) :-
      • │    ┬
@@ -100,7 +101,7 @@ a(x) :-
 
 //--- wildcard_in_assignment_expected.out
 [error]: Found wildcard in equality constraint
-     ╭──▶ /home/luc/personal/eclair-lang/tests/semantic_analysis/Output/invalid_wildcard_usage.eclair.tmp/program3.eclair@10:3-10:4
+     ╭──▶ TEST_DIR/program3.eclair@10:3-10:4
      │
   10 │   _ = 123.
      •   ┬──────
@@ -111,7 +112,7 @@ a(x) :-
 ─────╯
 
 [error]: Found wildcard in equality constraint
-     ╭──▶ /home/luc/personal/eclair-lang/tests/semantic_analysis/Output/invalid_wildcard_usage.eclair.tmp/program3.eclair@14:9-14:10
+     ╭──▶ TEST_DIR/program3.eclair@14:9-14:10
      │
   14 │   123 = _.
      •   ┬─────┬
@@ -122,7 +123,7 @@ a(x) :-
 ─────╯
 
 [error]: Found wildcard in equality constraint
-     ╭──▶ /home/luc/personal/eclair-lang/tests/semantic_analysis/Output/invalid_wildcard_usage.eclair.tmp/program3.eclair@18:3-18:4
+     ╭──▶ TEST_DIR/program3.eclair@18:3-18:4
      │
   18 │   _ = _.
      •   ┬────
@@ -133,7 +134,7 @@ a(x) :-
 ─────╯
 
 [error]: Found wildcard in equality constraint
-     ╭──▶ /home/luc/personal/eclair-lang/tests/semantic_analysis/Output/invalid_wildcard_usage.eclair.tmp/program3.eclair@18:7-18:8
+     ╭──▶ TEST_DIR/program3.eclair@18:7-18:8
      │
   18 │   _ = _.
      •   ┬───┬

@@ -82,9 +82,9 @@
                       doStaticLibraries = enableStaticLibraries;
                       doSharedExecutables = disableSharedExecutables;
                       overrideAttrs = old: {
-                        preCompileBuildDriver = ''
-                          ${final.fd}/bin/fd -tf -e eclair -p tests -x ${final.gnused}/bin/sed -i -e "s@/home/luc/personal/eclair-lang/@/build/source/@g"
-                        '' + (old.preCompileBuildDriver or "");
+                        # /build/source/... is a virtual filesystem Nix uses
+                        # when building Eclair, so by adding it to the path we
+                        # can access the eclair executable during the tests.
                         checkPhase = ''
                           runHook preCheck
                           DATALOG_DIR="${self}/cbits/" SOUFFLE_BIN="${final.souffle}/bin/souffle" ./Setup test

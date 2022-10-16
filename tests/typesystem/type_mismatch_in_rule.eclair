@@ -1,4 +1,5 @@
-// RUN: split-file %s %t
+// RUN: mkdir -p %t && sed s@TEST_DIR@%t@g %s > %t/input.test
+// RUN: split-file %t/input.test %t
 
 // RUN: %eclair compile %t/program.eclair 2> %t/actual.out
 // RUN: diff -w %t/expected.out %t/actual.out
@@ -11,7 +12,7 @@ fact2(123, x) :-
 
 //--- expected.out
 [error]: Type mismatch
-     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/type_mismatch_in_rule.eclair.tmp/program.eclair@4:9-4:10
+     ╭──▶ TEST_DIR/program.eclair@4:9-4:10
      │
    3 │ ╭┤ fact2(123, x) :-
    4 │ ├┤   fact1(x).

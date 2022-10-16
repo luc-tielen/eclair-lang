@@ -1,4 +1,5 @@
-// RUN: split-file %s %t
+// RUN: mkdir -p %t && sed s@TEST_DIR@%t@g %s > %t/input.test
+// RUN: split-file %t/input.test %t
 
 // RUN: %eclair compile %t/program.eclair 2> %t/actual.out
 // RUN: diff -w %t/expected.out %t/actual.out
@@ -11,7 +12,7 @@ path(x, y) :-
 
 //--- expected.out
 [error]: Missing type definition
-     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/unknown_atom_in_rule_body.eclair.tmp/program.eclair@4:3-4:13
+     ╭──▶ TEST_DIR/program.eclair@4:3-4:13
      │
    4 │   edge(x, y).
      •   ┬─────────

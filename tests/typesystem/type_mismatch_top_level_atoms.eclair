@@ -1,4 +1,5 @@
-// RUN: split-file %s %t
+// RUN: mkdir -p %t && sed s@TEST_DIR@%t@g %s > %t/input.test
+// RUN: split-file %t/input.test %t
 
 // RUN: %eclair compile %t/program.eclair 2> %t/actual.out
 // RUN: diff -w %t/expected.out %t/actual.out
@@ -13,7 +14,7 @@ fact2(1, 2).
 
 //--- expected.out
 [error]: Type mismatch
-     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/type_mismatch_top_level_atoms.eclair.tmp/program.eclair@3:10-3:11
+     ╭──▶ TEST_DIR/program.eclair@3:10-3:11
      │
    3 │ fact1(1, 2).
      • ┬───────────
@@ -23,7 +24,7 @@ fact2(1, 2).
 ─────╯
 
 [error]: Type mismatch
-     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/type_mismatch_top_level_atoms.eclair.tmp/program.eclair@4:7-4:12
+     ╭──▶ TEST_DIR/program.eclair@4:7-4:12
      │
    4 │ fact1("abc", "def").
      • ┬───────────────────
@@ -33,7 +34,7 @@ fact2(1, 2).
 ─────╯
 
 [error]: Type mismatch
-     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/type_mismatch_top_level_atoms.eclair.tmp/program.eclair@5:14-5:15
+     ╭──▶ TEST_DIR/program.eclair@5:14-5:15
      │
    5 │ fact1("abc", 2).
      • ┬───────────────
@@ -43,7 +44,7 @@ fact2(1, 2).
 ─────╯
 
 [error]: Type mismatch
-     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/type_mismatch_top_level_atoms.eclair.tmp/program.eclair@5:7-5:12
+     ╭──▶ TEST_DIR/program.eclair@5:7-5:12
      │
    5 │ fact1("abc", 2).
      • ┬───────────────
@@ -53,7 +54,7 @@ fact2(1, 2).
 ─────╯
 
 [error]: Type mismatch
-     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/type_mismatch_top_level_atoms.eclair.tmp/program.eclair@6:10-6:11
+     ╭──▶ TEST_DIR/program.eclair@6:10-6:11
      │
    6 │ fact2(1, 2).
      • ┬───────────
@@ -63,7 +64,7 @@ fact2(1, 2).
 ─────╯
 
 [error]: Type mismatch
-     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/type_mismatch_top_level_atoms.eclair.tmp/program.eclair@6:7-6:8
+     ╭──▶ TEST_DIR/program.eclair@6:7-6:8
      │
    6 │ fact2(1, 2).
      • ┬───────────

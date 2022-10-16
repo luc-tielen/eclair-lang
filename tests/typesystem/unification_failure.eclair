@@ -1,4 +1,5 @@
-// RUN: split-file %s %t
+// RUN: mkdir -p %t && sed s@TEST_DIR@%t@g %s > %t/input.test
+// RUN: split-file %t/input.test %t
 
 // RUN: %eclair compile %t/program.eclair 2> %t/actual.out
 // RUN: diff -w %t/expected.out %t/actual.out
@@ -66,7 +67,7 @@ fact18(x) :-
 
 //--- expected.out
 [error]: Type unification failure
-     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/unification_failure.eclair.tmp/program.eclair@5:3-5:12
+     ╭──▶ TEST_DIR/program.eclair@5:3-5:12
      │
    3 │ ╭┤ fact2(x) :-
    4 │ │    fact1(x, _),
@@ -79,7 +80,7 @@ fact18(x) :-
 ─────╯
 
 [error]: Type unification failure
-     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/unification_failure.eclair.tmp/program.eclair@11:3-11:12
+     ╭──▶ TEST_DIR/program.eclair@11:3-11:12
      │
    9 │ ╭┤ fact4(x) :-
   10 │ │    fact3(x, _),
@@ -92,7 +93,7 @@ fact18(x) :-
 ─────╯
 
 [error]: Type unification failure
-     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/unification_failure.eclair.tmp/program.eclair@17:3-17:8
+     ╭──▶ TEST_DIR/program.eclair@17:3-17:8
      │
   15 │ ╭┤ fact6(x) :-
   16 │ │    fact5(x, _),
@@ -105,7 +106,7 @@ fact18(x) :-
 ─────╯
 
 [error]: Type unification failure
-     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/unification_failure.eclair.tmp/program.eclair@23:3-23:8
+     ╭──▶ TEST_DIR/program.eclair@23:3-23:8
      │
   21 │ ╭┤ fact8(x) :-
   22 │ │    fact7(x, _),
@@ -118,7 +119,7 @@ fact18(x) :-
 ─────╯
 
 [error]: Type unification failure
-     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/unification_failure.eclair.tmp/program.eclair@29:3-29:8
+     ╭──▶ TEST_DIR/program.eclair@29:3-29:8
      │
   27 │ ╭┤ fact10(x) :-
   28 │ │    fact9(x, y),
@@ -131,7 +132,7 @@ fact18(x) :-
 ─────╯
 
 [error]: Type unification failure
-     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/unification_failure.eclair.tmp/program.eclair@36:3-36:8
+     ╭──▶ TEST_DIR/program.eclair@36:3-36:8
      │
   33 │ ╭┤ fact12(x) :-
   34 │ │    x = y,
@@ -145,7 +146,7 @@ fact18(x) :-
 ─────╯
 
 [error]: Type mismatch
-     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/unification_failure.eclair.tmp/program.eclair@43:13-43:14
+     ╭──▶ TEST_DIR/program.eclair@43:13-43:14
      │
   40 │ ╭┤ fact14(x) :-
   41 │ │    x = y,
@@ -159,7 +160,7 @@ fact18(x) :-
 ─────╯
 
 [error]: Type mismatch
-     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/unification_failure.eclair.tmp/program.eclair@51:13-51:14
+     ╭──▶ TEST_DIR/program.eclair@51:13-51:14
      │
   47 │ ╭┤ fact16(x) :-
   48 │ │    x = y,
@@ -174,7 +175,7 @@ fact18(x) :-
 ─────╯
 
 [error]: Type unification failure
-     ╭──▶ /home/luc/personal/eclair-lang/tests/typesystem/Output/unification_failure.eclair.tmp/program.eclair@59:3-59:8
+     ╭──▶ TEST_DIR/program.eclair@59:3-59:8
      │
   55 │ ╭┤ fact18(x) :-
   56 │ │    x = y,
