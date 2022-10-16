@@ -81,10 +81,14 @@
                       extraLibraries = [ llvmPackages.llvm.dev ];
                       doStaticLibraries = enableStaticLibraries;
                       doSharedExecutables = disableSharedExecutables;
-                      overrideAttrs = _: {
+                      overrideAttrs = old: {
+                        preCompileBuildDriver = ''
+                          ${final.fd}/bin/fd -tf -e eclair -p tests -x ${final.gnused}/bin/sed -i -e "s@/home/luc/personal/eclair-lang/@/build/source/@g"
+                        '' + (old.preCompileBuildDriver or "");
                         checkPhase = ''
                           runHook preCheck
                           DATALOG_DIR="${self}/cbits/" SOUFFLE_BIN="${final.souffle}/bin/souffle" ./Setup test
+                          PATH="${final.which}/bin:${final.souffle}/bin:/build/source/dist/build/eclair/:${llvmPackages.clang}/bin/:$PATH" ${final.lit}/bin/lit tests -v
                           runHook postCheck
                         '';
                       };
