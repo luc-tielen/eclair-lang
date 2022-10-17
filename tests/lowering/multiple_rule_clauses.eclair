@@ -1,7 +1,10 @@
 // RUN: split-file %s %t
 
-// RUN: %eclair compile --emit ra %t/program.eclair > %t/actual.out
-// RUN: diff %t/expected.out %t/actual.out
+// RUN: %eclair compile --emit ra %t/program.eclair > %t/actual_ra.out
+// RUN: diff %t/expected_ra.out %t/actual_ra.out
+
+// RUN: %eclair compile --emit eir %t/program.eclair > %t/actual_eir.out
+// RUN: diff %t/expected_eir.out %t/actual_eir.out
 
 //--- program.eclair
 @def first(u32).
@@ -15,9 +18,91 @@ third(x, y) :-
   first(y),
   second(x, y).
 
-//--- expected.out
+//--- expected_ra.out
 project (2, 3) into second
 project (1) into first
 search first as first0 do
   search second as second1 where (second1[1] = first0[0]) do
     project (second1[0], first0[0]) into third
+//--- expected_eir.out
+declare_type Program
+{
+  symbol_table
+  first btree(num_columns=1, index=[0], block_size=256, search_type=linear)
+  second btree(num_columns=2, index=[1,0], block_size=256, search_type=linear)
+  third btree(num_columns=2, index=[0,1], block_size=256, search_type=linear)
+}
+
+fn eclair_program_init() -> *Program
+{
+  program = heap_allocate_program
+  symbol_table.init(program.0)
+  first.init_empty(program.1)
+  second.init_empty(program.2)
+  third.init_empty(program.3)
+  return program
+}
+
+fn eclair_program_destroy(*Program) -> Void
+{
+  symbol_table.destroy(FN_ARG[0].0)
+  first.destroy(FN_ARG[0].1)
+  second.destroy(FN_ARG[0].2)
+  third.destroy(FN_ARG[0].3)
+  free_program(FN_ARG[0])
+}
+
+fn eclair_program_run(*Program) -> Void
+{
+  value = second.stack_allocate Value
+  value.0 = 2
+  value.1 = 3
+  second.insert(FN_ARG[0].2, value)
+  value_1 = first.stack_allocate Value
+  value_1.0 = 1
+  first.insert(FN_ARG[0].1, value_1)
+  value_2 = first.stack_allocate Value
+  value_2.0 = 0
+  value_3 = first.stack_allocate Value
+  value_3.0 = 4294967295
+  begin_iter = first.stack_allocate Iter
+  end_iter = first.stack_allocate Iter
+  first.iter_lower_bound(FN_ARG[0].1, value_2, begin_iter)
+  first.iter_upper_bound(FN_ARG[0].1, value_3, end_iter)
+  loop
+  {
+    condition = first.iter_is_equal(begin_iter, end_iter)
+    if (condition)
+    {
+      goto range_query.end
+    }
+    current = first.iter_current(begin_iter)
+    value_4 = second.stack_allocate Value
+    value_4.0 = 0
+    value_4.1 = current.0
+    value_5 = second.stack_allocate Value
+    value_5.0 = 4294967295
+    value_5.1 = current.0
+    begin_iter_1 = second.stack_allocate Iter
+    end_iter_1 = second.stack_allocate Iter
+    second.iter_lower_bound(FN_ARG[0].2, value_4, begin_iter_1)
+    second.iter_upper_bound(FN_ARG[0].2, value_5, end_iter_1)
+    loop
+    {
+      condition_1 = second.iter_is_equal(begin_iter_1, end_iter_1)
+      if (condition_1)
+      {
+        goto range_query.end_1
+      }
+      current_1 = second.iter_current(begin_iter_1)
+      value_6 = third.stack_allocate Value
+      value_6.0 = current_1.0
+      value_6.1 = current.0
+      third.insert(FN_ARG[0].3, value_6)
+      second.iter_next(begin_iter_1)
+    }
+    range_query.end_1:
+    first.iter_next(begin_iter)
+  }
+  range_query.end:
+}

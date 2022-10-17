@@ -111,6 +111,7 @@
             pkgs.llvmPackages.clang
             pkgs.llvmPackages.libllvm
             pkgs.llvmPackages.llvm.dev
+            pkgs.nodejs
             pkgs.souffle
             (pkgs.haskellPackages.ghcWithPackages (p: [
               p.algebraic-graphs

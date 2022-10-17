@@ -1,7 +1,10 @@
 // RUN: split-file %s %t
 
-// RUN: %eclair compile --emit ra %t/program.eclair > %t/actual.out
-// RUN: diff %t/expected.out %t/actual.out
+// RUN: %eclair compile --emit ra %t/program.eclair > %t/actual_ra.out
+// RUN: diff %t/expected_ra.out %t/actual_ra.out
+
+// RUN: %eclair compile --emit eir %t/program.eclair > %t/actual_eir.out
+// RUN: diff %t/expected_eir.out %t/actual_eir.out
 
 //--- program.eclair
 @def link(u32, u32).
@@ -13,8 +16,87 @@ chain(x, y, z) :-
   link(x, y),
   link(y, z).
 
-//--- expected.out
+//--- expected_ra.out
 project (1, 2) into link
 search link as link0 do
   search link as link1 where (link1[0] = link0[1]) do
     project (link0[0], link0[1], link1[1]) into chain
+//--- expected_eir.out
+declare_type Program
+{
+  symbol_table
+  chain btree(num_columns=3, index=[0,1,2], block_size=256, search_type=linear)
+  link btree(num_columns=2, index=[0,1], block_size=256, search_type=linear)
+}
+
+fn eclair_program_init() -> *Program
+{
+  program = heap_allocate_program
+  symbol_table.init(program.0)
+  chain.init_empty(program.1)
+  link.init_empty(program.2)
+  return program
+}
+
+fn eclair_program_destroy(*Program) -> Void
+{
+  symbol_table.destroy(FN_ARG[0].0)
+  chain.destroy(FN_ARG[0].1)
+  link.destroy(FN_ARG[0].2)
+  free_program(FN_ARG[0])
+}
+
+fn eclair_program_run(*Program) -> Void
+{
+  value = link.stack_allocate Value
+  value.0 = 1
+  value.1 = 2
+  link.insert(FN_ARG[0].2, value)
+  value_1 = link.stack_allocate Value
+  value_1.0 = 0
+  value_1.1 = 0
+  value_2 = link.stack_allocate Value
+  value_2.0 = 4294967295
+  value_2.1 = 4294967295
+  begin_iter = link.stack_allocate Iter
+  end_iter = link.stack_allocate Iter
+  link.iter_lower_bound(FN_ARG[0].2, value_1, begin_iter)
+  link.iter_upper_bound(FN_ARG[0].2, value_2, end_iter)
+  loop
+  {
+    condition = link.iter_is_equal(begin_iter, end_iter)
+    if (condition)
+    {
+      goto range_query.end
+    }
+    current = link.iter_current(begin_iter)
+    value_3 = link.stack_allocate Value
+    value_3.0 = current.1
+    value_3.1 = 0
+    value_4 = link.stack_allocate Value
+    value_4.0 = current.1
+    value_4.1 = 4294967295
+    begin_iter_1 = link.stack_allocate Iter
+    end_iter_1 = link.stack_allocate Iter
+    link.iter_lower_bound(FN_ARG[0].2, value_3, begin_iter_1)
+    link.iter_upper_bound(FN_ARG[0].2, value_4, end_iter_1)
+    loop
+    {
+      condition_1 = link.iter_is_equal(begin_iter_1, end_iter_1)
+      if (condition_1)
+      {
+        goto range_query.end_1
+      }
+      current_1 = link.iter_current(begin_iter_1)
+      value_5 = chain.stack_allocate Value
+      value_5.0 = current.0
+      value_5.1 = current.1
+      value_5.2 = current_1.1
+      chain.insert(FN_ARG[0].1, value_5)
+      link.iter_next(begin_iter_1)
+    }
+    range_query.end_1:
+    link.iter_next(begin_iter)
+  }
+  range_query.end:
+}

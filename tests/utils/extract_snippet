@@ -1,0 +1,33 @@
+#!/usr/bin/env node
+
+const { readFileSync } = require("fs");
+
+const extractFunction = (file, funcName) => {
+  const text = readFileSync(file, "utf8");
+  const lines = text.split("\n");
+
+  const startLineIdx = lines.findIndex((line) =>
+    line.includes(`fn ${funcName}`)
+  );
+  const snippetLineCount =
+    lines.slice(startLineIdx).findIndex((line) => line.trim() == "") ||
+    lines.length - startLineIdx;
+  const endLineIdx = startLineIdx + snippetLineCount;
+
+  return lines.slice(startLineIdx, endLineIdx).join("\n");
+};
+
+const main = () => {
+  if (process.argv.length < 4) {
+    console.error("Usage: extract_snippet FILE FUNCTION_NAME");
+    return;
+  }
+
+  const file = process.argv[2];
+  const funcName = process.argv[3];
+  const snippet = extractFunction(file, funcName);
+
+  console.log(snippet);
+};
+
+main();
