@@ -111,10 +111,13 @@ rules = \case
     pure result
   Typecheck path -> do
     (ast, _, spans) <- Rock.fetch (Parse path)
-    -- TODO: find better place to do semantic analysis
-    _ <- Rock.fetch (RunSemanticAnalysis path)
     liftIO . either (throwIO . TypeErr path spans) pure $ TS.typeCheck ast
   TransformAST path -> do
+    -- Need to run SA and typechecking before any transformations / lowering
+    -- to ensure we don't perform work on invalid programs.
+    -- And thanks to rock, the results will be cached anyway.
+    _ <- Rock.fetch (RunSemanticAnalysis path)
+    _ <- Rock.fetch (Typecheck path)
     (ast, nodeId, spans) <- Rock.fetch (Parse path)
     pure $ simplify nodeId ast
   EmitSimplifiedAST path -> do

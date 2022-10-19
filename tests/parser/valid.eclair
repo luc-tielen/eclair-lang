@@ -1,5 +1,5 @@
 // RUN: %eclair compile --emit ra %s | FileCheck %s
-// CHECK: eclair_program_run
+// CHECK: project
 
 // u32
 @def fact1(u32).
@@ -39,8 +39,12 @@ path(x, y) :-
   edge(x, z),
   path(z, y).
 
-literals_in_rule(x) :-
-  int(  123 ),
+// This also checks for potential naming collisions
+@def u32(u32).
+@def string(string).
+@def mix(u32, string).
+literals_in_rule(789) :-
+  u32(  123 ),
   string( "abc"),
   mix(456, "def").
 
