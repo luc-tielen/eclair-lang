@@ -1,7 +1,10 @@
 // RUN: split-file %s %t
 
-// RUN: %eclair compile --emit ra %t/program.eclair > %t/actual.out
-// RUN: diff %t/expected.out %t/actual.out
+// RUN: %eclair compile --emit ra %t/program.eclair > %t/actual_ra.out
+// RUN: diff %t/expected_ra.out %t/actual_ra.out
+
+// RUN: %eclair compile --emit eir %t/program.eclair > %t/actual_eir.out
+// RUN: diff %t/expected_eir.out %t/actual_eir.out
 
 //--- program.eclair
 @def edge(u32, u32).
@@ -14,7 +17,7 @@ path(x, z) :-
   edge(x, y),
   path(y, z).
 
-//--- expected.out
+//--- expected_ra.out
 search edge as edge0 do
   project (edge0[0], edge0[1]) into path
 merge path delta_path
@@ -26,3 +29,137 @@ loop do
   exit if counttuples(new_path) = 0
   merge new_path path
   swap new_path delta_path
+//--- expected_eir.out
+declare_type Program
+{
+  symbol_table
+  delta_path btree(num_columns=2, index=[0,1], block_size=256, search_type=linear)
+  edge btree(num_columns=2, index=[0,1], block_size=256, search_type=linear)
+  new_path btree(num_columns=2, index=[0,1], block_size=256, search_type=linear)
+  path btree(num_columns=2, index=[0,1], block_size=256, search_type=linear)
+}
+
+fn eclair_program_init() -> *Program
+{
+  program = heap_allocate_program
+  symbol_table.init(program.0)
+  delta_path.init_empty(program.1)
+  edge.init_empty(program.2)
+  new_path.init_empty(program.3)
+  path.init_empty(program.4)
+  return program
+}
+
+fn eclair_program_destroy(*Program) -> Void
+{
+  symbol_table.destroy(FN_ARG[0].0)
+  delta_path.destroy(FN_ARG[0].1)
+  edge.destroy(FN_ARG[0].2)
+  new_path.destroy(FN_ARG[0].3)
+  path.destroy(FN_ARG[0].4)
+  free_program(FN_ARG[0])
+}
+
+fn eclair_program_run(*Program) -> Void
+{
+  value = edge.stack_allocate Value
+  value.0 = 0
+  value.1 = 0
+  value_1 = edge.stack_allocate Value
+  value_1.0 = 4294967295
+  value_1.1 = 4294967295
+  begin_iter = edge.stack_allocate Iter
+  end_iter = edge.stack_allocate Iter
+  edge.iter_lower_bound(FN_ARG[0].2, value, begin_iter)
+  edge.iter_upper_bound(FN_ARG[0].2, value_1, end_iter)
+  loop
+  {
+    condition = edge.iter_is_equal(begin_iter, end_iter)
+    if (condition)
+    {
+      goto range_query.end
+    }
+    current = edge.iter_current(begin_iter)
+    value_2 = path.stack_allocate Value
+    value_2.0 = current.0
+    value_2.1 = current.1
+    path.insert(FN_ARG[0].4, value_2)
+    edge.iter_next(begin_iter)
+  }
+  range_query.end:
+  begin_iter_1 = path.stack_allocate Iter
+  end_iter_1 = path.stack_allocate Iter
+  path.iter_begin(FN_ARG[0].4, begin_iter_1)
+  path.iter_end(FN_ARG[0].4, end_iter_1)
+  delta_path.insert_range<path[0, 1]>(FN_ARG[0].1, begin_iter_1, end_iter_1)
+  loop
+  {
+    new_path.purge(FN_ARG[0].3)
+    value_3 = edge.stack_allocate Value
+    value_3.0 = 0
+    value_3.1 = 0
+    value_4 = edge.stack_allocate Value
+    value_4.0 = 4294967295
+    value_4.1 = 4294967295
+    begin_iter_2 = edge.stack_allocate Iter
+    end_iter_2 = edge.stack_allocate Iter
+    edge.iter_lower_bound(FN_ARG[0].2, value_3, begin_iter_2)
+    edge.iter_upper_bound(FN_ARG[0].2, value_4, end_iter_2)
+    loop
+    {
+      condition_1 = edge.iter_is_equal(begin_iter_2, end_iter_2)
+      if (condition_1)
+      {
+        goto range_query.end_1
+      }
+      current_1 = edge.iter_current(begin_iter_2)
+      value_5 = path.stack_allocate Value
+      value_5.0 = current_1.1
+      value_5.1 = 0
+      value_6 = path.stack_allocate Value
+      value_6.0 = current_1.1
+      value_6.1 = 4294967295
+      begin_iter_3 = path.stack_allocate Iter
+      end_iter_3 = path.stack_allocate Iter
+      delta_path.iter_lower_bound(FN_ARG[0].1, value_5, begin_iter_3)
+      delta_path.iter_upper_bound(FN_ARG[0].1, value_6, end_iter_3)
+      loop
+      {
+        condition_2 = delta_path.iter_is_equal(begin_iter_3, end_iter_3)
+        if (condition_2)
+        {
+          goto range_query.end_2
+        }
+        current_2 = delta_path.iter_current(begin_iter_3)
+        value_7 = path.stack_allocate Value
+        value_7.0 = current_1.0
+        value_7.1 = current_2.1
+        contains_result = path.contains(FN_ARG[0].4, value_7)
+        condition_3 = not contains_result
+        if (condition_3)
+        {
+          value_8 = path.stack_allocate Value
+          value_8.0 = current_1.0
+          value_8.1 = current_2.1
+          new_path.insert(FN_ARG[0].3, value_8)
+        }
+        delta_path.iter_next(begin_iter_3)
+      }
+      range_query.end_2:
+      edge.iter_next(begin_iter_2)
+    }
+    range_query.end_1:
+    condition_4 = new_path.is_empty(FN_ARG[0].3)
+    if (condition_4)
+    {
+      goto loop.end
+    }
+    begin_iter_4 = path.stack_allocate Iter
+    end_iter_4 = path.stack_allocate Iter
+    new_path.iter_begin(FN_ARG[0].3, begin_iter_4)
+    new_path.iter_end(FN_ARG[0].3, end_iter_4)
+    path.insert_range<new_path[0, 1]>(FN_ARG[0].4, begin_iter_4, end_iter_4)
+    new_path.swap(FN_ARG[0].3, FN_ARG[0].1)
+  }
+  loop.end:
+}

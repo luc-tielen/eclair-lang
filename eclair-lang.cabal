@@ -208,7 +208,6 @@ test-suite eclair-test
       Test.Eclair.EIR.LowerSpec
       Test.Eclair.LLVM.HashSpec
       Test.Eclair.RA.IndexSelectionSpec
-      Test.Eclair.RA.LowerSpec
       Paths_eclair_lang
   autogen-modules:
       Paths_eclair_lang
