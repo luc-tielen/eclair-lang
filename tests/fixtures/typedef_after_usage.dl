@@ -1,7 +1,0 @@
-
-reachable(x, z) :-
-  edge(x, y),
-  reachable(y, z).
-
-@def edge(u32, u32).
-@def reachable(u32, u32).
