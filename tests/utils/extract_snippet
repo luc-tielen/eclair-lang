@@ -2,13 +2,11 @@
 
 const { readFileSync } = require("fs");
 
-const extractFunction = (file, funcName) => {
+const extractFunction = (file, pattern) => {
   const text = readFileSync(file, "utf8");
   const lines = text.split("\n");
 
-  const startLineIdx = lines.findIndex((line) =>
-    line.includes(`fn ${funcName}`)
-  );
+  const startLineIdx = lines.findIndex((line) => line.includes(pattern));
   const snippetLineCount =
     lines.slice(startLineIdx).findIndex((line) => line.trim() == "") ||
     lines.length - startLineIdx;
@@ -19,13 +17,13 @@ const extractFunction = (file, funcName) => {
 
 const main = () => {
   if (process.argv.length < 4) {
-    console.error("Usage: extract_snippet FILE FUNCTION_NAME");
+    console.error("Usage: extract_snippet FILE PATTERN");
     return;
   }
 
   const file = process.argv[2];
-  const funcName = process.argv[3];
-  const snippet = extractFunction(file, funcName);
+  const pattern = process.argv[3];
+  const snippet = extractFunction(file, pattern);
 
   console.log(snippet);
 };
