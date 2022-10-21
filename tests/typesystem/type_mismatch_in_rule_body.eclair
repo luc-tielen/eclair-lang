@@ -1,0 +1,87 @@
+// RUN: mkdir -p %t && sed s@TEST_DIR@%t@g %s > %t/input.test
+// RUN: split-file %t/input.test %t
+
+// RUN: %eclair compile %t/program.eclair 2> %t/actual.out
+// RUN: diff -w %t/expected.out %t/actual.out
+
+//--- program.eclair
+@def fact1(u32, u32).
+@def fact2(u32).
+fact2(123) :-
+  fact1("abc", 123),
+  fact1(456, "def"),
+  fact1("abc", "def").
+
+@def fact3(u32).
+@def fact4(u32, string).
+fact3(123) :-
+  fact4(x, x).
+
+//--- expected.out
+[error]: Type mismatch
+     ╭──▶ TEST_DIR/program.eclair@6:16-6:21
+     │
+   3 │ ╭┤ fact2(123) :-
+   4 │ │    fact1("abc", 123),
+   5 │ │    fact1(456, "def"),
+   6 │ ├┤   fact1("abc", "def").
+     • │                 ┬────
+     • │                 ├╸ 2) While checking the type of this..
+     • │                 ╰╸ 3) Expected this to be of type 'u32', but it actually has type 'string'.
+     • │
+     • ╰╸ 1) While checking the type of this..
+─────╯
+
+[error]: Type mismatch
+     ╭──▶ TEST_DIR/program.eclair@6:9-6:14
+     │
+   3 │ ╭┤ fact2(123) :-
+   4 │ │    fact1("abc", 123),
+   5 │ │    fact1(456, "def"),
+   6 │ ├┤   fact1("abc", "def").
+     • │          ┬────
+     • │          ├╸ 2) While checking the type of this..
+     • │          ╰╸ 3) Expected this to be of type 'u32', but it actually has type 'string'.
+     • │
+     • ╰╸ 1) While checking the type of this..
+─────╯
+
+[error]: Type mismatch
+     ╭──▶ TEST_DIR/program.eclair@5:14-5:19
+     │
+   3 │ ╭┤ fact2(123) :-
+   4 │ │    fact1("abc", 123),
+   5 │ │    fact1(456, "def"),
+     • │               ┬────
+     • │               ├╸ 2) While checking the type of this..
+     • │               ╰╸ 3) Expected this to be of type 'u32', but it actually has type 'string'.
+   6 │ ├┤   fact1("abc", "def").
+     • │
+     • ╰╸ 1) While checking the type of this..
+─────╯
+
+[error]: Type mismatch
+     ╭──▶ TEST_DIR/program.eclair@4:9-4:14
+     │
+   3 │ ╭┤ fact2(123) :-
+   4 │ │    fact1("abc", 123),
+     • │          ┬────
+     • │          ├╸ 2) While checking the type of this..
+     • │          ╰╸ 3) Expected this to be of type 'u32', but it actually has type 'string'.
+   5 │ │    fact1(456, "def"),
+   6 │ ├┤   fact1("abc", "def").
+     • │
+     • ╰╸ 1) While checking the type of this..
+─────╯
+
+[error]: Type mismatch
+     ╭──▶ TEST_DIR/program.eclair@11:12-11:13
+     │
+  10 │ ╭┤ fact3(123) :-
+  11 │ ├┤   fact4(x, x).
+     • │             ┬
+     • │             ├╸ 2) While checking the type of this..
+     • │             ╰╸ 3) Expected this to be of type 'string', but it actually has type 'u32'.
+     • │
+     • ╰╸ 1) While checking the type of this..
+─────╯

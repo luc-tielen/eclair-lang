@@ -205,17 +205,8 @@ test-suite eclair-test
   main-is: test.hs
   other-modules:
       Test.Eclair.ArgParserSpec
-      Test.Eclair.AST.AnalysisSpec
-      Test.Eclair.AST.LowerSpec
-      Test.Eclair.AST.Transforms.RemoveWildcardsSpec
-      Test.Eclair.AST.Transforms.ShiftAssignmentsSpec
-      Test.Eclair.AST.Transforms.UniqueVarsSpec
-      Test.Eclair.EIR.LowerSpec
       Test.Eclair.LLVM.HashSpec
-      Test.Eclair.ParserSpec
       Test.Eclair.RA.IndexSelectionSpec
-      Test.Eclair.RA.LowerSpec
-      Test.Eclair.TypeSystemSpec
       Paths_eclair_lang
   autogen-modules:
       Paths_eclair_lang

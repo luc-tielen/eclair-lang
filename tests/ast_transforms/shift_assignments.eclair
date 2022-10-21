@@ -1,0 +1,54 @@
+// RUN: split-file %s %t
+
+// RUN: %eclair compile --emit ast-simplified %t/program1.eclair > %t/actual1.out
+// RUN: diff %t/expected1.out %t/actual1.out
+
+// RUN: %eclair compile --emit ast-simplified %t/program2.eclair > %t/actual2.out
+// RUN: diff %t/expected2.out %t/actual2.out
+
+//--- program1.eclair
+@def fact1(u32, u32).
+@def fact2(u32, u32).
+
+fact2(x, 1) :-
+  z = x,
+  fact1(x, z),
+  y = 123,
+  fact1(y, x).
+
+fact2(x, y) :-
+  123 = x,
+  fact1(y, x).
+//--- expected1.out
+@def fact1(u32, u32).
+
+@def fact2(u32, u32).
+
+fact2(x, 1) :-
+  fact1(x, z),
+  fact1(y, x),
+  z = x,
+  y = 123.
+
+fact2(x, y) :-
+  fact1(y, x),
+  123 = x.
+//--- program2.eclair
+@def edge(u32, u32).
+@def path(u32, u32).
+
+edge(1,2).
+
+path(x, y) :-
+  edge(x, z),
+  path(z, y).
+//--- expected2.out
+@def edge(u32, u32).
+
+@def path(u32, u32).
+
+edge(1, 2).
+
+path(x, y) :-
+  edge(x, z),
+  path(z, y).

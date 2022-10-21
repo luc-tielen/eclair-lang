@@ -12,6 +12,7 @@ run:
 
 test:
 	@cabal run eclair-test
+	@lit tests/
 
 repl:
 	@cabal repl

@@ -1,5 +1,0 @@
-@def edge(u32, u32).
-
-edge(a, 1).
-edge(2, b).
-edge(c, d).

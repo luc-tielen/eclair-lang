@@ -1,0 +1,124 @@
+// RUN: split-file %s %t
+
+// RUN: %eclair compile --emit ra %t/program.eclair > %t/actual_ra.out
+// RUN: diff %t/expected_ra.out %t/actual_ra.out
+
+// RUN: %eclair compile --emit eir %t/program.eclair > %t/actual_eir.out
+// RUN: diff %t/expected_eir.out %t/actual_eir.out
+
+// RUN: %eclair compile --emit llvm %t/program.eclair > %t/actual_llvm.out
+// RUN: %extract_snippet %t/actual_llvm.out "@eclair_program_init" > %t/actual_eclair_program_init_llvm.out
+// RUN: %extract_snippet %t/actual_llvm.out "@eclair_program_destroy" > %t/actual_eclair_program_destroy_llvm.out
+// RUN: %extract_snippet %t/actual_llvm.out "@eclair_program_run" > %t/actual_eclair_program_run_llvm.out
+// RUN: diff %t/expected_eclair_program_init_llvm.out %t/actual_eclair_program_init_llvm.out
+// RUN: diff %t/expected_eclair_program_destroy_llvm.out %t/actual_eclair_program_destroy_llvm.out
+// RUN: diff %t/expected_eclair_program_run_llvm.out %t/actual_eclair_program_run_llvm.out
+
+//--- program.eclair
+@def edge(u32, u32).
+@def another(u32, u32, u32).
+
+edge(1, 2).
+edge(2, 3).
+
+another(1,2,3).
+
+//--- expected_ra.out
+project (1, 2, 3) into another
+project (2, 3) into edge
+project (1, 2) into edge
+//--- expected_eir.out
+declare_type Program
+{
+  symbol_table
+  another btree(num_columns=3, index=[0,1,2], block_size=256, search_type=linear)
+  edge btree(num_columns=2, index=[0,1], block_size=256, search_type=linear)
+}
+
+fn eclair_program_init() -> *Program
+{
+  program = heap_allocate_program
+  symbol_table.init(program.0)
+  another.init_empty(program.1)
+  edge.init_empty(program.2)
+  return program
+}
+
+fn eclair_program_destroy(*Program) -> Void
+{
+  symbol_table.destroy(FN_ARG[0].0)
+  another.destroy(FN_ARG[0].1)
+  edge.destroy(FN_ARG[0].2)
+  free_program(FN_ARG[0])
+}
+
+fn eclair_program_run(*Program) -> Void
+{
+  value = another.stack_allocate Value
+  value.0 = 1
+  value.1 = 2
+  value.2 = 3
+  another.insert(FN_ARG[0].1, value)
+  value_1 = edge.stack_allocate Value
+  value_1.0 = 2
+  value_1.1 = 3
+  edge.insert(FN_ARG[0].2, value_1)
+  value_2 = edge.stack_allocate Value
+  value_2.0 = 1
+  value_2.1 = 2
+  edge.insert(FN_ARG[0].2, value_2)
+}
+//--- expected_eclair_program_init_llvm.out
+define external ccc %program* @eclair_program_init() {
+start:
+  %memory_0 = call ccc i8* @malloc(i32 1592)
+  %program_0 = bitcast i8* %memory_0 to %program*
+  %0 = getelementptr %program, %program* %program_0, i32 0, i32 0
+  call ccc void @symbol_table_init(%symbol_table* %0)
+  %1 = getelementptr %program, %program* %program_0, i32 0, i32 1
+  call ccc void @btree_init_empty_0(%btree_t_0* %1)
+  %2 = getelementptr %program, %program* %program_0, i32 0, i32 2
+  call ccc void @btree_init_empty_1(%btree_t_1* %2)
+  ret %program* %program_0
+}
+//--- expected_eclair_program_destroy_llvm.out
+define external ccc void @eclair_program_destroy(%program* %arg_0) {
+start:
+  %0 = getelementptr %program, %program* %arg_0, i32 0, i32 0
+  call ccc void @symbol_table_destroy(%symbol_table* %0)
+  %1 = getelementptr %program, %program* %arg_0, i32 0, i32 1
+  call ccc void @btree_destroy_0(%btree_t_0* %1)
+  %2 = getelementptr %program, %program* %arg_0, i32 0, i32 2
+  call ccc void @btree_destroy_1(%btree_t_1* %2)
+  %memory_0 = bitcast %program* %arg_0 to i8*
+  call ccc void @free(i8* %memory_0)
+  ret void
+}
+//--- expected_eclair_program_run_llvm.out
+define external ccc void @eclair_program_run(%program* %arg_0) {
+start:
+  %value_0 = alloca [3 x i32], i32 1
+  %0 = getelementptr [3 x i32], [3 x i32]* %value_0, i32 0, i32 0
+  store i32 1, i32* %0
+  %1 = getelementptr [3 x i32], [3 x i32]* %value_0, i32 0, i32 1
+  store i32 2, i32* %1
+  %2 = getelementptr [3 x i32], [3 x i32]* %value_0, i32 0, i32 2
+  store i32 3, i32* %2
+  %3 = getelementptr %program, %program* %arg_0, i32 0, i32 1
+  %4 = call ccc i1 @btree_insert_value_0(%btree_t_0* %3, [3 x i32]* %value_0)
+  %value_1_0 = alloca [2 x i32], i32 1
+  %5 = getelementptr [2 x i32], [2 x i32]* %value_1_0, i32 0, i32 0
+  store i32 2, i32* %5
+  %6 = getelementptr [2 x i32], [2 x i32]* %value_1_0, i32 0, i32 1
+  store i32 3, i32* %6
+  %7 = getelementptr %program, %program* %arg_0, i32 0, i32 2
+  %8 = call ccc i1 @btree_insert_value_1(%btree_t_1* %7, [2 x i32]* %value_1_0)
+  %value_2_0 = alloca [2 x i32], i32 1
+  %9 = getelementptr [2 x i32], [2 x i32]* %value_2_0, i32 0, i32 0
+  store i32 1, i32* %9
+  %10 = getelementptr [2 x i32], [2 x i32]* %value_2_0, i32 0, i32 1
+  store i32 2, i32* %10
+  %11 = getelementptr %program, %program* %arg_0, i32 0, i32 2
+  %12 = call ccc i1 @btree_insert_value_1(%btree_t_1* %11, [2 x i32]* %value_2_0)
+  ret void
+}

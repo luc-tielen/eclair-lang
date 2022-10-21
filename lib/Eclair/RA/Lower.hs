@@ -36,7 +36,7 @@ compileToEIR stringMap typeInfo ra =
         , compileDestroy
         , compileRun ra
         ]
-   in EIR.Block $ map (runCodegen lowerState) moduleStmts
+   in EIR.Module $ map (runCodegen lowerState) moduleStmts
 
 compileInit :: StringMap -> CodegenM EIR
 compileInit stringMap = do

@@ -203,7 +203,7 @@ checkArgCount name (nodeIdTypeDef, types) (nodeId, args) = do
     emitError $ ArgCountMismatch name (nodeIdTypeDef, expectedArgCount) (nodeId, actualArgCount)
 
 checkExpr :: AST -> Type -> TypeCheckM ()
-checkExpr ast expectedTy = addContext (WhileChecking $ getNodeId ast) $case ast of
+checkExpr ast expectedTy = addContext (WhileChecking $ getNodeId ast) $ case ast of
   l@(Lit nodeId _) -> do
     actualTy <- inferExpr l
     -- NOTE: No need to call 'unifyType', types of literals are always concrete types.

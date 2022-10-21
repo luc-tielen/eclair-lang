@@ -221,11 +221,12 @@ sourceSpanToPosition sourceSpan =
    in Position start end (sourceSpanFile sourceSpan)
 
 renderError :: Diagnostic Text -> IO ()
-renderError =
-  printDiagnostic stderr useUnicode useColors tabSpaces style
+renderError txt = do
+  useColorEnvVar <- fromMaybe "1" <$> lookupEnv "ECLAIR_USE_COLOR"
+  let useColors = useColorEnvVar /= "0"
+  printDiagnostic stderr useUnicode useColors tabSpaces style txt
   where
     useUnicode = True
-    useColors = True
     tabSpaces = 2
 
 style :: Style

@@ -1,9 +1,0 @@
-@def some_fact(u32).
-@def some_rule(u32).
-
-unknown_rule(x) :-
-  some_fact(x).
-
-some_rule(x) :-
-  unknown_fact1(x),
-  unknown_fact2(x).

@@ -1,0 +1,83 @@
+// RUN: %eclair compile %s | FileCheck %s
+// CHECK: eclair_program_run
+
+@def fact1(u32, string).
+@def fact2(string, string).
+fact1(1, "a").
+fact2("abc", "def").
+
+@def edge(u32, u32).
+@def reachable(u32, u32).
+reachable(x, y) :- edge(x, y).
+reachable(1, 2) :- edge(x, x).
+
+@def fact3(u32, u32).
+@def fact4(u32).
+fact4(123) :-
+  fact3(123, 456).
+
+@def fact5(u32).
+@def fact6(u32, u32).
+fact5(123) :-
+  fact6(x, x).
+
+@def fact7(u32).
+@def fact8(u32, string).
+@def fact9(string).
+fact8(x, y) :-
+  fact7(x),
+  fact9(y).
+
+@def fact10(u32, u32, string).
+@def fact11(u32).
+fact11(x) :-
+  fact10(x, _, _),
+  fact10(_, x, _).
+
+@def fact12(u32, u32).
+@def fact13(u32).
+fact13(x) :-
+  fact12(x, _),
+  x = 123.
+
+fact13(x) :-
+  fact12(x, _),
+  123 = x.
+
+fact13(x) :-
+  fact12(x, y),
+  x = y.
+
+fact13(x) :-
+  fact12(x, _),
+  123 = 456.
+
+fact13(x) :-
+  fact12(x, _),
+  "abc" = "def".
+
+@def fact14(string, string).
+@def fact15(string).
+fact15(x) :-
+  fact14(x, _),
+  "abc" = x.
+
+fact15(x) :-
+  fact14(x, _),
+  x = "abc".
+
+/*
+TODO: improve AST codegen to handle equalities better.
+
+@def fact16(u32, u32).
+@def fact17(u32).
+fact17(x) :-
+  x = y,
+  fact16(x, z),
+  y = z.
+
+fact17(x) :-
+  x = y,
+  y = z,
+  fact16(x, z).
+*/

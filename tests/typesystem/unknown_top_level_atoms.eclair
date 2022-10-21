@@ -1,0 +1,30 @@
+// RUN: mkdir -p %t && sed s@TEST_DIR@%t@g %s > %t/input.test
+// RUN: split-file %t/input.test %t
+
+// RUN: %eclair compile %t/program.eclair 2> %t/actual.out
+// RUN: diff %t/expected.out %t/actual.out
+
+//--- program.eclair
+edge(1, 2).
+path(3, 4).
+
+//--- expected.out
+[error]: Missing type definition
+     ╭──▶ TEST_DIR/program.eclair@1:1-1:12
+     │
+   1 │ edge(1, 2).
+     • ┬──────────
+     • ╰╸ Could not find a type definition for 'edge'.
+     •
+     │ Hint: You can solve this by adding a type definition for 'edge'.
+─────╯
+
+[error]: Missing type definition
+     ╭──▶ TEST_DIR/program.eclair@2:1-2:12
+     │
+   2 │ path(3, 4).
+     • ┬──────────
+     • ╰╸ Could not find a type definition for 'path'.
+     •
+     │ Hint: You can solve this by adding a type definition for 'path'.
+─────╯

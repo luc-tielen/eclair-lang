@@ -37,7 +37,7 @@ type Relation = EIR.Relation
 
 compileToLLVM :: EIR -> IO Module
 compileToLLVM = \case
-  EIR.Block (EIR.DeclareProgram metas : decls) -> runModuleBuilderT $ do
+  EIR.Module (EIR.DeclareProgram metas : decls) -> runModuleBuilderT $ do
     exts <- createExternals
     (metaMapping, fnss) <- runCacheT $ traverse (codegenRuntime exts . snd) metas
     codegenDebugInfos metaMapping

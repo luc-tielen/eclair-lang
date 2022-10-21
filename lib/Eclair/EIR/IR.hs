@@ -63,7 +63,8 @@ data Op
   deriving (Eq, Show)
 
 data EIR
-  = Block [EIR]
+  = Module [EIR]  -- A module is the same as a block, but is rendered in a different way.
+  | Block [EIR]
   | Function Text [Type] Type EIR
   | FunctionArg Int
   | DeclareProgram [(Relation, Metadata)]
@@ -142,6 +143,9 @@ instance Pretty Op where
 
 instance Pretty EIR where
   pretty = \case
+    Module stmts ->
+      -- This adds newlines in between top level EIR statements
+      vsep $ intersperse mempty $ map pretty stmts
     Block stmts ->
       statementBlock stmts
     Function name tys retTy body ->

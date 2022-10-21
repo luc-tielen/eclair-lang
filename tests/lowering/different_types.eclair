@@ -1,0 +1,124 @@
+// TODO add tests for caching mechanism (e.g. single_nonrecursive_rule test)
+// TODO tests for symbol table
+
+// RUN: split-file %s %t
+
+// RUN: %eclair compile --emit llvm %t/program.eclair > %t/actual_llvm.out
+// RUN: %extract_snippet %t/actual_llvm.out "@eclair_add_facts" > %t/actual_eclair_add_facts_llvm.out
+// RUN: %extract_snippet %t/actual_llvm.out "@eclair_get_facts" > %t/actual_eclair_get_facts_llvm.out
+// RUN: diff %t/expected_eclair_add_facts_llvm.out %t/actual_eclair_add_facts_llvm.out
+// RUN: diff %t/expected_eclair_get_facts_llvm.out %t/actual_eclair_get_facts_llvm.out
+
+//--- program.eclair
+@def a(u32).
+@def b(u32, u32, u32).
+//--- expected_eclair_add_facts_llvm.out
+define external ccc void @eclair_add_facts(%program* %eclair_program_0, i16 %fact_type_0, i32* %memory_0, i32 %fact_count_0) {
+start:
+  switch i16 %fact_type_0, label %switch.default_0 [i16 0, label %a_0 i16 1, label %b_0]
+a_0:
+  %0 = getelementptr %program, %program* %eclair_program_0, i32 0, i32 1
+  %1 = bitcast i32* %memory_0 to [1 x i32]*
+  br label %for_begin_0
+for_begin_0:
+  %2 = phi i32 [0, %a_0], [%6, %for_body_0]
+  %3 = icmp ult i32 %2, %fact_count_0
+  br i1 %3, label %for_body_0, label %for_end_0
+for_body_0:
+  %4 = getelementptr [1 x i32], [1 x i32]* %1, i32 %2
+  %5 = call ccc i1 @btree_insert_value_0(%btree_t_0* %0, [1 x i32]* %4)
+  %6 = add i32 1, %2
+  br label %for_begin_0
+for_end_0:
+  br label %b_0
+b_0:
+  %7 = getelementptr %program, %program* %eclair_program_0, i32 0, i32 2
+  %8 = bitcast i32* %memory_0 to [3 x i32]*
+  br label %for_begin_1
+for_begin_1:
+  %9 = phi i32 [0, %b_0], [%13, %for_body_1]
+  %10 = icmp ult i32 %9, %fact_count_0
+  br i1 %10, label %for_body_1, label %for_end_1
+for_body_1:
+  %11 = getelementptr [3 x i32], [3 x i32]* %8, i32 %9
+  %12 = call ccc i1 @btree_insert_value_1(%btree_t_1* %7, [3 x i32]* %11)
+  %13 = add i32 1, %9
+  br label %for_begin_1
+for_end_1:
+  br label %switch.default_0
+switch.default_0:
+  ret void
+}
+//--- expected_eclair_get_facts_llvm.out
+define external ccc i32* @eclair_get_facts(%program* %eclair_program_0, i16 %fact_type_0) {
+start:
+  switch i16 %fact_type_0, label %switch.default_0 [i16 0, label %a_0 i16 1, label %b_0]
+a_0:
+  %0 = getelementptr %program, %program* %eclair_program_0, i32 0, i32 1
+  %fact_count_0 = call ccc i64 @btree_size_0(%btree_t_0* %0)
+  %fact_count_1 = trunc i64 %fact_count_0 to i32
+  %byte_count_0 = mul i32 %fact_count_1, 4
+  %memory_0 = call ccc i8* @malloc(i32 %byte_count_0)
+  %array_0 = bitcast i8* %memory_0 to [1 x i32]*
+  %i_0 = alloca i32, i32 1
+  store i32 0, i32* %i_0
+  %current_iter_0 = alloca %btree_iterator_t_0, i32 1
+  %end_iter_0 = alloca %btree_iterator_t_0, i32 1
+  call ccc void @btree_begin_0(%btree_t_0* %0, %btree_iterator_t_0* %current_iter_0)
+  call ccc void @btree_end_0(%btree_t_0* %0, %btree_iterator_t_0* %end_iter_0)
+  br label %while_begin_0
+while_begin_0:
+  %1 = call ccc i1 @btree_iterator_is_equal_0(%btree_iterator_t_0* %current_iter_0, %btree_iterator_t_0* %end_iter_0)
+  %2 = select i1 %1, i1 0, i1 1
+  br i1 %2, label %while_body_0, label %while_end_0
+while_body_0:
+  %3 = load i32, i32* %i_0
+  %value_0 = getelementptr [1 x i32], [1 x i32]* %array_0, i32 %3
+  %current_0 = call ccc [1 x i32]* @btree_iterator_current_0(%btree_iterator_t_0* %current_iter_0)
+  %4 = getelementptr [1 x i32], [1 x i32]* %current_0, i32 0
+  %5 = load [1 x i32], [1 x i32]* %4
+  %6 = getelementptr [1 x i32], [1 x i32]* %value_0, i32 0
+  store [1 x i32] %5, [1 x i32]* %6
+  %7 = add i32 %3, 1
+  store i32 %7, i32* %i_0
+  call ccc void @btree_iterator_next_0(%btree_iterator_t_0* %current_iter_0)
+  br label %while_begin_0
+while_end_0:
+  %8 = bitcast i8* %memory_0 to i32*
+  ret i32* %8
+b_0:
+  %9 = getelementptr %program, %program* %eclair_program_0, i32 0, i32 2
+  %fact_count_2 = call ccc i64 @btree_size_1(%btree_t_1* %9)
+  %fact_count_3 = trunc i64 %fact_count_2 to i32
+  %byte_count_1 = mul i32 %fact_count_3, 12
+  %memory_1 = call ccc i8* @malloc(i32 %byte_count_1)
+  %array_1 = bitcast i8* %memory_1 to [3 x i32]*
+  %i_1 = alloca i32, i32 1
+  store i32 0, i32* %i_1
+  %current_iter_1 = alloca %btree_iterator_t_1, i32 1
+  %end_iter_1 = alloca %btree_iterator_t_1, i32 1
+  call ccc void @btree_begin_1(%btree_t_1* %9, %btree_iterator_t_1* %current_iter_1)
+  call ccc void @btree_end_1(%btree_t_1* %9, %btree_iterator_t_1* %end_iter_1)
+  br label %while_begin_1
+while_begin_1:
+  %10 = call ccc i1 @btree_iterator_is_equal_1(%btree_iterator_t_1* %current_iter_1, %btree_iterator_t_1* %end_iter_1)
+  %11 = select i1 %10, i1 0, i1 1
+  br i1 %11, label %while_body_1, label %while_end_1
+while_body_1:
+  %12 = load i32, i32* %i_1
+  %value_1 = getelementptr [3 x i32], [3 x i32]* %array_1, i32 %12
+  %current_1 = call ccc [3 x i32]* @btree_iterator_current_1(%btree_iterator_t_1* %current_iter_1)
+  %13 = getelementptr [3 x i32], [3 x i32]* %current_1, i32 0
+  %14 = load [3 x i32], [3 x i32]* %13
+  %15 = getelementptr [3 x i32], [3 x i32]* %value_1, i32 0
+  store [3 x i32] %14, [3 x i32]* %15
+  %16 = add i32 %12, 1
+  store i32 %16, i32* %i_1
+  call ccc void @btree_iterator_next_1(%btree_iterator_t_1* %current_iter_1)
+  br label %while_begin_1
+while_end_1:
+  %17 = bitcast i8* %memory_1 to i32*
+  ret i32* %17
+switch.default_0:
+  ret i32* zeroinitializer
+}

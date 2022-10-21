@@ -1,0 +1,159 @@
+// NOTE: happy path is mostly skipped, this is tested implicitly by running
+// the compiler end-to-end in most other tests
+
+// RUN: mkdir -p %t && sed s@TEST_DIR@%t@g %s > %t/input.test
+// RUN: split-file %t/input.test %t
+
+// RUN: %eclair compile %t/program1.eclair 2> %t/top_level_facts_actual.out
+// RUN: diff %t/top_level_facts_expected.out %t/top_level_facts_actual.out
+
+//--- program1.eclair
+@def a(u32, u32).
+
+a(123, _).
+a(_, 123).
+
+//--- top_level_facts_expected.out
+[error]: Wildcard in top level fact
+     ╭──▶ TEST_DIR/program1.eclair@3:8-3:9
+     │
+   3 │ a(123, _).
+     • ┬──────┬──
+     • │      ╰╸ Wildcard found.
+     • ╰╸ A top level fact only supports constants.
+     •    Variables or wildcards are not allowed.
+     •
+     │ Note: Replace the wildcard with a constant.
+─────╯
+
+[error]: Wildcard in top level fact
+     ╭──▶ TEST_DIR/program1.eclair@4:3-4:4
+     │
+   4 │ a(_, 123).
+     • ┬─┬───────
+     • │ ╰╸ Wildcard found.
+     • ╰╸ A top level fact only supports constants.
+     •    Variables or wildcards are not allowed.
+     •
+     │ Note: Replace the wildcard with a constant.
+─────╯
+//--- program2.eclair
+
+// RUN: %eclair compile %t/program2.eclair 2> %t/wildcard_in_rule_head_actual.out
+// RUN: diff -w %t/wildcard_in_rule_head_expected.out %t/wildcard_in_rule_head_actual.out
+
+@def a(u32, u32).
+@def b(u32).
+
+a(x, _) :-
+  b(x).
+
+a(_, x) :-
+  b(x).
+
+//--- wildcard_in_rule_head_expected.out
+[error]: Wildcard in 'head' of rule
+     ╭──▶ TEST_DIR/program2.eclair@8:6-8:7
+     │
+   8 │ ╭┤ a(x, _) :-
+     • │       ┬
+     • │       ╰╸ Wildcard found.
+   9 │ ├┤   b(x).
+     • │
+     • ╰╸ Only constants and variables are allowed in the head of a rule.
+     •    Wildcards are not allowed.
+     •
+     │ Note: Replace the wildcard with a constant or a variable.
+─────╯
+
+[error]: Wildcard in 'head' of rule
+     ╭──▶ TEST_DIR/program2.eclair@11:3-11:4
+     │
+  11 │ ╭┤ a(_, x) :-
+     • │    ┬
+     • │    ╰╸ Wildcard found.
+  12 │ ├┤   b(x).
+     • │
+     • ╰╸ Only constants and variables are allowed in the head of a rule.
+     •    Wildcards are not allowed.
+     •
+     │ Note: Replace the wildcard with a constant or a variable.
+─────╯
+//--- program3.eclair
+
+// RUN: %eclair compile %t/program3.eclair 2> %t/wildcard_in_assignment_actual.out
+// RUN: diff -w %t/wildcard_in_assignment_expected.out %t/wildcard_in_assignment_actual.out
+
+@def a(u32).
+@def b(u32).
+
+a(x) :-
+  b(x),
+  _ = 123.
+
+a(x) :-
+  b(x),
+  123 = _.
+
+a(x) :-
+  b(x),
+  _ = _.
+
+//--- wildcard_in_assignment_expected.out
+[error]: Found wildcard in equality constraint
+     ╭──▶ TEST_DIR/program3.eclair@10:3-10:4
+     │
+  10 │   _ = 123.
+     •   ┬──────
+     •   ├╸ Wildcard found.
+     •   ╰╸ Only constants and variables are allowed in an equality constraint.
+     •
+     │ Note: This statement can be removed since it has no effect.
+─────╯
+
+[error]: Found wildcard in equality constraint
+     ╭──▶ TEST_DIR/program3.eclair@14:9-14:10
+     │
+  14 │   123 = _.
+     •   ┬─────┬
+     •   │     ╰╸ Wildcard found.
+     •   ╰╸ Only constants and variables are allowed in an equality constraint.
+     •
+     │ Note: This statement can be removed since it has no effect.
+─────╯
+
+[error]: Found wildcard in equality constraint
+     ╭──▶ TEST_DIR/program3.eclair@18:3-18:4
+     │
+  18 │   _ = _.
+     •   ┬────
+     •   ├╸ Wildcard found.
+     •   ╰╸ Only constants and variables are allowed in an equality constraint.
+     •
+     │ Note: This statement can be removed since it has no effect.
+─────╯
+
+[error]: Found wildcard in equality constraint
+     ╭──▶ TEST_DIR/program3.eclair@18:7-18:8
+     │
+  18 │   _ = _.
+     •   ┬───┬
+     •   │   ╰╸ Wildcard found.
+     •   ╰╸ Only constants and variables are allowed in an equality constraint.
+     •
+     │ Note: This statement can be removed since it has no effect.
+─────╯
+//--- program4.eclair
+
+// RUN: %eclair compile %t/program4.eclair 2> %t/wildcard_in_valid_actual.out
+// RUN: diff %t/wildcard_valid_expected.out %t/wildcard_in_valid_actual.out
+
+@def a(u32).
+@def b(u32, u32, u32).
+
+a(x) :-
+  b(x, _, _),
+  b(_, x, _),
+  b(_, _, x).
+
+//--- wildcard_valid_expected.out

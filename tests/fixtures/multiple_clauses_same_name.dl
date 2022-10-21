@@ -1,8 +1,0 @@
-@def link(u32, u32).
-@def chain(u32, u32, u32).
-
-link(1,2).
-
-chain(x, y, z) :-
-  link(x, y),
-  link(y, z).
