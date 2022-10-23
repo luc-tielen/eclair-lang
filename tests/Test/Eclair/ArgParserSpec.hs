@@ -22,7 +22,6 @@ shouldFail m = hSilence [stderr] $ do
       ExitFailure 1 -> pass
       e -> panic $ "Unknown error: " <> show e
 
-
 spec :: Spec
 spec = describe "argument parsing" $ do
   describe "compile mode" $ parallel $ do
