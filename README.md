@@ -1,7 +1,14 @@
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./logo_dark.png"/>
-  <img alt="Logo for the Eclair programming language" src="./logo_light.png"/>
-</picture>
+<div style="text-align: center;">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./logo_dark.png"/>
+    <img
+      src="./logo_light.png"
+      alt="Logo for the Eclair programming language"
+      loading="lazy"
+      decoding="async"
+      style="max-width: 600px;"/>
+  </picture>
+</div>
 
 An experimental and minimal Datalog implementation that compiles down to LLVM.
 
