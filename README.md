@@ -1,14 +1,11 @@
-<div style="text-align: center;">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="./logo_dark.png"/>
-    <img
-      src="./logo_light.png"
-      alt="Logo for the Eclair programming language"
-      loading="lazy"
-      decoding="async"
-      style="max-width: 600px;"/>
-  </picture>
-</div>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./logo_dark.png"/>
+  <img
+    src="./logo_light.png"
+    alt="Logo for the Eclair programming language"
+    loading="lazy"
+    decoding="async"/>
+</picture>
 
 An experimental and minimal Datalog implementation that compiles down to LLVM.
 
@@ -136,9 +133,13 @@ performance Datalog that compiles to C++. Because of the similarities, I chose a
 different kind of food that I like. I mean, an eclair contains _both_ chocolate and
 pudding, what's not to like!?
 
+Logo art by [Bruno Monts](https://www.instagram.com/bruno_monts/),
+with special thanks to the [Fission](https://fission.codes) team.
+Please contact Luc Tielen before using the logo for anything.
+
 ## Developer setup
 
-## Nix
+### Nix
 
 The easiest way to get the correct developer environment to build this project
 is to use a recent enough Nix (with flakes support). The project also assumes
@@ -158,7 +159,7 @@ the heavy lifting. After Nix has finished setting up your local environment, you
 can use `cabal` to build your project as usual. The Makefile contains the most
 commonly used commands needed during development.
 
-## Without Nix
+### Without Nix
 
 You will need to install all tools yourself, manually. While this is possible,
 it is not advised since you can potentially end up with a (slightly) different
