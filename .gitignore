@@ -6,8 +6,10 @@ cabal.project.local*
 *.ll
 *.bc
 *.o
+/*.wasm
 *.s
 /*.dl
 /*.eclair
+/*.js
 
 result
