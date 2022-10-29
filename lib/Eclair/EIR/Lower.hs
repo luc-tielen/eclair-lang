@@ -69,6 +69,7 @@ compileToLLVM = \case
         argTypes <- liftIO $ traverse getType tys
         returnType <- liftIO $ getType retTy
         let args = map (, ParameterName "arg") argTypes
+        -- We don't expose these functions on the top level API, they are only used internally!
         function (Name name) args returnType $ \args -> do
           runCodegenM (fnBodyToLLVM args body) lowerState
       _ ->
@@ -276,7 +277,7 @@ generateAddFact addFactsFn = do
              ]
       returnType = void
 
-  function "eclair_add_fact" args returnType $ \[program, factType, memory] -> do
+  apiFunction "eclair_add_fact" args returnType $ \[program, factType, memory] -> do
     call addFactsFn [program, factType, memory, int32 1]
     retVoid
 
@@ -293,7 +294,7 @@ generateAddFactsFn = do
              , (i32, ParameterName "fact_count")
              ]
       returnType = void
-  function "eclair_add_facts" args returnType $ \[program, factType, memory, factCount] -> do
+  apiFunction "eclair_add_facts" args returnType $ \[program, factType, memory, factCount] -> do
     switchOnFactType metas retVoid factType $ \r -> do
       let indexes = indexesFor lowerState r
       for_ indexes $ \idx -> do
@@ -316,7 +317,7 @@ generateGetFactsFn = do
              ]
       returnType = ptr i32
       mallocFn = extMalloc $ externals lowerState
-  function "eclair_get_facts" args returnType $ \[program, factType] -> do
+  apiFunction "eclair_get_facts" args returnType $ \[program, factType] -> do
     switchOnFactType metas (ret $ nullPtr i32) factType $ \r -> do
       let indexes = indexesFor lowerState r
           idx = fromJust $ viaNonEmpty head indexes  -- TODO: which idx? just select first matching?
@@ -359,7 +360,7 @@ generateFreeBufferFn = do
   let freeFn = extFree $ externals lowerState
       args = [(ptr i32, ParameterName "buffer")]
       returnType = void
-  function "eclair_free_buffer" args returnType $ \[buf] -> mdo
+  apiFunction "eclair_free_buffer" args returnType $ \[buf] -> mdo
     memory <- buf `bitcast` ptr i8 `named` "memory"
     call freeFn [memory]
     retVoid
@@ -371,7 +372,7 @@ generateFactCountFn = do
              , (i16, ParameterName "fact_type")
              ]
       returnType = i64
-  function "eclair_fact_count" args returnType $ \[program, factType] -> do
+  apiFunction "eclair_fact_count" args returnType $ \[program, factType] -> do
     switchOnFactType metas (ret $ int64 0) factType $ \r -> do
       let indexes = indexesFor lowerState r
           idx = fromJust $ viaNonEmpty head indexes  -- TODO: which idx? just select first matching? or idx on all columns?
@@ -395,7 +396,7 @@ generateEncodeStringFn = do
       (symbolTable, symbol) = (symbolTableFns &&& symbolFns) lowerState
       exts = externals lowerState
 
-  function "eclair_encode_string" args i32 $ \[program, len, stringData] -> do
+  apiFunction "eclair_encode_string" args i32 $ \[program, len, stringData] -> do
     stringDataCopy <- call (extMalloc exts) [len]
     lenBytes <- zext len i64
     call (extMemcpy exts) [stringDataCopy, stringData, lenBytes, bit 0]
@@ -427,7 +428,7 @@ generateDecodeStringFn = do
                       -- some extra decoding needs to happen on side of host language.
       symbolTable = symbolTableFns lowerState
 
-  function "eclair_decode_string" args (ptr i8) $ \[program, idx] -> do
+  apiFunction "eclair_decode_string" args (ptr i8) $ \[program, idx] -> do
     symbolTablePtr <- getSymbolTablePtr program
     containsIndex <- call (SymbolTable.symbolTableContainsIndex symbolTable) [symbolTablePtr, idx]
     if' containsIndex $ do
@@ -495,3 +496,12 @@ indexesFor :: LowerState -> Relation -> [Index]
 indexesFor ls r =
   map snd $ filter ((== r) . fst) $ M.keys $ fnsMap ls
 
+apiFunction :: (MonadModuleBuilder m, HasSuffix m)
+            => Name
+            -> [(LLVM.Type, ParameterName)]
+            -> LLVM.Type
+            -> ([Operand] -> IRBuilderT m a)
+            -> m Operand
+apiFunction fnName args retTy body =
+  withDefaultFunctionAttributes (WasmExportName (unName fnName):) $
+    function fnName args retTy body
