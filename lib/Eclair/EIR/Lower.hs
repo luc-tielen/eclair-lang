@@ -26,6 +26,7 @@ import Eclair.LLVM.Metadata
 import Eclair.LLVM.Hash
 import Eclair.LLVM.Externals
 import Eclair.RA.IndexSelection
+import Eclair.ArgParser
 import Eclair.Comonads
 import Eclair.AST.IR
 import Eclair.Id
@@ -35,10 +36,10 @@ type EIR = EIR.EIR
 type EIRF = EIR.EIRF
 type Relation = EIR.Relation
 
-compileToLLVM :: EIR -> IO Module
-compileToLLVM = \case
+compileToLLVM :: Maybe Target -> EIR -> IO Module
+compileToLLVM target = \case
   EIR.Module (EIR.DeclareProgram metas : decls) -> runModuleBuilderT $ do
-    exts <- createExternals
+    exts <- createExternals target
     (metaMapping, fnss) <- runCacheT $ traverse (codegenRuntime exts . snd) metas
     codegenDebugInfos metaMapping
     (symbolTable, symbol) <- codegenSymbolTable exts
@@ -69,6 +70,7 @@ compileToLLVM = \case
         argTypes <- liftIO $ traverse getType tys
         returnType <- liftIO $ getType retTy
         let args = map (, ParameterName "arg") argTypes
+        -- We don't expose these functions on the top level API, they are only used internally!
         function (Name name) args returnType $ \args -> do
           runCodegenM (fnBodyToLLVM args body) lowerState
       _ ->
@@ -257,15 +259,50 @@ getIndexFromMeta :: Metadata -> Index
 getIndexFromMeta = \case
   BTree meta -> Index $ BTree.index meta
 
-createExternals :: ModuleBuilderT IO Externals
-createExternals = do
+createExternals :: Maybe Target -> ModuleBuilderT IO Externals
+createExternals target = do
   mallocFn <- extern "malloc" [i32] (ptr i8)
   freeFn <- extern "free" [ptr i8] void
   memsetFn <- extern "llvm.memset.p0i8.i64" [ptr i8, i8, i64, i1] void
   memcpyFn <- extern "llvm.memcpy.p0i8.p0i8.i64" [ptr i8, ptr i8, i64, i1] void
-  memcmpFn <- extern "memcmp" [ptr i8, ptr i8, i64] i32
+  memcmpFn <- if target == Just Wasm32
+                then generateMemCmpWasm32
+                else extern "memcmp" [ptr i8, ptr i8, i64] i32
   pure $ Externals mallocFn freeFn memsetFn memcpyFn memcmpFn
 
+-- NOTE: we only care about 0 if they are equal!
+generateMemCmpWasm32 :: MonadFix m => ModuleBuilderT m Operand
+generateMemCmpWasm32 = do
+  let args = [(ptr i8, "array1"), (ptr i8, "array2"), (i64, "byte_count")]
+  function "memcmp_wasm32" args i32 $ \[array1, array2, byteCount] -> do
+    i64Count <- byteCount `udiv` int64 8
+    restCount <- byteCount `and` int64 7  -- modulo 8
+    i64Array1 <- array1 `bitcast` ptr i64
+    i64Array2 <- array2 `bitcast` ptr i64
+
+    loopFor (int64 0) (`ult` i64Count) (add (int64 1)) $ \i -> do
+      valuePtr1 <- gep i64Array1 [i]
+      valuePtr2 <- gep i64Array2 [i]
+      value1 <- load valuePtr1 0
+      value2 <- load valuePtr2 0
+
+      isNotEqual <- value1 `ne` value2
+      if' isNotEqual $
+        ret $ int32 1
+
+    startIdx <- mul i64Count (int64 8)
+    loopFor (int64 0) (`ult` restCount) (add (int64 1)) $ \i -> do
+      idx <- add i startIdx
+      valuePtr1 <- gep array1 [idx]
+      valuePtr2 <- gep array2 [idx]
+      value1 <- load valuePtr1 0
+      value2 <- load valuePtr2 0
+
+      isNotEqual <- value1 `ne` value2
+      if' isNotEqual $
+        ret $ int32 1
+
+    ret $ int32 0
 
 generateAddFact :: MonadFix m => Operand -> CodegenInOutT (ModuleBuilderT m) Operand
 generateAddFact addFactsFn = do
@@ -276,7 +313,7 @@ generateAddFact addFactsFn = do
              ]
       returnType = void
 
-  function "eclair_add_fact" args returnType $ \[program, factType, memory] -> do
+  apiFunction "eclair_add_fact" args returnType $ \[program, factType, memory] -> do
     call addFactsFn [program, factType, memory, int32 1]
     retVoid
 
@@ -293,7 +330,7 @@ generateAddFactsFn = do
              , (i32, ParameterName "fact_count")
              ]
       returnType = void
-  function "eclair_add_facts" args returnType $ \[program, factType, memory, factCount] -> do
+  apiFunction "eclair_add_facts" args returnType $ \[program, factType, memory, factCount] -> do
     switchOnFactType metas retVoid factType $ \r -> do
       let indexes = indexesFor lowerState r
       for_ indexes $ \idx -> do
@@ -316,7 +353,7 @@ generateGetFactsFn = do
              ]
       returnType = ptr i32
       mallocFn = extMalloc $ externals lowerState
-  function "eclair_get_facts" args returnType $ \[program, factType] -> do
+  apiFunction "eclair_get_facts" args returnType $ \[program, factType] -> do
     switchOnFactType metas (ret $ nullPtr i32) factType $ \r -> do
       let indexes = indexesFor lowerState r
           idx = fromJust $ viaNonEmpty head indexes  -- TODO: which idx? just select first matching?
@@ -359,7 +396,7 @@ generateFreeBufferFn = do
   let freeFn = extFree $ externals lowerState
       args = [(ptr i32, ParameterName "buffer")]
       returnType = void
-  function "eclair_free_buffer" args returnType $ \[buf] -> mdo
+  apiFunction "eclair_free_buffer" args returnType $ \[buf] -> mdo
     memory <- buf `bitcast` ptr i8 `named` "memory"
     call freeFn [memory]
     retVoid
@@ -371,7 +408,7 @@ generateFactCountFn = do
              , (i16, ParameterName "fact_type")
              ]
       returnType = i64
-  function "eclair_fact_count" args returnType $ \[program, factType] -> do
+  apiFunction "eclair_fact_count" args returnType $ \[program, factType] -> do
     switchOnFactType metas (ret $ int64 0) factType $ \r -> do
       let indexes = indexesFor lowerState r
           idx = fromJust $ viaNonEmpty head indexes  -- TODO: which idx? just select first matching? or idx on all columns?
@@ -395,7 +432,7 @@ generateEncodeStringFn = do
       (symbolTable, symbol) = (symbolTableFns &&& symbolFns) lowerState
       exts = externals lowerState
 
-  function "eclair_encode_string" args i32 $ \[program, len, stringData] -> do
+  apiFunction "eclair_encode_string" args i32 $ \[program, len, stringData] -> do
     stringDataCopy <- call (extMalloc exts) [len]
     lenBytes <- zext len i64
     call (extMemcpy exts) [stringDataCopy, stringData, lenBytes, bit 0]
@@ -427,7 +464,7 @@ generateDecodeStringFn = do
                       -- some extra decoding needs to happen on side of host language.
       symbolTable = symbolTableFns lowerState
 
-  function "eclair_decode_string" args (ptr i8) $ \[program, idx] -> do
+  apiFunction "eclair_decode_string" args (ptr i8) $ \[program, idx] -> do
     symbolTablePtr <- getSymbolTablePtr program
     containsIndex <- call (SymbolTable.symbolTableContainsIndex symbolTable) [symbolTablePtr, idx]
     if' containsIndex $ do
@@ -495,3 +532,12 @@ indexesFor :: LowerState -> Relation -> [Index]
 indexesFor ls r =
   map snd $ filter ((== r) . fst) $ M.keys $ fnsMap ls
 
+apiFunction :: (MonadModuleBuilder m, HasSuffix m)
+            => Name
+            -> [(LLVM.Type, ParameterName)]
+            -> LLVM.Type
+            -> ([Operand] -> IRBuilderT m a)
+            -> m Operand
+apiFunction fnName args retTy body =
+  withDefaultFunctionAttributes (WasmExportName (unName fnName):) $
+    function fnName args retTy body

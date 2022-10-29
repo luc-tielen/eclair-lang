@@ -4,6 +4,7 @@ module Eclair.ArgParser
   , Config(..)
   , CompileConfig(..)
   , EmitKind(..)
+  , Target(..)
   ) where
 
 import Options.Applicative
@@ -23,7 +24,12 @@ data CompileConfig
   = CompileConfig
   { mainFile :: FilePath
   , emitKind :: EmitKind
+  , cpuTarget :: Maybe Target  -- Nothing = compile to host architecture
   } deriving (Eq, Show)
+
+data Target
+  = Wasm32
+  deriving (Eq, Show)
 
 newtype Config
   = Compile CompileConfig
@@ -52,6 +58,16 @@ compileParser = Compile <$> compileParser'
     compileParser' =
       CompileConfig <$> argument str (metavar "FILE" <> help "The main Datalog file to compile.")
                     <*> emitKindParser
+                    <*> optional targetParser
+
+targetParser :: Parser Target
+targetParser =
+  option (maybeReader parseTarget) $ metavar "TARGET" <> long "target" <> short 't' <> help desc
+  where
+    desc = "Select the target CPU architecture. Default is to use the host architecture. Supported options: 'wasm32'."
+    parseTarget = \case
+      "wasm32" -> Just Wasm32
+      _ -> Nothing
 
 emitKindParser :: Parser EmitKind
 emitKindParser =
