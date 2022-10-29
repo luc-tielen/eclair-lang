@@ -26,6 +26,7 @@ import Eclair.LLVM.Metadata
 import Eclair.LLVM.Hash
 import Eclair.LLVM.Externals
 import Eclair.RA.IndexSelection
+import Eclair.ArgParser
 import Eclair.Comonads
 import Eclair.AST.IR
 import Eclair.Id
@@ -35,10 +36,10 @@ type EIR = EIR.EIR
 type EIRF = EIR.EIRF
 type Relation = EIR.Relation
 
-compileToLLVM :: EIR -> IO Module
-compileToLLVM = \case
+compileToLLVM :: Maybe Target -> EIR -> IO Module
+compileToLLVM target = \case
   EIR.Module (EIR.DeclareProgram metas : decls) -> runModuleBuilderT $ do
-    exts <- createExternals
+    exts <- createExternals target
     (metaMapping, fnss) <- runCacheT $ traverse (codegenRuntime exts . snd) metas
     codegenDebugInfos metaMapping
     (symbolTable, symbol) <- codegenSymbolTable exts
@@ -258,15 +259,50 @@ getIndexFromMeta :: Metadata -> Index
 getIndexFromMeta = \case
   BTree meta -> Index $ BTree.index meta
 
-createExternals :: ModuleBuilderT IO Externals
-createExternals = do
+createExternals :: Maybe Target -> ModuleBuilderT IO Externals
+createExternals target = do
   mallocFn <- extern "malloc" [i32] (ptr i8)
   freeFn <- extern "free" [ptr i8] void
   memsetFn <- extern "llvm.memset.p0i8.i64" [ptr i8, i8, i64, i1] void
   memcpyFn <- extern "llvm.memcpy.p0i8.p0i8.i64" [ptr i8, ptr i8, i64, i1] void
-  memcmpFn <- extern "memcmp" [ptr i8, ptr i8, i64] i32
+  memcmpFn <- if target == Just Wasm32
+                then generateMemCmpWasm32
+                else extern "memcmp" [ptr i8, ptr i8, i64] i32
   pure $ Externals mallocFn freeFn memsetFn memcpyFn memcmpFn
 
+-- NOTE: we only care about 0 if they are equal!
+generateMemCmpWasm32 :: MonadFix m => ModuleBuilderT m Operand
+generateMemCmpWasm32 = do
+  let args = [(ptr i8, "array1"), (ptr i8, "array2"), (i64, "byte_count")]
+  function "memcmp_wasm32" args i32 $ \[array1, array2, byteCount] -> do
+    i64Count <- byteCount `udiv` int64 8
+    restCount <- byteCount `and` int64 7  -- modulo 8
+    i64Array1 <- array1 `bitcast` ptr i64
+    i64Array2 <- array2 `bitcast` ptr i64
+
+    loopFor (int64 0) (`ult` i64Count) (add (int64 1)) $ \i -> do
+      valuePtr1 <- gep i64Array1 [i]
+      valuePtr2 <- gep i64Array2 [i]
+      value1 <- load valuePtr1 0
+      value2 <- load valuePtr2 0
+
+      isNotEqual <- value1 `ne` value2
+      if' isNotEqual $
+        ret $ int32 1
+
+    startIdx <- mul i64Count (int64 8)
+    loopFor (int64 0) (`ult` restCount) (add (int64 1)) $ \i -> do
+      idx <- add i startIdx
+      valuePtr1 <- gep array1 [idx]
+      valuePtr2 <- gep array2 [idx]
+      value1 <- load valuePtr1 0
+      value2 <- load valuePtr2 0
+
+      isNotEqual <- value1 `ne` value2
+      if' isNotEqual $
+        ret $ int32 1
+
+    ret $ int32 0
 
 generateAddFact :: MonadFix m => Operand -> CodegenInOutT (ModuleBuilderT m) Operand
 generateAddFact addFactsFn = do
