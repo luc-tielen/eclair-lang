@@ -325,7 +325,7 @@ generateAddFactsFn = do
 
   -- NOTE: this assumes there are no more than 65536 fact types in a single Datalog program
   let args = [ (ptr (programType lowerState), ParameterName "eclair_program")
-             , (i16, ParameterName "fact_type")
+             , (i32, ParameterName "fact_type")
              , (ptr i32, ParameterName "memory")
              , (i32, ParameterName "fact_count")
              ]
@@ -405,9 +405,9 @@ generateFactCountFn :: MonadFix m => CodegenInOutT (ModuleBuilderT m) Operand
 generateFactCountFn = do
   (metas, lowerState) <- ask
   let args = [ (ptr (programType lowerState), ParameterName "eclair_program")
-             , (i16, ParameterName "fact_type")
+             , (i32, ParameterName "fact_type")
              ]
-      returnType = i64
+      returnType = i32
   apiFunction "eclair_fact_count" args returnType $ \[program, factType] -> do
     switchOnFactType metas (ret $ int64 0) factType $ \r -> do
       let indexes = indexesFor lowerState r
@@ -418,7 +418,7 @@ generateFactCountFn = do
           treeOffset = int32 $ toInteger $ getContainerOffset metas r idx
       relationPtr <- gep program [int32 0, treeOffset]
       relationSize <- doCall EIR.Size [relationPtr]
-      ret relationSize
+      ret =<< trunc relationSize i32
 
 -- NOTE: string does not need to be 0-terminated, length field is used to determine length (in bytes).
 -- Eclair makes an internal copy of the string, for simpler memory management.
@@ -499,7 +499,7 @@ switchOnFactType metas defaultCase factType generateCase = mdo
     caseBlocks <- for mapping $ \(r, factNum) -> do
       caseBlock <- block `named` Name (unId r)
       generateCase r
-      pure (int16 factNum, caseBlock)
+      pure (int32 factNum, caseBlock)
 
     end <- block `named` "switch.default"
     defaultCase
