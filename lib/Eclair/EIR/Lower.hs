@@ -308,7 +308,7 @@ generateAddFact :: MonadFix m => Operand -> CodegenInOutT (ModuleBuilderT m) Ope
 generateAddFact addFactsFn = do
   lowerState <- asks snd
   let args = [ (ptr (programType lowerState), ParameterName "eclair_program")
-             , (i16, ParameterName "fact_type")
+             , (i32, ParameterName "fact_type")
              , (ptr i32, ParameterName "memory")
              ]
       returnType = void
@@ -349,7 +349,7 @@ generateGetFactsFn :: MonadFix m => CodegenInOutT (ModuleBuilderT m) Operand
 generateGetFactsFn = do
   (metas, lowerState) <- ask
   let args = [ (ptr (programType lowerState), ParameterName "eclair_program")
-             , (i16, ParameterName "fact_type")
+             , (i32, ParameterName "fact_type")
              ]
       returnType = ptr i32
       mallocFn = extMalloc $ externals lowerState
@@ -409,7 +409,7 @@ generateFactCountFn = do
              ]
       returnType = i32
   apiFunction "eclair_fact_count" args returnType $ \[program, factType] -> do
-    switchOnFactType metas (ret $ int64 0) factType $ \r -> do
+    switchOnFactType metas (ret $ int32 0) factType $ \r -> do
       let indexes = indexesFor lowerState r
           idx = fromJust $ viaNonEmpty head indexes  -- TODO: which idx? just select first matching? or idx on all columns?
           doCall op args = do
