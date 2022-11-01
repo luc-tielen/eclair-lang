@@ -1,5 +1,6 @@
 module Eclair.Transform
   ( Transform(..)
+  , pureTransform
   , TransformM
   , runTransform
   , fixTransform
@@ -33,6 +34,11 @@ newtype Transform a b
   = Transform (a -> TransformM b)
   deriving (Semigroup, Monoid) via Ap (Kleisli TransformM a) b
   deriving (Category, Arrow) via Kleisli TransformM
+
+-- | Helper function for creating a transform that doesn't require any effects.
+pureTransform :: (a -> b) -> Transform a b
+pureTransform f =
+  Transform $ pure . f
 
 -- | Converts a 'Transform' to an equivalent pure function.
 --   The 'NodeId' that is passed in is used as a starting point for generating
