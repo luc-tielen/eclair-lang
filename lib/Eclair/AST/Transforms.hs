@@ -6,11 +6,12 @@ module Eclair.AST.Transforms
 import Eclair.AST.IR
 import Eclair.AST.Analysis
 import Eclair.Transform
-import qualified Eclair.AST.Transforms.RemoveWildcards as RmWildcards
-import qualified Eclair.AST.Transforms.ShiftAssignments as ShiftAssigns
 import qualified Eclair.AST.Transforms.CopyPropagation as CopyPropagation
-import qualified Eclair.AST.Transforms.UniqueVars as UniqueVars
+import qualified Eclair.AST.Transforms.DeadCodeElimination as DCE
+import qualified Eclair.AST.Transforms.RemoveWildcards as RmWildcards
 import qualified Eclair.AST.Transforms.ReplaceStrings as ReplaceStrings
+import qualified Eclair.AST.Transforms.ShiftAssignments as ShiftAssigns
+import qualified Eclair.AST.Transforms.UniqueVars as UniqueVars
 
 
 -- Transforms can be grouped into 3 parts:
@@ -26,6 +27,7 @@ simplify nodeId pointsTo = runTransform nodeId
   $   RmWildcards.transform
   -- Optimizations:
   >>> CopyPropagation.transform pointsTo
+  >>> DCE.transform
 
   -- Transforms after optimizations:
   >>> UniqueVars.transform
