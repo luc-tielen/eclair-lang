@@ -98,6 +98,7 @@ library
     , bytestring ==0.10.*
     , comonad ==5.*
     , containers ==0.*
+    , dependent-sum >=0.6 && <1
     , dependent-sum-template ==0.1.*
     , diagnose ==2.3.*
     , dlist ==1.*
@@ -113,7 +114,6 @@ library
     , recursion-schemes ==5.*
     , relude ==1.0.*
     , rock ==0.3.*
-    , some ==1.*
     , souffle-haskell ==3.4.0
     , text ==1.*
     , transformers ==0.*
@@ -168,6 +168,7 @@ executable eclair
     , bytestring ==0.10.*
     , comonad ==5.*
     , containers ==0.*
+    , dependent-sum >=0.6 && <1
     , dependent-sum-template ==0.1.*
     , diagnose ==2.3.*
     , directory ==1.*
@@ -185,7 +186,6 @@ executable eclair
     , recursion-schemes ==5.*
     , relude ==1.0.*
     , rock ==0.3.*
-    , some ==1.*
     , souffle-haskell ==3.4.0
     , text ==1.*
     , transformers ==0.*
@@ -241,6 +241,7 @@ test-suite eclair-test
     , bytestring ==0.10.*
     , comonad ==5.*
     , containers ==0.*
+    , dependent-sum >=0.6 && <1
     , dependent-sum-template ==0.1.*
     , diagnose ==2.3.*
     , dlist ==1.*
@@ -263,7 +264,6 @@ test-suite eclair-test
     , relude ==1.0.*
     , rock ==0.3.*
     , silently ==1.2.*
-    , some ==1.*
     , souffle-haskell ==3.4.0
     , text ==1.*
     , transformers ==0.*

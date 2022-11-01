@@ -24,6 +24,7 @@ import Eclair.Parser
 import Eclair.Pretty
 import Eclair.Error
 import Eclair.Id
+import Eclair.ArgParser (Target(..))
 import Eclair.AST.IR
 import Eclair.AST.Transforms
 import qualified Eclair.RA.IR as RA
@@ -41,6 +42,8 @@ import Data.Maybe
 type Relation = RA.Relation
 type RA = RA.RA
 type EIR = EIR.EIR
+
+type Config = Maybe Target
 
 
 data Query a where
@@ -98,8 +101,8 @@ instance Hashable (Some Query) where
     hashWithSalt salt query
 
 
-rules :: Rock.Rules Query
-rules = \case
+rules :: Config -> Rock.Rules Query
+rules config = \case
   Parse path ->
     liftIO $ either (throwIO . ParseErr path) pure =<< parseFile path
   RunSemanticAnalysis path -> do
@@ -142,53 +145,58 @@ rules = \case
     liftIO $ putTextLn $ printDoc eir
   CompileLLVM path -> do
     eir <- Rock.fetch (CompileEIR path)
-    liftIO $ compileToLLVM eir
+    liftIO $ compileToLLVM config eir
   EmitLLVM path -> do
     llvmModule <- Rock.fetch (CompileLLVM path)
     liftIO $ putTextLn $ ppllvm llvmModule
 
-
-runQuery :: Query a -> IO a
-runQuery query = do
+runQuery :: Config -> Query a -> IO a
+runQuery config query = do
   memoVar <- newIORef mempty
   let task = Rock.fetch query
-  Rock.runTask (Rock.memoise memoVar rules) task
+  Rock.runTask (Rock.memoise memoVar $ rules config) task
 
-parse :: FilePath -> IO AST
-parse = map (\(ast, _, _) -> ast) . runQuery . Parse
+parse :: Config -> FilePath -> IO AST
+parse cfg =
+  map (\(ast, _, _) -> ast) . runQuery cfg . Parse
 
-semanticAnalysis :: FilePath -> IO SA.Result
-semanticAnalysis = runQuery . RunSemanticAnalysis
+semanticAnalysis :: Config -> FilePath -> IO SA.Result
+semanticAnalysis cfg =
+  runQuery cfg . RunSemanticAnalysis
 
-transformAST :: FilePath -> IO (AST, StringMap)
-transformAST = runQuery . TransformAST
+transformAST :: Config -> FilePath -> IO (AST, StringMap)
+transformAST cfg =
+  runQuery cfg . TransformAST
 
-emitSimplifiedAST :: FilePath -> IO ()
-emitSimplifiedAST = runQuery . EmitSimplifiedAST
+emitSimplifiedAST :: Config -> FilePath -> IO ()
+emitSimplifiedAST cfg =
+  runQuery cfg . EmitSimplifiedAST
 
-compileRA :: FilePath -> IO RA
-compileRA =
-  runQuery . CompileRA
+compileRA :: Config -> FilePath -> IO RA
+compileRA cfg =
+  runQuery cfg . CompileRA
 
-emitRA :: FilePath -> IO ()
-emitRA =
-  runQuery . EmitRA
+emitRA :: Config -> FilePath -> IO ()
+emitRA cfg =
+  runQuery cfg . EmitRA
 
-compileEIR :: FilePath -> IO EIR
-compileEIR =
-  runQuery . CompileEIR
+compileEIR :: Config -> FilePath -> IO EIR
+compileEIR cfg =
+  runQuery cfg . CompileEIR
 
-emitEIR :: FilePath -> IO ()
-emitEIR =
-  runQuery . EmitEIR
+emitEIR :: Config -> FilePath -> IO ()
+emitEIR cfg =
+  runQuery cfg . EmitEIR
 
-compileLLVM :: FilePath -> IO Module
-compileLLVM =
-  runQuery . CompileLLVM
+compileLLVM :: Config -> FilePath -> IO Module
+compileLLVM cfg =
+  runQuery cfg . CompileLLVM
 
-compile :: FilePath -> IO Module
-compile = compileLLVM
+compile :: Config -> FilePath -> IO Module
+compile =
+  compileLLVM
 
-emitLLVM :: FilePath -> IO ()
-emitLLVM = runQuery . EmitLLVM
+emitLLVM :: Config -> FilePath -> IO ()
+emitLLVM cfg =
+  runQuery cfg . EmitLLVM
 
