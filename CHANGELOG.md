@@ -19,6 +19,7 @@ The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-has
 
 ### Fixed
 
+- Rules with multiple equalities.
 - Edgecase in index selection algorithm. The algorithm now does not take
   `NoElem` variants into account.
 
