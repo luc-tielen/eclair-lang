@@ -2,6 +2,7 @@
 
 module Eclair.AST.Analysis
   ( Result(..)
+  , PointsToAnalysis(..)
   , SemanticErrors(..)
   , hasSemanticErrors
   , runAnalysis
@@ -18,6 +19,7 @@ module Eclair.AST.Analysis
 import qualified Language.Souffle.Interpreted as S
 import qualified Language.Souffle.Analysis as S
 import qualified Eclair.AST.IR as IR
+import qualified Data.Map as Map
 import Eclair.Id
 import Data.Kind
 
@@ -102,6 +104,23 @@ data ModuleDecl
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions ModuleDecl "module_declaration" 'S.Input
 
+data RuleVariable
+  = RuleVariable { rvRuleId :: NodeId, rvVarId :: NodeId }
+  deriving stock Generic
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions RuleVariable "rule_variable" 'S.Input
+
+data PointsToVar
+  = PointsToVar
+  { ptRuleId :: NodeId
+  , ptVar1Id :: NodeId
+  , ptVar2Id :: NodeId
+  , ptVar2Name :: Id
+  }
+  deriving stock (Generic, Eq, Show)
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions ModuleDecl "points_to_var" 'S.Output
+
 data VariableInFact
   = VariableInFact NodeId Id
   deriving stock (Generic, Eq, Show)
@@ -169,6 +188,8 @@ data SemanticAnalysis
        , DeclareType
        , Module
        , ModuleDecl
+       , RuleVariable
+       , PointsToVar
        , VariableInFact
        , UngroundedVar
        , EmptyModule
@@ -180,7 +201,20 @@ data SemanticAnalysis
 -- TODO: change to Vector when finished for performance
 type Container = []
 
-type SemanticInfo = ()  -- TODO: not used atm
+-- Points-to analysis of variables.
+-- For now only takes variables mapping to other variables into account.
+newtype PointsToAnalysis
+  = PointsToAnalysis (Map NodeId IR.AST)
+  deriving (Eq, Show)
+
+mkPointsToAnalysis :: Container PointsToVar -> PointsToAnalysis
+mkPointsToAnalysis =
+  PointsToAnalysis . Map.fromList . toList . map toEntry
+  where
+    toEntry (PointsToVar _ var1Id var2Id var2Name) =
+      (var1Id, IR.Var var2Id var2Name)
+
+type SemanticInfo = PointsToAnalysis
 
 data Result
   = Result
@@ -217,15 +251,20 @@ analysis :: S.Handle SemanticAnalysis -> S.Analysis S.SouffleM IR.AST Result
 analysis prog = S.mkAnalysis addFacts run getFacts
   where
     addFacts :: IR.AST -> S.SouffleM ()
-    addFacts = zygo getNodeId $ \case
+    addFacts ast = usingReaderT Nothing $ flip (zygo getNodeId) ast $ \case
       IR.LitF nodeId lit ->
         case lit of
           IR.LNumber x ->
             S.addFact prog $ LitNumber nodeId x
           IR.LString x ->
             S.addFact prog $ LitString nodeId x
-      IR.VarF nodeId var ->
+      IR.PWildcardF nodeId ->
+        S.addFact prog $ Var nodeId (Id "_")
+      IR.VarF nodeId var -> do
         S.addFact prog $ Var nodeId var
+        maybeRuleId <- ask
+        for_ maybeRuleId $ \ruleId ->
+          S.addFact prog $ RuleVariable ruleId nodeId
       IR.AssignF nodeId (lhsId, lhsAction) (rhsId, rhsAction) -> do
         S.addFact prog $ Assign nodeId lhsId rhsId
         lhsAction
@@ -240,8 +279,9 @@ analysis prog = S.mkAnalysis addFacts run getFacts
         S.addFact prog $ Rule nodeId rule
         S.addFacts prog $ mapWithPos (RuleArg nodeId) argNodeIds
         S.addFacts prog $ mapWithPos (RuleClause nodeId) clauseNodeIds
-        sequence_ argActions
-        sequence_ clauseActions
+        local (const $ Just nodeId) $ do
+          sequence_ argActions
+          sequence_ clauseActions
       IR.DeclareTypeF nodeId ty _ ->
         S.addFact prog $ DeclareType nodeId ty
       IR.ModuleF nodeId (unzip -> (declNodeIds, actions)) -> do
@@ -257,13 +297,15 @@ analysis prog = S.mkAnalysis addFacts run getFacts
 
     getFacts :: S.SouffleM Result
     getFacts = do
+      pointsToFacts <- S.getFacts prog
+      let pointsTo = mkPointsToAnalysis pointsToFacts
       errs <- SemanticErrors <$> S.getFacts prog
                              <*> S.getFacts prog
                              <*> S.getFacts prog
                              <*> S.getFacts prog
                              <*> S.getFacts prog
                              <*> S.getFacts prog
-      pure $ Result () errs
+      pure $ Result pointsTo errs
 
     getNodeId :: IR.ASTF NodeId -> NodeId
     getNodeId = \case

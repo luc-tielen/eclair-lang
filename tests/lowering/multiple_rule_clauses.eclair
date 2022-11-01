@@ -6,6 +6,7 @@
 // RUN: %eclair compile --emit eir %t/program.eclair > %t/actual_eir.out
 // RUN: diff %t/expected_eir.out %t/actual_eir.out
 
+// RUN: %eclair compile --emit llvm %t/program.eclair > %t/actual_llvm.out
 // RUN: %extract_snippet %t/actual_llvm.out "program = " > %t/actual_eclair_program_type.out
 // RUN: %extract_snippet %t/actual_llvm.out "@eclair_program_init" > %t/actual_eclair_program_init_llvm.out
 // RUN: %extract_snippet %t/actual_llvm.out "@eclair_program_destroy" > %t/actual_eclair_program_destroy_llvm.out

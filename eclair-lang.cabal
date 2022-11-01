@@ -36,6 +36,7 @@ library
       Eclair.AST.IR
       Eclair.AST.Lower
       Eclair.AST.Transforms
+      Eclair.AST.Transforms.CopyPropagation
       Eclair.AST.Transforms.RemoveWildcards
       Eclair.AST.Transforms.ReplaceStrings
       Eclair.AST.Transforms.ShiftAssignments

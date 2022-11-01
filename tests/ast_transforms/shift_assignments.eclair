@@ -25,10 +25,10 @@ fact2(x, y) :-
 @def fact2(u32, u32).
 
 fact2(x, 1) :-
-  fact1(x, z),
+  fact1(x, @x_0),
   fact1(y, x),
-  z = x,
-  y = 123.
+  y = 123,
+  x = @x_0.
 
 fact2(x, y) :-
   fact1(y, x),
