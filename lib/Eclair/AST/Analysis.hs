@@ -77,13 +77,13 @@ data RuleArg
   = RuleArg { raRuleId :: NodeId, raArgPos :: Word32, raArgId :: NodeId }
   deriving stock Generic
   deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions Rule "rule_arg" 'S.Input
+  deriving S.Fact via S.FactOptions RuleArg "rule_arg" 'S.Input
 
 data RuleClause
   = RuleClause { rcRuleId :: NodeId, rcClausePos :: Word32, rcClauseId :: NodeId }
   deriving stock Generic
   deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions Rule "rule_clause" 'S.Input
+  deriving S.Fact via S.FactOptions RuleClause "rule_clause" 'S.Input
 
 -- NOTE: not storing types right now, but might be useful later?
 data DeclareType
@@ -119,7 +119,7 @@ data PointsToVar
   }
   deriving stock (Generic, Eq, Show)
   deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions ModuleDecl "points_to_var" 'S.Output
+  deriving S.Fact via S.FactOptions PointsToVar "points_to_var" 'S.Output
 
 data VariableInFact
   = VariableInFact NodeId Id
@@ -155,7 +155,7 @@ data WildcardInRuleHead
   }
   deriving stock (Generic, Eq, Show)
   deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions WildcardInFact "wildcard_in_rule_head" 'S.Output
+  deriving S.Fact via S.FactOptions WildcardInRuleHead "wildcard_in_rule_head" 'S.Output
 
 data WildcardInAssignment
   = WildcardInAssignment
