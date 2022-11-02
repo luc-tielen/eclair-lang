@@ -3,6 +3,7 @@
 module Eclair.AST.Analysis
   ( Result(..)
   , PointsToAnalysis(..)
+  , SemanticInfo(..)
   , SemanticErrors(..)
   , hasSemanticErrors
   , runAnalysis
@@ -12,6 +13,7 @@ module Eclair.AST.Analysis
   , WildcardInFact(..)
   , WildcardInRuleHead(..)
   , WildcardInAssignment(..)
+  , RuleWithContradiction(..)
   , IR.NodeId(..)
   , Container
   ) where
@@ -77,13 +79,13 @@ data RuleArg
   = RuleArg { raRuleId :: NodeId, raArgPos :: Word32, raArgId :: NodeId }
   deriving stock Generic
   deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions Rule "rule_arg" 'S.Input
+  deriving S.Fact via S.FactOptions RuleArg "rule_arg" 'S.Input
 
 data RuleClause
   = RuleClause { rcRuleId :: NodeId, rcClausePos :: Word32, rcClauseId :: NodeId }
   deriving stock Generic
   deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions Rule "rule_clause" 'S.Input
+  deriving S.Fact via S.FactOptions RuleClause "rule_clause" 'S.Input
 
 -- NOTE: not storing types right now, but might be useful later?
 data DeclareType
@@ -119,7 +121,15 @@ data PointsToVar
   }
   deriving stock (Generic, Eq, Show)
   deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions ModuleDecl "points_to_var" 'S.Output
+  deriving S.Fact via S.FactOptions PointsToVar "points_to_var" 'S.Output
+
+newtype RuleWithContradiction
+  = RuleWithContradiction
+  { unRuleWithContradiction :: NodeId
+  }
+  deriving stock (Generic, Eq, Show)
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions RuleWithContradiction "rule_with_contradiction" 'S.Output
 
 data VariableInFact
   = VariableInFact NodeId Id
@@ -155,7 +165,7 @@ data WildcardInRuleHead
   }
   deriving stock (Generic, Eq, Show)
   deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions WildcardInFact "wildcard_in_rule_head" 'S.Output
+  deriving S.Fact via S.FactOptions WildcardInRuleHead "wildcard_in_rule_head" 'S.Output
 
 data WildcardInAssignment
   = WildcardInAssignment
@@ -190,6 +200,7 @@ data SemanticAnalysis
        , ModuleDecl
        , RuleVariable
        , PointsToVar
+       , RuleWithContradiction
        , VariableInFact
        , UngroundedVar
        , EmptyModule
@@ -214,7 +225,11 @@ mkPointsToAnalysis =
     toEntry (PointsToVar _ var1Id var2Id var2Name) =
       (var1Id, IR.Var var2Id var2Name)
 
-type SemanticInfo = PointsToAnalysis
+data SemanticInfo
+  = SemanticInfo
+  { pointsToAnalysis :: PointsToAnalysis
+  , rulesWithContradictions :: Container RuleWithContradiction
+  } deriving (Eq, Show)
 
 data Result
   = Result
@@ -297,15 +312,15 @@ analysis prog = S.mkAnalysis addFacts run getFacts
 
     getFacts :: S.SouffleM Result
     getFacts = do
-      pointsToFacts <- S.getFacts prog
-      let pointsTo = mkPointsToAnalysis pointsToFacts
+      info <- SemanticInfo <$> (mkPointsToAnalysis <$> S.getFacts prog)
+                           <*> S.getFacts prog
       errs <- SemanticErrors <$> S.getFacts prog
                              <*> S.getFacts prog
                              <*> S.getFacts prog
                              <*> S.getFacts prog
                              <*> S.getFacts prog
                              <*> S.getFacts prog
-      pure $ Result pointsTo errs
+      pure $ Result info errs
 
     getNodeId :: IR.ASTF NodeId -> NodeId
     getNodeId = \case
