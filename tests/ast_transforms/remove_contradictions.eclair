@@ -1,0 +1,37 @@
+// RUN: split-file %s %t
+// RUN: %eclair compile --emit ast-simplified %t/program.eclair > %t/actual.out
+// RUN: diff %t/expected.out %t/actual.out
+
+//--- program.eclair
+@def fact1(u32).
+@def fact2(u32).
+
+fact2(x) :-
+  123 = 456,
+  fact1(x).
+
+fact2(x) :-
+  "abc" = "def",
+  fact1(x).
+
+fact2(x) :-
+  x = 123,
+  x = 456,
+  fact1(x).
+
+fact2(x) :-
+  y = "abc",
+  y = "def",
+  fact1(x).
+
+fact2(x) :-
+  x = 123,
+  x = y,
+  y = z,
+  fact1(x),
+  z = 456.
+
+//--- expected.out
+@def fact1(u32).
+
+@def fact2(u32).

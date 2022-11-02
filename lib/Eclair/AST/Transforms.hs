@@ -21,13 +21,13 @@ import qualified Eclair.AST.Transforms.UniqueVars as UniqueVars
 -- 3. transforms that need to run a single time, after optimizations
 
 
-simplify :: NodeId -> PointsToAnalysis -> AST -> (AST, ReplaceStrings.StringMap)
-simplify nodeId pointsTo = runTransform nodeId
+simplify :: NodeId -> SemanticInfo -> AST -> (AST, ReplaceStrings.StringMap)
+simplify nodeId analysis = runTransform nodeId
   -- Transforms before optimizations:
   $   RmWildcards.transform
   -- Optimizations:
-  >>> CopyPropagation.transform pointsTo
-  >>> DCE.transform
+  >>> CopyPropagation.transform (pointsToAnalysis analysis)
+  >>> DCE.transform (rulesWithContradictions analysis)
 
   -- Transforms after optimizations:
   >>> UniqueVars.transform

@@ -3,6 +3,7 @@
 module Eclair.AST.Analysis
   ( Result(..)
   , PointsToAnalysis(..)
+  , SemanticInfo(..)
   , SemanticErrors(..)
   , hasSemanticErrors
   , runAnalysis
@@ -12,6 +13,7 @@ module Eclair.AST.Analysis
   , WildcardInFact(..)
   , WildcardInRuleHead(..)
   , WildcardInAssignment(..)
+  , RuleWithContradiction(..)
   , IR.NodeId(..)
   , Container
   ) where
@@ -121,6 +123,14 @@ data PointsToVar
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions PointsToVar "points_to_var" 'S.Output
 
+newtype RuleWithContradiction
+  = RuleWithContradiction
+  { unRuleWithContradiction :: NodeId
+  }
+  deriving stock (Generic, Eq, Show)
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions RuleWithContradiction "rule_with_contradiction" 'S.Output
+
 data VariableInFact
   = VariableInFact NodeId Id
   deriving stock (Generic, Eq, Show)
@@ -190,6 +200,7 @@ data SemanticAnalysis
        , ModuleDecl
        , RuleVariable
        , PointsToVar
+       , RuleWithContradiction
        , VariableInFact
        , UngroundedVar
        , EmptyModule
@@ -214,7 +225,11 @@ mkPointsToAnalysis =
     toEntry (PointsToVar _ var1Id var2Id var2Name) =
       (var1Id, IR.Var var2Id var2Name)
 
-type SemanticInfo = PointsToAnalysis
+data SemanticInfo
+  = SemanticInfo
+  { pointsToAnalysis :: PointsToAnalysis
+  , rulesWithContradictions :: Container RuleWithContradiction
+  } deriving (Eq, Show)
 
 data Result
   = Result
@@ -297,15 +312,15 @@ analysis prog = S.mkAnalysis addFacts run getFacts
 
     getFacts :: S.SouffleM Result
     getFacts = do
-      pointsToFacts <- S.getFacts prog
-      let pointsTo = mkPointsToAnalysis pointsToFacts
+      info <- SemanticInfo <$> (mkPointsToAnalysis <$> S.getFacts prog)
+                           <*> S.getFacts prog
       errs <- SemanticErrors <$> S.getFacts prog
                              <*> S.getFacts prog
                              <*> S.getFacts prog
                              <*> S.getFacts prog
                              <*> S.getFacts prog
                              <*> S.getFacts prog
-      pure $ Result pointsTo errs
+      pure $ Result info errs
 
     getNodeId :: IR.ASTF NodeId -> NodeId
     getNodeId = \case

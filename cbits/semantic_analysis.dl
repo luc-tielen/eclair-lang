@@ -14,6 +14,7 @@
 .decl rule_variable(rule_id: unsigned, variable_id: unsigned)
 
 // Internal rules
+.decl literal_contradiction(lit_id1: unsigned, lit_id2: unsigned)
 .decl wildcard(node_id: unsigned) inline
 .decl rule_head_var(rule_id: unsigned, var_id: unsigned, var_name: symbol)
 .decl rule_clause_var(rule_id: unsigned, var_id: unsigned, var_name: symbol)
@@ -28,6 +29,7 @@
 .decl wildcard_in_fact(fact_node_id: unsigned,  fact_arg_id: unsigned, pos: unsigned)
 .decl wildcard_in_rule_head(rule_node_id: unsigned, rule_arg_id: unsigned, pos: unsigned)
 .decl wildcard_in_assignment(assign_node_id: unsigned, wildcard_node_id: unsigned)
+.decl rule_with_contradiction(rule_id: unsigned)
 
 .input lit_number
 .input lit_string
@@ -50,6 +52,7 @@
 .output empty_module
 .output wildcard_in_rule_head
 .output wildcard_in_assignment
+.output rule_with_contradiction
 
 // Top level facts: no variables allowed
 variable_in_fact(atom_arg_id, var_name) :-
@@ -118,6 +121,30 @@ points_to(rule_id, id1, id4) :-
 points_to_var(rule_id, id1, id2, var_name) :-
   points_to(rule_id, id1, id2),
   variable(id2, var_name).
+
+// If we find two variables that point to different literal values,
+// then there is a contradiction.
+rule_with_contradiction(rule_id) :-
+  points_to(rule_id, start_id, id1),
+  points_to(rule_id, start_id, id2),
+  literal_contradiction(id1, id2).
+
+// This is also true for simple cases like '123 = 456'.
+rule_with_contradiction(rule_id) :-
+  rule_clause(rule_id, _, rule_clause_id),
+  assign(rule_clause_id, id1, id2),
+  literal_contradiction(id1, id2).
+
+literal_contradiction(id1, id2) :-
+  lit_number(id1, value1),
+  lit_number(id2, value2),
+  value1 != value2.
+
+literal_contradiction(id1, id2) :-
+  lit_string(id1, value1),
+  lit_string(id2, value2),
+  value1 != value2.
+
 
 // Helper relation for getting all grounded variables in head of a rule.
 rule_head_var(rule_id, var_id, var_name) :-
