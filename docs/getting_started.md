@@ -98,7 +98,6 @@ $ ghcup tui
 # In the terminal UI, select GHC9.0.2, Haskell language server 1.8 and Cabal 3.6.
 # Important: both install + set them! 
 ```
-![](https://www.haskell.org/ghcup/ghcup.gif)
 
 `hpack` and `hspec-discover` are also installed but they are only needed when working on the compiler.
 
