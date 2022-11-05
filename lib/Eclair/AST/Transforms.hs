@@ -4,11 +4,14 @@ module Eclair.AST.Transforms
   ) where
 
 import Eclair.AST.IR
+import Eclair.AST.Analysis
 import Eclair.Transform
+import qualified Eclair.AST.Transforms.CopyPropagation as CopyPropagation
+import qualified Eclair.AST.Transforms.DeadCodeElimination as DCE
 import qualified Eclair.AST.Transforms.RemoveWildcards as RmWildcards
+import qualified Eclair.AST.Transforms.ReplaceStrings as ReplaceStrings
 import qualified Eclair.AST.Transforms.ShiftAssignments as ShiftAssigns
 import qualified Eclair.AST.Transforms.UniqueVars as UniqueVars
-import qualified Eclair.AST.Transforms.ReplaceStrings as ReplaceStrings
 
 
 -- Transforms can be grouped into 3 parts:
@@ -18,13 +21,15 @@ import qualified Eclair.AST.Transforms.ReplaceStrings as ReplaceStrings
 -- 3. transforms that need to run a single time, after optimizations
 
 
-simplify :: NodeId -> AST -> (AST, ReplaceStrings.StringMap)
-simplify nodeId = runTransform nodeId
+simplify :: NodeId -> SemanticInfo -> AST -> (AST, ReplaceStrings.StringMap)
+simplify nodeId analysis = runTransform nodeId
   -- Transforms before optimizations:
   $   RmWildcards.transform
-  >>> UniqueVars.transform
-  >>> ShiftAssigns.transform
   -- Optimizations:
+  >>> CopyPropagation.transform (pointsToAnalysis analysis)
+  >>> DCE.transform (rulesWithContradictions analysis)
 
   -- Transforms after optimizations:
+  >>> UniqueVars.transform
+  >>> ShiftAssigns.transform
   >>> ReplaceStrings.transform

@@ -119,10 +119,10 @@ rules config = \case
     -- Need to run SA and typechecking before any transformations / lowering
     -- to ensure we don't perform work on invalid programs.
     -- And thanks to rock, the results will be cached anyway.
-    _ <- Rock.fetch (RunSemanticAnalysis path)
+    analysis <- Rock.fetch (RunSemanticAnalysis path)
     _ <- Rock.fetch (Typecheck path)
     (ast, nodeId, spans) <- Rock.fetch (Parse path)
-    pure $ simplify nodeId ast
+    pure $ simplify nodeId (SA.semanticInfo analysis) ast
   EmitSimplifiedAST path -> do
     (ast, _) <- Rock.fetch (TransformAST path)
     liftIO $ putTextLn $ printDoc ast

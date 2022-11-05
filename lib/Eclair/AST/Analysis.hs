@@ -2,6 +2,8 @@
 
 module Eclair.AST.Analysis
   ( Result(..)
+  , PointsToAnalysis(..)
+  , SemanticInfo(..)
   , SemanticErrors(..)
   , hasSemanticErrors
   , runAnalysis
@@ -11,6 +13,7 @@ module Eclair.AST.Analysis
   , WildcardInFact(..)
   , WildcardInRuleHead(..)
   , WildcardInAssignment(..)
+  , RuleWithContradiction(..)
   , IR.NodeId(..)
   , Container
   ) where
@@ -18,6 +21,7 @@ module Eclair.AST.Analysis
 import qualified Language.Souffle.Interpreted as S
 import qualified Language.Souffle.Analysis as S
 import qualified Eclair.AST.IR as IR
+import qualified Data.Map as Map
 import Eclair.Id
 import Data.Kind
 
@@ -75,13 +79,13 @@ data RuleArg
   = RuleArg { raRuleId :: NodeId, raArgPos :: Word32, raArgId :: NodeId }
   deriving stock Generic
   deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions Rule "rule_arg" 'S.Input
+  deriving S.Fact via S.FactOptions RuleArg "rule_arg" 'S.Input
 
 data RuleClause
   = RuleClause { rcRuleId :: NodeId, rcClausePos :: Word32, rcClauseId :: NodeId }
   deriving stock Generic
   deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions Rule "rule_clause" 'S.Input
+  deriving S.Fact via S.FactOptions RuleClause "rule_clause" 'S.Input
 
 -- NOTE: not storing types right now, but might be useful later?
 data DeclareType
@@ -101,6 +105,31 @@ data ModuleDecl
   deriving stock Generic
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions ModuleDecl "module_declaration" 'S.Input
+
+data RuleVariable
+  = RuleVariable { rvRuleId :: NodeId, rvVarId :: NodeId }
+  deriving stock Generic
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions RuleVariable "rule_variable" 'S.Input
+
+data PointsToVar
+  = PointsToVar
+  { ptRuleId :: NodeId
+  , ptVar1Id :: NodeId
+  , ptVar2Id :: NodeId
+  , ptVar2Name :: Id
+  }
+  deriving stock (Generic, Eq, Show)
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions PointsToVar "points_to_var" 'S.Output
+
+newtype RuleWithContradiction
+  = RuleWithContradiction
+  { unRuleWithContradiction :: NodeId
+  }
+  deriving stock (Generic, Eq, Show)
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions RuleWithContradiction "rule_with_contradiction" 'S.Output
 
 data VariableInFact
   = VariableInFact NodeId Id
@@ -136,7 +165,7 @@ data WildcardInRuleHead
   }
   deriving stock (Generic, Eq, Show)
   deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions WildcardInFact "wildcard_in_rule_head" 'S.Output
+  deriving S.Fact via S.FactOptions WildcardInRuleHead "wildcard_in_rule_head" 'S.Output
 
 data WildcardInAssignment
   = WildcardInAssignment
@@ -169,6 +198,9 @@ data SemanticAnalysis
        , DeclareType
        , Module
        , ModuleDecl
+       , RuleVariable
+       , PointsToVar
+       , RuleWithContradiction
        , VariableInFact
        , UngroundedVar
        , EmptyModule
@@ -180,7 +212,24 @@ data SemanticAnalysis
 -- TODO: change to Vector when finished for performance
 type Container = []
 
-type SemanticInfo = ()  -- TODO: not used atm
+-- Points-to analysis of variables.
+-- For now only takes variables mapping to other variables into account.
+newtype PointsToAnalysis
+  = PointsToAnalysis (Map NodeId IR.AST)
+  deriving (Eq, Show)
+
+mkPointsToAnalysis :: Container PointsToVar -> PointsToAnalysis
+mkPointsToAnalysis =
+  PointsToAnalysis . Map.fromList . toList . map toEntry
+  where
+    toEntry (PointsToVar _ var1Id var2Id var2Name) =
+      (var1Id, IR.Var var2Id var2Name)
+
+data SemanticInfo
+  = SemanticInfo
+  { pointsToAnalysis :: PointsToAnalysis
+  , rulesWithContradictions :: Container RuleWithContradiction
+  } deriving (Eq, Show)
 
 data Result
   = Result
@@ -217,15 +266,20 @@ analysis :: S.Handle SemanticAnalysis -> S.Analysis S.SouffleM IR.AST Result
 analysis prog = S.mkAnalysis addFacts run getFacts
   where
     addFacts :: IR.AST -> S.SouffleM ()
-    addFacts = zygo getNodeId $ \case
+    addFacts ast = usingReaderT Nothing $ flip (zygo getNodeId) ast $ \case
       IR.LitF nodeId lit ->
         case lit of
           IR.LNumber x ->
             S.addFact prog $ LitNumber nodeId x
           IR.LString x ->
             S.addFact prog $ LitString nodeId x
-      IR.VarF nodeId var ->
+      IR.PWildcardF nodeId ->
+        S.addFact prog $ Var nodeId (Id "_")
+      IR.VarF nodeId var -> do
         S.addFact prog $ Var nodeId var
+        maybeRuleId <- ask
+        for_ maybeRuleId $ \ruleId ->
+          S.addFact prog $ RuleVariable ruleId nodeId
       IR.AssignF nodeId (lhsId, lhsAction) (rhsId, rhsAction) -> do
         S.addFact prog $ Assign nodeId lhsId rhsId
         lhsAction
@@ -240,8 +294,9 @@ analysis prog = S.mkAnalysis addFacts run getFacts
         S.addFact prog $ Rule nodeId rule
         S.addFacts prog $ mapWithPos (RuleArg nodeId) argNodeIds
         S.addFacts prog $ mapWithPos (RuleClause nodeId) clauseNodeIds
-        sequence_ argActions
-        sequence_ clauseActions
+        local (const $ Just nodeId) $ do
+          sequence_ argActions
+          sequence_ clauseActions
       IR.DeclareTypeF nodeId ty _ ->
         S.addFact prog $ DeclareType nodeId ty
       IR.ModuleF nodeId (unzip -> (declNodeIds, actions)) -> do
@@ -257,13 +312,15 @@ analysis prog = S.mkAnalysis addFacts run getFacts
 
     getFacts :: S.SouffleM Result
     getFacts = do
+      info <- SemanticInfo <$> (mkPointsToAnalysis <$> S.getFacts prog)
+                           <*> S.getFacts prog
       errs <- SemanticErrors <$> S.getFacts prog
                              <*> S.getFacts prog
                              <*> S.getFacts prog
                              <*> S.getFacts prog
                              <*> S.getFacts prog
                              <*> S.getFacts prog
-      pure $ Result () errs
+      pure $ Result info errs
 
     getNodeId :: IR.ASTF NodeId -> NodeId
     getNodeId = \case
