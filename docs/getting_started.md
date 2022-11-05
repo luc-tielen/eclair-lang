@@ -68,6 +68,7 @@ system.
 
 ```bash
 $ sudo apt install llvm-14
+$ sudo apt install lld-14
 $ sudo apt install clang-14  # Optional, if you want to use clang instead of llc
                              # to compile the LLVM IR
 # The following is only needed for development / testing
