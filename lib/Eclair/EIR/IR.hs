@@ -8,6 +8,7 @@ module Eclair.EIR.IR
   , Type(..)
   , Function(..)
   , LabelId(..)
+  , Visibility(..)
   ) where
 
 import Eclair.Id
@@ -62,10 +63,15 @@ data Op
   | SymbolTableInsert
   deriving (Eq, Show)
 
+data Visibility
+  = Public
+  | Private
+  deriving (Eq, Show)
+
 data EIR
   = Module [EIR]  -- A module is the same as a block, but is rendered in a different way.
   | Block [EIR]
-  | Function Text [Type] Type EIR
+  | Function Visibility Text [Type] Type EIR
   | FunctionArg Int
   | DeclareProgram [(Relation, Metadata)]
   | FieldAccess EIR Int
@@ -148,13 +154,16 @@ instance Pretty EIR where
       vsep $ intersperse mempty $ map pretty stmts
     Block stmts ->
       statementBlock stmts
-    Function name tys retTy body ->
-      vsep ["fn" <+> pretty name <> parens (withCommas $ map pretty tys) <+> "->" <+> pretty retTy
-           , pretty body -- Note: This is already a Block
-           ]
+    Function visibility name tys retTy body ->
+      let fn = if visibility == Public
+                 then "export fn"
+                 else "fn"
+       in vsep [ fn <+> pretty name <> parens (withCommas $ map pretty tys) <+> "->" <+> pretty retTy
+               , pretty body -- Note: This is already a Block
+               ]
     FunctionArg pos -> "FN_ARG" <> brackets (pretty pos)
     DeclareProgram metadatas ->
-      vsep ["declare_type" <+> "Program"
+      vsep [ "declare_type" <+> "Program"
            , braceBlock . vsep $
                "symbol_table" : map (\(r, meta) -> pretty r <+> pretty meta) metadatas
            ]

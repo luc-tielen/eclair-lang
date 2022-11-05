@@ -37,7 +37,7 @@ declare_type Program
   fact2 btree(num_columns=2, index=[0,1], block_size=256, search_type=linear)
 }
 
-fn eclair_program_init() -> *Program
+export fn eclair_program_init() -> *Program
 {
   program = heap_allocate_program
   symbol_table.init(program.0)
@@ -46,7 +46,7 @@ fn eclair_program_init() -> *Program
   return program
 }
 
-fn eclair_program_destroy(*Program) -> Void
+export fn eclair_program_destroy(*Program) -> Void
 {
   symbol_table.destroy(FN_ARG[0].0)
   fact1.destroy(FN_ARG[0].1)
@@ -54,7 +54,7 @@ fn eclair_program_destroy(*Program) -> Void
   free_program(FN_ARG[0])
 }
 
-fn eclair_program_run(*Program) -> Void
+export fn eclair_program_run(*Program) -> Void
 {
   value = fact1.stack_allocate Value
   value.0 = 0

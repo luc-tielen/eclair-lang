@@ -63,15 +63,16 @@ compileToLLVM target = \case
     panic "Unexpected top level EIR declarations when compiling to LLVM!"
   where
     processDecl lowerState = \case
-      EIR.Function name tys retTy body -> do
+      EIR.Function visibility name tys retTy body -> do
         let unusedRelation = panic "Unexpected use of relation for function type when lowering EIR to LLVM."
             unusedIndex = panic "Unexpected use of index for function type when lowering EIR to LLVM."
             getType ty = evalStateT (toLLVMType unusedRelation unusedIndex ty) lowerState
         argTypes <- liftIO $ traverse getType tys
         returnType <- liftIO $ getType retTy
         let args = map (, ParameterName "arg") argTypes
-        -- We don't expose these functions on the top level API, they are only used internally!
-        function (Name name) args returnType $ \args -> do
+            fn = if visibility == EIR.Public then apiFunction else function
+        -- Only public functions are exposed, rest is only used internally
+        fn (Name name) args returnType $ \args -> do
           runCodegenM (fnBodyToLLVM args body) lowerState
       _ ->
         panic "Unexpected top level EIR declaration when compiling to LLVM!"
