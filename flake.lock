@@ -414,11 +414,11 @@
     "llvm-cg": {
       "flake": false,
       "locked": {
-        "lastModified": 1666953086,
-        "narHash": "sha256-M4SW/6FpaV+5esHAbijfrR7EvYg6wXmuCG1Mev92NfA=",
+        "lastModified": 1667735157,
+        "narHash": "sha256-/E8F1MTsOw51KeyTJI9S7vTGcMjoiDC05+Sf48tWlT8=",
         "owner": "luc-tielen",
         "repo": "llvm-codegen",
-        "rev": "46500cef30e2522bc0be11ea7adf7b3a0cf4b278",
+        "rev": "bfeaac51581e93762f003807f5139c8315d58855",
         "type": "github"
       },
       "original": {
