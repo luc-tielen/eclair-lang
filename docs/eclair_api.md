@@ -76,7 +76,7 @@ uint32_t fact_data[] = { 1, 2,
 If you have facts that contain data that is not a `uint32_t` (e.g. a string
 value), you will need to first encode the string in Eclair. This can be done
 with the following function that takes both the length of the string and a
-pointer to a byte-array (Eclair assumes UTF8 encoding).
+pointer to a byte-array (Eclair assumes UTF-8 encoding).
 
 ```c
 uint32_t eclair_encode_string(struct program*,
@@ -161,3 +161,15 @@ void eclair_program_destroy(struct program*);
 Calling this function will free up any memory still in use by Eclair, so that
 the system can use it for other purposes. After this point it's no longer valid
 / safe to call other functions of the API.
+
+## Allocating memory
+
+When compiling for the WebAssembly target, Eclair also needs to expose `malloc`
+and `free` for allocating memory inside the `WebAssembly.Memory` buffer. These
+functions are exposed as `eclair_malloc` / `eclair_free` and have the same
+function signatures as the libc counterpart.
+
+Each time you need to push an array of data into eclair (e.g. when adding facts
+or serializing a string), you first need to do a call to `eclair_malloc` and use
+the returned address to fill the WebAssembly memory buffer with data. After the
+data is pushed into Eclair, the data needs to be freed again with `eclair_free`.
