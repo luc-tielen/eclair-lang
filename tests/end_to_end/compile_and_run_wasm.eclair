@@ -9,7 +9,7 @@
 
 // RUN: %eclair compile --target wasm32 %t/program.eclair > %t/program.ll
 // RUN: clang -O0 --target=wasm32 -mbulk-memory -nostdlib -c -o %t/program.o %t/program.ll
-// RUN: wasm-ld --no-entry --import-memory -o %t/program.wasm %t/program.o %t/walloc.o
+// RUN: %wasm-ld --no-entry --import-memory -o %t/program.wasm %t/program.o %t/walloc.o
 
 // RUN: node %t/program.js | FileCheck %s
 
