@@ -88,7 +88,7 @@
                         checkPhase = ''
                           runHook preCheck
                           DATALOG_DIR="${self}/cbits/" SOUFFLE_BIN="${final.souffle}/bin/souffle" ./Setup test
-                          PATH="${final.which}/bin:${final.souffle}/bin:$PWD/dist/build/eclair:${llvmPackages.clang}/bin/:${pkgs.llvmPackages.bintools-unwrapped}/bin:${pkgs.nodejs}/bin:$PATH" ${final.lit}/bin/lit tests -v
+                          PATH="${final.which}/bin:${final.wget}/bin:${final.souffle}/bin:$PWD/dist/build/eclair:${llvmPackages.clang}/bin/:${pkgs.llvmPackages.bintools-unwrapped}/bin:${pkgs.nodejs}/bin:$PATH" ${final.lit}/bin/lit tests -v
                           runHook postCheck
                         '';
                       };
@@ -111,6 +111,7 @@
             pkgs.llvmPackages.clang
             pkgs.llvmPackages.libllvm
             pkgs.llvmPackages.llvm.dev
+            pkgs.wget
             pkgs.which
             pkgs.nodejs
             pkgs.souffle
