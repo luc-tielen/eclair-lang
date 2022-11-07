@@ -16,7 +16,7 @@ versions.
 #### Installing the Haskell toolchain
 
 Run the following commands to install `ghcup`, `ghc` and `cabal`. `hpack` and
-`hspec-discover` are also installed but they are only needed when working on the
+`hspec-discover` and `hlint` are also installed but they are only needed when working on the
 compiler.
 
 ```bash
@@ -26,6 +26,7 @@ $ ghcup tui
 # Important: both install + set them!
 $ cabal install hpack
 $ cabal install hspec-discover
+$ cabal install hlint
 ```
 
 Verify you installed the correct versions by running the commands below, and

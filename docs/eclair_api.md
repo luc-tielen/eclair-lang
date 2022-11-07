@@ -169,7 +169,7 @@ and `free` for allocating memory inside the `WebAssembly.Memory` buffer. These
 functions are exposed as `eclair_malloc` / `eclair_free` and have the same
 function signatures as the libc counterpart.
 
-Each time you need to push an array of data into eclair (e.g. when adding facts
+Each time you need to push an array of data into Eclair (e.g. when adding facts
 or serializing a string), you first need to do a call to `eclair_malloc` and use
 the returned address to fill the WebAssembly memory buffer with data. After the
 data is pushed into Eclair, the data needs to be freed again with `eclair_free`.
