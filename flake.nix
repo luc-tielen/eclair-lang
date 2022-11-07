@@ -111,6 +111,7 @@
             pkgs.llvmPackages.clang
             pkgs.llvmPackages.libllvm
             pkgs.llvmPackages.llvm.dev
+            pkgs.which
             pkgs.nodejs
             pkgs.souffle
             (pkgs.haskellPackages.ghcWithPackages (p: [
