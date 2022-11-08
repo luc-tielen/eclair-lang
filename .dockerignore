@@ -6,3 +6,7 @@ dist-newstyle/
 result/
 Dockerfile
 .dockerignore
+.devcontainer
+.envrc
+.ghci
+.gitignore
