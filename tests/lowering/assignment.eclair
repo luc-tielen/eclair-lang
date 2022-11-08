@@ -43,6 +43,8 @@ export fn eclair_program_init() -> *Program
   symbol_table.init(program.0)
   fact1.init_empty(program.1)
   fact2.init_empty(program.2)
+  symbol_table.insert(program.0, fact1)
+  symbol_table.insert(program.0, fact2)
   return program
 }
 
