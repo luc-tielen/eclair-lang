@@ -40,22 +40,26 @@ RUN mkdir -p /tmp/llvm-dir \
 RUN curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | sh
 
 # install and set ghc
-SHELL [ "/bin/bash", "-c", "source /root/.ghcup/env" ]
-RUN ghcup install ghc 9.0.2 \
-    && ghcup set ghc 9.0.2 \
-    && ghcup install cabal --force 3.6.2.0 \
-    && ghcup set cabal 3.6.2.0 \
+SHELL [ "/bin/bash", "-c" ]
+RUN source /root/.ghcup/env \
+    && ghcup install ghc --force 9.0.2 && ghcup set ghc 9.0.2 \
+    && ghcup install cabal --force 3.6.2.0 && ghcup set cabal 3.6.2.0 \
     && cabal install hspec-discover
 
 VOLUME /code
 WORKDIR /app/build
 ENV DATALOG_DIR=/app/build/cbits
-COPY . .
 
-RUN make build \
-    && echo -e "#!/bin/bash\nset -e\nexec \"$@\"" > /app/build/entrypoint.sh \
-    && chmod u+x /app/build/entrypoint.sh
-#ENTRYPOINT [ "/app/build/entrypoint.sh" ]
+RUN echo -e '#!/bin/bash\nsource /root/.ghcup/env\nexec "$@"\n' > /app/build/entrypoint.sh \
+    && chmod u+x /app/build/entrypoint.sh \
+    && echo -e '#!/bin/bash\nsource /root/.ghcup/env\nECLAIR=`cabal list-bin eclair`\n$ECLAIR "$@"' > /usr/bin/eclair \
+    && chmod u+x /usr/bin/eclair
+
+ENTRYPOINT [ "/app/build/entrypoint.sh" ]
 
 # The default command to run, shows the help menu
-CMD [ "`cabal list-bin eclair`", "--help" ]
+CMD [ "eclair", "--help" ]
+
+COPY . .
+
+RUN source /root/.ghcup/env && make build
