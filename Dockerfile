@@ -1,4 +1,5 @@
-FROM ubuntu:20.04
+FROM primordus/souffle-ubuntu:2.3
+ARG LLVM_VERSION=14
 
 # install packages
 RUN echo 'tzdata tzdata/Areas select Europe' | debconf-set-selections \
@@ -6,38 +7,27 @@ RUN echo 'tzdata tzdata/Areas select Europe' | debconf-set-selections \
 RUN apt-get update \
     && apt-get autoremove -y \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y \
-       lsb-release wget software-properties-common gnupg \
-       nodejs curl bison build-essential clang cmake \
-       doxygen flex g++ git libffi-dev libncurses5-dev \
-       libsqlite3-dev make mcpp python3 python3-pip sqlite zlib1g-dev libgmp-dev \
+       wget software-properties-common gnupg nodejs curl libffi-dev make \
+       python3 python3-pip libgmp-dev \
     && rm -rf /var/lib/apt/lists/* \
-    && echo "source /root/.ghcup/env" >> ~/.bashrc
-
-# build and install souffle
-RUN mkdir -p /tmp/souffle-src \
-    && cd /tmp/souffle-src \
-    && git clone https://github.com/souffle-lang/souffle.git \
-    && cd souffle \
-    && git checkout 2.3 \
-    && cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
-    && cmake --build build -j \
-    && cmake --build build --target install \
-    && cd /tmp && rm -rf /tmp/souffle-src \
-    # add `split-file` and `FileCheck` utilities to `PATH`
-    && echo "export PATH=$PATH:/usr/lib/llvm-14/bin:/usr/bin" >> ~/.bashrc
-
-# install llvm 14
-RUN mkdir -p /tmp/llvm-dir \
+    && echo "source /root/.ghcup/env" >> ~/.bashrc \
+    # install llvm 14
+    && mkdir -p /tmp/llvm-dir \
     && cd /tmp/llvm-dir \
     && wget https://apt.llvm.org/llvm.sh \
     && chmod +x llvm.sh \
-    && ./llvm.sh 14 \
+    && ./llvm.sh $LLVM_VERSION \
     && cd /tmp \
     && rm -rf /tmp/llvm-dir \
-    && pip install lit==14.0.6
-
-# install ghcup
-RUN curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | sh
+    && cd /usr/bin \
+    && ln -s /usr/lib/llvm-14/bin/split-file \
+    && ln -s /usr/lib/llvm-14/bin/FileCheck \
+    && ln -s clang-14 clang \
+    && ln -s wasm-ld-14 wasm-ld \
+    && cd - \
+    && pip install lit==14.0.6 \
+    # install ghcup
+    && curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | sh
 
 # install and set ghc
 SHELL [ "/bin/bash", "-c" ]
@@ -55,6 +45,7 @@ RUN echo -e '#!/bin/bash\nsource /root/.ghcup/env\nexec "$@"\n' > /app/build/ent
     && echo -e '#!/bin/bash\nsource /root/.ghcup/env\nECLAIR=`cabal list-bin eclair`\n$ECLAIR "$@"' > /usr/bin/eclair \
     && chmod u+x /usr/bin/eclair
 
+# The entrypoint script sources ghcup setup script so we can easily call cabal etc.
 ENTRYPOINT [ "/app/build/entrypoint.sh" ]
 
 # The default command to run, shows the help menu
