@@ -2,34 +2,22 @@ name: "Build"
 on: [push, pull_request]
 jobs:
   build:
-    runs-on: ${{matrix.os}}
     strategy:
       matrix:
         os: [ubuntu-latest]
+    runs-on: ${{matrix.os}}
     steps:
       - uses: actions/checkout@v2.4.0
-        with:
-          # Nix Flakes doesn't work on shallow clones
-          fetch-depth: 0
-      - uses: cachix/install-nix-action@v15
-        with:
-          install_url: https://releases.nixos.org/nix/nix-2.11.1/install
-          extra_nix_config: |
-            experimental-features = nix-command flakes
-            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
-      - run: |
-          nix profile install nixpkgs#cachix
-          cachix use cachix
-          cachix use luctielen
-      - name: nix build
-        run: nix build --show-trace
-      - name: nix log
-        if: ${{ always() }}
+      - name: Build and test
         run: |
-          nix log &> ${{ matrix.os }}-eclair-lang.log
-      - name: upload ${{ matrix.os }}-eclair-lang.log
+          set -eo pipefail
+          docker build -f Dockerfile . -t eclair | tee eclair-lang-${{matrix.os}}.log
+          # We remove Eclair from /usr/bin. It is not needed for CI, and this
+          # caused some weird issues due to invoking cabal concurrently.
+          docker run --rm eclair bash -c "rm /usr/bin/eclair; make test" | tee -a eclair-lang-${{matrix.os}}.log
+      - name: Upload logs
         if: ${{ always() }}
         uses: actions/upload-artifact@v2
         with:
-          name: ${{ matrix.os }}-eclair-lang.log
-          path: ${{ matrix.os }}-eclair-lang.log
+          name: eclair-lang-${{matrix.os}}.log
+          path: eclair-lang-${{matrix.os}}.log

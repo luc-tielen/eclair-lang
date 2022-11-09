@@ -1,13 +1,56 @@
-FROM nixos/nix:2.9.2
+FROM primordus/souffle-ubuntu:2.3
+ARG LLVM_VERSION=14
 
-WORKDIR /app/build
-RUN nix profile install nixpkgs#cachix --extra-experimental-features nix-command --extra-experimental-features flakes && cachix use cachix && cachix use luctielen
+# install packages
+RUN echo 'tzdata tzdata/Areas select Europe' | debconf-set-selections \
+    && echo 'tzdata tzdata/Zones/Europe select Paris' | debconf-set-selections
+RUN apt-get update \
+    && apt-get autoremove -y \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+       wget software-properties-common gnupg nodejs curl libffi-dev make \
+       python3 python3-pip libgmp-dev \
+    && rm -rf /var/lib/apt/lists/* \
+    && echo "source /root/.ghcup/env" >> ~/.bashrc \
+    # install llvm 14
+    && mkdir -p /tmp/llvm-dir \
+    && cd /tmp/llvm-dir \
+    && wget https://apt.llvm.org/llvm.sh \
+    && chmod +x llvm.sh \
+    && ./llvm.sh $LLVM_VERSION \
+    && cd /tmp \
+    && rm -rf /tmp/llvm-dir \
+    && cd /usr/bin \
+    && ln -s /usr/lib/llvm-14/bin/split-file \
+    && ln -s /usr/lib/llvm-14/bin/FileCheck \
+    && ln -s clang-14 clang \
+    && ln -s wasm-ld-14 wasm-ld \
+    && cd - \
+    && pip install lit==14.0.6 \
+    # install ghcup
+    && curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | sh
 
-RUN echo -e '#!/bin/sh\nDATALOG_DIR=cbits/ PATH="$(find /nix/store -type f | grep souffle$ | xargs dirname):$PATH" ./result/bin/eclair $@' > ./eclair.sh
-ENTRYPOINT ["./eclair.sh"]
-
-COPY . .
-RUN nix build --extra-experimental-features nix-command --extra-experimental-features flakes
-RUN chmod u+x ./eclair.sh
+# install and set ghc
+SHELL [ "/bin/bash", "-c" ]
+RUN source /root/.ghcup/env \
+    && ghcup install ghc --force 9.0.2 && ghcup set ghc 9.0.2 \
+    && ghcup install cabal --force 3.6.2.0 && ghcup set cabal 3.6.2.0 \
+    && cabal install hspec-discover
 
 VOLUME /code
+WORKDIR /app/build
+ENV DATALOG_DIR=/app/build/cbits
+
+RUN echo -e '#!/bin/bash\nsource /root/.ghcup/env\nexec "$@"\n' > /app/build/entrypoint.sh \
+    && chmod u+x /app/build/entrypoint.sh \
+    && echo -e '#!/bin/bash\nsource /root/.ghcup/env\nECLAIR=`cabal list-bin eclair`\n$ECLAIR "$@"' > /usr/bin/eclair \
+    && chmod u+x /usr/bin/eclair
+
+# The entrypoint script sources ghcup setup script so we can easily call cabal etc.
+ENTRYPOINT [ "/app/build/entrypoint.sh" ]
+
+# The default command to run, shows the help menu
+CMD [ "eclair", "--help" ]
+
+COPY . .
+
+RUN source /root/.ghcup/env && make build
