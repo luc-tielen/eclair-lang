@@ -16,7 +16,7 @@ versions.
 #### Installing the Haskell toolchain
 
 Run the following commands to install `ghcup`, `ghc` and `cabal`. `hpack` and
-`hspec-discover` are also installed but they are only needed when working on the
+`hspec-discover` and `hlint` are also installed but they are only needed when working on the
 compiler.
 
 ```bash
@@ -26,6 +26,7 @@ $ ghcup tui
 # Important: both install + set them!
 $ cabal install hpack
 $ cabal install hspec-discover
+$ cabal install hlint
 ```
 
 Verify you installed the correct versions by running the commands below, and
@@ -68,6 +69,7 @@ system.
 
 ```bash
 $ sudo apt install llvm-14
+$ sudo apt install lld-14
 $ sudo apt install clang-14  # Optional, if you want to use clang instead of llc
                              # to compile the LLVM IR
 # The following is only needed for development / testing
@@ -84,30 +86,31 @@ work for Windows? (If somebody could verify this, that would be great!)
 
 ### OSX
 
-NOTE: These commands were tested with Intel MacOS 13.0, they may or may not not work 
-with older versions.
+NOTE: These commands were tested with Intel MacOS 13.0, they may or may not not work
+with older versions or on an ARM-based machine.
 
 #### Installing the Haskell toolchain
 
-Run the following commands (see https://www.haskell.org/ghcup/) to install `ghcup`, `ghc` and `cabal`. 
-
+Run the following commands (see https://www.haskell.org/ghcup/) to install `ghcup`, `ghc` and `cabal`.
 
 ```bash
 $ curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | sh
 $ ghcup tui
 # In the terminal UI, select GHC9.0.2, Haskell language server 1.8 and Cabal 3.6.
-# Important: both install + set them! 
+# Important: both install + set them!
 ```
 
-`hpack` and `hspec-discover` are also installed but they are only needed when working on the compiler.
+The following commandss are only needed when working on the compiler.
+Run the commands to install `hpack`, `hspec-discover`, and `hlint`.
 
 ```bash
 $ cabal install hpack
 $ cabal install hspec-discover
+$ cabal install hlint
 ```
 
 Verify you installed the correct versions by running the commands below, and
-comparing them against the versions mentioned in the previous command:
+compare them against the versions mentioned in the previous command:
 
 ```bash
 $ ghc --version
@@ -117,7 +120,8 @@ $ cabal --version
 
 #### Installing Souffle
 
-Run the following commands to download and build Souffle from source (instructions taken from https://souffle-lang.github.io/build#mac-os-x-build):
+Run the following commands to download and build Souffle from source
+(instructions taken from [here](https://souffle-lang.github.io/build#mac-os-x-build)):
 
 ```bash
 $ brew update
@@ -157,7 +161,7 @@ $ brew install node
 
 ## Building Eclair
 
-Now that all the pre-requisites are built, you can now build Eclair.
+Now that all the pre-requisites are built, you can build Eclair.
 
 ```bash
 $ cabal build

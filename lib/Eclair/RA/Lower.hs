@@ -47,7 +47,7 @@ compileInit stringMap = do
     call r idx EIR.InitializeEmpty [relationPtr]
   let addSymbolActions = toSymbolTableInsertActions symbolTable stringMap
       initActions = symbolTableInitAction : relationInitActions ++ addSymbolActions
-  fn "eclair_program_init" [] (EIR.Pointer EIR.Program) $
+  apiFn "eclair_program_init" [] (EIR.Pointer EIR.Program) $
     assign program heapAllocProgram
     : initActions
     -- Open question: if some facts are known at compile time, search for derived facts up front?
@@ -70,13 +70,13 @@ compileDestroy = do
   relationDestroyActions <- forEachRelation program $ \(r, idx, _) relationPtr ->
     call r idx EIR.Destroy [relationPtr]
   let destroyActions = symbolTableDestroyAction : relationDestroyActions
-  fn "eclair_program_destroy" [EIR.Pointer EIR.Program] EIR.Void $
+  apiFn "eclair_program_destroy" [EIR.Pointer EIR.Program] EIR.Void $
     destroyActions
     ++ [ freeProgram program ]
 
 compileRun :: RA -> CodegenM EIR
 compileRun ra = do
-  fn "eclair_program_run" [EIR.Pointer EIR.Program] EIR.Void
+  apiFn "eclair_program_run" [EIR.Pointer EIR.Program] EIR.Void
     [generateProgramInstructions ra]
 
 generateProgramInstructions :: RA -> CodegenM EIR
