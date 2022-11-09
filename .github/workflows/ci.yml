@@ -4,21 +4,20 @@ on:
   push:
     branches:
       - master
-      - 'releases/*'
-
+      - "releases/*"
 jobs:
   hlint:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+      - uses: actions/checkout@v2
 
-    - name: 'Set up HLint'
-      uses: rwe/actions-hlint-setup@v1
-      with:
-        version: '3.1.6'
+      - name: "Set up HLint"
+        uses: rwe/actions-hlint-setup@v1
+        with:
+          version: "3.1.6"
 
-    - name: 'Run HLint'
-      uses: rwe/actions-hlint-run@v2
-      with:
-        path: '["lib/", "src/", "tests/"]'
-        fail-on: warning
+      - name: "Run HLint"
+        uses: rwe/actions-hlint-run@v2
+        with:
+          path: '["lib/", "src/", "tests/"]'
+          fail-on: warning

@@ -135,6 +135,16 @@ Contributions are welcome! Take a look at the
 to build, run and test the project. Once setup, the Makefile contains the most
 commonly used commands needed during development.
 
+You can also use the `Dockerfile` in this repository if you want to experiment
+with Eclair without installing the toolchain yourself. You can do that as
+follows:
+
+```bash
+$ docker build -f Dockerfile . -t eclair
+$ touch test.eclair  # Here you can put your Eclair code
+$ docker run -v $PWD:/code --rm -it eclair eclair compile /code/test.eclair
+```
+
 ## Documentation
 
 Take a look at our [docs folder](./docs/) for more information about Eclair.
