@@ -127,14 +127,20 @@ start:
   call ccc void @btree_init_empty_1(%btree_t_1* %2)
   %3 = getelementptr %program, %program* %program_0, i32 0, i32 0
   %4 = getelementptr inbounds [5 x i8], [5 x i8]* @string_literal_0, i32 0, i32 0
-  %5 = alloca %symbol_t, i32 1
-  call ccc void @symbol_init(%symbol_t* %5, i32 4, i8* %4)
-  %6 = call ccc i32 @symbol_table_find_or_insert(%symbol_table* %3, %symbol_t* %5)
-  %7 = getelementptr %program, %program* %program_0, i32 0, i32 0
-  %8 = getelementptr inbounds [6 x i8], [6 x i8]* @string_literal_1, i32 0, i32 0
-  %9 = alloca %symbol_t, i32 1
-  call ccc void @symbol_init(%symbol_t* %9, i32 5, i8* %8)
-  %10 = call ccc i32 @symbol_table_find_or_insert(%symbol_table* %7, %symbol_t* %9)
+  %5 = zext i32 4 to i64
+  %6 = call ccc i8* @malloc(i32 4)
+  call ccc void @llvm.memcpy.p0i8.p0i8.i64(i8* %4, i8* %6, i64 %5, i1 0)
+  %7 = alloca %symbol_t, i32 1
+  call ccc void @symbol_init(%symbol_t* %7, i32 4, i8* %6)
+  %8 = call ccc i32 @symbol_table_find_or_insert(%symbol_table* %3, %symbol_t* %7)
+  %9 = getelementptr %program, %program* %program_0, i32 0, i32 0
+  %10 = getelementptr inbounds [6 x i8], [6 x i8]* @string_literal_1, i32 0, i32 0
+  %11 = zext i32 5 to i64
+  %12 = call ccc i8* @malloc(i32 5)
+  call ccc void @llvm.memcpy.p0i8.p0i8.i64(i8* %10, i8* %12, i64 %11, i1 0)
+  %13 = alloca %symbol_t, i32 1
+  call ccc void @symbol_init(%symbol_t* %13, i32 5, i8* %12)
+  %14 = call ccc i32 @symbol_table_find_or_insert(%symbol_table* %9, %symbol_t* %13)
   ret %program* %program_0
 }
 //--- expected_eclair_program_destroy_llvm.out
