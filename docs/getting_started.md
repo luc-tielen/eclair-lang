@@ -125,11 +125,7 @@ $ brew install cmake bison libffi mcpp pkg-config
 $ brew reinstall gcc
 $ brew link bison --force
 $ brew link libffi --force
-
-$ git clone https://github.com/placidex/homebrew-souffle
-$ cd homebrew-souffle/Formula
-$ git checkout souffle-2.3
-$ brew install --build-from-source ./souffle.rb
+$ brew install souffle-lang/souffle/souffle
 ```
 
 If this went correctly, Souffle should now be globally installed on your system.
