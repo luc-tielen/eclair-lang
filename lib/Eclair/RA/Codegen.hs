@@ -18,6 +18,7 @@ module Eclair.RA.Codegen
   , block
   , declareProgram
   , fn
+  , apiFn
   , fnArg
   , call
   , primOp
@@ -131,7 +132,10 @@ declareProgram :: [(Relation, M.Metadata)] -> CodegenM EIR
 declareProgram metas = pure $ EIR.DeclareProgram metas
 
 fn :: Text -> [EIR.Type] -> EIR.Type -> [CodegenM EIR] -> CodegenM EIR
-fn name tys retTy body = EIR.Function name tys retTy <$> block body
+fn name tys retTy body = EIR.Function EIR.Private name tys retTy <$> block body
+
+apiFn :: Text -> [EIR.Type] -> EIR.Type -> [CodegenM EIR] -> CodegenM EIR
+apiFn name tys retTy body = EIR.Function EIR.Public name tys retTy <$> block body
 
 fnArg :: Int -> CodegenM EIR
 fnArg n = pure $ EIR.FunctionArg n

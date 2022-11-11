@@ -70,7 +70,7 @@ declare_type Program
   new_c btree(num_columns=1, index=[0], block_size=256, search_type=linear)
 }
 
-fn eclair_program_init() -> *Program
+export fn eclair_program_init() -> *Program
 {
   program = heap_allocate_program
   symbol_table.init(program.0)
@@ -85,7 +85,7 @@ fn eclair_program_init() -> *Program
   return program
 }
 
-fn eclair_program_destroy(*Program) -> Void
+export fn eclair_program_destroy(*Program) -> Void
 {
   symbol_table.destroy(FN_ARG[0].0)
   a.destroy(FN_ARG[0].1)
@@ -99,7 +99,7 @@ fn eclair_program_destroy(*Program) -> Void
   free_program(FN_ARG[0])
 }
 
-fn eclair_program_run(*Program) -> Void
+export fn eclair_program_run(*Program) -> Void
 {
   value = d.stack_allocate Value
   value.0 = 3
@@ -291,7 +291,7 @@ fn eclair_program_run(*Program) -> Void
 //--- expected_eclair_program_type.out
 %program = type {%symbol_table, %btree_t_0, %btree_t_0, %btree_t_0, %btree_t_0, %btree_t_0, %btree_t_0, %btree_t_0, %btree_t_0}
 //--- expected_eclair_program_init_llvm.out
-define external ccc %program* @eclair_program_init() {
+define external ccc %program* @eclair_program_init() "wasm-export-name"="eclair_program_init" {
 start:
   %memory_0 = call ccc i8* @malloc(i32 1688)
   %program_0 = bitcast i8* %memory_0 to %program*
@@ -316,7 +316,7 @@ start:
   ret %program* %program_0
 }
 //--- expected_eclair_program_destroy_llvm.out
-define external ccc void @eclair_program_destroy(%program* %arg_0) {
+define external ccc void @eclair_program_destroy(%program* %arg_0) "wasm-export-name"="eclair_program_destroy" {
 start:
   %0 = getelementptr %program, %program* %arg_0, i32 0, i32 0
   call ccc void @symbol_table_destroy(%symbol_table* %0)
@@ -341,7 +341,7 @@ start:
   ret void
 }
 //--- expected_eclair_program_run_llvm.out
-define external ccc void @eclair_program_run(%program* %arg_0) {
+define external ccc void @eclair_program_run(%program* %arg_0) "wasm-export-name"="eclair_program_run" {
 start:
   %value_0 = alloca [1 x i32], i32 1
   %0 = getelementptr [1 x i32], [1 x i32]* %value_0, i32 0, i32 0

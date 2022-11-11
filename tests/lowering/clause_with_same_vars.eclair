@@ -36,7 +36,7 @@ search b as b0 do
     if b0[0] = b0[1] do
       project (b0[0]) into a
 //--- expected_eclair_program_run.out
-fn eclair_program_run(*Program) -> Void
+export fn eclair_program_run(*Program) -> Void
 {
   value = c.stack_allocate Value
   value.0 = 0
@@ -144,7 +144,7 @@ fn eclair_program_run(*Program) -> Void
   range_query.end_2:
 }
 //--- expected_eclair_program_run_llvm.out
-define external ccc void @eclair_program_run(%program* %arg_0) {
+define external ccc void @eclair_program_run(%program* %arg_0) "wasm-export-name"="eclair_program_run" {
 start:
   %value_0 = alloca [5 x i32], i32 1
   %0 = getelementptr [5 x i32], [5 x i32]* %value_0, i32 0, i32 0

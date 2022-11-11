@@ -1,15 +1,20 @@
 FROM primordus/souffle-ubuntu:2.3
 ARG LLVM_VERSION=14
 
+SHELL [ "/bin/bash", "-c" ]
+
 # install packages
 RUN echo 'tzdata tzdata/Areas select Europe' | debconf-set-selections \
     && echo 'tzdata tzdata/Zones/Europe select Paris' | debconf-set-selections
 RUN apt-get update \
     && apt-get autoremove -y \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y \
-       wget software-properties-common gnupg nodejs curl libffi-dev make \
+       wget software-properties-common gnupg curl libffi-dev make \
        python3 python3-pip libgmp-dev \
     && rm -rf /var/lib/apt/lists/* \
+    && curl -o - https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.2/install.sh | bash \
+    && source /root/.nvm/nvm.sh \
+    && nvm install 18.1.0 \
     && echo "source /root/.ghcup/env" >> ~/.bashrc \
     # install llvm 14
     && mkdir -p /tmp/llvm-dir \
@@ -30,7 +35,6 @@ RUN apt-get update \
     && curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | sh
 
 # install and set ghc
-SHELL [ "/bin/bash", "-c" ]
 RUN source /root/.ghcup/env \
     && ghcup install ghc --force 9.0.2 && ghcup set ghc 9.0.2 \
     && ghcup install cabal --force 3.6.2.0 && ghcup set cabal 3.6.2.0 \
@@ -40,7 +44,7 @@ VOLUME /code
 WORKDIR /app/build
 ENV DATALOG_DIR=/app/build/cbits
 
-RUN echo -e '#!/bin/bash\nsource /root/.ghcup/env\nexec "$@"\n' > /app/build/entrypoint.sh \
+RUN echo -e '#!/bin/bash\nsource /root/.ghcup/env\nsource /root/.nvm/nvm.sh\nexec "$@"\n' > /app/build/entrypoint.sh \
     && chmod u+x /app/build/entrypoint.sh \
     && echo -e '#!/bin/bash\nsource /root/.ghcup/env\nECLAIR=`cabal list-bin eclair`\n$ECLAIR "$@"' > /usr/bin/eclair \
     && chmod u+x /usr/bin/eclair

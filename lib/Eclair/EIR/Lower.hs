@@ -63,15 +63,16 @@ compileToLLVM target = \case
     panic "Unexpected top level EIR declarations when compiling to LLVM!"
   where
     processDecl lowerState = \case
-      EIR.Function name tys retTy body -> do
+      EIR.Function visibility name tys retTy body -> do
         let unusedRelation = panic "Unexpected use of relation for function type when lowering EIR to LLVM."
             unusedIndex = panic "Unexpected use of index for function type when lowering EIR to LLVM."
             getType ty = evalStateT (toLLVMType unusedRelation unusedIndex ty) lowerState
         argTypes <- liftIO $ traverse getType tys
         returnType <- liftIO $ getType retTy
         let args = map (, ParameterName "arg") argTypes
-        -- We don't expose these functions on the top level API, they are only used internally!
-        function (Name name) args returnType $ \args -> do
+            fn = if visibility == EIR.Public then apiFunction else function
+        -- Only public functions are exposed, rest is only used internally
+        fn (Name name) args returnType $ \args -> do
           runCodegenM (fnBodyToLLVM args body) lowerState
       _ ->
         panic "Unexpected top level EIR declaration when compiling to LLVM!"
@@ -261,18 +262,40 @@ getIndexFromMeta = \case
 
 createExternals :: Maybe Target -> ModuleBuilderT IO Externals
 createExternals target = do
-  mallocFn <- extern "malloc" [i32] (ptr i8)
-  freeFn <- extern "free" [ptr i8] void
+  mallocFn <- generateMallocFn target
+  freeFn <- generateFreeFn target
   memsetFn <- extern "llvm.memset.p0i8.i64" [ptr i8, i8, i64, i1] void
   memcpyFn <- extern "llvm.memcpy.p0i8.p0i8.i64" [ptr i8, ptr i8, i64, i1] void
   memcmpFn <- if target == Just Wasm32
-                then generateMemCmpWasm32
+                then generateMemCmpFn
                 else extern "memcmp" [ptr i8, ptr i8, i64] i32
   pure $ Externals mallocFn freeFn memsetFn memcpyFn memcmpFn
 
+generateMallocFn :: Monad m => Maybe Target -> ModuleBuilderT m Operand
+generateMallocFn target = do
+  mallocFn <- extern "malloc" [i32] (ptr i8)
+  when (target == Just Wasm32) $ do
+    withFunctionAttributes (const [WasmExportName "eclair_malloc"]) $
+      function "eclair_malloc" [(i32, "byte_count")] (ptr i8) $ \[byteCount] ->
+        ret =<< call mallocFn [byteCount]
+    pass
+
+  pure mallocFn
+
+generateFreeFn :: Monad m => Maybe Target -> ModuleBuilderT m Operand
+generateFreeFn target = do
+  freeFn <- extern "free" [ptr i8] void
+  when (target == Just Wasm32) $ do
+    withFunctionAttributes (const [WasmExportName "eclair_free"]) $
+      function "eclair_free" [(ptr i8, "memory")] void $ \[memoryPtr] ->
+        call freeFn [memoryPtr]
+    pass
+
+  pure freeFn
+
 -- NOTE: we only care about 0 if they are equal!
-generateMemCmpWasm32 :: MonadFix m => ModuleBuilderT m Operand
-generateMemCmpWasm32 = do
+generateMemCmpFn :: MonadFix m => ModuleBuilderT m Operand
+generateMemCmpFn = do
   let args = [(ptr i8, "array1"), (ptr i8, "array2"), (i64, "byte_count")]
   function "memcmp_wasm32" args i32 $ \[array1, array2, byteCount] -> do
     i64Count <- byteCount `udiv` int64 8
@@ -539,5 +562,5 @@ apiFunction :: (MonadModuleBuilder m, HasSuffix m)
             -> ([Operand] -> IRBuilderT m a)
             -> m Operand
 apiFunction fnName args retTy body =
-  withDefaultFunctionAttributes (WasmExportName (unName fnName):) $
+  withFunctionAttributes (WasmExportName (unName fnName):) $
     function fnName args retTy body
