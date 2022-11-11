@@ -1,0 +1,57 @@
+// This checks if strings can be encoded / decoded between C <=> Eclair
+
+// RUN: split-file %s %t
+
+// RUN: %eclair compile %t/program.eclair > %t/program.ll
+// RUN: clang -O0 -o %t/program %t/main.c %t/program.ll
+
+// RUN: %t/program | FileCheck %s
+
+// NOTE: not 0 0 1, because fact is inserted at place 0
+// CHECK: 1 1 2
+// CHECK-NEXT: fact, some example text, some more text
+
+//--- program.eclair
+
+@def fact(u32).
+
+//--- main.c
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include <stdint.h>
+
+
+struct program;
+
+struct symbol {
+    uint32_t length;
+    const char* data;
+};
+
+extern struct program* eclair_program_init();
+extern void eclair_program_destroy(struct program*);
+extern uint32_t eclair_encode_string(struct program*, uint32_t length, const char* str);
+extern struct symbol* eclair_decode_string(struct program*, uint32_t index);
+
+static const char* str1 = "some example text";
+static const char* str2 = "some more text";
+
+int main(int argc, char** argv)
+{
+    struct program* prog = eclair_program_init();
+
+    uint32_t str_index1 = eclair_encode_string(prog, strlen(str1), str1);
+    uint32_t str_index2 = eclair_encode_string(prog, strlen(str1), str1);
+    uint32_t str_index3 = eclair_encode_string(prog, strlen(str2), str2);
+    printf("%d %d %d\n", str_index1, str_index2, str_index3);
+
+    struct symbol* symbol0 = eclair_decode_string(prog, 0);
+    struct symbol* symbol1 = eclair_decode_string(prog, str_index1);
+    struct symbol* symbol2 = eclair_decode_string(prog, str_index3);
+    printf("%s, %s, %s\n", symbol0->data, symbol1->data, symbol2->data);
+
+    eclair_program_destroy(prog);
+    return 0;
+}

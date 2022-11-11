@@ -321,7 +321,7 @@ start:
   %10 = getelementptr inbounds [2 x i8], [2 x i8]* @string_literal_0, i32 0, i32 0
   %11 = zext i32 1 to i64
   %12 = call ccc i8* @malloc(i32 1)
-  call ccc void @llvm.memcpy.p0i8.p0i8.i64(i8* %10, i8* %12, i64 %11, i1 0)
+  call ccc void @llvm.memcpy.p0i8.p0i8.i64(i8* %12, i8* %10, i64 %11, i1 0)
   %13 = alloca %symbol_t, i32 1
   call ccc void @symbol_init(%symbol_t* %13, i32 1, i8* %12)
   %14 = call ccc i32 @symbol_table_find_or_insert(%symbol_table* %9, %symbol_t* %13)
@@ -329,7 +329,7 @@ start:
   %16 = getelementptr inbounds [2 x i8], [2 x i8]* @string_literal_1, i32 0, i32 0
   %17 = zext i32 1 to i64
   %18 = call ccc i8* @malloc(i32 1)
-  call ccc void @llvm.memcpy.p0i8.p0i8.i64(i8* %16, i8* %18, i64 %17, i1 0)
+  call ccc void @llvm.memcpy.p0i8.p0i8.i64(i8* %18, i8* %16, i64 %17, i1 0)
   %19 = alloca %symbol_t, i32 1
   call ccc void @symbol_init(%symbol_t* %19, i32 1, i8* %18)
   %20 = call ccc i32 @symbol_table_find_or_insert(%symbol_table* %15, %symbol_t* %19)
@@ -337,7 +337,7 @@ start:
   %22 = getelementptr inbounds [2 x i8], [2 x i8]* @string_literal_2, i32 0, i32 0
   %23 = zext i32 1 to i64
   %24 = call ccc i8* @malloc(i32 1)
-  call ccc void @llvm.memcpy.p0i8.p0i8.i64(i8* %22, i8* %24, i64 %23, i1 0)
+  call ccc void @llvm.memcpy.p0i8.p0i8.i64(i8* %24, i8* %22, i64 %23, i1 0)
   %25 = alloca %symbol_t, i32 1
   call ccc void @symbol_init(%symbol_t* %25, i32 1, i8* %24)
   %26 = call ccc i32 @symbol_table_find_or_insert(%symbol_table* %21, %symbol_t* %25)
@@ -345,7 +345,7 @@ start:
   %28 = getelementptr inbounds [2 x i8], [2 x i8]* @string_literal_3, i32 0, i32 0
   %29 = zext i32 1 to i64
   %30 = call ccc i8* @malloc(i32 1)
-  call ccc void @llvm.memcpy.p0i8.p0i8.i64(i8* %28, i8* %30, i64 %29, i1 0)
+  call ccc void @llvm.memcpy.p0i8.p0i8.i64(i8* %30, i8* %28, i64 %29, i1 0)
   %31 = alloca %symbol_t, i32 1
   call ccc void @symbol_init(%symbol_t* %31, i32 1, i8* %30)
   %32 = call ccc i32 @symbol_table_find_or_insert(%symbol_table* %27, %symbol_t* %31)

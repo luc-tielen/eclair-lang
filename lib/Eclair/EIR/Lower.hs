@@ -126,7 +126,7 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
         numBytes <- utf8Length `zext` i64
         exts <- gets externals
         stringPtr <- call (extMalloc exts) [utf8Length]
-        call (extMemcpy exts) [globalStringPtr, stringPtr, numBytes, bit 0]
+        call (extMemcpy exts) [stringPtr, globalStringPtr, numBytes, bit 0]
         symFns <- gets symbolFns
         let tySymbol = Symbol.tySymbol symFns
         symbolPtr <- alloca tySymbol (Just (int32 1)) 0
