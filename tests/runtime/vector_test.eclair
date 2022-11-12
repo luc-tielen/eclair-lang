@@ -1,0 +1,137 @@
+// RUN: split-file %s %t
+
+// RUN: %eclair compile %t/program.eclair > %t/program.ll
+// RUN: clang -O0 -o %t/program %t/main.c %t/program.ll
+// RUN: %t/program
+
+//--- program.eclair
+@def fact(u32).
+
+//--- main.c
+
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+typedef uint32_t u32;
+
+typedef struct symbol {
+  u32 length;
+  char *data;
+} symbol_t;
+
+typedef symbol_t elem_t;
+typedef struct vector {
+  elem_t *start;
+  elem_t *end;
+  uint32_t capacity;
+} vector_t;
+
+extern void vector_init_symbol(struct vector *);
+extern void vector_destroy_symbol(struct vector *);
+extern uint32_t vector_push_symbol(struct vector *, elem_t *);
+extern uint32_t vector_size_symbol(struct vector *);
+extern elem_t *vector_get_value_symbol(struct vector *, uint32_t);
+
+void ASSERT(bool result, const char *msg) {
+  if (!result) {
+    printf("Assertion failed: %s\n", msg);
+    exit(1);
+  }
+}
+
+#define INITIAL_CAPACITY 16
+#define GROW_FACTOR 2
+
+static void test_vector_init() {
+  vector_t vec;
+  vector_init_symbol(&vec);
+
+  ASSERT(vector_size_symbol(&vec) == 0, "vector size should be 0");
+  ASSERT(vec.start == vec.end, "");
+  ASSERT(vec.capacity == INITIAL_CAPACITY,
+         "vector capacity should be INITIAL_CAPACITY");
+
+  vector_destroy_symbol(&vec);
+}
+
+static void test_vector_single_push() {
+  vector_t vec;
+  vector_init_symbol(&vec);
+
+  ASSERT(vector_size_symbol(&vec) == 0, "Unexpected size before!");
+  // strdup needed since the vector frees symbols
+  symbol_t symbol = {.data = strdup("some_symbol")};
+  u32 idx = vector_push_symbol(&vec, &symbol);
+  ASSERT(vector_size_symbol(&vec) == 1, "Unexpected size after!");
+
+  vector_destroy_symbol(&vec);
+}
+
+static void test_vector_push() {
+  vector_t vec;
+  vector_init_symbol(&vec);
+
+  for (u32 i = 0; i < INITIAL_CAPACITY; ++i) {
+    // strdup needed since the vector frees symbols
+    symbol_t symbol = {.data = strdup("some_symbol")};
+
+    ASSERT(vector_size_symbol(&vec) == i, "Unexpected size before!");
+    u32 idx = vector_push_symbol(&vec, &symbol);
+    ASSERT(idx == i, "Unexpected index!");
+    ASSERT(vector_size_symbol(&vec) == i + 1, "Unexpected size after!");
+    ASSERT(vec.capacity == INITIAL_CAPACITY, "Unexpected capacity");
+  }
+
+  ASSERT(vector_size_symbol(&vec) == INITIAL_CAPACITY,
+         "Unexpected size before resize!");
+  symbol_t symbol = {.data = strdup("final_symbol")};
+  u32 idx = vector_push_symbol(&vec, &symbol);
+  ASSERT(idx == INITIAL_CAPACITY, "Unexpected index!");
+  ASSERT(vector_size_symbol(&vec) == INITIAL_CAPACITY + 1,
+         "Unexpected size after resize!");
+  ASSERT(vec.capacity == GROW_FACTOR * INITIAL_CAPACITY, "Unexpected capacity");
+
+  vector_destroy_symbol(&vec);
+}
+
+static void test_vector_resize() {
+  vector_t vec;
+  vector_init_symbol(&vec);
+
+  ASSERT(vec.capacity == INITIAL_CAPACITY, "Unexpected capacity");
+
+  for (u32 i = 0; i < 2 * INITIAL_CAPACITY; ++i) {
+    // strdup needed since the vector frees symbols
+    symbol_t symbol = {.data = strdup("some_symbol")};
+    u32 idx = vector_push_symbol(&vec, &symbol);
+  }
+
+  ASSERT(vec.capacity == GROW_FACTOR * INITIAL_CAPACITY, "Unexpected capacity");
+
+  for (u32 i = 0; i < 2 * INITIAL_CAPACITY; ++i) {
+    // strdup needed since the vector frees symbols
+    symbol_t symbol = {.data = strdup("some_symbol")};
+    u32 idx = vector_push_symbol(&vec, &symbol);
+  }
+
+  ASSERT(vec.capacity == GROW_FACTOR * GROW_FACTOR * INITIAL_CAPACITY,
+         "Unexpected capacity");
+
+  vector_destroy_symbol(&vec);
+}
+
+int main(int argc, char **argv) {
+  printf("Start tests..\n");
+  test_vector_init();
+  printf("vector_init: OK!\n");
+  test_vector_single_push();
+  printf("vector_single_push: OK!\n");
+  test_vector_push();
+  printf("vector_push: OK!\n");
+  test_vector_resize();
+  printf("Vector: all good!\n");
+  return 0;
+}

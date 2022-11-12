@@ -9,6 +9,7 @@ import qualified Prelude
 import Control.Monad.Morph hiding (embed)
 import Data.Traversable (for)
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as TE
 import qualified Data.ByteString as BS
 import qualified Data.Map as M
 import qualified Data.List as L
@@ -116,8 +117,21 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
       EIR.LitF (LNumber value) ->
         pure $ int32 (fromIntegral value)
       EIR.LitF (LString value) -> do
+        -- We create a global variable to statically store the string,
+        -- but we malloc and copy the string over since the symbol table
+        -- frees all symbols at the end.
         varName <- newGlobalVarName "string_literal"
-        globalUtf8StringPtr value varName
+        globalStringPtr <- globalUtf8StringPtr value varName
+        let utf8Length = int32 $ toInteger $ BS.length $ encodeUtf8 value
+        numBytes <- utf8Length `zext` i64
+        exts <- gets externals
+        stringPtr <- call (extMalloc exts) [utf8Length]
+        call (extMemcpy exts) [stringPtr, globalStringPtr, numBytes, bit 0]
+        symFns <- gets symbolFns
+        let tySymbol = Symbol.tySymbol symFns
+        symbolPtr <- alloca tySymbol (Just (int32 1)) 0
+        call (Symbol.symbolInit symFns) [symbolPtr, utf8Length, stringPtr]
+        pure symbolPtr
       _ ->
         panic "Unhandled pattern match case in 'instrToOperand' while lowering EIR to LLVM!"
     instrToUnit :: MonadFix m => (EIRF (Triple EIR (CodegenT m Operand) (CodegenT m ())) -> CodegenT m ())

@@ -153,7 +153,7 @@ mkVectorPush vectorSize = do
     newNumBytes <- mul newCapacity sizeOfElem
     newMemoryPtr <- (`bitcast` ptr elemTy) =<< call mallocFn [newNumBytes]
     -- assert(new_memory && "Failed to allocate more memory for vector!");
-    newMemoryEndPtr <- gep newMemoryPtr [newCapacity]  -- TODO check
+    newMemoryEndPtr <- gep newMemoryPtr [currentCapacity]
     startPtr <- deref startPtrOf vec >>= (`bitcast` ptr i8)
     newMemoryPtrBytes <- newMemoryPtr `bitcast` ptr i8
     call memcpyFn [newMemoryPtrBytes, startPtr, currentNumBytes, bit 0]
@@ -187,7 +187,7 @@ mkVectorSize = do
     -- assert(vec && "Vector should not be null");
     startPtr <- deref startPtrOf vec
     endPtr <- deref endPtrOf vec
-    byteDiff <- pointerDiff i32 startPtr endPtr
+    byteDiff <- pointerDiff i32 endPtr startPtr
     ret =<< udiv byteDiff sizeOfElem
 
 mkVectorGetValue :: ModuleCodegen Operand

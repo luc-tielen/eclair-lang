@@ -1,0 +1,196 @@
+// RUN: split-file %s %t
+
+// RUN: %eclair compile %t/program.eclair > %t/program.ll
+// RUN: clang -O0 -o %t/program %t/main.c %t/program.ll
+// RUN: %t/program
+
+//--- program.eclair
+@def fact(u32).
+
+//--- main.c
+
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+    // NOTE: strings need to be malloc'ed / strdup'ed since they get freed
+    // when calling symbol_table_destroy
+
+    typedef uint32_t u32;
+
+typedef struct symbol {
+  u32 size;
+  char *data;
+} symbol_t;
+
+typedef symbol_t elem_t;
+typedef struct vector {
+  elem_t *start;
+  elem_t *end;
+  uint32_t capacity;
+} vector_t;
+
+typedef struct entry {
+  symbol_t symbol;
+  u32 value;
+} entry_t;
+
+typedef struct bucket {
+  entry_t *start;
+  entry_t *end;
+  u32 capacity;
+} bucket_t;
+
+typedef struct hashmap {
+  bucket_t buckets[64];
+} hashmap_t;
+
+typedef struct symbol_table {
+  vector_t idx2sym;
+  hashmap_t sym2idx;
+} symbol_table_t;
+
+extern void symbol_table_init(symbol_table_t *table);
+extern void symbol_table_destroy(symbol_table_t *table);
+extern u32 symbol_table_find_or_insert(symbol_table_t *table, symbol_t *symbol);
+extern bool symbol_table_contains_index(symbol_table_t *table, u32 index);
+extern bool symbol_table_contains_symbol(symbol_table_t *table,
+                                         symbol_t *symbol);
+extern u32 symbol_table_lookup_index(symbol_table_t *table, symbol_t *symbol);
+extern symbol_t *symbol_table_lookup_symbol(symbol_table_t *table, u32 index);
+
+static void ASSERT(bool result, const char *msg) {
+  if (!result) {
+    printf("Assertion failed: %s\n", msg);
+    exit(1);
+  }
+}
+
+static void test_symbol_table_init() {
+  symbol_table_t table;
+  symbol_table_init(&table);
+  symbol_table_destroy(&table);
+}
+
+static void test_symbol_table_find_or_insert() {
+  // NOTE: hash collisions are checked on hashmap level
+
+  symbol_table_t table;
+  symbol_table_init(&table);
+
+  symbol_t symbol1 = {.size = 1, .data = strdup("a")};
+  symbol_t symbol2 = {.size = 1, .data = strdup("b")};
+  symbol_t symbol3 = {.size = 1, .data = strdup("c")};
+  u32 index1 = symbol_table_find_or_insert(&table, &symbol1);
+  u32 index2 = symbol_table_find_or_insert(&table, &symbol2);
+  u32 index3 = symbol_table_find_or_insert(&table, &symbol3);
+
+  ASSERT(index1 == 0, "Received unexpected index for symbol1!");
+  ASSERT(index2 == 1, "Received unexpected index for symbol2!");
+  ASSERT(index3 == 2, "Received unexpected index for symbol3!");
+
+  u32 index4 = symbol_table_find_or_insert(&table, &symbol1);
+  ASSERT(index4 == 0, "Received unexpected index for symbol1!");
+
+  symbol_table_destroy(&table);
+}
+
+static void test_symbol_table_contains_index() {
+  symbol_table_t table;
+  symbol_table_init(&table);
+
+  symbol_t symbol = {.size = 1, .data = strdup("a")};
+  u32 index = symbol_table_find_or_insert(&table, &symbol);
+
+  ASSERT(symbol_table_contains_index(&table, index),
+         "Expected to find symbol for known index!");
+
+  u32 unknown_index = 42;
+  ASSERT(!symbol_table_contains_index(&table, unknown_index),
+         "Expected not to find symbol for known index!");
+
+  symbol_table_destroy(&table);
+}
+
+static void test_symbol_table_contains_symbol() {
+  symbol_table_t table;
+  symbol_table_init(&table);
+
+  symbol_t symbol = {.size = 1, .data = strdup("a")};
+  symbol_table_find_or_insert(&table, &symbol);
+  ASSERT(symbol_table_contains_symbol(&table, &symbol),
+         "Expected to find symbol!");
+
+  symbol_t not_added = {.size = 1, .data = "b"};
+  ASSERT(!symbol_table_contains_symbol(&table, &not_added),
+         "Did not expect to find symbol!");
+
+  symbol_table_destroy(&table);
+}
+
+static void test_symbol_table_lookup_index() {
+  symbol_table_t table;
+  symbol_table_init(&table);
+
+  symbol_t symbol1 = {.size = 1, .data = strdup("a")};
+  symbol_t symbol2 = {.size = 1, .data = strdup("b")};
+  symbol_table_find_or_insert(&table, &symbol1);
+  symbol_table_find_or_insert(&table, &symbol2);
+
+  u32 index1 = symbol_table_lookup_index(&table, &symbol1);
+  u32 index2 = symbol_table_lookup_index(&table, &symbol2);
+  ASSERT(index1 == 0, "Expected to find index for symbol1!");
+  ASSERT(index2 == 1, "Expected to find index for symbol2!");
+
+  // This should not occur in Datalog!
+  // symbol_t not_added = {.size = 1, .data = "c"};
+  // u32 missing_index = symbol_table_lookup_symbol(&table, &not_added);
+  // ASSERT(missing_index == 0xFFFFFFFF,
+  //        "Did not expect to find index for missing symbol!");
+
+  symbol_table_destroy(&table);
+}
+
+static void test_symbol_table_lookup_symbol() {
+  symbol_table_t table;
+  symbol_table_init(&table);
+
+  symbol_t symbol1 = {.size = 1, .data = strdup("a")};
+  symbol_t symbol2 = {.size = 1, .data = strdup("b")};
+  u32 index1 = symbol_table_find_or_insert(&table, &symbol1);
+  u32 index2 = symbol_table_find_or_insert(&table, &symbol2);
+
+  symbol_t *symbol1_result = symbol_table_lookup_symbol(&table, index1);
+  symbol_t *symbol2_result = symbol_table_lookup_symbol(&table, index2);
+  ASSERT(strcmp(symbol1_result->data, "a") == 0,
+         "Expected to find index for symbol1!");
+  ASSERT(strcmp(symbol2_result->data, "b") == 0,
+         "Expected to find index for symbol2!");
+
+  // This reads uninitialized memory, no safety checks are done!
+  // Should not occur in a real DL program
+  // u32 missing = 42;
+  // ASSERT(strcmp(symbol_table_lookup_index(&table, missing)->data, "a") != 0,
+  //        "Expected not to find unknown index");
+
+  symbol_table_destroy(&table);
+}
+
+int main(int argc, char **argv) {
+  printf("Testing symbol_table...\n");
+  test_symbol_table_init();
+  printf("symbol_table_init: OK!\n");
+  test_symbol_table_find_or_insert();
+  printf("symbol_table_find_or_insert: OK!\n");
+  test_symbol_table_contains_index();
+  printf("symbol_table_contains_index: OK!\n");
+  test_symbol_table_contains_symbol();
+  printf("symbol_table_contains_symbol: OK!\n");
+  test_symbol_table_lookup_symbol();
+  printf("symbol_table_lookup_symbol: OK!\n");
+  test_symbol_table_lookup_index();
+  printf("symbol_table: all good!\n");
+  return 0;
+}
