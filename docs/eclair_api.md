@@ -139,8 +139,14 @@ If you have string values inside your fact data, you will also manually need to
 call `eclair_decode_string` to go from the `uint32_t` value back to the
 underlying string byte-array. The signature of this function is as follows:
 
-```
-const char* eclair_decode_string(struct program*, uint32_t string_index);
+```c
+struct symbol* eclair_decode_string(struct program*, uint32_t string_index);
+
+// symbol is defined as:
+struct symbol {
+  uint32_t length;
+  const char* data;
+} __attribute__((packed));
 ```
 
 Note that this memory does _not_ need to be freed, this will happen
