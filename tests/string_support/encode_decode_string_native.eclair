@@ -28,7 +28,7 @@ struct program;
 struct symbol {
     uint32_t length;
     const char* data;
-};
+} __attribute__((packed));
 
 extern struct program* eclair_program_init();
 extern void eclair_program_destroy(struct program*);

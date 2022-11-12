@@ -20,7 +20,7 @@ typedef uint32_t u32;
 typedef struct symbol {
   u32 length;
   char *data;
-} symbol_t;
+} __attribute__((packed)) symbol_t;
 
 typedef symbol_t elem_t;
 typedef struct vector {
