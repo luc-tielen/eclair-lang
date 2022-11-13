@@ -92,14 +92,21 @@ astParser = withNodeId $ \nodeId -> do
   whitespace
   decls <- declParser `P.endBy` whitespace
   P.eof
-  pure $ Module nodeId decls
+  pure $ Module nodeId $ catMaybes decls
 
-declParser :: Parser AST
-declParser = do
+declParser :: Parser (Maybe AST)
+declParser = P.withRecovery handleError $ Just <$> do
   c <- P.lookAhead P.anySingle
   case c of
     '@' -> typedefParser
     _ -> factOrRuleParser
+  where
+    handleError :: P.ParseError Text Void -> Parser (Maybe AST)
+    handleError err = do
+      P.registerParseError err
+      many (P.anySingleBut '.')
+      P.char '.'
+      pure Nothing
 
 typeParser :: Parser Type
 typeParser = lexeme $ u32 <|> str

@@ -1,0 +1,49 @@
+// RUN: mkdir -p %t && sed s@TEST_DIR@%t@g %s > %t/input.test
+// RUN: split-file %t/input.test %t
+
+// RUN: %eclair compile --emit ra %t/program.eclair 2> %t/actual_output
+// RUN: diff -w %t/expected_output %t/actual_output
+
+//--- program.eclair
+@def edge(u32,).
+@def path(u32, u32).
+@def broken.
+
+edge(1, 2).
+
+path(x, y) :
+  edge(x, y).
+
+path(x, y) :-
+  edge(x, z),
+  path(z, y).
+
+edge(2, 3).
+
+//--- expected_output
+[error]: Failed to parse file
+     ╭──▶ TEST_DIR/program.eclair@1:15-1:16
+     │
+   1 │ @def edge(u32,).
+     •               ┬
+     •               ├╸ unexpected ").<newline>@de"
+     •               ╰╸ expecting "string" or "u32"
+─────╯
+
+[error]: Failed to parse file
+     ╭──▶ TEST_DIR/program.eclair@3:12-3:13
+     │
+   3 │ @def broken.
+     •            ┬
+     •            ├╸ unexpected '.'
+     •            ╰╸ expecting '(' or rest of identifier
+─────╯
+
+[error]: Failed to parse file
+     ╭──▶ TEST_DIR/program.eclair@7:12-7:13
+     │
+  7 │ path(x, y) :
+     •            ┬
+     •            ├╸ unexpected ":<newline>"
+     •            ╰╸ expecting ":-" or '.'
+─────╯
