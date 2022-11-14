@@ -21,6 +21,8 @@ The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-has
 ### Changed
 
 - Improved error reporting
+- Parsing now continues after failure and reports multiple errors back to the
+  user at once.
 
 ### Fixed
 

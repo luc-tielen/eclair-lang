@@ -4,6 +4,7 @@ module Eclair.Parser
   , Parser
   , ParseError
   , ParseErr
+  , ParsingError(..)
   , Span(..)
   , SpanMap
   , lookupSpan
@@ -27,6 +28,7 @@ import qualified Data.Text.Read as TR
 import qualified Text.Megaparsec as P
 import qualified Text.Megaparsec.Char as P
 import qualified Text.Megaparsec.Char.Lexer as L
+import System.Directory.Extra (doesFileExist)
 
 type ParseErr = Void
 type ParseError = P.ParseErrorBundle Text ParseErr
@@ -56,18 +58,28 @@ lookupSpan (SpanMap _path m) nodeId =
 type ParserState = (Word32, SpanMap)
 type Parser = P.ParsecT ParseErr Text (State ParserState)
 
-parseFile :: FilePath -> IO (Either ParseError (AST, NodeId, SpanMap))
-parseFile path = do
-  contents <- readFileText path
-  pure $ parseText path contents
+data ParsingError
+  = FileNotFound FilePath
+  | ParsingError ParseError
+  deriving (Show)
 
-parseText :: FilePath -> Text -> Either ParseError (AST, NodeId, SpanMap)
+parseFile :: FilePath -> IO (Either ParsingError (AST, NodeId, SpanMap))
+parseFile path = do
+  fileExists <- doesFileExist path
+  if fileExists
+  then do
+    contents <- readFileText path
+    pure $ parseText path contents
+  else
+    pure $ Left $ FileNotFound path
+
+
+parseText :: FilePath -> Text -> Either ParsingError (AST, NodeId, SpanMap)
 parseText path text =
   g <$> f (runState (P.runParserT astParser path text) (0, SpanMap path mempty))
   where
-    f :: (Either a b, c) -> Either a (b, c)
     f (m, c) = case m of
-      Left a -> Left a
+      Left a -> Left (ParsingError a)
       Right b -> Right (b, c)
     g :: (AST, ParserState) -> (AST, NodeId, SpanMap)
     g (ast, ps) = (ast, NodeId $ fst ps, snd ps)
@@ -92,14 +104,21 @@ astParser = withNodeId $ \nodeId -> do
   whitespace
   decls <- declParser `P.endBy` whitespace
   P.eof
-  pure $ Module nodeId decls
+  pure $ Module nodeId $ catMaybes decls
 
-declParser :: Parser AST
-declParser = do
+declParser :: Parser (Maybe AST)
+declParser = P.withRecovery handleError $ Just <$> do
   c <- P.lookAhead P.anySingle
   case c of
     '@' -> typedefParser
     _ -> factOrRuleParser
+  where
+    handleError :: P.ParseError Text Void -> Parser (Maybe AST)
+    handleError err = do
+      P.registerParseError err
+      many (P.anySingleBut '.')
+      P.char '.'
+      pure Nothing
 
 typeParser :: Parser Type
 typeParser = lexeme $ u32 <|> str
