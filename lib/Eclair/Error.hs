@@ -11,8 +11,9 @@ import Eclair.Parser
 import Eclair.Id
 import Prettyprinter
 import Prettyprinter.Render.Terminal
-import Error.Diagnose
+import Error.Diagnose hiding (stderr)
 import Error.Diagnose.Compat.Megaparsec
+import  System.IO hiding (stderr, readFile)
 
 
 data EclairError
@@ -27,7 +28,8 @@ handleErrors :: EclairError -> IO ()
 handleErrors = \case
   ParseErr file err -> do
     case err of
-      FileNotFound _ -> putTextLn $ "File not found: " <> toText file
+      FileNotFound {} ->
+        hPutStrLn stderr $ "File not found: " <> file
       ParsingError parseError -> do
         content <- readFile file
         let diagnostic = errorDiagnosticFromBundle Nothing "Failed to parse file" Nothing parseError
