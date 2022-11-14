@@ -16,7 +16,7 @@ import Error.Diagnose.Compat.Megaparsec
 
 
 data EclairError
-  = ParseErr FilePath ParseError
+  = ParseErr FilePath ParsingError
   | TypeErr FilePath SpanMap [TypeError]
   | SemanticErr FilePath SpanMap SemanticErrors
   deriving (Show, Exception)
@@ -26,10 +26,13 @@ data EclairError
 handleErrors :: EclairError -> IO ()
 handleErrors = \case
   ParseErr file err -> do
-    content <- readFile file
-    let diagnostic = errorDiagnosticFromBundle Nothing "Failed to parse file" Nothing err
-        diagnostic' = addFile diagnostic file content
-     in renderError diagnostic'
+    case err of
+      FileNotFound _ -> putTextLn $ "File not found: " <> toText file
+      ParsingError parseError -> do
+        content <- readFile file
+        let diagnostic = errorDiagnosticFromBundle Nothing "Failed to parse file" Nothing parseError
+            diagnostic' = addFile diagnostic file content
+         in renderError diagnostic'
 
   TypeErr file spanMap errs -> do
     content <- readFileText file

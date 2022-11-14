@@ -1,0 +1,8 @@
+// RUN: mkdir -p %t && sed s@TEST_DIR@%t@g %s > %t/input.test
+// RUN: split-file %t/input.test %t
+
+// RUN: %eclair compile foo.eclair > %t/actual_output
+// RUN: diff %t/expected_output %t/actual_output
+
+//--- expected_output
+File not found: foo.eclair
