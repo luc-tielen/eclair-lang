@@ -110,19 +110,16 @@ If you run the resulting program, this should print the reachable node pairs
 
 ## Roadmap
 
-- [x] Compile to LLVM
-- [x] Release 0.0.1
-- [x] Proper error handling
-- [x] Support wildcards (`_`)
-- [x] Support other data types than integers (strings, ...), add typesystem
-- [x] Support `=`
-- [x] Compile to WASM
 - [ ] Release 0.0.2
-- [ ] LSP support
+- [ ] Allow setting options on relations for performance finetuning
 - [ ] Support negation, `!=` operator
 - [ ] Support arithmetic / logical / ... operators
+- [ ] Generic, extensible primops
 - [ ] Optimizations on the AST / RA / LLVM level
+- [ ] LSP support
 - [ ] Support other underlying data structures than btree
+- [ ] Syntactic sugar (disjunctions in rule bodies, multiple rule heads, ...)
+- [ ] Support Datalog programs spanning multiple files
 - [ ] ...
 
 This roadmap is not set in stone, but it gives an idea on the direction of the
