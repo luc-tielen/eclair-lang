@@ -119,6 +119,7 @@ If you run the resulting program, this should print the reachable node pairs
 - [ ] LSP support
 - [ ] Support other underlying data structures than btree
 - [ ] Syntactic sugar (disjunctions in rule bodies, multiple rule heads, ...)
+- [ ] Support Datalog programs spanning multiple files
 - [ ] ...
 
 This roadmap is not set in stone, but it gives an idea on the direction of the
