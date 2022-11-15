@@ -12,6 +12,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 import qualified Data.ByteString as BS
 import qualified Data.Map as M
+import qualified Data.Set as S
 import qualified Data.List as L
 import Data.List ((!!))
 import Data.Maybe (fromJust)
@@ -30,6 +31,7 @@ import Eclair.RA.IndexSelection
 import Eclair.ArgParser
 import Eclair.Comonads
 import Eclair.AST.IR
+import Eclair.AST.Transforms.ReplaceStrings (StringMap)
 import Eclair.Id
 
 
@@ -37,8 +39,8 @@ type EIR = EIR.EIR
 type EIRF = EIR.EIRF
 type Relation = EIR.Relation
 
-compileToLLVM :: Maybe Target -> EIR -> IO Module
-compileToLLVM target = \case
+compileToLLVM :: Maybe Target -> StringMap -> EIR -> IO Module
+compileToLLVM target stringMapping = \case
   EIR.Module (EIR.DeclareProgram metas : decls) -> runModuleBuilderT $ do
     exts <- createExternals target
     (metaMapping, fnss) <- runCacheT $ traverse (codegenRuntime exts . snd) metas
@@ -52,7 +54,7 @@ compileToLLVM target = \case
     programSize <- withLLVMTypeInfo $ \ctx td -> llvmSizeOf ctx td programTy
     let lowerState = LowerState programTy programSize symbolTable symbol fnsMap mempty 0 exts
     traverse_ (processDecl lowerState) decls
-    usingReaderT (metas, lowerState) $ do
+    usingReaderT (relationMapping, metas, lowerState) $ do
       addFactsFn <- generateAddFactsFn
       generateAddFact addFactsFn
       generateGetFactsFn
@@ -63,6 +65,9 @@ compileToLLVM target = \case
   _ ->
     panic "Unexpected top level EIR declarations when compiling to LLVM!"
   where
+    relationMapping =
+      M.mapKeys Id stringMapping
+
     processDecl lowerState = \case
       EIR.Function visibility name tys retTy body -> do
         let unusedRelation = panic "Unexpected use of relation for function type when lowering EIR to LLVM."
@@ -341,9 +346,38 @@ generateMemCmpFn = do
 
     ret $ int32 0
 
+    -- i64Count <- byteCount `udiv` int64 8
+    -- restCount <- byteCount `and` int64 7  -- modulo 8
+    -- i64Array1 <- array1 `bitcast` ptr i64
+    -- i64Array2 <- array2 `bitcast` ptr i64
+    --
+    -- loopFor (int64 0) (`ult` i64Count) (add (int64 1)) $ \i -> do
+    --   valuePtr1 <- gep i64Array1 [i]
+    --   valuePtr2 <- gep i64Array2 [i]
+    --   value1 <- load valuePtr1 0
+    --   value2 <- load valuePtr2 0
+    --
+    --   isNotEqual <- value1 `ne` value2
+    --   if' isNotEqual $
+    --     ret $ int32 1
+    --
+    -- startIdx <- mul i64Count (int64 8)
+    -- loopFor (int64 0) (`ult` restCount) (add (int64 1)) $ \i -> do
+    --   idx <- add i startIdx
+    --   valuePtr1 <- gep array1 [idx]
+    --   valuePtr2 <- gep array2 [idx]
+    --   value1 <- load valuePtr1 0
+    --   value2 <- load valuePtr2 0
+    --
+    --   isNotEqual <- value1 `ne` value2
+    --   if' isNotEqual $
+    --     ret $ int32 1
+    --
+    -- ret $ int32 0
+
 generateAddFact :: MonadFix m => Operand -> CodegenInOutT (ModuleBuilderT m) Operand
 generateAddFact addFactsFn = do
-  lowerState <- asks snd
+  lowerState <- asks getLowerStateInOut
   let args = [ (ptr (programType lowerState), ParameterName "eclair_program")
              , (i32, ParameterName "fact_type")
              , (ptr i32, ParameterName "memory")
@@ -356,19 +390,17 @@ generateAddFact addFactsFn = do
 
 generateAddFactsFn :: MonadFix m => CodegenInOutT (ModuleBuilderT m) Operand
 generateAddFactsFn = do
-  (metas, lowerState) <- ask
-  let relations = getRelations metas
-      mapping = getFactTypeMapping metas
+  (relationMapping, metas, lowerState) <- ask
 
-  -- NOTE: this assumes there are no more than 65536 fact types in a single Datalog program
-  let args = [ (ptr (programType lowerState), ParameterName "eclair_program")
+  let relations = getRelations metas
+      args = [ (ptr (programType lowerState), ParameterName "eclair_program")
              , (i32, ParameterName "fact_type")
              , (ptr i32, ParameterName "memory")
              , (i32, ParameterName "fact_count")
              ]
       returnType = void
   apiFunction "eclair_add_facts" args returnType $ \[program, factType, memory, factCount] -> do
-    switchOnFactType metas retVoid factType $ \r -> do
+    switchOnFactType relations relationMapping retVoid factType $ \r -> do
       let indexes = indexesFor lowerState r
       for_ indexes $ \idx -> do
         let numCols = fromIntegral $ factNumColumns r metas
@@ -384,14 +416,15 @@ generateAddFactsFn = do
 
 generateGetFactsFn :: MonadFix m => CodegenInOutT (ModuleBuilderT m) Operand
 generateGetFactsFn = do
-  (metas, lowerState) <- ask
-  let args = [ (ptr (programType lowerState), ParameterName "eclair_program")
+  (relationMapping, metas, lowerState) <- ask
+  let relations = getRelations metas
+      args = [ (ptr (programType lowerState), ParameterName "eclair_program")
              , (i32, ParameterName "fact_type")
              ]
       returnType = ptr i32
       mallocFn = extMalloc $ externals lowerState
   apiFunction "eclair_get_facts" args returnType $ \[program, factType] -> do
-    switchOnFactType metas (ret $ nullPtr i32) factType $ \r -> do
+    switchOnFactType relations relationMapping (ret $ nullPtr i32) factType $ \r -> do
       let indexes = indexesFor lowerState r
           idx = fromJust $ viaNonEmpty head indexes  -- TODO: which idx? just select first matching?
           doCall op args = do
@@ -429,7 +462,7 @@ generateGetFactsFn = do
 
 generateFreeBufferFn :: Monad m => CodegenInOutT (ModuleBuilderT m) Operand
 generateFreeBufferFn = do
-  lowerState <- asks snd
+  lowerState <- asks getLowerStateInOut
   let freeFn = extFree $ externals lowerState
       args = [(ptr i32, ParameterName "buffer")]
       returnType = void
@@ -440,13 +473,14 @@ generateFreeBufferFn = do
 
 generateFactCountFn :: MonadFix m => CodegenInOutT (ModuleBuilderT m) Operand
 generateFactCountFn = do
-  (metas, lowerState) <- ask
-  let args = [ (ptr (programType lowerState), ParameterName "eclair_program")
+  (relationMapping, metas, lowerState) <- ask
+  let relations = getRelations metas
+      args = [ (ptr (programType lowerState), ParameterName "eclair_program")
              , (i32, ParameterName "fact_type")
              ]
       returnType = i32
   apiFunction "eclair_fact_count" args returnType $ \[program, factType] -> do
-    switchOnFactType metas (ret $ int32 0) factType $ \r -> do
+    switchOnFactType relations relationMapping (ret $ int32 0) factType $ \r -> do
       let indexes = indexesFor lowerState r
           idx = fromJust $ viaNonEmpty head indexes  -- TODO: which idx? just select first matching? or idx on all columns?
           doCall op args = do
@@ -461,7 +495,7 @@ generateFactCountFn = do
 -- Eclair makes an internal copy of the string, for simpler memory management.
 generateEncodeStringFn :: MonadFix m => CodegenInOutT (ModuleBuilderT m) Operand
 generateEncodeStringFn = do
-  lowerState <- asks snd
+  lowerState <- asks getLowerStateInOut
   let args = [ (ptr (programType lowerState), "eclair_program")
              , (i32, "string_length")
              , (ptr i8, "string_data")
@@ -493,7 +527,7 @@ generateEncodeStringFn = do
 -- this happens automatically when eclair_destroy is called
 generateDecodeStringFn :: MonadFix m => CodegenInOutT (ModuleBuilderT m) Operand
 generateDecodeStringFn = do
-  lowerState <- asks snd
+  lowerState <- asks getLowerStateInOut
   let args = [ (ptr (programType lowerState), "eclair_program")
              , (i32, "string_index")
              ]
@@ -521,40 +555,38 @@ getSymbolTablePtr :: (MonadNameSupply m, MonadModuleBuilder m, MonadIRBuilder m)
 getSymbolTablePtr program =
   gep program [int32 0, int32 0]
 
-type InOutState = ([(Relation, Metadata)], LowerState)
+type InOutState = (Map Relation Word32, [(Relation, Metadata)], LowerState)
 
 type CodegenInOutT = ReaderT  InOutState
 
 switchOnFactType :: MonadFix m
-                 => [(Relation, metadata)]
+                 => Set Relation
+                 -> Map Relation Word32
                  -> IRBuilderT m ()
                  -> Operand
                  -> (Relation -> IRBuilderT m ())
                  -> IRBuilderT m ()
-switchOnFactType metas defaultCase factType generateCase = mdo
+switchOnFactType relations stringMap defaultCase factType generateCase = mdo
     switch factType end caseBlocks
-    caseBlocks <- for mapping $ \(r, factNum) -> do
+    caseBlocks <- for (M.toList relationMapping) $ \(r, factNum) -> do
       caseBlock <- block `named` Name (unId r)
       generateCase r
-      pure (int32 factNum, caseBlock)
+      pure (int32 $ toInteger factNum, caseBlock)
 
     end <- block `named` "switch.default"
     defaultCase
   where
-    mapping = getFactTypeMapping metas
+    relationMapping =
+      M.restrictKeys stringMap relations
 
 factNumColumns :: Relation -> [(Relation, Metadata)] -> Int
 factNumColumns r metas =
   getNumColumns (snd $ fromJust $ L.find ((== r) . fst) metas)
 
 -- NOTE: disregards all "special" relations, since they should not be visible to the end user!
-getRelations :: [(Relation, metadata)] -> [Relation]
+getRelations :: [(Relation, metadata)] -> Set Relation
 getRelations metas =
-  ordNub $ filter (not . startsWithIdPrefix) $ map fst metas
-
-getFactTypeMapping :: [(Relation, metadata)] -> [(Relation, Integer)]
-getFactTypeMapping metas =
-  zip (getRelations metas) [0..]
+  S.fromList $ ordNub $ filter (not . startsWithIdPrefix) $ map fst metas
 
 -- (+1) due to symbol table at position 0 in program struct
 getContainerOffset :: [(Relation, Metadata)] -> Relation -> Index -> Int
@@ -568,6 +600,9 @@ sameRelationAndIndex r idx (r', idx') =
 indexesFor :: LowerState -> Relation -> [Index]
 indexesFor ls r =
   map snd $ filter ((== r) . fst) $ M.keys $ fnsMap ls
+
+getLowerStateInOut :: InOutState -> LowerState
+getLowerStateInOut (_, _, s) = s
 
 apiFunction :: (MonadModuleBuilder m, HasSuffix m)
             => Name

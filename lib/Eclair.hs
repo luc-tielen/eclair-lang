@@ -145,7 +145,8 @@ rules config = \case
     liftIO $ putTextLn $ printDoc eir
   CompileLLVM path -> do
     eir <- Rock.fetch (CompileEIR path)
-    liftIO $ compileToLLVM config eir
+    stringMapping <- Rock.fetch (StringMapping path)
+    liftIO $ compileToLLVM config stringMapping eir
   EmitLLVM path -> do
     llvmModule <- Rock.fetch (CompileLLVM path)
     liftIO $ putTextLn $ ppllvm llvmModule
