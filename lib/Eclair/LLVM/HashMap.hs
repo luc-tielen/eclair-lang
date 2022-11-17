@@ -46,23 +46,23 @@ type IRCodegen = IRBuilderT ModuleCodegen
 
 
 -- NOTE: no need to turn into template (for now)
-codegen :: ForeignPtr LLVMContext -> Ptr LLVMTargetData
-        -> Symbol.Symbol -> Externals -> ModuleBuilderT IO HashMap
-codegen ctx td symbol exts = do
+codegen :: Symbol.Symbol -> Externals -> ConfigT (ModuleBuilderT IO) HashMap
+codegen symbol exts = do
   let keyTy = Symbol.tySymbol symbol
       valueTy = i32
   entryTy <- typedef "entry_t" Off [keyTy, valueTy]
-  vec <- instantiate "entry" (entryTy, ctx, td) $ Vector.codegen exts Nothing
-  let vecTy = Vector.tyVector $ Vector.vectorTypes vec
-  hashMapTy <- typedef "hashmap_t" Off [ArrayType capacity vecTy]
-  let tys = Types
-        { tyHashMap = hashMapTy
-        , tyKey = keyTy
-        , tyValue = valueTy
-        , tyEntry = entryTy
-        }
+  vec <- hoist (instantiate "entry" entryTy) $ Vector.codegen exts Nothing
+  lift $ do
+    let vecTy = Vector.tyVector $ Vector.vectorTypes vec
+    hashMapTy <- typedef "hashmap_t" Off [ArrayType capacity vecTy]
+    let tys = Types
+          { tyHashMap = hashMapTy
+          , tyKey = keyTy
+          , tyValue = valueTy
+          , tyEntry = entryTy
+          }
 
-  hoist intoIO $ runReaderT generateFunctions $ CGState exts tys symbol vec
+    hoist intoIO $ runReaderT generateFunctions $ CGState exts tys symbol vec
   where
     intoIO = pure . runIdentity
 

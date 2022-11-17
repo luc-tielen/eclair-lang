@@ -52,19 +52,20 @@ compileToLLVM target stringMapping eir = do
       td <- LibLLVM.mkTargetData wasmDataLayout
       LibLLVM.setTargetData llvmMod td
       withForeignPtr td $ \tdPtr -> do
-        compile ctx tdPtr eir
+        compile (Config target ctx tdPtr) eir
     else do
       -- use host layout
       td <- LibLLVM.getTargetData llvmMod
-      compile ctx td eir
+      compile (Config target ctx td) eir
   where
-    compile :: ForeignPtr LLVMContext -> Ptr LLVMTargetData -> EIR.EIR -> IO Module
-    compile ctx td = \case
-      EIR.Module (EIR.DeclareProgram metas : decls) -> runModuleBuilderT $ do
-        exts <- createExternals target
-        (metaMapping, fnss) <- runCacheT $ traverse (codegenRuntime ctx td exts . snd) metas
+    compile cfg = \case
+      EIR.Module (EIR.DeclareProgram metas : decls) -> runModuleBuilderT $ runConfigT cfg $ do
+        let ctx = cfgLLVMContext cfg
+            td = cfgTargetData cfg
+        exts <- createExternals
+        (metaMapping, fnss) <- runCacheT $ traverse (codegenRuntime exts . snd) metas
         codegenDebugInfos metaMapping
-        (symbolTable, symbol) <- codegenSymbolTable ctx td exts
+        (symbolTable, symbol) <- codegenSymbolTable exts
         let symbolTableTy = SymbolTable.tySymbolTable symbolTable
             fnsInfo = zip (map (map getIndexFromMeta) metas) fnss
             fnsMap = M.fromList fnsInfo
@@ -72,15 +73,16 @@ compileToLLVM target stringMapping eir = do
         programTy <- typedef "program" Off (symbolTableTy : map typeObj fnss)
         programSize <- withLLVMTypeInfo ctx $ llvmSizeOf ctx td programTy
         let lowerState = LowerState programTy programSize symbolTable symbol fnsMap mempty 0 exts
-        traverse_ (processDecl lowerState) decls
-        usingReaderT (relationMapping, metas, lowerState) $ do
-          addFactsFn <- generateAddFactsFn
-          generateAddFact addFactsFn
-          generateGetFactsFn
-          generateFreeBufferFn
-          generateFactCountFn
-          generateEncodeStringFn
-          generateDecodeStringFn
+        lift $ do
+          traverse_ (processDecl lowerState) decls
+          usingReaderT (relationMapping, metas, lowerState) $ do
+            addFactsFn <- generateAddFactsFn
+            generateAddFact addFactsFn
+            generateGetFactsFn
+            generateFreeBufferFn
+            generateFactCountFn
+            generateEncodeStringFn
+            generateDecodeStringFn
       _ ->
         panic "Unexpected top level EIR declarations when compiling to LLVM!"
 
@@ -248,9 +250,8 @@ runCacheT m = do
   (a, s) <- runStateT m mempty
   pure (map fst s, a)
 
-codegenRuntime :: ForeignPtr LLVMContext -> Ptr LLVMTargetData
-               -> Externals -> Metadata -> CacheT (ModuleBuilderT IO) Table
-codegenRuntime ctx td exts meta = gets (M.lookup meta) >>= \case
+codegenRuntime :: Externals -> Metadata -> CacheT (ConfigT (ModuleBuilderT IO)) Table
+codegenRuntime exts meta = gets (M.lookup meta) >>= \case
   Nothing -> do
     suffix <- gets length
     fns <- cgRuntime suffix
@@ -259,9 +260,9 @@ codegenRuntime ctx td exts meta = gets (M.lookup meta) >>= \case
   Just (_, cachedFns) -> pure cachedFns
   where
     cgRuntime suffix = lift $ case meta of
-      BTree meta -> instantiate (show suffix) meta $ BTree.codegen ctx td exts
+      BTree meta -> hoist (instantiate (show suffix) meta) $ BTree.codegen exts
 
-codegenDebugInfos :: Monad m => Map Metadata Int -> ModuleBuilderT m ()
+codegenDebugInfos :: MonadModuleBuilder m => Map Metadata Int -> m ()
 codegenDebugInfos metaMapping =
   traverse_ (uncurry codegenDebugInfo) $ M.toList metaMapping
   where
@@ -270,10 +271,9 @@ codegenDebugInfos metaMapping =
           name = Name $ ("specialize_debug_info." <>) $ unHash hash
        in global name i32 (Int 32 $ toInteger i)
 
-codegenSymbolTable :: ForeignPtr LLVMContext -> Ptr LLVMTargetData
-                   -> Externals -> ModuleBuilderT IO (SymbolTable.SymbolTable, Symbol.Symbol)
-codegenSymbolTable ctx td exts = do
-  symbol <- hoist intoIO $ Symbol.codegen exts
+codegenSymbolTable :: Externals -> ConfigT (ModuleBuilderT IO) (SymbolTable.SymbolTable, Symbol.Symbol)
+codegenSymbolTable exts = do
+  symbol <- lift $ hoist intoIO $ Symbol.codegen exts
 
   let tySymbol = Symbol.tySymbol symbol
       freeFn = extFree exts
@@ -282,9 +282,9 @@ codegenSymbolTable ctx td exts = do
         pass
 
   -- Only this vector does the cleanup of all the symbols, to prevent double frees
-  vec <- instantiate "symbol" (tySymbol, ctx, td) $ Vector.codegen exts (Just symbolDestructor)
-  hashMap <- HashMap.codegen ctx td symbol exts
-  symbolTable <- hoist intoIO $ SymbolTable.codegen tySymbol vec hashMap
+  vec <- hoist (instantiate "symbol" tySymbol) $ Vector.codegen exts (Just symbolDestructor)
+  hashMap <- HashMap.codegen symbol exts
+  symbolTable <- lift $ hoist intoIO $ SymbolTable.codegen tySymbol vec hashMap
   pure (symbolTable, symbol)
   where
     intoIO = pure . runIdentity
@@ -300,14 +300,15 @@ getIndexFromMeta :: Metadata -> Index
 getIndexFromMeta = \case
   BTree meta -> Index $ BTree.index meta
 
-createExternals :: Maybe Target -> ModuleBuilderT IO Externals
-createExternals target = do
-  mallocFn <- generateMallocFn target
-  freeFn <- generateFreeFn target
+createExternals :: ConfigT (ModuleBuilderT IO) Externals
+createExternals = do
+  target <- cfgTargetTriple <$> getConfig
+  mallocFn <- lift $ generateMallocFn target
+  freeFn <- lift $ generateFreeFn target
   memsetFn <- extern "llvm.memset.p0i8.i64" [ptr i8, i8, i64, i1] void
   memcpyFn <- extern "llvm.memcpy.p0i8.p0i8.i64" [ptr i8, ptr i8, i64, i1] void
   memcmpFn <- if target == Just Wasm32
-                then generateMemCmpFn
+                then lift generateMemCmpFn
                 else extern "memcmp" [ptr i8, ptr i8, i64] i32
   pure $ Externals mallocFn freeFn memsetFn memcpyFn memcmpFn
 
@@ -366,35 +367,6 @@ generateMemCmpFn = do
         ret $ int32 1
 
     ret $ int32 0
-
-    -- i64Count <- byteCount `udiv` int64 8
-    -- restCount <- byteCount `and` int64 7  -- modulo 8
-    -- i64Array1 <- array1 `bitcast` ptr i64
-    -- i64Array2 <- array2 `bitcast` ptr i64
-    --
-    -- loopFor (int64 0) (`ult` i64Count) (add (int64 1)) $ \i -> do
-    --   valuePtr1 <- gep i64Array1 [i]
-    --   valuePtr2 <- gep i64Array2 [i]
-    --   value1 <- load valuePtr1 0
-    --   value2 <- load valuePtr2 0
-    --
-    --   isNotEqual <- value1 `ne` value2
-    --   if' isNotEqual $
-    --     ret $ int32 1
-    --
-    -- startIdx <- mul i64Count (int64 8)
-    -- loopFor (int64 0) (`ult` restCount) (add (int64 1)) $ \i -> do
-    --   idx <- add i startIdx
-    --   valuePtr1 <- gep array1 [idx]
-    --   valuePtr2 <- gep array2 [idx]
-    --   value1 <- load valuePtr1 0
-    --   value2 <- load valuePtr2 0
-    --
-    --   isNotEqual <- value1 `ne` value2
-    --   if' isNotEqual $
-    --     ret $ int32 1
-    --
-    -- ret $ int32 0
 
 generateAddFact :: MonadFix m => Operand -> CodegenInOutT (ModuleBuilderT m) Operand
 generateAddFact addFactsFn = do

@@ -90,18 +90,18 @@ type IRCodegen = IRBuilderT ModuleCodegen
 type ModuleCodegen = ReaderT CGState (Template Meta)
 
 
-codegen :: ForeignPtr LLVMContext -> Ptr LLVMTargetData
-        -> Externals -> TemplateT Meta IO Table
-codegen ctx td exts = do
-  sizes <- computeSizes ctx td
-  hoist intoIO $ do
+codegen :: Externals -> ConfigT (TemplateT Meta IO) Table
+codegen exts = do
+  sizes <- computeSizes
+  lift $ hoist intoIO $ do
     tys <- generateTypes sizes
     runReaderT generateTableFunctions $ CGState tys sizes exts
   where intoIO = pure . runIdentity
 
 -- TODO: can be merged with generateTypes now with llvm-codegen?
-computeSizes :: ForeignPtr LLVMContext -> Ptr LLVMTargetData -> TemplateT Meta IO Sizes
-computeSizes ctx td = do
+computeSizes :: ConfigT (TemplateT Meta IO) Sizes
+computeSizes = do
+  (ctx, td) <- (cfgLLVMContext &&& cfgTargetData) <$> getConfig
   settings <- getParams
   let nodeDataTy = StructureType Off
         [ -- Next type doesn't matter here, but we need to break the

@@ -3,9 +3,8 @@
 module Eclair.LLVM.Codegen
   ( module Eclair.LLVM.Codegen
   , module Eclair.LLVM.Template
+  , module Eclair.LLVM.Config
   , module LLVM.Codegen
-  , module Foreign.Ptr
-  , module Foreign.ForeignPtr
   ) where
 
 import qualified Data.Text as T
@@ -16,9 +15,8 @@ import Foreign.Ptr hiding (nullPtr)
 import Eclair.LLVM.Template
 import LLVM.Codegen hiding (function, typedef, typeOf)
 import qualified LLVM.C.API as LibLLVM
+import Eclair.LLVM.Config
 
-type LLVMContext = LibLLVM.Context
-type LLVMTargetData = LibLLVM.TargetData
 
 llvmSizeOf :: (MonadModuleBuilder m, MonadIO m)
            => ForeignPtr LibLLVM.Context -> Ptr LibLLVM.TargetData -> Type -> m Word64
