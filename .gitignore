@@ -6,8 +6,9 @@ cabal.project.local*
 *.ll
 *.bc
 *.o
-/*.wasm
+*.a
 *.s
+/*.wasm
 /*.dl
 /*.eclair
 /*.js
