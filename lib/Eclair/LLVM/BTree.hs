@@ -90,18 +90,18 @@ type IRCodegen = IRBuilderT ModuleCodegen
 type ModuleCodegen = ReaderT CGState (Template Meta)
 
 
-codegen :: Externals -> TemplateT Meta IO Table
+codegen :: Externals -> ConfigT (TemplateT Meta IO) Table
 codegen exts = do
-  settings <- getParams
   sizes <- computeSizes
-  hoist intoIO $ do
+  lift $ hoist intoIO $ do
     tys <- generateTypes sizes
     runReaderT generateTableFunctions $ CGState tys sizes exts
   where intoIO = pure . runIdentity
 
 -- TODO: can be merged with generateTypes now with llvm-codegen?
-computeSizes :: TemplateT Meta IO Sizes
+computeSizes :: ConfigT (TemplateT Meta IO) Sizes
 computeSizes = do
+  (ctx, td) <- (cfgLLVMContext &&& cfgTargetData) <$> getConfig
   settings <- getParams
   let nodeDataTy = StructureType Off
         [ -- Next type doesn't matter here, but we need to break the
@@ -113,7 +113,7 @@ computeSizes = do
         ]
       ptrTy = ptr i8
       valueType = ArrayType (fromIntegral $ numColumns settings) i32
-  (ptrSz, valueSz, nodeDataSz) <- withLLVMTypeInfo $ \ctx td -> do
+  (ptrSz, valueSz, nodeDataSz) <- withLLVMTypeInfo ctx $ do
     let sizeOf = llvmSizeOf ctx td
     pointerSize <- sizeOf ptrTy
     valueSize <- sizeOf valueType
@@ -123,7 +123,7 @@ computeSizes = do
   let numKeys' = fromIntegral $ numKeysHelper settings nodeDataSz valueSz
       nodeType = StructureType Off [nodeDataTy, ArrayType numKeys' valueType]
       innerNodeType = StructureType Off [nodeType, ArrayType (numKeys' + 1) (ptr nodeType)]
-  (leafNodeSz, innerNodeSz) <- withLLVMTypeInfo $ \ctx td -> do
+  (leafNodeSz, innerNodeSz) <- withLLVMTypeInfo ctx $ do
     let sizeOf = llvmSizeOf ctx td
     leafNodeSize <- sizeOf nodeType
     innerNodeSize <- sizeOf innerNodeType

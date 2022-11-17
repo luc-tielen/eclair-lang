@@ -36,7 +36,7 @@ codegen exts = do
 generateTypes :: ModuleBuilder Type
 generateTypes =
   -- For now, only up to 4GB of strings are supported.
-  typedef "symbol_t" Off [i32, ptr i8]
+  typedef "symbol_t" On [i32, ptr i8]
 
 generateFunctions :: ModuleCodegen Symbol
 generateFunctions = do

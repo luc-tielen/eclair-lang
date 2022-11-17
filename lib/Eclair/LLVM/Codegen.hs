@@ -3,6 +3,7 @@
 module Eclair.LLVM.Codegen
   ( module Eclair.LLVM.Codegen
   , module Eclair.LLVM.Template
+  , module Eclair.LLVM.Config
   , module LLVM.Codegen
   ) where
 
@@ -10,10 +11,11 @@ import qualified Data.Text as T
 import qualified Data.Map as M
 import Control.Monad.Morph
 import Foreign.ForeignPtr
-import Foreign.Ptr
-import qualified LLVM.C.API as LibLLVM
+import Foreign.Ptr hiding (nullPtr)
 import Eclair.LLVM.Template
 import LLVM.Codegen hiding (function, typedef, typeOf)
+import qualified LLVM.C.API as LibLLVM
+import Eclair.LLVM.Config
 
 
 llvmSizeOf :: (MonadModuleBuilder m, MonadIO m)
@@ -23,15 +25,8 @@ llvmSizeOf ctx td ty = liftIO $ do
   LibLLVM.sizeOfType td ty'
 
 withLLVMTypeInfo :: (MonadModuleBuilder m, MonadIO m)
-                 => (ForeignPtr LibLLVM.Context -> Ptr LibLLVM.TargetData -> m a)
-                 -> m a
-withLLVMTypeInfo f = do
-  (ctx, td) <- liftIO $ do
-    ctx <- LibLLVM.mkContext
-    llvmMod <- LibLLVM.mkModule ctx "<internal_use_only>"
-    td <- LibLLVM.getTargetData llvmMod
-    pure (ctx, td)
-
+                 => ForeignPtr LibLLVM.Context -> m a -> m a
+withLLVMTypeInfo ctx m = do
   -- First, we forward declare all struct types known up to this point,
   typedefs <- getTypedefs
   structTys <- liftIO $ M.traverseWithKey (forwardDeclareStruct ctx) typedefs
@@ -39,7 +34,7 @@ withLLVMTypeInfo f = do
   -- Then we serialize all types (including structs, with their bodies),
   liftIO $ M.traverseWithKey (serialize ctx) structTys
   -- Finally, we can call the function with all type info available in LLVM.
-  f ctx td
+  m
   where
     forwardDeclareStruct ctx name structTy =
       (,structTy) <$> LibLLVM.mkOpaqueStructType ctx name

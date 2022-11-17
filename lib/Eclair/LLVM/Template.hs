@@ -21,6 +21,7 @@ import qualified Control.Monad.State.Lazy as LazyState
 import qualified Control.Monad.State.Strict as StrictState
 import qualified Control.Monad.RWS.Lazy as LazyRWS
 import qualified Control.Monad.RWS.Strict as StrictRWS
+import Eclair.LLVM.Config
 
 
 type Suffix = Text
@@ -72,6 +73,8 @@ instance (Monad m, HasSuffix m, Monoid w) => HasSuffix (StrictRWS.RWST r w s m) 
   getSuffix = lift getSuffix
 instance (Monad m, HasSuffix m) => HasSuffix (ExceptT e m) where
   getSuffix = lift getSuffix
+instance (Monad m, HasSuffix m) => HasSuffix (ConfigT m) where
+  getSuffix = lift getSuffix
 
 class MonadTemplate p m | m -> p where
   getParams :: m p
@@ -95,6 +98,8 @@ instance (Monad m, MonadTemplate p m) => MonadTemplate p (ExceptT e m) where
   getParams = lift getParams
 -- This allows getting the params inside a function body with llvm-codegen
 instance (Monad m, MonadTemplate p m) => MonadTemplate p (IRBuilderT m) where
+  getParams = lift getParams
+instance (Monad m, MonadTemplate p m) => MonadTemplate p (ConfigT m) where
   getParams = lift getParams
 
 instance MonadTrans (TemplateT p) where

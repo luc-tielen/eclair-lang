@@ -40,22 +40,24 @@ data CGState
   , destructor :: Maybe Destructor
   }
 
-type ModuleCodegen = ReaderT CGState (Template Type)
+type VectorParams = Type
+type ModuleCodegen = ReaderT CGState (Template VectorParams)
 type IRCodegen = IRBuilderT ModuleCodegen
 
 
-codegen :: Externals -> Maybe Destructor -> TemplateT Type IO Vector
+codegen :: Externals -> Maybe Destructor -> ConfigT (TemplateT VectorParams IO) Vector
 codegen exts dtor = do
   tyElem <- getParams
-  sizeOfElem <- withLLVMTypeInfo $ \ctx td -> llvmSizeOf ctx td tyElem
+  (ctx, td) <- (cfgLLVMContext &&& cfgTargetData) <$> getConfig
+  sizeOfElem <- withLLVMTypeInfo ctx $ llvmSizeOf ctx td tyElem
 
-  hoist intoIO $ do
+  hoist (hoist intoIO) $ lift $ do
     tys <- generateTypes
     runReaderT generateFunctions $ CGState exts tys sizeOfElem dtor
   where
     intoIO = pure . runIdentity
 
-generateTypes :: Template Type Types
+generateTypes :: Template VectorParams Types
 generateTypes = do
   tyElem <- getParams
   tyVec <- typedef "vector_t" Off

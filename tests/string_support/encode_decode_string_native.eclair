@@ -3,7 +3,7 @@
 // RUN: split-file %s %t
 
 // RUN: %eclair compile %t/program.eclair > %t/program.ll
-// RUN: clang -O0 -o %t/program %t/main.c %t/program.ll
+// RUN: %clang -O0 -o %t/program %t/main.c %t/program.ll
 
 // RUN: %t/program | FileCheck %s
 
@@ -28,7 +28,7 @@ struct program;
 struct symbol {
     uint32_t length;
     const char* data;
-};
+} __attribute__((packed));
 
 extern struct program* eclair_program_init();
 extern void eclair_program_destroy(struct program*);

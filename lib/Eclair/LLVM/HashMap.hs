@@ -46,22 +46,23 @@ type IRCodegen = IRBuilderT ModuleCodegen
 
 
 -- NOTE: no need to turn into template (for now)
-codegen :: Symbol.Symbol -> Externals -> ModuleBuilderT IO HashMap
+codegen :: Symbol.Symbol -> Externals -> ConfigT (ModuleBuilderT IO) HashMap
 codegen symbol exts = do
   let keyTy = Symbol.tySymbol symbol
       valueTy = i32
   entryTy <- typedef "entry_t" Off [keyTy, valueTy]
-  vec <- instantiate "entry" entryTy $ Vector.codegen exts Nothing
-  let vecTy = Vector.tyVector $ Vector.vectorTypes vec
-  hashMapTy <- typedef "hashmap_t" Off [ArrayType capacity vecTy]
-  let tys = Types
-        { tyHashMap = hashMapTy
-        , tyKey = keyTy
-        , tyValue = valueTy
-        , tyEntry = entryTy
-        }
+  vec <- hoist (instantiate "entry" entryTy) $ Vector.codegen exts Nothing
+  lift $ do
+    let vecTy = Vector.tyVector $ Vector.vectorTypes vec
+    hashMapTy <- typedef "hashmap_t" Off [ArrayType capacity vecTy]
+    let tys = Types
+          { tyHashMap = hashMapTy
+          , tyKey = keyTy
+          , tyValue = valueTy
+          , tyEntry = entryTy
+          }
 
-  hoist intoIO $ runReaderT generateFunctions $ CGState exts tys symbol vec
+    hoist intoIO $ runReaderT generateFunctions $ CGState exts tys symbol vec
   where
     intoIO = pure . runIdentity
 
@@ -96,9 +97,9 @@ mkHash = do
   function "symbol_hash" [(ptr symbolTy, "symbol")] hashTy $ \[symbol] -> do
     hashPtr <- allocate hashTy (int32 0)
     symbolSize <- deref Symbol.sizeOf symbol
+    dataPtr <- deref Symbol.dataOf symbol
 
     loopFor (int32 0) (`ult` symbolSize) (add (int32 1)) $ \i -> do
-      dataPtr <- deref Symbol.dataOf symbol
       -- We need a raw gep here, since the data is dynamically allocated.
       bytePtr <- gep dataPtr [i]
       byte <- load bytePtr 0 >>= (`zext` i32)

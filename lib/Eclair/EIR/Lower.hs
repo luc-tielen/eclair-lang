@@ -12,9 +12,11 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 import qualified Data.ByteString as BS
 import qualified Data.Map as M
+import qualified Data.Set as S
 import qualified Data.List as L
 import Data.List ((!!))
 import Data.Maybe (fromJust)
+import Foreign.ForeignPtr
 import qualified Eclair.EIR.IR as EIR
 import qualified Eclair.LLVM.BTree as BTree
 import qualified Eclair.LLVM.Symbol as Symbol
@@ -23,6 +25,7 @@ import qualified Eclair.LLVM.HashMap as HashMap
 import qualified Eclair.LLVM.SymbolTable as SymbolTable
 import Eclair.EIR.Codegen
 import Eclair.LLVM.Codegen as LLVM
+import qualified LLVM.C.API as LibLLVM
 import Eclair.LLVM.Metadata
 import Eclair.LLVM.Hash
 import Eclair.LLVM.Externals
@@ -30,6 +33,7 @@ import Eclair.RA.IndexSelection
 import Eclair.ArgParser
 import Eclair.Comonads
 import Eclair.AST.IR
+import Eclair.AST.Transforms.ReplaceStrings (StringMap)
 import Eclair.Id
 
 
@@ -37,32 +41,54 @@ type EIR = EIR.EIR
 type EIRF = EIR.EIRF
 type Relation = EIR.Relation
 
-compileToLLVM :: Maybe Target -> EIR -> IO Module
-compileToLLVM target = \case
-  EIR.Module (EIR.DeclareProgram metas : decls) -> runModuleBuilderT $ do
-    exts <- createExternals target
-    (metaMapping, fnss) <- runCacheT $ traverse (codegenRuntime exts . snd) metas
-    codegenDebugInfos metaMapping
-    (symbolTable, symbol) <- codegenSymbolTable exts
-    let symbolTableTy = SymbolTable.tySymbolTable symbolTable
-        fnsInfo = zip (map (map getIndexFromMeta) metas) fnss
-        fnsMap = M.fromList fnsInfo
-    -- TODO: add hash based on filepath of the file we're compiling?
-    programTy <- typedef "program" Off (symbolTableTy : map typeObj fnss)
-    programSize <- withLLVMTypeInfo $ \ctx td -> llvmSizeOf ctx td programTy
-    let lowerState = LowerState programTy programSize symbolTable symbol fnsMap mempty 0 exts
-    traverse_ (processDecl lowerState) decls
-    usingReaderT (metas, lowerState) $ do
-      addFactsFn <- generateAddFactsFn
-      generateAddFact addFactsFn
-      generateGetFactsFn
-      generateFreeBufferFn
-      generateFactCountFn
-      generateEncodeStringFn
-      generateDecodeStringFn
-  _ ->
-    panic "Unexpected top level EIR declarations when compiling to LLVM!"
+compileToLLVM :: Maybe Target -> StringMap -> EIR -> IO Module
+compileToLLVM target stringMapping eir = do
+  ctx <- LibLLVM.mkContext
+  llvmMod <- LibLLVM.mkModule ctx "eclair"
+  if target == Just Wasm32
+    then do
+      -- layout string found in Rust compiler (wasm32_unknown_unknown.rs)
+      let wasmDataLayout = "e-m:e-p:32:32-p10:8:8-p20:8:8-i64:64-n32:64-S128-ni:1:10:20"
+      td <- LibLLVM.mkTargetData wasmDataLayout
+      LibLLVM.setTargetData llvmMod td
+      withForeignPtr td $ \tdPtr -> do
+        compile (Config target ctx tdPtr) eir
+    else do
+      -- use host layout
+      td <- LibLLVM.getTargetData llvmMod
+      compile (Config target ctx td) eir
   where
+    compile cfg = \case
+      EIR.Module (EIR.DeclareProgram metas : decls) -> runModuleBuilderT $ runConfigT cfg $ do
+        let ctx = cfgLLVMContext cfg
+            td = cfgTargetData cfg
+        exts <- createExternals
+        (metaMapping, fnss) <- runCacheT $ traverse (codegenRuntime exts . snd) metas
+        codegenDebugInfos metaMapping
+        (symbolTable, symbol) <- codegenSymbolTable exts
+        let symbolTableTy = SymbolTable.tySymbolTable symbolTable
+            fnsInfo = zip (map (map getIndexFromMeta) metas) fnss
+            fnsMap = M.fromList fnsInfo
+        -- TODO: add hash based on filepath of the file we're compiling?
+        programTy <- typedef "program" Off (symbolTableTy : map typeObj fnss)
+        programSize <- withLLVMTypeInfo ctx $ llvmSizeOf ctx td programTy
+        let lowerState = LowerState programTy programSize symbolTable symbol fnsMap mempty 0 exts
+        lift $ do
+          traverse_ (processDecl lowerState) decls
+          usingReaderT (relationMapping, metas, lowerState) $ do
+            addFactsFn <- generateAddFactsFn
+            generateAddFact addFactsFn
+            generateGetFactsFn
+            generateFreeBufferFn
+            generateFactCountFn
+            generateEncodeStringFn
+            generateDecodeStringFn
+      _ ->
+        panic "Unexpected top level EIR declarations when compiling to LLVM!"
+
+    relationMapping =
+      M.mapKeys Id stringMapping
+
     processDecl lowerState = \case
       EIR.Function visibility name tys retTy body -> do
         let unusedRelation = panic "Unexpected use of relation for function type when lowering EIR to LLVM."
@@ -224,7 +250,7 @@ runCacheT m = do
   (a, s) <- runStateT m mempty
   pure (map fst s, a)
 
-codegenRuntime :: Externals -> Metadata -> CacheT (ModuleBuilderT IO) Table
+codegenRuntime :: Externals -> Metadata -> CacheT (ConfigT (ModuleBuilderT IO)) Table
 codegenRuntime exts meta = gets (M.lookup meta) >>= \case
   Nothing -> do
     suffix <- gets length
@@ -234,9 +260,9 @@ codegenRuntime exts meta = gets (M.lookup meta) >>= \case
   Just (_, cachedFns) -> pure cachedFns
   where
     cgRuntime suffix = lift $ case meta of
-      BTree meta -> instantiate (show suffix) meta $ BTree.codegen exts
+      BTree meta -> hoist (instantiate (show suffix) meta) $ BTree.codegen exts
 
-codegenDebugInfos :: Monad m => Map Metadata Int -> ModuleBuilderT m ()
+codegenDebugInfos :: MonadModuleBuilder m => Map Metadata Int -> m ()
 codegenDebugInfos metaMapping =
   traverse_ (uncurry codegenDebugInfo) $ M.toList metaMapping
   where
@@ -245,9 +271,9 @@ codegenDebugInfos metaMapping =
           name = Name $ ("specialize_debug_info." <>) $ unHash hash
        in global name i32 (Int 32 $ toInteger i)
 
-codegenSymbolTable :: Externals -> ModuleBuilderT IO (SymbolTable.SymbolTable, Symbol.Symbol)
+codegenSymbolTable :: Externals -> ConfigT (ModuleBuilderT IO) (SymbolTable.SymbolTable, Symbol.Symbol)
 codegenSymbolTable exts = do
-  symbol <- hoist intoIO $ Symbol.codegen exts
+  symbol <- lift $ hoist intoIO $ Symbol.codegen exts
 
   let tySymbol = Symbol.tySymbol symbol
       freeFn = extFree exts
@@ -256,9 +282,9 @@ codegenSymbolTable exts = do
         pass
 
   -- Only this vector does the cleanup of all the symbols, to prevent double frees
-  vec <- instantiate "symbol" tySymbol $ Vector.codegen exts (Just symbolDestructor)
+  vec <- hoist (instantiate "symbol" tySymbol) $ Vector.codegen exts (Just symbolDestructor)
   hashMap <- HashMap.codegen symbol exts
-  symbolTable <- hoist intoIO $ SymbolTable.codegen tySymbol vec hashMap
+  symbolTable <- lift $ hoist intoIO $ SymbolTable.codegen tySymbol vec hashMap
   pure (symbolTable, symbol)
   where
     intoIO = pure . runIdentity
@@ -274,14 +300,15 @@ getIndexFromMeta :: Metadata -> Index
 getIndexFromMeta = \case
   BTree meta -> Index $ BTree.index meta
 
-createExternals :: Maybe Target -> ModuleBuilderT IO Externals
-createExternals target = do
-  mallocFn <- generateMallocFn target
-  freeFn <- generateFreeFn target
+createExternals :: ConfigT (ModuleBuilderT IO) Externals
+createExternals = do
+  target <- cfgTargetTriple <$> getConfig
+  mallocFn <- lift $ generateMallocFn target
+  freeFn <- lift $ generateFreeFn target
   memsetFn <- extern "llvm.memset.p0i8.i64" [ptr i8, i8, i64, i1] void
   memcpyFn <- extern "llvm.memcpy.p0i8.p0i8.i64" [ptr i8, ptr i8, i64, i1] void
   memcmpFn <- if target == Just Wasm32
-                then generateMemCmpFn
+                then lift generateMemCmpFn
                 else extern "memcmp" [ptr i8, ptr i8, i64] i32
   pure $ Externals mallocFn freeFn memsetFn memcpyFn memcmpFn
 
@@ -343,7 +370,7 @@ generateMemCmpFn = do
 
 generateAddFact :: MonadFix m => Operand -> CodegenInOutT (ModuleBuilderT m) Operand
 generateAddFact addFactsFn = do
-  lowerState <- asks snd
+  lowerState <- asks getLowerStateInOut
   let args = [ (ptr (programType lowerState), ParameterName "eclair_program")
              , (i32, ParameterName "fact_type")
              , (ptr i32, ParameterName "memory")
@@ -356,19 +383,17 @@ generateAddFact addFactsFn = do
 
 generateAddFactsFn :: MonadFix m => CodegenInOutT (ModuleBuilderT m) Operand
 generateAddFactsFn = do
-  (metas, lowerState) <- ask
-  let relations = getRelations metas
-      mapping = getFactTypeMapping metas
+  (relationMapping, metas, lowerState) <- ask
 
-  -- NOTE: this assumes there are no more than 65536 fact types in a single Datalog program
-  let args = [ (ptr (programType lowerState), ParameterName "eclair_program")
+  let relations = getRelations metas
+      args = [ (ptr (programType lowerState), ParameterName "eclair_program")
              , (i32, ParameterName "fact_type")
              , (ptr i32, ParameterName "memory")
              , (i32, ParameterName "fact_count")
              ]
       returnType = void
   apiFunction "eclair_add_facts" args returnType $ \[program, factType, memory, factCount] -> do
-    switchOnFactType metas retVoid factType $ \r -> do
+    switchOnFactType relations relationMapping retVoid factType $ \r -> do
       let indexes = indexesFor lowerState r
       for_ indexes $ \idx -> do
         let numCols = fromIntegral $ factNumColumns r metas
@@ -384,14 +409,15 @@ generateAddFactsFn = do
 
 generateGetFactsFn :: MonadFix m => CodegenInOutT (ModuleBuilderT m) Operand
 generateGetFactsFn = do
-  (metas, lowerState) <- ask
-  let args = [ (ptr (programType lowerState), ParameterName "eclair_program")
+  (relationMapping, metas, lowerState) <- ask
+  let relations = getRelations metas
+      args = [ (ptr (programType lowerState), ParameterName "eclair_program")
              , (i32, ParameterName "fact_type")
              ]
       returnType = ptr i32
       mallocFn = extMalloc $ externals lowerState
   apiFunction "eclair_get_facts" args returnType $ \[program, factType] -> do
-    switchOnFactType metas (ret $ nullPtr i32) factType $ \r -> do
+    switchOnFactType relations relationMapping (ret $ nullPtr i32) factType $ \r -> do
       let indexes = indexesFor lowerState r
           idx = fromJust $ viaNonEmpty head indexes  -- TODO: which idx? just select first matching?
           doCall op args = do
@@ -429,7 +455,7 @@ generateGetFactsFn = do
 
 generateFreeBufferFn :: Monad m => CodegenInOutT (ModuleBuilderT m) Operand
 generateFreeBufferFn = do
-  lowerState <- asks snd
+  lowerState <- asks getLowerStateInOut
   let freeFn = extFree $ externals lowerState
       args = [(ptr i32, ParameterName "buffer")]
       returnType = void
@@ -440,13 +466,14 @@ generateFreeBufferFn = do
 
 generateFactCountFn :: MonadFix m => CodegenInOutT (ModuleBuilderT m) Operand
 generateFactCountFn = do
-  (metas, lowerState) <- ask
-  let args = [ (ptr (programType lowerState), ParameterName "eclair_program")
+  (relationMapping, metas, lowerState) <- ask
+  let relations = getRelations metas
+      args = [ (ptr (programType lowerState), ParameterName "eclair_program")
              , (i32, ParameterName "fact_type")
              ]
       returnType = i32
   apiFunction "eclair_fact_count" args returnType $ \[program, factType] -> do
-    switchOnFactType metas (ret $ int32 0) factType $ \r -> do
+    switchOnFactType relations relationMapping (ret $ int32 0) factType $ \r -> do
       let indexes = indexesFor lowerState r
           idx = fromJust $ viaNonEmpty head indexes  -- TODO: which idx? just select first matching? or idx on all columns?
           doCall op args = do
@@ -461,7 +488,7 @@ generateFactCountFn = do
 -- Eclair makes an internal copy of the string, for simpler memory management.
 generateEncodeStringFn :: MonadFix m => CodegenInOutT (ModuleBuilderT m) Operand
 generateEncodeStringFn = do
-  lowerState <- asks snd
+  lowerState <- asks getLowerStateInOut
   let args = [ (ptr (programType lowerState), "eclair_program")
              , (i32, "string_length")
              , (ptr i8, "string_data")
@@ -493,7 +520,7 @@ generateEncodeStringFn = do
 -- this happens automatically when eclair_destroy is called
 generateDecodeStringFn :: MonadFix m => CodegenInOutT (ModuleBuilderT m) Operand
 generateDecodeStringFn = do
-  lowerState <- asks snd
+  lowerState <- asks getLowerStateInOut
   let args = [ (ptr (programType lowerState), "eclair_program")
              , (i32, "string_index")
              ]
@@ -521,40 +548,38 @@ getSymbolTablePtr :: (MonadNameSupply m, MonadModuleBuilder m, MonadIRBuilder m)
 getSymbolTablePtr program =
   gep program [int32 0, int32 0]
 
-type InOutState = ([(Relation, Metadata)], LowerState)
+type InOutState = (Map Relation Word32, [(Relation, Metadata)], LowerState)
 
 type CodegenInOutT = ReaderT  InOutState
 
 switchOnFactType :: MonadFix m
-                 => [(Relation, metadata)]
+                 => Set Relation
+                 -> Map Relation Word32
                  -> IRBuilderT m ()
                  -> Operand
                  -> (Relation -> IRBuilderT m ())
                  -> IRBuilderT m ()
-switchOnFactType metas defaultCase factType generateCase = mdo
+switchOnFactType relations stringMap defaultCase factType generateCase = mdo
     switch factType end caseBlocks
-    caseBlocks <- for mapping $ \(r, factNum) -> do
+    caseBlocks <- for (M.toList relationMapping) $ \(r, factNum) -> do
       caseBlock <- block `named` Name (unId r)
       generateCase r
-      pure (int32 factNum, caseBlock)
+      pure (int32 $ toInteger factNum, caseBlock)
 
     end <- block `named` "switch.default"
     defaultCase
   where
-    mapping = getFactTypeMapping metas
+    relationMapping =
+      M.restrictKeys stringMap relations
 
 factNumColumns :: Relation -> [(Relation, Metadata)] -> Int
 factNumColumns r metas =
   getNumColumns (snd $ fromJust $ L.find ((== r) . fst) metas)
 
 -- NOTE: disregards all "special" relations, since they should not be visible to the end user!
-getRelations :: [(Relation, metadata)] -> [Relation]
+getRelations :: [(Relation, metadata)] -> Set Relation
 getRelations metas =
-  ordNub $ filter (not . startsWithIdPrefix) $ map fst metas
-
-getFactTypeMapping :: [(Relation, metadata)] -> [(Relation, Integer)]
-getFactTypeMapping metas =
-  zip (getRelations metas) [0..]
+  S.fromList $ ordNub $ filter (not . startsWithIdPrefix) $ map fst metas
 
 -- (+1) due to symbol table at position 0 in program struct
 getContainerOffset :: [(Relation, Metadata)] -> Relation -> Index -> Int
@@ -568,6 +593,9 @@ sameRelationAndIndex r idx (r', idx') =
 indexesFor :: LowerState -> Relation -> [Index]
 indexesFor ls r =
   map snd $ filter ((== r) . fst) $ M.keys $ fnsMap ls
+
+getLowerStateInOut :: InOutState -> LowerState
+getLowerStateInOut (_, _, s) = s
 
 apiFunction :: (MonadModuleBuilder m, HasSuffix m)
             => Name

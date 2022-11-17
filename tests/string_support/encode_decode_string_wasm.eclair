@@ -1,0 +1,75 @@
+// This checks if strings can be encoded / decoded between JS <=> Eclair
+
+// RUN: mkdir -p %t && sed s@TEST_DIR@%t@g %s > %t/input.test
+// RUN: split-file %t/input.test %t
+
+// TODO: we really need to have our own WASM allocator..
+// RUN: test -e %t/walloc.c || wget https://raw.githubusercontent.com/wingo/walloc/master/walloc.c -O %t/walloc.c
+// RUN: %clang -O0 --target=wasm32 -mbulk-memory -nostdlib -c -o %t/walloc.o %t/walloc.c
+
+// RUN: %eclair compile --target wasm32 %t/program.eclair > %t/program.ll
+// RUN: %clang -O0 --target=wasm32 -mbulk-memory -nostdlib -c -o %t/program.o %t/program.ll
+// RUN: %wasm-ld --no-entry --import-memory --import-undefined -o %t/program.wasm %t/program.o %t/walloc.o
+
+// RUN: node %t/program.js | FileCheck %s
+
+// CHECK: 1 1 2
+// CHECK-NEXT: fact some example text some more text
+
+//--- program.eclair
+
+@def fact(u32).
+
+//--- program.js
+
+const fs = require("fs");
+
+const encodeString = (memory, instance, program, string) => {
+  const address = instance.exports.eclair_malloc(string.length * 3);
+
+  const array = new Uint8Array(memory.buffer, address, string.length * 3);
+  const { written } = new TextEncoder().encodeInto(string, array);
+  const index = instance.exports.eclair_encode_string(
+    program,
+    written,
+    address
+  );
+
+  instance.exports.eclair_free(address);
+  return index;
+};
+
+const decodeString = (memory, instance, program, index) => {
+  const address = instance.exports.eclair_decode_string(program, index);
+  const symbolMemory = new Uint32Array(memory.buffer, address, 2);
+  const [stringLength, byteArrayAddress] = symbolMemory;
+  const bytes = new Uint8Array(memory.buffer, byteArrayAddress, stringLength);
+  return new TextDecoder().decode(bytes);
+};
+
+const main = () => {
+  const bytes = fs.readFileSync("TEST_DIR/program.wasm");
+
+  const mod = new WebAssembly.Module(bytes);
+  const memory = new WebAssembly.Memory({ initial: 10, maximum: 10 });
+  const imports = { env: { memory } };
+  const instance = new WebAssembly.Instance(mod, imports);
+
+  const program = instance.exports.eclair_program_init();
+
+  const str = "some example text";
+  const str2 = "some more text";
+  const strIndex1 = encodeString(memory, instance, program, str);
+  const strIndex2 = encodeString(memory, instance, program, str);
+  const strIndex3 = encodeString(memory, instance, program, str2);
+  console.log(strIndex1, strIndex2, strIndex3);
+  console.log(
+    decodeString(memory, instance, program, 0),
+    decodeString(memory, instance, program, strIndex1),
+    decodeString(memory, instance, program, strIndex3)
+  );
+
+  instance.exports.eclair_program_destroy(program);
+};
+
+main();
