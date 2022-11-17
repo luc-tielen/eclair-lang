@@ -40,14 +40,15 @@ data CGState
   , destructor :: Maybe Destructor
   }
 
-type ModuleCodegen = ReaderT CGState (Template Type)
+type VectorParams = (Type, ForeignPtr LLVMContext, Ptr LLVMTargetData)
+type ModuleCodegen = ReaderT CGState (Template VectorParams)
 type IRCodegen = IRBuilderT ModuleCodegen
 
 
-codegen :: Externals -> Maybe Destructor -> TemplateT Type IO Vector
+codegen :: Externals -> Maybe Destructor -> TemplateT VectorParams IO Vector
 codegen exts dtor = do
-  tyElem <- getParams
-  sizeOfElem <- withLLVMTypeInfo $ \ctx td -> llvmSizeOf ctx td tyElem
+  (tyElem, ctx, td) <- getParams
+  sizeOfElem <- withLLVMTypeInfo ctx $ llvmSizeOf ctx td tyElem
 
   hoist intoIO $ do
     tys <- generateTypes
@@ -55,9 +56,9 @@ codegen exts dtor = do
   where
     intoIO = pure . runIdentity
 
-generateTypes :: Template Type Types
+generateTypes :: Template VectorParams Types
 generateTypes = do
-  tyElem <- getParams
+  tyElem <- getElementType
   tyVec <- typedef "vector_t" Off
             [ ptr tyElem  -- pointer to start of the vector
             , ptr tyElem  -- pointer to one element past end of the vector
@@ -200,6 +201,10 @@ mkVectorGetValue = do
 
 
 -- Helper functions:
+
+getElementType :: Monad m => TemplateT VectorParams m Type
+getElementType =
+  map (\(elemTy, _, _) -> elemTy) getParams
 
 incrementPtr :: Operand -> IRCodegen Operand
 incrementPtr = (`gep` [int32 1])

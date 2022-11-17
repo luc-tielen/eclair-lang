@@ -16,6 +16,7 @@ import qualified Data.Set as S
 import qualified Data.List as L
 import Data.List ((!!))
 import Data.Maybe (fromJust)
+import Foreign.ForeignPtr
 import qualified Eclair.EIR.IR as EIR
 import qualified Eclair.LLVM.BTree as BTree
 import qualified Eclair.LLVM.Symbol as Symbol
@@ -24,6 +25,7 @@ import qualified Eclair.LLVM.HashMap as HashMap
 import qualified Eclair.LLVM.SymbolTable as SymbolTable
 import Eclair.EIR.Codegen
 import Eclair.LLVM.Codegen as LLVM
+import qualified LLVM.C.API as LibLLVM
 import Eclair.LLVM.Metadata
 import Eclair.LLVM.Hash
 import Eclair.LLVM.Externals
@@ -40,31 +42,48 @@ type EIRF = EIR.EIRF
 type Relation = EIR.Relation
 
 compileToLLVM :: Maybe Target -> StringMap -> EIR -> IO Module
-compileToLLVM target stringMapping = \case
-  EIR.Module (EIR.DeclareProgram metas : decls) -> runModuleBuilderT $ do
-    exts <- createExternals target
-    (metaMapping, fnss) <- runCacheT $ traverse (codegenRuntime exts . snd) metas
-    codegenDebugInfos metaMapping
-    (symbolTable, symbol) <- codegenSymbolTable exts
-    let symbolTableTy = SymbolTable.tySymbolTable symbolTable
-        fnsInfo = zip (map (map getIndexFromMeta) metas) fnss
-        fnsMap = M.fromList fnsInfo
-    -- TODO: add hash based on filepath of the file we're compiling?
-    programTy <- typedef "program" Off (symbolTableTy : map typeObj fnss)
-    programSize <- withLLVMTypeInfo $ \ctx td -> llvmSizeOf ctx td programTy
-    let lowerState = LowerState programTy programSize symbolTable symbol fnsMap mempty 0 exts
-    traverse_ (processDecl lowerState) decls
-    usingReaderT (relationMapping, metas, lowerState) $ do
-      addFactsFn <- generateAddFactsFn
-      generateAddFact addFactsFn
-      generateGetFactsFn
-      generateFreeBufferFn
-      generateFactCountFn
-      generateEncodeStringFn
-      generateDecodeStringFn
-  _ ->
-    panic "Unexpected top level EIR declarations when compiling to LLVM!"
+compileToLLVM target stringMapping eir = do
+  ctx <- LibLLVM.mkContext
+  llvmMod <- LibLLVM.mkModule ctx "eclair"
+  if target == Just Wasm32
+    then do
+      -- layout string found in Rust compiler (wasm32_unknown_unknown.rs)
+      let wasmDataLayout = "e-m:e-p:32:32-p10:8:8-p20:8:8-i64:64-n32:64-S128-ni:1:10:20"
+      td <- LibLLVM.mkTargetData wasmDataLayout
+      LibLLVM.setTargetData llvmMod td
+      withForeignPtr td $ \tdPtr -> do
+        compile ctx tdPtr eir
+    else do
+      -- use host layout
+      td <- LibLLVM.getTargetData llvmMod
+      compile ctx td eir
   where
+    compile :: ForeignPtr LLVMContext -> Ptr LLVMTargetData -> EIR.EIR -> IO Module
+    compile ctx td = \case
+      EIR.Module (EIR.DeclareProgram metas : decls) -> runModuleBuilderT $ do
+        exts <- createExternals target
+        (metaMapping, fnss) <- runCacheT $ traverse (codegenRuntime ctx td exts . snd) metas
+        codegenDebugInfos metaMapping
+        (symbolTable, symbol) <- codegenSymbolTable ctx td exts
+        let symbolTableTy = SymbolTable.tySymbolTable symbolTable
+            fnsInfo = zip (map (map getIndexFromMeta) metas) fnss
+            fnsMap = M.fromList fnsInfo
+        -- TODO: add hash based on filepath of the file we're compiling?
+        programTy <- typedef "program" Off (symbolTableTy : map typeObj fnss)
+        programSize <- withLLVMTypeInfo ctx $ llvmSizeOf ctx td programTy
+        let lowerState = LowerState programTy programSize symbolTable symbol fnsMap mempty 0 exts
+        traverse_ (processDecl lowerState) decls
+        usingReaderT (relationMapping, metas, lowerState) $ do
+          addFactsFn <- generateAddFactsFn
+          generateAddFact addFactsFn
+          generateGetFactsFn
+          generateFreeBufferFn
+          generateFactCountFn
+          generateEncodeStringFn
+          generateDecodeStringFn
+      _ ->
+        panic "Unexpected top level EIR declarations when compiling to LLVM!"
+
     relationMapping =
       M.mapKeys Id stringMapping
 
@@ -229,8 +248,9 @@ runCacheT m = do
   (a, s) <- runStateT m mempty
   pure (map fst s, a)
 
-codegenRuntime :: Externals -> Metadata -> CacheT (ModuleBuilderT IO) Table
-codegenRuntime exts meta = gets (M.lookup meta) >>= \case
+codegenRuntime :: ForeignPtr LLVMContext -> Ptr LLVMTargetData
+               -> Externals -> Metadata -> CacheT (ModuleBuilderT IO) Table
+codegenRuntime ctx td exts meta = gets (M.lookup meta) >>= \case
   Nothing -> do
     suffix <- gets length
     fns <- cgRuntime suffix
@@ -239,7 +259,7 @@ codegenRuntime exts meta = gets (M.lookup meta) >>= \case
   Just (_, cachedFns) -> pure cachedFns
   where
     cgRuntime suffix = lift $ case meta of
-      BTree meta -> instantiate (show suffix) meta $ BTree.codegen exts
+      BTree meta -> instantiate (show suffix) meta $ BTree.codegen ctx td exts
 
 codegenDebugInfos :: Monad m => Map Metadata Int -> ModuleBuilderT m ()
 codegenDebugInfos metaMapping =
@@ -250,8 +270,9 @@ codegenDebugInfos metaMapping =
           name = Name $ ("specialize_debug_info." <>) $ unHash hash
        in global name i32 (Int 32 $ toInteger i)
 
-codegenSymbolTable :: Externals -> ModuleBuilderT IO (SymbolTable.SymbolTable, Symbol.Symbol)
-codegenSymbolTable exts = do
+codegenSymbolTable :: ForeignPtr LLVMContext -> Ptr LLVMTargetData
+                   -> Externals -> ModuleBuilderT IO (SymbolTable.SymbolTable, Symbol.Symbol)
+codegenSymbolTable ctx td exts = do
   symbol <- hoist intoIO $ Symbol.codegen exts
 
   let tySymbol = Symbol.tySymbol symbol
@@ -261,8 +282,8 @@ codegenSymbolTable exts = do
         pass
 
   -- Only this vector does the cleanup of all the symbols, to prevent double frees
-  vec <- instantiate "symbol" tySymbol $ Vector.codegen exts (Just symbolDestructor)
-  hashMap <- HashMap.codegen symbol exts
+  vec <- instantiate "symbol" (tySymbol, ctx, td) $ Vector.codegen exts (Just symbolDestructor)
+  hashMap <- HashMap.codegen ctx td symbol exts
   symbolTable <- hoist intoIO $ SymbolTable.codegen tySymbol vec hashMap
   pure (symbolTable, symbol)
   where
