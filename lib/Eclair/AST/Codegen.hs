@@ -23,7 +23,6 @@ module Eclair.AST.Codegen
 
 import Data.Maybe (fromJust)
 import qualified Data.Map as M
-import qualified Data.Text as T
 import qualified Eclair.RA.IR as RA
 import qualified Eclair.AST.IR as AST
 import Eclair.Id
@@ -144,7 +143,7 @@ parallel :: [CodegenM RA] -> CodegenM RA
 parallel ms = RA.Par <$> sequence ms
 
 merge :: Relation -> Relation -> CodegenM RA
-merge from to = pure $ RA.Merge from to
+merge from' to' = pure $ RA.Merge from' to'
 
 swap :: Relation -> Relation -> CodegenM RA
 swap r1 r2 = pure $ RA.Swap r1 r2

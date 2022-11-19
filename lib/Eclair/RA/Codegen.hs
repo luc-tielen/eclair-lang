@@ -45,14 +45,12 @@ import Data.Maybe (fromJust)
 import qualified Data.List as List
 import qualified Data.Map as M
 import qualified Data.Set as S
-import qualified Data.Text as T
 import Eclair.RA.IndexSelection
 import Eclair.TypeSystem
 import Eclair.Id
 import Eclair.Literal
 import qualified Eclair.EIR.IR as EIR
 import qualified Eclair.RA.IR as RA
-import qualified Eclair.AST.IR as AST
 import qualified Eclair.LLVM.Metadata as M
 
 
@@ -141,8 +139,8 @@ fnArg :: Int -> CodegenM EIR
 fnArg n = pure $ EIR.FunctionArg n
 
 call :: Relation -> Index -> EIR.Function -> [CodegenM EIR] -> CodegenM EIR
-call r idx fn =
-  primOp (EIR.RelationOp r idx fn)
+call r idx fn' =
+  primOp (EIR.RelationOp r idx fn')
 
 primOp :: EIR.Op -> [CodegenM EIR] -> CodegenM EIR
 primOp op args =
@@ -206,8 +204,8 @@ var name = do
   pure . pure . EIR.Var $ varId
 
 assign :: CodegenM EIR -> CodegenM EIR -> CodegenM EIR
-assign var value = do
-  v <- var
+assign var' value = do
+  v <- var'
   value >>= \case
     EIR.Block stmts ->
       let lastStmt = List.last stmts
@@ -224,7 +222,7 @@ if' cond body = do
     ]
 
 not' :: CodegenM EIR -> CodegenM EIR
-not' bool = EIR.Not <$> bool
+not' bool' = EIR.Not <$> bool'
 
 and' :: CodegenM EIR -> CodegenM EIR -> CodegenM EIR
 and' lhs rhs = do
@@ -288,15 +286,15 @@ withUpdatedAlias :: Alias -> EIR -> CodegenM a -> CodegenM a
 withUpdatedAlias a curr m = do
   state' <- ask <&> \case
     Normal ls -> Normal (updateAlias ls curr)
-    Search a v ls -> Search a v (updateAlias ls curr)
+    Search a' v ls -> Search a' v (updateAlias ls curr)
   local (const state') m
   where
-    updateAlias ls curr =
-      ls { aliasMap = M.insert a curr (aliasMap ls) }
+    updateAlias ls curr' =
+      ls { aliasMap = M.insert a curr' (aliasMap ls) }
 
 withEndLabel :: EIR.LabelId -> CodegenM a -> CodegenM a
 withEndLabel end m = do
-  state <- ask
+  _ <- ask
   local setLabel m
   where
     setLabel = \case
@@ -309,7 +307,6 @@ idxFromConstraints r a constraints = do
   lowerState <- getLowerState
   let (getIndexForSearch, indexMap) = (idxSelector &&& idxMap) lowerState
       r' = stripIdPrefixes r
-      tys = fromJust . M.lookup r' . typeEnv $ lowerState
   if null constraints
     then do
       -- NOTE: no constraints so we pick the first index

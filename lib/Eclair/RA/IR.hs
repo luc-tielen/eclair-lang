@@ -11,7 +11,6 @@ module Eclair.RA.IR
   ) where
 
 import Eclair.Id
-import Eclair.AST.IR (Literal)
 import Eclair.Pretty
 
 

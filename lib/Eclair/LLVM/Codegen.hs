@@ -7,9 +7,7 @@ module Eclair.LLVM.Codegen
   , module LLVM.Codegen
   ) where
 
-import qualified Data.Text as T
 import qualified Data.Map as M
-import Control.Monad.Morph
 import Foreign.ForeignPtr
 import Foreign.Ptr hiding (nullPtr)
 import Eclair.LLVM.Template
@@ -19,7 +17,7 @@ import Eclair.LLVM.Config
 
 
 llvmSizeOf :: (MonadModuleBuilder m, MonadIO m)
-           => ForeignPtr LibLLVM.Context -> Ptr LibLLVM.TargetData -> Type -> m Word64
+           => Foreign.ForeignPtr.ForeignPtr LibLLVM.Context -> Ptr LibLLVM.TargetData -> Type -> m Word64
 llvmSizeOf ctx td ty = liftIO $ do
   ty' <- encodeType ctx ty
   LibLLVM.sizeOfType td ty'
@@ -32,23 +30,23 @@ withLLVMTypeInfo ctx m = do
   structTys <- liftIO $ M.traverseWithKey (forwardDeclareStruct ctx) typedefs
 
   -- Then we serialize all types (including structs, with their bodies),
-  liftIO $ M.traverseWithKey (serialize ctx) structTys
+  _ <- liftIO $ M.traverseWithKey (serialize ctx) structTys
   -- Finally, we can call the function with all type info available in LLVM.
   m
   where
     forwardDeclareStruct ctx name structTy =
       (,structTy) <$> LibLLVM.mkOpaqueStructType ctx name
 
-    serialize :: ForeignPtr LibLLVM.Context -> Name -> (Ptr LibLLVM.Type, Type) -> IO ()
-    serialize ctx name (llvmTy, ty) = case ty of
+    serialize :: Foreign.ForeignPtr.ForeignPtr LibLLVM.Context -> Name -> (Ptr LibLLVM.Type, Type) -> IO ()
+    serialize ctx _ (llvmTy, ty) = case ty of
       StructureType packed tys -> do
         tys' <- traverse (encodeType ctx) tys
         LibLLVM.setNamedStructBody llvmTy tys' packed
-      ty ->
+      _ ->
         panic $ "Unexpected typedef: only structs are allowed, but got: " <> show ty
 
 -- NOTE: this only works if all the named structs are known beforehand (a.k.a. forward declared)!
-encodeType :: ForeignPtr LibLLVM.Context -> Type -> IO (Ptr LibLLVM.Type)
+encodeType :: Foreign.ForeignPtr.ForeignPtr LibLLVM.Context -> Type -> IO (Ptr LibLLVM.Type)
 encodeType ctx = go
   where
     go = \case

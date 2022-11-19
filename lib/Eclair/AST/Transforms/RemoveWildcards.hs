@@ -2,7 +2,6 @@ module Eclair.AST.Transforms.RemoveWildcards
   ( transform
   ) where
 
-import qualified Data.Text as T
 import Eclair.Id
 import Eclair.AST.IR
 import Eclair.Transform

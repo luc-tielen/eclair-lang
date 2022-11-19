@@ -1,5 +1,5 @@
 module Eclair.EIR.Codegen
-  ( CodegenT(..)
+  ( CodegenT()
   , runCodegenM
   , LowerState(..)
   , Table(..)
@@ -17,9 +17,7 @@ module Eclair.EIR.Codegen
 import Prelude hiding (void)
 import Control.Monad.Morph
 import Data.Maybe (fromJust)
-import qualified Data.Text as T
 import qualified Data.Map as M
-import Data.ByteString.Short hiding (index)
 import Eclair.LLVM.Codegen
 import Eclair.LLVM.Table
 import Eclair.LLVM.Externals
@@ -94,7 +92,7 @@ lookupFunction r idx fn = do
       EIR.IterBegin -> pure $ fnBegin table
       EIR.IterEnd -> pure $ fnEnd table
 
-    unsafeLookup r idx = fromJust . M.lookup (r, idx)
+    unsafeLookup r' idx' = fromJust . M.lookup (r', idx')
 
 lookupPrimOp :: Monad m => EIR.Op -> CodegenT m Operand
 lookupPrimOp = \case

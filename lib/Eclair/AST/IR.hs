@@ -43,11 +43,13 @@ data AST
   | Module NodeId [Decl]
   deriving (Eq, Show)
 
+pattern PWildcard :: NodeId -> AST
 pattern PWildcard nodeId
   = Var nodeId (Id "_")
 
 makeBaseFunctor ''AST
 
+pattern PWildcardF :: NodeId -> ASTF r
 pattern PWildcardF nodeId
   = VarF nodeId (Id "_")
 
@@ -58,11 +60,6 @@ instance Pretty Type where
     TUnknown x -> "unknown@" <> show x
 
 data RenderPosition = TopLevel | Nested
-
-instance Pretty Literal where
-  pretty = \case
-    LNumber x -> pretty x
-    LString x -> pretty x
 
 instance Pretty AST where
   pretty ast = runReader (pretty' ast) TopLevel

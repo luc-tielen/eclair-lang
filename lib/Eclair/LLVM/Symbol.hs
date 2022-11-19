@@ -6,7 +6,6 @@ module Eclair.LLVM.Symbol
   ) where
 
 import Prelude hiding (Symbol, void)
-import Control.Monad.Morph
 import Eclair.LLVM.Codegen
 import Eclair.LLVM.Externals
 
@@ -26,7 +25,6 @@ data CGState
   }
 
 type ModuleCodegen = ReaderT CGState ModuleBuilder
-type IRCodegen = IRBuilderT ModuleCodegen
 
 codegen :: Externals -> ModuleBuilder Symbol
 codegen exts = do

@@ -26,12 +26,12 @@ import qualified Eclair.LLVM.Metadata as M
 compileToEIR :: StringMap -> TypeInfo -> RA -> EIR
 compileToEIR stringMap typeInfo ra =
   let (indexMap, getIndexForSearch) = runIndexSelection typeInfo ra
-      containerInfos = getContainerInfos indexMap typeInfo
+      containerInfos' = getContainerInfos indexMap typeInfo
       end = "the.end"
-      lowerState = LowerState typeInfo indexMap getIndexForSearch containerInfos end mempty
+      lowerState = LowerState typeInfo indexMap getIndexForSearch containerInfos' end mempty
       moduleStmts :: [CodegenM EIR]
       moduleStmts =
-        [ declareProgram $ map (\(r, _, m) -> (r, m)) containerInfos
+        [ declareProgram $ map (\(r, _, m) -> (r, m)) containerInfos'
         , compileInit stringMap
         , compileDestroy
         , compileRun ra
@@ -117,16 +117,16 @@ generateProgramInstructions = gcata (distribute extractEqualities) $ \case
     values <- sequence unresolvedValues
     let values' = map pure values
     indices <- indexesForRelation r
-    var <- var "value"
+    var' <- var "value"
     let -- NOTE: for allocating a value, the index does not matter
         -- (a value is always represented as [N x i32] internally)
         -- This saves us doing a few stack allocations.
         firstIdx = head indices
-        allocValue = assign var $ stackAlloc r firstIdx EIR.Value
-        assignStmts = zipWith (assign . fieldAccess var) [0..] values'
+        allocValue = assign var' $ stackAlloc r firstIdx EIR.Value
+        assignStmts = zipWith (assign . fieldAccess var') [0..] values'
         insertStmts = flip map indices $ \idx ->
           -- NOTE: The insert function is different for each r + idx combination though!
-          call r idx EIR.Insert [lookupRelationByIndex r idx, var]
+          call r idx EIR.Insert [lookupRelationByIndex r idx, var']
     block $ allocValue : assignStmts ++ insertStmts
   RA.PurgeF r ->
     block =<< relationUnaryFn r EIR.Purge
@@ -180,7 +180,7 @@ generateProgramInstructions = gcata (distribute extractEqualities) $ \case
             , not' containsVar
             ]
   RA.ColumnIndexF a' col -> ask >>= \case
-    Search a value ls ->
+    Search a value _ ->
       if a == a'
         then getColumn value col
         else do
@@ -212,16 +212,16 @@ rangeQuery :: Relation
 rangeQuery r idx relationPtr lbValue ubValue loopAction = do
   beginIter <- var "begin_iter"
   endIter <- var "end_iter"
-  endLabel <- labelId "range_query.end"
+  endLabel' <- labelId "range_query.end"
   let allocBeginIter = assign beginIter $ stackAlloc r idx EIR.Iter
       allocEndIter = assign endIter $ stackAlloc r idx EIR.Iter
       initLB = call r idx EIR.IterLowerBound [relationPtr, lbValue, beginIter]
       initUB = call r idx EIR.IterUpperBound [relationPtr, ubValue, endIter]
       advanceIter = call r idx EIR.IterNext [beginIter]
       isAtEnd = call r idx EIR.IterIsEqual [beginIter, endIter]
-      stopIfFinished = if' isAtEnd (jump endLabel)
+      stopIfFinished = if' isAtEnd (jump endLabel')
       loopStmts = [stopIfFinished, loopAction beginIter, advanceIter]
-  block [allocBeginIter, allocEndIter, initLB, initUB, loop loopStmts, label endLabel]
+  block [allocBeginIter, allocEndIter, initLB, initUB, loop loopStmts, label endLabel']
 
 data Bound
   = LowerBound
@@ -260,14 +260,14 @@ forEachRelation program f = do
       f ci (fieldAccess program fieldOffset)
 
 relationUnaryFn :: Relation -> EIR.Function -> CodegenM [CodegenM EIR]
-relationUnaryFn r fn = forEachIndex r $ \idx -> do
-  call r idx fn [lookupRelationByIndex r idx]
+relationUnaryFn r fn' = forEachIndex r $ \idx -> do
+  call r idx fn' [lookupRelationByIndex r idx]
 
 -- NOTE: assumes r1 and r2 have same underlying representation
 -- (guaranteed by earlier compiler stages)
 relationBinFn :: Relation -> Relation -> EIR.Function -> CodegenM [CodegenM EIR]
-relationBinFn r1 r2 fn = forEachIndex r1 $ \idx -> do
-  call r1 idx fn
+relationBinFn r1 r2 fn' = forEachIndex r1 $ \idx -> do
+  call r1 idx fn'
     [ lookupRelationByIndex r1 idx
     , lookupRelationByIndex r2 idx
     ]
@@ -280,7 +280,7 @@ forEachIndex r f = do
   pure $ map f indices
 
 getContainerInfos :: IndexMap -> TypeInfo -> [ContainerInfo]
-getContainerInfos indexMap typeInfo = containerInfos
+getContainerInfos indexMap typeInfo = containerInfos'
   where
     combinations r idxs =
       (r,) <$> Set.toList idxs
@@ -289,7 +289,7 @@ getContainerInfos indexMap typeInfo = containerInfos
           meta = M.mkMeta idx $ fromJust $ Map.lookup r' typeInfo
        in (r, idx, meta)
     storesList = Map.foldMapWithKey combinations indexMap
-    containerInfos = map (uncurry toContainerInfo) storesList
+    containerInfos' = map (uncurry toContainerInfo) storesList
 
 -- Open question: is this index always applicable for find/not elem query?
 mkFindIndex :: [a] -> Index

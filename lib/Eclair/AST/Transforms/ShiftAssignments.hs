@@ -2,11 +2,9 @@ module Eclair.AST.Transforms.ShiftAssignments
   ( transform
   ) where
 
-import Data.Functor.Foldable hiding (fold)
 import Data.List (partition)
 import Eclair.Transform
 import Eclair.AST.IR
-import Eclair.Id
 
 
 transform :: Transform AST AST

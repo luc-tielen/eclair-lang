@@ -1,8 +1,6 @@
 module Main (main) where
 
-import qualified Data.Text.Lazy.IO as T
 import Control.Exception
-import LLVM.Pretty
 import Eclair.ArgParser
 import Eclair
 import GHC.IO.Encoding

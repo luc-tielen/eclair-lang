@@ -18,14 +18,14 @@ import NeatInterpolation
 
 
 idxSel :: FilePath -> Text -> IndexMap
-idxSel path text = do
+idxSel path text' = do
   let file = "tests/fixtures" </> path <.> "dl"
-      parseResult = map (\(ast, _, _) -> ast) $ parseText file text
+      parseResult = map (\(ast, _, _) -> ast) $ parseText file text'
    in case parseResult of
-    Left err -> panic $ "Failed to parse " <> toText file <> "!"
+    Left _ -> panic $ "Failed to parse " <> toText file <> "!"
     Right ast -> do
       case TS.typeCheck ast of
-        Left err -> panic $ "Failed to typecheck " <> toText file <> "!"
+        Left _ -> panic $ "Failed to typecheck " <> toText file <> "!"
         Right typeInfo -> do
           let ra = compileToRA ast
               (indexMap, _) = runIndexSelection typeInfo ra
@@ -35,7 +35,7 @@ toSelection :: [(T.Text, [[Column]])] -> IndexMap
 toSelection info = idxMap
   where
     (texts, colss) = unzip info
-    f text cols = (Id text, Set.fromList $ map Index cols)
+    f text' cols = (Id text', Set.fromList $ map Index cols)
     idxMap = Map.fromList $ zipWith f texts colss
 
 spec :: Spec

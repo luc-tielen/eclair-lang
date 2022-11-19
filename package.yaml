@@ -72,7 +72,7 @@ default-extensions:
   - PatternSynonyms
 
 ghc-options:
-  #- -Wall TODO turn on again
+  - -Wall # TODO turn on again
   - -Wincomplete-patterns
   - -fhide-source-paths
   - -fno-show-valid-hole-fits
