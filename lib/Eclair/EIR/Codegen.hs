@@ -1,5 +1,5 @@
 module Eclair.EIR.Codegen
-  ( CodegenT()
+  ( CodegenT
   , runCodegenM
   , LowerState(..)
   , Table(..)
