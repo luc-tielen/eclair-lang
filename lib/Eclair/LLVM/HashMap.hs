@@ -35,8 +35,7 @@ data HashMap
 
 data CGState
   = CGState
-  { _externals :: Externals
-  , types :: Types
+  { types :: Types
   , symbolCodegen :: Symbol.Symbol
   , vectorCodegen :: Vector.Vector
   }
@@ -62,7 +61,7 @@ codegen symbol exts = do
           , tyEntry = entryTy
           }
 
-    hoist intoIO $ runReaderT generateFunctions $ CGState exts tys symbol vec
+    hoist intoIO $ runReaderT generateFunctions $ CGState tys symbol vec
   where
     intoIO = pure . runIdentity
 

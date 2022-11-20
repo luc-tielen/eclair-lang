@@ -294,7 +294,6 @@ withUpdatedAlias a curr m = do
 
 withEndLabel :: EIR.LabelId -> CodegenM a -> CodegenM a
 withEndLabel end m = do
-  _ <- ask
   local setLabel m
   where
     setLabel = \case

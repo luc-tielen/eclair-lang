@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-unused-top-binds #-}
+
 module Eclair.LLVM.Vector
   ( Vector(..)
   , Types(..)
@@ -34,10 +36,10 @@ type Destructor = Operand -> IRCodegen ()
 
 data CGState
   = CGState
-  { _externals :: Externals
+  { externals :: Externals
   , types :: Types
-  , _sizeElement :: Word64
-  , _destructor :: Maybe Destructor
+  , sizeElement :: Word64
+  , destructor :: Maybe Destructor
   }
 
 type VectorParams = Type

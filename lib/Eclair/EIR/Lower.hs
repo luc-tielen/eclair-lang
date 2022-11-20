@@ -65,20 +65,20 @@ compileToLLVM target stringMapping eir = do
         (symbolTable, symbol) <- codegenSymbolTable exts
         let symbolTableTy = SymbolTable.tySymbolTable symbolTable
             fnsInfo = zip (map (map getIndexFromMeta) metas) fnss
-            fnsMap = M.fromList fnsInfo
+            fnsMap' = M.fromList fnsInfo
         -- TODO: add hash based on filepath of the file we're compiling?
         programTy <- typedef "program" Off (symbolTableTy : map typeObj fnss)
         programSize <- withLLVMTypeInfo ctx $ llvmSizeOf ctx td programTy
-        let lowerState = LowerState programTy programSize symbolTable symbol fnsMap mempty 0 exts
+        let lowerState = LowerState programTy programSize symbolTable symbol fnsMap' mempty 0 exts
         lift $ do
           traverse_ (processDecl lowerState) decls
           usingReaderT (relationMapping, metas, lowerState) $ do
             addFactsFn <- generateAddFactsFn
-            generateAddFact addFactsFn
-            generateGetFactsFn
-            generateFreeBufferFn
-            generateFactCountFn
-            generateEncodeStringFn
+            _ <- generateAddFact addFactsFn
+            _ <- generateGetFactsFn
+            _ <- generateFreeBufferFn
+            _ <- generateFactCountFn
+            _ <- generateEncodeStringFn
             generateDecodeStringFn
       _ ->
         panic "Unexpected top level EIR declarations when compiling to LLVM!"
@@ -257,7 +257,7 @@ codegenRuntime exts meta = gets (M.lookup meta) >>= \case
   Just (_, cachedFns) -> pure cachedFns
   where
     cgRuntime suffix = lift $ case meta of
-      BTree meta -> hoist (instantiate (show suffix) meta) $ BTree.codegen exts
+      BTree meta' -> hoist (instantiate (show suffix) meta') $ BTree.codegen exts
 
 codegenDebugInfos :: MonadModuleBuilder m => Map Metadata Int -> m ()
 codegenDebugInfos metaMapping =

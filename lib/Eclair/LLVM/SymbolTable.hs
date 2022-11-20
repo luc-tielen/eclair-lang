@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-unused-top-binds #-}
+
 module Eclair.LLVM.SymbolTable
   ( SymbolTable(..)
   , codegen
@@ -23,9 +25,9 @@ data SymbolTable
 data CGState
   = CGState
   { symbolTableTy :: Type
-  , _symbolTy :: Type
-  , _vectorCodegen :: Vector.Vector
-  , _hashMapCodegen :: HashMap.HashMap
+  , symbolTy :: Type
+  , vectorCodegen :: Vector.Vector
+  , hashMapCodegen :: HashMap.HashMap
   }
 
 type ModuleCodegen = ReaderT CGState ModuleBuilder
