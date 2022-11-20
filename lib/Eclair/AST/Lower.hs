@@ -28,10 +28,10 @@ compileToRA ast = RA.Module $ concatMap processDecls sortedDecls where
 
   scc :: AST -> [[AST]]
   scc = \case
-    Module _ decls -> map G.flattenSCC sortedDecls
+    Module _ decls -> map G.flattenSCC sortedDecls'
       where
         relevantDecls = filter isRuleOrAtom decls
-        sortedDecls = G.stronglyConnComp $ zipWith (\i d -> (d, i, refersTo d)) [0..] relevantDecls
+        sortedDecls' = G.stronglyConnComp $ zipWith (\i d -> (d, i, refersTo d)) [0..] relevantDecls
         declLineMapping = M.fromListWith (++) $ zipWith (\i d -> (nameFor d, [i])) [0..] relevantDecls
         isRuleOrAtom = \case
           Atom {} -> True
@@ -56,7 +56,7 @@ getLiterals = mapMaybe $ \case
     case lit of
       LNumber x ->
         Just x
-      LString x ->
+      LString _ ->
         panic "Unexpected string literal in 'getLiterals'"
   _ ->
     Nothing

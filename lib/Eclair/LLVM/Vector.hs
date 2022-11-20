@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-unused-top-binds #-}
+
 module Eclair.LLVM.Vector
   ( Vector(..)
   , Types(..)
@@ -120,7 +122,7 @@ mkVectorDestroy = do
 
   function "vector_destroy" [(ptr vecTy, "vec")] void $ \[vec] -> do
     -- assert(vec && "Vector should not be null");
-    for_ elemDestructor $ \destructor -> do
+    for_ elemDestructor $ \destructor' -> do
       iterPtrPtr <- allocate (ptr elemTy) =<< deref startPtrOf vec
       let hasNext = do
             iterPtr <- load iterPtrPtr 0
@@ -128,7 +130,7 @@ mkVectorDestroy = do
             iterPtr `ne` endPtr
       loopWhile hasNext $ do
         iterPtr <- load iterPtrPtr 0
-        destructor iterPtr
+        destructor' iterPtr
         store iterPtrPtr 0 =<< incrementPtr iterPtr
 
     startPtr <- (`bitcast` ptr i8) =<< deref startPtrOf vec
@@ -137,7 +139,7 @@ mkVectorDestroy = do
 -- NOTE: Returns the index at which the element was inserted => no size necessary
 -- NOTE: does not check for uniqueness!
 mkVectorPush :: Operand -> ModuleCodegen Operand
-mkVectorPush vectorSize = do
+mkVectorPush vectorSize' = do
   CGState exts tys sizeElem _ <- ask
   let (vecTy, elemTy) = (tyVector &&& tyElement) tys
       mallocFn = extMalloc exts
@@ -158,16 +160,16 @@ mkVectorPush vectorSize = do
     newMemoryEndPtr <- gep newMemoryPtr [currentCapacity]
     startPtr <- deref startPtrOf vec >>= (`bitcast` ptr i8)
     newMemoryPtrBytes <- newMemoryPtr `bitcast` ptr i8
-    call memcpyFn [newMemoryPtrBytes, startPtr, currentNumBytes, bit 0]
-    call freeFn [startPtr]
+    _ <- call memcpyFn [newMemoryPtrBytes, startPtr, currentNumBytes, bit 0]
+    _ <- call freeFn [startPtr]
 
     assign startPtrOf vec newMemoryPtr
     assign endPtrOf vec newMemoryEndPtr
     assign capacityOf vec newCapacity
 
-  function "vector_push" [(ptr vecTy, "vec"), (ptr elemTy, "elem")] i32 $ \[vec, elem] -> do
+  function "vector_push" [(ptr vecTy, "vec"), (ptr elemTy, "elem")] i32 $ \[vec, elem'] -> do
     -- assert(vec && "Vector should not be null");
-    numElems <- call vectorSize [vec]
+    numElems <- call vectorSize' [vec]
     capacity <- deref capacityOf vec
     isFull <- numElems `eq` capacity
     if' isFull $ do
@@ -175,7 +177,7 @@ mkVectorPush vectorSize = do
 
     -- Look up vec->end again, pointers can be invalidated due to potential resize!
     endPtr <- deref endPtrOf vec
-    store endPtr 0 =<< load elem 0
+    store endPtr 0 =<< load elem' 0
     update endPtrOf vec incrementPtr
     ret numElems
 

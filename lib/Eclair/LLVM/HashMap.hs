@@ -35,8 +35,7 @@ data HashMap
 
 data CGState
   = CGState
-  { externals :: Externals
-  , types :: Types
+  { types :: Types
   , symbolCodegen :: Symbol.Symbol
   , vectorCodegen :: Vector.Vector
   }
@@ -62,7 +61,7 @@ codegen symbol exts = do
           , tyEntry = entryTy
           }
 
-    hoist intoIO $ runReaderT generateFunctions $ CGState exts tys symbol vec
+    hoist intoIO $ runReaderT generateFunctions $ CGState tys symbol vec
   where
     intoIO = pure . runIdentity
 
@@ -144,7 +143,7 @@ mkHashMapGetOrPutValue hashFn = do
     newEntryPtr <- alloca entryTy Nothing 0
     assign symbolOf newEntryPtr symbolValue
     assign valueOf newEntryPtr value
-    call (Vector.vectorPush vec) [bucketPtr, newEntryPtr]
+    _ <- call (Vector.vectorPush vec) [bucketPtr, newEntryPtr]
     ret value
 
 -- NOTE: this is a unsafe lookup, assumes element is in there!

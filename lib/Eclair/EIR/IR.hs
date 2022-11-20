@@ -19,8 +19,6 @@ import Eclair.LLVM.Metadata
 
 
 type Relation = Id
-type LowerBound = EIR
-type UpperBound = EIR
 
 data Type
   = Program
@@ -186,11 +184,11 @@ instance Pretty EIR where
       vsep ["loop", statementBlock stmts]
     If cond body ->
       let wrap = case body of
-            Block stmts -> identity
+            Block _ -> identity
             _ -> braceBlock
        in vsep ["if" <+> parens (pretty cond), wrap (pretty body)]
-    Not bool ->
-      "not" <+> pretty bool
+    Not bool' ->
+      "not" <+> pretty bool'
     And bool1 bool2 ->
       pretty bool1 <+> "&&" <+> pretty bool2
     Equals lhs rhs ->

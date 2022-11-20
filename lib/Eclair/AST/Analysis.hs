@@ -23,7 +23,6 @@ import qualified Language.Souffle.Analysis as S
 import qualified Eclair.AST.IR as IR
 import qualified Data.Map as Map
 import Eclair.Id
-import Data.Kind
 
 
 type NodeId = IR.NodeId
@@ -280,8 +279,8 @@ analysis prog = S.mkAnalysis addFacts run getFacts
         maybeRuleId <- ask
         for_ maybeRuleId $ \ruleId ->
           S.addFact prog $ RuleVariable ruleId nodeId
-      IR.AssignF nodeId (lhsId, lhsAction) (rhsId, rhsAction) -> do
-        S.addFact prog $ Assign nodeId lhsId rhsId
+      IR.AssignF nodeId (lhsId', lhsAction) (rhsId', rhsAction) -> do
+        S.addFact prog $ Assign nodeId lhsId' rhsId'
         lhsAction
         rhsAction
       IR.AtomF nodeId atom (unzip -> (argNodeIds, actions)) -> do

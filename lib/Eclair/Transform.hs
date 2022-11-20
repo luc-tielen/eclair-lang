@@ -9,7 +9,6 @@ module Eclair.Transform
   , RewriteRuleT
   ) where
 
-import Control.Arrow
 import Eclair.AST.IR (NodeId(..))
 
 

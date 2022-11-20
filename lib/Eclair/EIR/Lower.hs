@@ -8,8 +8,6 @@ import Prelude hiding (void)
 import qualified Prelude
 import Control.Monad.Morph hiding (embed)
 import Data.Traversable (for)
-import qualified Data.Text as T
-import qualified Data.Text.Encoding as TE
 import qualified Data.ByteString as BS
 import qualified Data.Map as M
 import qualified Data.Set as S
@@ -28,7 +26,6 @@ import Eclair.LLVM.Codegen as LLVM
 import qualified LLVM.C.API as LibLLVM
 import Eclair.LLVM.Metadata
 import Eclair.LLVM.Hash
-import Eclair.LLVM.Externals
 import Eclair.RA.IndexSelection
 import Eclair.ArgParser
 import Eclair.Comonads
@@ -68,20 +65,20 @@ compileToLLVM target stringMapping eir = do
         (symbolTable, symbol) <- codegenSymbolTable exts
         let symbolTableTy = SymbolTable.tySymbolTable symbolTable
             fnsInfo = zip (map (map getIndexFromMeta) metas) fnss
-            fnsMap = M.fromList fnsInfo
+            fnsMap' = M.fromList fnsInfo
         -- TODO: add hash based on filepath of the file we're compiling?
         programTy <- typedef "program" Off (symbolTableTy : map typeObj fnss)
         programSize <- withLLVMTypeInfo ctx $ llvmSizeOf ctx td programTy
-        let lowerState = LowerState programTy programSize symbolTable symbol fnsMap mempty 0 exts
+        let lowerState = LowerState programTy programSize symbolTable symbol fnsMap' mempty 0 exts
         lift $ do
           traverse_ (processDecl lowerState) decls
           usingReaderT (relationMapping, metas, lowerState) $ do
             addFactsFn <- generateAddFactsFn
-            generateAddFact addFactsFn
-            generateGetFactsFn
-            generateFreeBufferFn
-            generateFactCountFn
-            generateEncodeStringFn
+            _ <- generateAddFact addFactsFn
+            _ <- generateGetFactsFn
+            _ <- generateFreeBufferFn
+            _ <- generateFactCountFn
+            _ <- generateEncodeStringFn
             generateDecodeStringFn
       _ ->
         panic "Unexpected top level EIR declarations when compiling to LLVM!"
@@ -99,8 +96,8 @@ compileToLLVM target stringMapping eir = do
         let args = map (, ParameterName "arg") argTypes
             fn = if visibility == EIR.Public then apiFunction else function
         -- Only public functions are exposed, rest is only used internally
-        fn (Name name) args returnType $ \args -> do
-          runCodegenM (fnBodyToLLVM args body) lowerState
+        fn (Name name) args returnType $ \args' -> do
+          runCodegenM (fnBodyToLLVM args' body) lowerState
       _ ->
         panic "Unexpected top level EIR declaration when compiling to LLVM!"
 
@@ -120,8 +117,8 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
         addr (mkPath [int32 $ toInteger pos]) =<< structOrVar
       EIR.VarF v ->
         lookupVar v
-      EIR.NotF (snd -> bool) ->
-        not' =<< bool
+      EIR.NotF (snd -> bool') ->
+        not' =<< bool'
       EIR.AndF (snd -> bool1) (snd -> bool2) -> do
         b1 <- bool1
         b2 <- bool2
@@ -130,8 +127,8 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
         valueA <- loadIfNeeded lhs a
         valueB <- loadIfNeeded rhs b
         valueA `eq` valueB
-      EIR.PrimOpF op (map snd -> args) ->
-        doPrimOp op args
+      EIR.PrimOpF op (map snd -> args') ->
+        doPrimOp op args'
       EIR.HeapAllocateProgramF -> do
         (malloc, (programTy, programSize)) <- gets (extMalloc . externals &&& programType &&& programSizeBytes)
         let memorySize = int32 $ fromIntegral programSize
@@ -152,11 +149,11 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
         numBytes <- utf8Length `zext` i64
         exts <- gets externals
         stringPtr <- call (extMalloc exts) [utf8Length]
-        call (extMemcpy exts) [stringPtr, globalStringPtr, numBytes, bit 0]
+        _ <- call (extMemcpy exts) [stringPtr, globalStringPtr, numBytes, bit 0]
         symFns <- gets symbolFns
         let tySymbol = Symbol.tySymbol symFns
         symbolPtr <- alloca tySymbol (Just (int32 1)) 0
-        call (Symbol.symbolInit symFns) [symbolPtr, utf8Length, stringPtr]
+        _ <- call (Symbol.symbolInit symFns) [symbolPtr, utf8Length, stringPtr]
         pure symbolPtr
       _ ->
         panic "Unhandled pattern match case in 'instrToOperand' while lowering EIR to LLVM!"
@@ -187,8 +184,8 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
         program <- programVar
         memory <- program `bitcast` ptr i8 `named` "memory"
         Prelude.void $ call freeFn [memory]
-      EIR.PrimOpF op (map toOperand -> args) ->
-        Prelude.void $ doPrimOp op args
+      EIR.PrimOpF op (map toOperand -> args') ->
+        Prelude.void $ doPrimOp op args'
       EIR.LoopF stmts ->
         loop $ traverse_ toInstrs stmts
       EIR.IfF (toOperand -> cond) (toInstrs -> body) -> do
@@ -208,8 +205,8 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
       (operand, eir)
     toInstrs (Triple _ _ instrs) = instrs
     doPrimOp :: Monad m => EIR.Op -> [CodegenT m Operand] -> CodegenT m Operand
-    doPrimOp op args = do
-      argOperands <- sequence args
+    doPrimOp op args' = do
+      argOperands <- sequence args'
       fn <- lookupPrimOp op
       call fn argOperands
 
@@ -260,7 +257,7 @@ codegenRuntime exts meta = gets (M.lookup meta) >>= \case
   Just (_, cachedFns) -> pure cachedFns
   where
     cgRuntime suffix = lift $ case meta of
-      BTree meta -> hoist (instantiate (show suffix) meta) $ BTree.codegen exts
+      BTree meta' -> hoist (instantiate (show suffix) meta') $ BTree.codegen exts
 
 codegenDebugInfos :: MonadModuleBuilder m => Map Metadata Int -> m ()
 codegenDebugInfos metaMapping =
@@ -276,9 +273,8 @@ codegenSymbolTable exts = do
   symbol <- lift $ hoist intoIO $ Symbol.codegen exts
 
   let tySymbol = Symbol.tySymbol symbol
-      freeFn = extFree exts
       symbolDestructor iterPtr = do
-        call (Symbol.symbolDestroy symbol) [iterPtr]
+        _ <- call (Symbol.symbolDestroy symbol) [iterPtr]
         pass
 
   -- Only this vector does the cleanup of all the symbols, to prevent double frees
@@ -288,13 +284,6 @@ codegenSymbolTable exts = do
   pure (symbolTable, symbol)
   where
     intoIO = pure . runIdentity
-
--- TODO: add hash based on filepath of the file we're compiling?
-mkType :: Name -> [Table] -> ModuleBuilderT IO LLVM.Type
-mkType name fnss =
-  typedef name Off tys
-  where
-    tys = map typeObj fnss
 
 getIndexFromMeta :: Metadata -> Index
 getIndexFromMeta = \case
@@ -316,7 +305,7 @@ generateMallocFn :: Monad m => Maybe Target -> ModuleBuilderT m Operand
 generateMallocFn target = do
   mallocFn <- extern "malloc" [i32] (ptr i8)
   when (target == Just Wasm32) $ do
-    withFunctionAttributes (const [WasmExportName "eclair_malloc"]) $
+    _ <- withFunctionAttributes (const [WasmExportName "eclair_malloc"]) $
       function "eclair_malloc" [(i32, "byte_count")] (ptr i8) $ \[byteCount] ->
         ret =<< call mallocFn [byteCount]
     pass
@@ -327,7 +316,7 @@ generateFreeFn :: Monad m => Maybe Target -> ModuleBuilderT m Operand
 generateFreeFn target = do
   freeFn <- extern "free" [ptr i8] void
   when (target == Just Wasm32) $ do
-    withFunctionAttributes (const [WasmExportName "eclair_free"]) $
+    _ <- withFunctionAttributes (const [WasmExportName "eclair_free"]) $
       function "eclair_free" [(ptr i8, "memory")] void $ \[memoryPtr] ->
         call freeFn [memoryPtr]
     pass
@@ -378,7 +367,7 @@ generateAddFact addFactsFn = do
       returnType = void
 
   apiFunction "eclair_add_fact" args returnType $ \[program, factType, memory] -> do
-    call addFactsFn [program, factType, memory, int32 1]
+    _ <- call addFactsFn [program, factType, memory, int32 1]
     retVoid
 
 generateAddFactsFn :: MonadFix m => CodegenInOutT (ModuleBuilderT m) Operand
@@ -420,9 +409,9 @@ generateGetFactsFn = do
     switchOnFactType relations relationMapping (ret $ nullPtr i32) factType $ \r -> do
       let indexes = indexesFor lowerState r
           idx = fromJust $ viaNonEmpty head indexes  -- TODO: which idx? just select first matching?
-          doCall op args = do
+          doCall op args' = do
             fn <- toCodegenInOut lowerState $ lookupFunction r idx op
-            call fn args
+            call fn args'
           numCols = factNumColumns r metas
           valueSize = 4 * numCols  -- TODO: should use LLVM "valueSize" instead of re-calculating here
           treeOffset = int32 $ toInteger $ getContainerOffset metas r idx
@@ -437,8 +426,8 @@ generateGetFactsFn = do
       let iterTy = evalState (toLLVMType r idx EIR.Iter) lowerState
       currIter <- alloca iterTy (Just (int32 1)) 0 `named` "current_iter"
       endIter <- alloca iterTy (Just (int32 1)) 0 `named` "end_iter"
-      doCall EIR.IterBegin [relationPtr, currIter]
-      doCall EIR.IterEnd [relationPtr, endIter]
+      _ <- doCall EIR.IterBegin [relationPtr, currIter]
+      _ <- doCall EIR.IterEnd [relationPtr, endIter]
       let loopCondition = do
             isEqual <- doCall EIR.IterIsEqual [currIter, endIter]
             not' isEqual
@@ -461,7 +450,7 @@ generateFreeBufferFn = do
       returnType = void
   apiFunction "eclair_free_buffer" args returnType $ \[buf] -> mdo
     memory <- buf `bitcast` ptr i8 `named` "memory"
-    call freeFn [memory]
+    _ <- call freeFn [memory]
     retVoid
 
 generateFactCountFn :: MonadFix m => CodegenInOutT (ModuleBuilderT m) Operand
@@ -476,9 +465,9 @@ generateFactCountFn = do
     switchOnFactType relations relationMapping (ret $ int32 0) factType $ \r -> do
       let indexes = indexesFor lowerState r
           idx = fromJust $ viaNonEmpty head indexes  -- TODO: which idx? just select first matching? or idx on all columns?
-          doCall op args = do
+          doCall op args' = do
             fn <- toCodegenInOut lowerState $ lookupFunction r idx op
-            call fn args
+            call fn args'
           treeOffset = int32 $ toInteger $ getContainerOffset metas r idx
       relationPtr <- gep program [int32 0, treeOffset]
       relationSize <- doCall EIR.Size [relationPtr]
@@ -499,10 +488,10 @@ generateEncodeStringFn = do
   apiFunction "eclair_encode_string" args i32 $ \[program, len, stringData] -> do
     stringDataCopy <- call (extMalloc exts) [len]
     lenBytes <- zext len i64
-    call (extMemcpy exts) [stringDataCopy, stringData, lenBytes, bit 0]
+    _ <- call (extMemcpy exts) [stringDataCopy, stringData, lenBytes, bit 0]
 
     symbolPtr <- alloca (Symbol.tySymbol symbol) (Just (int32 1)) 0
-    call (Symbol.symbolInit symbol) [symbolPtr, len, stringDataCopy]
+    _ <- call (Symbol.symbolInit symbol) [symbolPtr, len, stringDataCopy]
 
     symbolTablePtr <- getSymbolTablePtr program
     index <- call (SymbolTable.symbolTableLookupIndex symbolTable) [symbolTablePtr, symbolPtr]
@@ -510,7 +499,7 @@ generateEncodeStringFn = do
     if' alreadyContainsSymbol $ do
       -- Since the string was not added to the table, the memory pointed to by
       -- the symbol is not managed by the symbol table, so we need to manually free the data.
-      call (extFree exts) [stringDataCopy]
+      _ <- call (extFree exts) [stringDataCopy]
       ret index
 
     -- No free needed here, automatically called when symbol table is cleaned up.
@@ -524,8 +513,6 @@ generateDecodeStringFn = do
   let args = [ (ptr (programType lowerState), "eclair_program")
              , (i32, "string_index")
              ]
-      retTy = ptr i8  -- actually a pointer to a symbol (possibly null if not found),
-                      -- some extra decoding needs to happen on side of host language.
       symbolTable = symbolTableFns lowerState
 
   apiFunction "eclair_decode_string" args (ptr i8) $ \[program, idx] -> do

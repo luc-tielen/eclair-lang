@@ -2,13 +2,10 @@ module Eclair.AST.Transforms.CopyPropagation
   ( transform
   ) where
 
-import qualified Data.Set as Set
 import qualified Data.Map as Map
 import Eclair.Transform
 import Eclair.AST.Analysis (PointsToAnalysis(..))
 import Eclair.AST.IR
-import Eclair.Id
-import Eclair.Comonads
 
 -- This transform tries to reduce the amount of helper variables used in
 -- assignments using the "copy propagation" algorithm.
@@ -22,5 +19,5 @@ transform (PointsToAnalysis pointsTo) =
     astf ->
       embed astf
   where
-    replaceVar pointsTo varNodeId var =
-      fromMaybe (Var varNodeId var) $ Map.lookup varNodeId pointsTo
+    replaceVar pointsTo' varNodeId var =
+      fromMaybe (Var varNodeId var) $ Map.lookup varNodeId pointsTo'

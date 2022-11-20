@@ -6,14 +6,11 @@ module Eclair.TypeSystem
   , typeCheck
   ) where
 
-import qualified Data.List as List (head)
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
 import qualified Data.IntMap as IntMap
 import Eclair.AST.IR
 import Eclair.Id
-import Data.List ((!!), partition)
-import Data.Maybe (fromJust)
 import qualified Data.DList.DNonEmpty as DNonEmpty
 import Data.DList.DNonEmpty (DNonEmpty)
 
@@ -42,12 +39,12 @@ data TypeError
 
 typeCheck :: AST -> Either [TypeError] TypeInfo
 typeCheck ast
-  | null errors = pure $ map snd typedefMap
-  | otherwise   = throwError errors
+  | null errors' = pure $ map snd typedefMap
+  | otherwise   = throwError errors'
   where
-    errors = checkDecls typedefMap ast ++ duplicateErrors typedefs
-    typedefs = extractTypeDefs ast
-    typedefMap = Map.fromList typedefs
+    errors' = checkDecls typedefMap ast ++ duplicateErrors typedefs'
+    typedefs' = extractTypeDefs ast
+    typedefMap = Map.fromList typedefs'
 
 type TypedefMap = Map Id (NodeId, [Type])
 
@@ -153,8 +150,7 @@ checkDecls :: TypedefMap -> AST -> [TypeError]
 checkDecls typedefMap = \case
   Module _ decls ->
     -- NOTE: By doing runM once per decl, each decl is checked with a clean state
-    let state = CheckState typedefMap mempty mempty
-        beginContext d =
+    let beginContext d =
           WhileChecking (getNodeId d)
      in concatMap (\d -> runM (beginContext d) typedefMap $ checkDecl d) decls
   _ ->

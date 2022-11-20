@@ -8,9 +8,7 @@ module Eclair.LLVM.BTree
   ) where
 
 import Prelude hiding (void)
-import qualified Prelude
 import Control.Monad.Morph
-import Control.Monad.Fix
 import qualified Data.Map as Map
 import Eclair.LLVM.Codegen
 import Eclair.LLVM.Table
@@ -115,19 +113,19 @@ computeSizes = do
       valueType = ArrayType (fromIntegral $ numColumns settings) i32
   (ptrSz, valueSz, nodeDataSz) <- withLLVMTypeInfo ctx $ do
     let sizeOf = llvmSizeOf ctx td
-    pointerSize <- sizeOf ptrTy
-    valueSize <- sizeOf valueType
-    nodeDataSize <- sizeOf nodeDataTy
-    pure (pointerSize, valueSize, nodeDataSize)
+    pointerSize' <- sizeOf ptrTy
+    valueSize' <- sizeOf valueType
+    nodeDataSize' <- sizeOf nodeDataTy
+    pure (pointerSize', valueSize', nodeDataSize')
 
   let numKeys' = fromIntegral $ numKeysHelper settings nodeDataSz valueSz
       nodeType = StructureType Off [nodeDataTy, ArrayType numKeys' valueType]
       innerNodeType = StructureType Off [nodeType, ArrayType (numKeys' + 1) (ptr nodeType)]
   (leafNodeSz, innerNodeSz) <- withLLVMTypeInfo ctx $ do
     let sizeOf = llvmSizeOf ctx td
-    leafNodeSize <- sizeOf nodeType
-    innerNodeSize <- sizeOf innerNodeType
-    pure (leafNodeSize, innerNodeSize)
+    leafNodeSize' <- sizeOf nodeType
+    innerNodeSize' <- sizeOf innerNodeType
+    pure (leafNodeSize', innerNodeSize')
 
   pure $ Sizes ptrSz valueSz nodeDataSz leafNodeSz innerNodeSz
 
@@ -135,26 +133,25 @@ generateTypes :: (MonadModuleBuilder m, MonadFix m, MonadTemplate Meta m, HasSuf
               => Sizes -> m Types
 generateTypes sizes = mdo
   meta <- getParams
-  suffix <- getSuffix
   let numKeys' = fromIntegral $ numKeys meta sizes
 
-  let columnTy = i32
-      valueTy = ArrayType (fromIntegral $ numColumns meta) columnTy
+  let columnTy' = i32
+      valueTy' = ArrayType (fromIntegral $ numColumns meta) columnTy'
       positionTy = i16
-      nodeSizeTy = i16  -- Note: used to be size_t/i64
-      nodeTypeTy = i1
+      nodeSizeTy' = i16  -- Note: used to be size_t/i64
+      nodeTypeTy' = i1
       nodeDataName = "node_data_t"
   nodeDataTy <- typedef nodeDataName Off
     [ ptr nodeTy  -- parent
     , positionTy  -- position_in_parent
-    , nodeSizeTy  -- num_elements
-    , nodeTypeTy  -- node type
+    , nodeSizeTy'  -- num_elements
+    , nodeTypeTy'  -- node type
     ]
   nodeTy <- typedef "node_t" Off
     [ nodeDataTy                  -- meta
-    , ArrayType numKeys' valueTy  -- values
+    , ArrayType numKeys' valueTy'  -- values
     ]
-  let leafNodeTy = nodeTy
+  let leafNodeTy' = nodeTy
   innerNodeTy <- typedef "inner_node_t" Off
     [ nodeTy                                 -- base
     , ArrayType (numKeys' + 1) (ptr nodeTy)  -- children
@@ -170,18 +167,17 @@ generateTypes sizes = mdo
   pure $ Types
     { btreeTy = btreeTy
     , iteratorTy = btreeIteratorTy
-    , nodeSizeTy = nodeSizeTy
-    , nodeTypeTy = nodeTypeTy
+    , nodeSizeTy = nodeSizeTy'
+    , nodeTypeTy = nodeTypeTy'
     , nodeTy = nodeTy
-    , leafNodeTy = leafNodeTy
+    , leafNodeTy = leafNodeTy'
     , innerNodeTy = innerNodeTy
-    , valueTy = valueTy
-    , columnTy = columnTy
+    , valueTy = valueTy'
+    , columnTy = columnTy'
     }
 
 generateTableFunctions :: ModuleCodegen Table
 generateTableFunctions = mdo
-  meta <- getParams
   tree <- typeOf BTree
   iter <- typeOf Iterator
   value <- typeOf Value
@@ -253,9 +249,9 @@ mkCompare :: ModuleCodegen Operand
 mkCompare = do
   settings <- getParams
   tys <- asks types
-  let column = columnTy tys
+  let column' = columnTy tys
       value = valueTy tys
-  compare <- function "btree_value_compare" [(column, "lhs"), (column, "rhs")] i8 $ \[lhs, rhs] -> mdo
+  compare' <- function "btree_value_compare" [(column', "lhs"), (column', "rhs")] i8 $ \[lhs, rhs] -> mdo
     result1 <- lhs `ult` rhs
     if' result1 $
       ret $ int8 (-1)
@@ -273,7 +269,7 @@ mkCompare = do
         rhsPtr <- gep rhs indices
         lhsValue <- load lhsPtr 0
         rhsValue <- load rhsPtr 0
-        compareResult <- call compare [lhsValue, rhsValue]
+        compareResult <- call compare' [lhsValue, rhsValue]
         modify $ Map.insert compareResult blk
         case atEnd of
           End -> br end
@@ -625,8 +621,8 @@ mkRebalanceOrSplit splitFn = mdo
     _ <- call splitFn [n, root]
     ret (int16 0)  -- No re-balancing
   where
-    calculateLeftSlotsOpen numberOfKeys left idx = do
-      numElems <- deref (metaOf ->> numElemsOf) left
+    calculateLeftSlotsOpen numberOfKeys left' idx = do
+      numElems <- deref (metaOf ->> numElemsOf) left'
       openSlots <- sub numberOfKeys numElems
       isLessThan <- openSlots `slt` idx
       select isLessThan openSlots idx

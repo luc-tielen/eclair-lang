@@ -2,9 +2,7 @@ module Eclair.AST.Transforms.UniqueVars
   ( transform
   ) where
 
-import Data.Functor.Foldable hiding (fold)
 import qualified Data.Map as Map
-import Data.List (partition)
 import Eclair.Transform
 import Eclair.AST.IR
 import Eclair.Id

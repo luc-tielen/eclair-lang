@@ -16,14 +16,12 @@ module Eclair
   , handleErrors
   ) where
 
-import qualified Data.Map as M
 import Eclair.AST.Lower
 import Eclair.RA.Lower
 import Eclair.EIR.Lower
 import Eclair.Parser
 import Eclair.Pretty
 import Eclair.Error
-import Eclair.Id
 import Eclair.ArgParser (Target(..))
 import Eclair.AST.IR
 import Eclair.AST.Transforms
@@ -36,10 +34,8 @@ import Control.Exception
 import qualified Rock
 import Data.GADT.Compare.TH (deriveGEq)
 import Data.Some
-import Data.Maybe
 
 
-type Relation = RA.Relation
 type RA = RA.RA
 type EIR = EIR.EIR
 
@@ -121,7 +117,7 @@ rules config = \case
     -- And thanks to rock, the results will be cached anyway.
     analysis <- Rock.fetch (RunSemanticAnalysis path)
     _ <- Rock.fetch (Typecheck path)
-    (ast, nodeId, spans) <- Rock.fetch (Parse path)
+    (ast, nodeId, _) <- Rock.fetch (Parse path)
     pure $ simplify nodeId (SA.semanticInfo analysis) ast
   EmitSimplifiedAST path -> do
     (ast, _) <- Rock.fetch (TransformAST path)
