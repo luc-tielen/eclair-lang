@@ -51,6 +51,7 @@ library
       Eclair.Literal
       Eclair.LLVM.BTree
       Eclair.LLVM.Codegen
+      Eclair.LLVM.Config
       Eclair.LLVM.Externals
       Eclair.LLVM.Hash
       Eclair.LLVM.HashMap
@@ -60,7 +61,6 @@ library
       Eclair.LLVM.Table
       Eclair.LLVM.Template
       Eclair.LLVM.Vector
-      Eclair.LLVM.Config
       Eclair.Parser
       Eclair.Pretty
       Eclair.RA.Codegen

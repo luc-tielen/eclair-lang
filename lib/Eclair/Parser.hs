@@ -98,23 +98,16 @@ withNodeId f = do
 astParser :: Parser AST
 astParser = withNodeId $ \nodeId -> do
   whitespace
-  decls <- declParser `P.endBy` whitespace
+  decls <-  withRecovery '.' declParser `P.endBy` whitespace
   P.eof
   pure $ Module nodeId $ catMaybes decls
 
-declParser :: Parser (Maybe AST)
-declParser = P.withRecovery handleError $ Just <$> do
+declParser :: Parser AST
+declParser = do
   c <- P.lookAhead P.anySingle
   case c of
     '@' -> typedefParser
     _ -> factOrRuleParser
-  where
-    handleError :: P.ParseError Text Void -> Parser (Maybe AST)
-    handleError err = do
-      P.registerParseError err
-      _ <- many (P.anySingleBut '.')
-      _ <- P.char '.'
-      pure Nothing
 
 typeParser :: Parser Type
 typeParser = lexeme $ u32 <|> str
@@ -245,6 +238,17 @@ betweenParens :: Parser a -> Parser a
 betweenParens =
   P.between (lexeme $ P.char '(') (P.char ')') . lexeme
 
+-- | Helper for parsers that can recover from errors.
+--   In case of error, keeps parsing up to and including 'endChar'
+withRecovery :: Char -> Parser a -> Parser (Maybe a)
+withRecovery endChar p =
+  P.withRecovery handleError $ map Just p
+  where
+    handleError err = do
+      P.registerParseError err
+      _ <- P.takeWhileP Nothing (/= endChar)
+      _ <- P.char endChar
+      pure Nothing
 
 -- Helpers for producing error messages:
 
