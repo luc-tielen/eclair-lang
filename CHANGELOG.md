@@ -3,12 +3,12 @@
 All notable changes to this project (as seen by library users) will be documented in this file.
 The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-haskell.git/CHANGELOG.md).
 
-## [0.1.0] - Unreleased
+## [0.1.0] - 2022-11-20
 
 ### Added
 
 - WebAssembly support
-- The `string` data type to the language
+- Support for the `string` data type
 - Wildcards are now supported in rule bodies
 - Assignments are now supported in rule bodies
 - Support for multiple occurences of the same variable in a single clause of
