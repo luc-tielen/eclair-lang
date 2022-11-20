@@ -12,5 +12,3 @@ instance Pretty Literal where
   pretty = \case
     LNumber x -> pretty x
     LString x -> pretty x
-
-
