@@ -9,3 +9,11 @@ Dockerfile
 .envrc
 .ghci
 .gitignore
+./*.ll
+./*.o
+./*.a
+./*.wasm
+./*.eclair
+./*.dl
+./logo*
+hie.yaml

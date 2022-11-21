@@ -12,9 +12,7 @@ jobs:
         run: |
           set -eo pipefail
           docker build -f Dockerfile . -t eclair | tee eclair-lang-${{matrix.os}}.log
-          # We remove Eclair from /usr/bin. It is not needed for CI, and this
-          # caused some weird issues due to invoking cabal concurrently.
-          docker run --rm eclair bash -c "rm /usr/bin/eclair; make test" | tee -a eclair-lang-${{matrix.os}}.log
+          docker run --rm eclair bash -c "make test" | tee -a eclair-lang-${{matrix.os}}.log
       - name: Upload logs
         if: ${{ always() }}
         uses: actions/upload-artifact@v2
