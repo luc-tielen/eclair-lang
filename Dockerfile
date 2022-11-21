@@ -45,16 +45,18 @@ WORKDIR /app/build
 ENV DATALOG_DIR=/app/build/cbits
 
 RUN echo -e '#!/bin/bash\nsource /root/.ghcup/env\nsource /root/.nvm/nvm.sh\nexec "$@"\n' > /app/build/entrypoint.sh \
-    && chmod u+x /app/build/entrypoint.sh \
-    && echo -e '#!/bin/bash\nsource /root/.ghcup/env\nECLAIR=`cabal list-bin eclair`\n$ECLAIR "$@"' > /usr/bin/eclair \
-    && chmod u+x /usr/bin/eclair
+    && chmod u+x /app/build/entrypoint.sh
 
 # The entrypoint script sources ghcup setup script so we can easily call cabal etc.
 ENTRYPOINT [ "/app/build/entrypoint.sh" ]
 
-# The default command to run, shows the help menu
-CMD [ "eclair", "--help" ]
-
 COPY . .
 
 RUN source /root/.ghcup/env && make build
+RUN echo -e '#!/bin/bash\nsource /root/.ghcup/env\n' > /usr/bin/eclair \
+    && source /root/.ghcup/env \
+    && echo -e "`cabal list-bin eclair` \"\$@\"" >> /usr/bin/eclair \
+    && chmod u+x /usr/bin/eclair
+
+# The default command to run, shows the help menu
+CMD [ "eclair", "--help" ]
