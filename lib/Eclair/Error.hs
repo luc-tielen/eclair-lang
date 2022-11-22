@@ -6,6 +6,8 @@ module Eclair.Error
   , handleErrors
   ) where
 
+import qualified Data.Map as M
+import Data.List (partition)
 import Eclair.AST.Analysis
 import Eclair.TypeSystem
 import Eclair.Parser
@@ -103,12 +105,33 @@ typeErrorToReport file' fileContent spanMap = \case
         markers = zipWith renderDeduction markerTypes (toList ctx)
         hints' = []  -- What can we even give as a hint here? That it is a logical error?
 
+  HoleFound nodeId ctx holeTy typeEnv ->
+    Err Nothing title markers hints'
+      where
+        srcLoc = getSourcePos file' fileContent spanMap nodeId
+        title = "Found hole"
+        markerTypes =  zip [1..] $ repeat Where
+        deductions = zipWith renderDeduction markerTypes (toList ctx)
+        markers = deductions <>
+          [(srcLoc, This $ show (length deductions + 1) <> ") Found hole with type " <> renderType holeTy <> ".")]
+        typeEntries =
+          typeEnv
+            & M.mapWithKey (\var ty -> (ty, renderBinding var ty))
+            & toList
+        (candidates, others) = partition (\(entryTy, _) -> entryTy == holeTy) typeEntries
+        hints' =
+          map (Hint . (("Possible candidate: " <>) . snd)) candidates <>
+          if null others
+            then []
+            else [Hint "Other variables include:"] <> map (Hint . snd) others
+        renderBinding var ty =
+          unId var <> " :: " <> renderType ty
   where
     renderType ty =
       let userFacingType = case ty of
             U32 -> "u32"
             Str -> "string"
-            TUnknown _ -> "unresolved type"
+            TUnknown x -> "t" <> show x
       in "'" <> userFacingType <> "'"
 
     markersForTypeError ctx =

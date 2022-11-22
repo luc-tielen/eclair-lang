@@ -1,0 +1,78 @@
+// RUN: mkdir -p %t && sed s@TEST_DIR@%t@g %s > %t/input.test
+// RUN: split-file %t/input.test %t
+
+//--- program1.eclair
+// RUN: %eclair compile %t/program1.eclair 2> %t/actual1.out
+// RUN: diff -w %t/expected1.out %t/actual1.out
+
+@def edge(u32, u32).
+@def reachable(u32, u32).
+
+reachable(x, y) :-
+  edge(x, y),
+  edge(x, ?),
+  x = ?.
+
+//--- expected1.out
+[error]: Found hole
+     ╭──▶ TEST_DIR/program1.eclair@9:11-9:12
+     │
+   7 │ ╭┤ reachable(x, y) :-
+   8 │ │    edge(x, y),
+   9 │ │    edge(x, ?),
+     • │            ┬
+     • │            ├╸ 2) While checking the type of this..
+     • │            ╰╸ 3) Found hole with type 'u32'.
+  10 │ ├┤   x = ?.
+     • │
+     • ╰╸ 1) While checking the type of this..
+     •
+     │ Hint: Possible candidate: x :: 'u32'
+     │ Hint: Possible candidate: y :: 'u32'
+─────╯
+
+[error]: Found hole
+     ╭──▶ TEST_DIR/program1.eclair@10:7-10:8
+     │
+   7 │ ╭┤ reachable(x, y) :-
+   8 │ │    edge(x, y),
+   9 │ │    edge(x, ?),
+  10 │ ├┤   x = ?.
+     • │    ┬────
+     • │    ╰────╸ 2) While checking the type of this..
+     • │        ├╸ 3) While inferring the type of this..
+     • │        ╰╸ 4) Found hole with type 'u32'.
+     • │
+     • ╰╸ 1) While checking the type of this..
+     •
+     │ Hint: Possible candidate: x :: 'u32'
+     │ Hint: Possible candidate: y :: 'u32'
+─────╯
+//--- program2.eclair
+// RUN: %eclair compile %t/program2.eclair 2> %t/actual2.out
+// RUN: diff %t/expected2.out %t/actual2.out
+
+@def fact(string, u32, u32).
+
+fact(?, 42, ?).
+
+//--- expected2.out
+[error]: Found hole
+     ╭──▶ TEST_DIR/program2.eclair@6:6-6:7
+     │
+   6 │ fact(?, 42, ?).
+     • ┬──────────────
+     • ╰─────╸ 1) While checking the type of this..
+     •      ├╸ 2) While checking the type of this..
+     •      ╰╸ 3) Found hole with type 'string'.
+─────╯
+
+[error]: Found hole
+     ╭──▶ TEST_DIR/program2.eclair@6:13-6:14
+     │
+   6 │ fact(?, 42, ?).
+     • ┬──────────────
+     • ╰────────────╸ 1) While checking the type of this..
+     •             ├╸ 2) While checking the type of this..
+     •             ╰╸ 3) Found hole with type 'u32'.
+─────╯

@@ -129,20 +129,6 @@ a(x, y) :-
      │ Hint: You can solve this by passing exactly 2 arguments to 'fact7'.
 ─────╯
 
-[error]: Found an unexpected amount of arguments for fact 'c'
-     ╭──▶ TEST_DIR/program.eclair@36:3-36:12
-     │
-  32 │ @def c(u32).
-     • ┬───────────
-     • ╰╸ 'c' is defined with 1 argument.
-     •
-  36 │   c(y, 456).
-     •   ┬────────
-     •   ╰╸ 2 arguments are provided here.
-     •
-     │ Hint: You can solve this by passing exactly 1 arguments to 'c'.
-─────╯
-
 [error]: Found an unexpected amount of arguments for fact 'b'
      ╭──▶ TEST_DIR/program.eclair@35:3-35:12
      │
@@ -155,4 +141,18 @@ a(x, y) :-
      •   ╰╸ 2 arguments are provided here.
      •
      │ Hint: You can solve this by passing exactly 1 arguments to 'b'.
+─────╯
+
+[error]: Found an unexpected amount of arguments for fact 'c'
+     ╭──▶ TEST_DIR/program.eclair@36:3-36:12
+     │
+  32 │ @def c(u32).
+     • ┬───────────
+     • ╰╸ 'c' is defined with 1 argument.
+     •
+  36 │   c(y, 456).
+     •   ┬────────
+     •   ╰╸ 2 arguments are provided here.
+     •
+     │ Hint: You can solve this by passing exactly 1 arguments to 'c'.
 ─────╯

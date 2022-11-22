@@ -36,6 +36,7 @@ data Type
 data AST
   = Lit NodeId Literal
   | Var NodeId Id
+  | Hole NodeId
   | Assign NodeId AST AST
   | Atom NodeId Id [Value]
   | Rule NodeId Id [Value] [Clause]
@@ -57,7 +58,7 @@ instance Pretty Type where
   pretty = \case
     U32 -> "u32"
     Str -> "string"
-    TUnknown x -> "unknown@" <> show x
+    TUnknown x -> "ty" <> show x
 
 data RenderPosition = TopLevel | Nested
 
@@ -69,6 +70,8 @@ instance Pretty AST where
           pure $ pretty x
         Var _ v ->
           pure $ pretty v
+        Hole _ ->
+          pure "?"
         Assign _ lhs rhs ->
           pure $ pretty lhs <+> "=" <+> pretty rhs
         Atom _ name values -> do

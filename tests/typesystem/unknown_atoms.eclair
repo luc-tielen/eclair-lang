@@ -22,16 +22,6 @@ path(x, y) :-
 ─────╯
 
 [error]: Missing type definition
-     ╭──▶ TEST_DIR/program.eclair@4:3-4:13
-     │
-   4 │   edge(x, y).
-     •   ┬─────────
-     •   ╰╸ Could not find a type definition for 'edge'.
-     •
-     │ Hint: You can solve this by adding a type definition for 'edge'.
-─────╯
-
-[error]: Missing type definition
      ╭──▶ TEST_DIR/program.eclair@3:1-4:14
      │
    3 │ ╭┤ path(x, y) :-
@@ -40,4 +30,14 @@ path(x, y) :-
      • ╰╸ Could not find a type definition for 'path'.
      •
      │ Hint: You can solve this by adding a type definition for 'path'.
+─────╯
+
+[error]: Missing type definition
+     ╭──▶ TEST_DIR/program.eclair@4:3-4:13
+     │
+   4 │   edge(x, y).
+     •   ┬─────────
+     •   ╰╸ Could not find a type definition for 'edge'.
+     •
+     │ Hint: You can solve this by adding a type definition for 'edge'.
 ─────╯
