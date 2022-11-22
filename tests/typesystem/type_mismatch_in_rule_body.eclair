@@ -19,29 +19,15 @@ fact3(123) :-
 
 //--- expected.out
 [error]: Type mismatch
-     ╭──▶ TEST_DIR/program.eclair@6:16-6:21
+     ╭──▶ TEST_DIR/program.eclair@4:9-4:14
      │
    3 │ ╭┤ fact2(123) :-
    4 │ │    fact1("abc", 123),
-   5 │ │    fact1(456, "def"),
-   6 │ ├┤   fact1("abc", "def").
-     • │                 ┬────
-     • │                 ├╸ 2) While checking the type of this..
-     • │                 ╰╸ 3) Expected this to be of type 'u32', but it actually has type 'string'.
-     • │
-     • ╰╸ 1) While checking the type of this..
-─────╯
-
-[error]: Type mismatch
-     ╭──▶ TEST_DIR/program.eclair@6:9-6:14
-     │
-   3 │ ╭┤ fact2(123) :-
-   4 │ │    fact1("abc", 123),
-   5 │ │    fact1(456, "def"),
-   6 │ ├┤   fact1("abc", "def").
      • │          ┬────
      • │          ├╸ 2) While checking the type of this..
      • │          ╰╸ 3) Expected this to be of type 'u32', but it actually has type 'string'.
+   5 │ │    fact1(456, "def"),
+   6 │ ├┤   fact1("abc", "def").
      • │
      • ╰╸ 1) While checking the type of this..
 ─────╯
@@ -61,15 +47,29 @@ fact3(123) :-
 ─────╯
 
 [error]: Type mismatch
-     ╭──▶ TEST_DIR/program.eclair@4:9-4:14
+     ╭──▶ TEST_DIR/program.eclair@6:9-6:14
      │
    3 │ ╭┤ fact2(123) :-
    4 │ │    fact1("abc", 123),
+   5 │ │    fact1(456, "def"),
+   6 │ ├┤   fact1("abc", "def").
      • │          ┬────
      • │          ├╸ 2) While checking the type of this..
      • │          ╰╸ 3) Expected this to be of type 'u32', but it actually has type 'string'.
+     • │
+     • ╰╸ 1) While checking the type of this..
+─────╯
+
+[error]: Type mismatch
+     ╭──▶ TEST_DIR/program.eclair@6:16-6:21
+     │
+   3 │ ╭┤ fact2(123) :-
+   4 │ │    fact1("abc", 123),
    5 │ │    fact1(456, "def"),
    6 │ ├┤   fact1("abc", "def").
+     • │                 ┬────
+     • │                 ├╸ 2) While checking the type of this..
+     • │                 ╰╸ 3) Expected this to be of type 'u32', but it actually has type 'string'.
      • │
      • ╰╸ 1) While checking the type of this..
 ─────╯

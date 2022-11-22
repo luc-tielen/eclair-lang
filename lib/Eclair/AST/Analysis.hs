@@ -50,6 +50,12 @@ data Var
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions Var "variable" 'S.Input
 
+newtype Hole
+  = Hole NodeId
+  deriving stock Generic
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions Hole "hole" 'S.Input
+
 data Assign
   = Assign { assignId :: NodeId, lhsId :: NodeId, rhsId :: NodeId }
   deriving stock Generic
@@ -188,6 +194,7 @@ data SemanticAnalysis
       '[ LitNumber
        , LitString
        , Var
+       , Hole
        , Assign
        , Atom
        , AtomArg
@@ -279,6 +286,8 @@ analysis prog = S.mkAnalysis addFacts run getFacts
         maybeRuleId <- ask
         for_ maybeRuleId $ \ruleId ->
           S.addFact prog $ RuleVariable ruleId nodeId
+      IR.HoleF nodeId ->
+        S.addFact prog $ Hole nodeId
       IR.AssignF nodeId (lhsId', lhsAction) (rhsId', rhsAction) -> do
         S.addFact prog $ Assign nodeId lhsId' rhsId'
         lhsAction
@@ -330,6 +339,7 @@ analysis prog = S.mkAnalysis addFacts run getFacts
       IR.RuleF nodeId _ _ _ -> nodeId
       IR.DeclareTypeF nodeId _ _ -> nodeId
       IR.ModuleF nodeId _ -> nodeId
+      IR.HoleF nodeId -> nodeId
 
     mapWithPos :: (Word32 -> a -> b) -> [a] -> [b]
     mapWithPos g = zipWith g [0..]

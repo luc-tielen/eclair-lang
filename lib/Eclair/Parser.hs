@@ -162,6 +162,7 @@ assignParser = withNodeId $ \nodeId -> do
 
 valueParser :: Parser AST
 valueParser = lexeme $ withNodeId $ \nodeId ->
+  Hole nodeId <$ P.char '?' <|>
   Var nodeId <$> (identifier <|> wildcard) <|>
   Lit nodeId <$> literal
 

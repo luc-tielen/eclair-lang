@@ -45,24 +45,24 @@ fact2(x, x) :-
 ─────╯
 
 [error]: Type mismatch
-     ╭──▶ TEST_DIR/program.eclair@7:18-7:23
-     │
-   7 │ ╭┤ reachable("abc", "abc") :-
-     • │                   ┬────
-     • │                   ├╸ 2) While checking the type of this..
-     • │                   ╰╸ 3) Expected this to be of type 'u32', but it actually has type 'string'.
-   8 │ ├┤   edge(x, x).
-     • │
-     • ╰╸ 1) While checking the type of this..
-─────╯
-
-[error]: Type mismatch
      ╭──▶ TEST_DIR/program.eclair@7:11-7:16
      │
    7 │ ╭┤ reachable("abc", "abc") :-
      • │            ┬────
      • │            ├╸ 2) While checking the type of this..
      • │            ╰╸ 3) Expected this to be of type 'u32', but it actually has type 'string'.
+   8 │ ├┤   edge(x, x).
+     • │
+     • ╰╸ 1) While checking the type of this..
+─────╯
+
+[error]: Type mismatch
+     ╭──▶ TEST_DIR/program.eclair@7:18-7:23
+     │
+   7 │ ╭┤ reachable("abc", "abc") :-
+     • │                   ┬────
+     • │                   ├╸ 2) While checking the type of this..
+     • │                   ╰╸ 3) Expected this to be of type 'u32', but it actually has type 'string'.
    8 │ ├┤   edge(x, x).
      • │
      • ╰╸ 1) While checking the type of this..

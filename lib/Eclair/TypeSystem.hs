@@ -11,6 +11,8 @@ import qualified Data.Map as Map
 import qualified Data.IntMap as IntMap
 import Eclair.AST.IR
 import Eclair.Id
+import qualified Data.DList as DList
+import Data.DList (DList)
 import qualified Data.DList.DNonEmpty as DNonEmpty
 import Data.DList.DNonEmpty (DNonEmpty)
 
@@ -35,6 +37,7 @@ data TypeError
   | DuplicateTypeDeclaration Id (NonEmpty (NodeId, [Type]))
   | TypeMismatch NodeId Type Type (NonEmpty Context)  -- 1st type is actual, 2nd is expected
   | UnificationFailure Type Type (NonEmpty Context)
+  | HoleFound NodeId (NonEmpty Context) Type (Map Id Type)
   deriving (Eq, Ord, Show)
 
 typeCheck :: AST -> Either [TypeError] TypeInfo
@@ -47,6 +50,7 @@ typeCheck ast
     typedefMap = Map.fromList typedefs'
 
 type TypedefMap = Map Id (NodeId, [Type])
+type UnresolvedHole = Type -> Map Id Type -> TypeError
 
 data CheckState
   = CheckState
@@ -54,15 +58,16 @@ data CheckState
   , typeEnv :: Map Id Type
   , substitution :: IntMap Type
   , nextVar :: Int
-  , errors :: [TypeError]
+  , errors :: DList TypeError
+  , unresolvedHoles :: DList (Type, UnresolvedHole)
   }
 
 type TypeCheckM = ReaderT (DNonEmpty Context) (State CheckState)
 
 runM :: Context -> TypedefMap -> TypeCheckM a -> [TypeError]
 runM ctx typedefMap m =
-  let tcState = CheckState typedefMap mempty mempty 0 mempty
-   in errors $ execState (runReaderT m (pure ctx)) tcState
+  let tcState = CheckState typedefMap mempty mempty 0 mempty mempty
+   in toList . errors $ execState (runReaderT m (pure ctx)) tcState
 
 addContext :: Context -> (TypeCheckM a -> TypeCheckM a)
 addContext ctx = local (`DNonEmpty.snoc` ctx)
@@ -72,7 +77,7 @@ getContext = asks DNonEmpty.toNonEmpty
 
 emitError :: TypeError -> TypeCheckM ()
 emitError err =
-  modify $ \s -> s { errors = err : errors s }
+  modify $ \s -> s { errors = DList.snoc (errors s) err }
 
 bindVar :: Id -> Type -> TypeCheckM ()
 bindVar var ty =
@@ -85,7 +90,7 @@ lookupRelationType name =
 -- A variable can either be a concrete type, or a unification variable.
 -- In case of unification variable, try looking it up in current substitution.
 -- As a result, this will make it so variables in a rule body with same name have the same type.
--- NOTE: if this ends up not being powerful enough, probably need to upgrade to SCC + a solver for each group of "linked" variables.
+-- NOTE: if this ends up not being powerful enough, need to upgrade to SCC + a solver for each group of "linked" variables.
 lookupVarType :: Id -> TypeCheckM (Maybe Type)
 lookupVarType var = do
   (maybeVarTy, subst) <- gets (Map.lookup var . typeEnv &&& substitution)
@@ -122,27 +127,27 @@ unifyType nodeId t1 t2 = addContext (WhileUnifying nodeId) $ do
           ctx <- getContext
           emitError $ UnificationFailure ty1 ty2 ctx
 
-    -- Recursively applies a substitution to a type
-    substituteType :: IntMap Type -> Type -> Type
-    substituteType subst = \case
-      U32 ->
-        U32
-      Str ->
-        Str
-      TUnknown unknown ->
-        case IntMap.lookup unknown subst of
-          Nothing ->
-            TUnknown unknown
-          Just (TUnknown unknown') | unknown == unknown' ->
-            TUnknown unknown
-          Just ty ->
-            substituteType subst ty
-
     -- Update the current substitutions
     updateSubst :: Int -> Type -> TypeCheckM ()
     updateSubst u ty =
       modify $ \s ->
         s { substitution = IntMap.insert u ty (substitution s) }
+
+-- Recursively applies a substitution to a type
+substituteType :: IntMap Type -> Type -> Type
+substituteType subst = \case
+  U32 ->
+    U32
+  Str ->
+    Str
+  TUnknown unknown ->
+    case IntMap.lookup unknown subst of
+      Nothing ->
+        TUnknown unknown
+      Just (TUnknown unknown') | unknown == unknown' ->
+        TUnknown unknown
+      Just ty ->
+        substituteType subst ty
 
 
 -- TODO: try to merge with checkDecl?
@@ -170,6 +175,9 @@ checkDecl ast = case ast of
       Just (nodeId', types) -> do
         checkArgCount name (nodeId', types) (nodeId, args)
         zipWithM_ checkExpr args types
+
+    processUnresolvedHoles
+
   Rule nodeId name args clauses -> do
     lookupRelationType name >>= \case
       Nothing ->
@@ -179,6 +187,8 @@ checkDecl ast = case ast of
         zipWithM_ checkExpr args types
 
     traverse_ checkDecl clauses
+    processUnresolvedHoles
+
   Assign nodeId lhs rhs -> addCtx $ do
     lhsTy <- inferExpr lhs
     rhsTy <- inferExpr rhs
@@ -219,6 +229,9 @@ checkExpr ast expectedTy = addContext (WhileChecking $ getNodeId ast) $ case ast
         when (actualTy /= expectedTy) $ do
           ctx <- getContext
           emitError $ TypeMismatch nodeId actualTy expectedTy ctx
+  Hole nodeId -> do
+    holeTy <- emitHoleFoundError nodeId
+    unifyType nodeId holeTy expectedTy
   e -> do
     -- Basically an unexpected / unhandled case => try inferring as a last resort.
     actualTy <- inferExpr e
@@ -243,8 +256,29 @@ inferExpr ast = addContext (WhileInferring $ getNodeId ast) $ case ast of
         pure ty
       Just ty ->
         pure ty
+  Hole nodeId ->
+    emitHoleFoundError nodeId
   _ ->
     panic "Unexpected case in 'inferExpr'"
+
+emitHoleFoundError :: NodeId -> TypeCheckM Type
+emitHoleFoundError nodeId = do
+  ty <- freshType   -- We generate a fresh type, and use this later to figure out the type of the hole.
+  ctx <- getContext
+  modify' $ \s ->
+    s { unresolvedHoles = DList.snoc (unresolvedHoles s) (ty, HoleFound nodeId ctx) }
+  pure ty
+
+processUnresolvedHoles :: TypeCheckM ()
+processUnresolvedHoles = do
+  holes <- gets (toList . unresolvedHoles)
+  unless (null holes) $ do
+    (env, subst) <- gets (typeEnv &&& substitution)
+    let solvedEnv = map (substituteType subst) env
+    forM_ holes $ \(holeTy, hole) ->
+      emitError $ hole (substituteType subst holeTy) solvedEnv
+
+    modify' $ \s -> s { unresolvedHoles = mempty }
 
 duplicateErrors :: [(Id, (NodeId, [Type]))] -> [TypeError]
 duplicateErrors typeDefs
@@ -276,3 +310,4 @@ getNodeId = \case
   Assign nodeId _ _ -> nodeId
   Lit nodeId _ -> nodeId
   Var nodeId _ -> nodeId
+  Hole nodeId -> nodeId

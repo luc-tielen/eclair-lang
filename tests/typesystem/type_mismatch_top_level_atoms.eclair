@@ -34,16 +34,6 @@ fact2(1, 2).
 ─────╯
 
 [error]: Type mismatch
-     ╭──▶ TEST_DIR/program.eclair@5:14-5:15
-     │
-   5 │ fact1("abc", 2).
-     • ┬───────────────
-     • ╰─────────────╸ 1) While checking the type of this..
-     •              ├╸ 2) While checking the type of this..
-     •              ╰╸ 3) Expected this to be of type 'string', but it actually has type 'u32'.
-─────╯
-
-[error]: Type mismatch
      ╭──▶ TEST_DIR/program.eclair@5:7-5:12
      │
    5 │ fact1("abc", 2).
@@ -54,13 +44,13 @@ fact2(1, 2).
 ─────╯
 
 [error]: Type mismatch
-     ╭──▶ TEST_DIR/program.eclair@6:10-6:11
+     ╭──▶ TEST_DIR/program.eclair@5:14-5:15
      │
-   6 │ fact2(1, 2).
-     • ┬───────────
-     • ╰─────────╸ 1) While checking the type of this..
-     •          ├╸ 2) While checking the type of this..
-     •          ╰╸ 3) Expected this to be of type 'string', but it actually has type 'u32'.
+   5 │ fact1("abc", 2).
+     • ┬───────────────
+     • ╰─────────────╸ 1) While checking the type of this..
+     •              ├╸ 2) While checking the type of this..
+     •              ╰╸ 3) Expected this to be of type 'string', but it actually has type 'u32'.
 ─────╯
 
 [error]: Type mismatch
@@ -71,4 +61,14 @@ fact2(1, 2).
      • ╰──────╸ 1) While checking the type of this..
      •       ├╸ 2) While checking the type of this..
      •       ╰╸ 3) Expected this to be of type 'string', but it actually has type 'u32'.
+─────╯
+
+[error]: Type mismatch
+     ╭──▶ TEST_DIR/program.eclair@6:10-6:11
+     │
+   6 │ fact2(1, 2).
+     • ┬───────────
+     • ╰─────────╸ 1) While checking the type of this..
+     •          ├╸ 2) While checking the type of this..
+     •          ╰╸ 3) Expected this to be of type 'string', but it actually has type 'u32'.
 ─────╯
