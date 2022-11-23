@@ -38,3 +38,27 @@
      •
      │ Hint: Only one '@options' declaration is allowed per relation. Remove all redundant declarations.
 ─────╯
+//--- program3.eclair
+// RUN: %eclair compile %t/program3.eclair 2> %t/actual3.out
+// RUN: diff -w %t/expected3.out %t/actual3.out
+@def fact(string).
+@def fact2(string).
+@options fact(input, input).
+@options fact2(output, output, output).
+
+//--- expected3.out
+[error]: Failed to parse file
+     ╭──▶ TEST_DIR/program3.eclair@5:27-5:28
+     │
+   5 │ @options fact(input, input).
+     •                           ┬
+     •                           ╰╸ More than one option of type 'input' is not allowed.
+─────╯
+
+[error]: Failed to parse file
+     ╭──▶ TEST_DIR/program3.eclair@6:38-6:39
+     │
+   6 │ @options fact2(output, output, output).
+     •                                      ┬
+     •                                      ╰╸ More than one option of type 'output' is not allowed.
+─────╯
