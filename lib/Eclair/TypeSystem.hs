@@ -165,6 +165,8 @@ checkDecl :: AST -> TypeCheckM ()
 checkDecl ast = case ast of
   DeclareType {} ->
     pass
+  Options {} ->
+    pass
   Atom nodeId name args -> do
     ctx <- getContext
     -- TODO find better way to update context only for non-top level atoms
