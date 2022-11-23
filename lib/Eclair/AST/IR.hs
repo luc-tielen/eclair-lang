@@ -9,6 +9,8 @@ module Eclair.AST.IR
   , Literal(..)
   , Type(..)
   , NodeId(..)
+  , Input(..)
+  , Output(..)
   ) where
 
 import Prettyprinter
@@ -33,6 +35,12 @@ data Type
   | TUnknown Int  -- NOTE: unification variable, only used internally!
   deriving (Eq, Ord, Show)
 
+data Input = Input
+  deriving (Eq, Show)
+
+data Output = Output
+  deriving (Eq, Show)
+
 data AST
   = Lit NodeId Literal
   | Var NodeId Id
@@ -40,6 +48,7 @@ data AST
   | Assign NodeId AST AST
   | Atom NodeId Id [Value]
   | Rule NodeId Id [Value] [Clause]
+  | Options NodeId Id (Maybe Input) (Maybe Output)
   | DeclareType NodeId Id [Type]
   | Module NodeId [Decl]
   deriving (Eq, Show)
@@ -85,8 +94,19 @@ instance Pretty AST where
           clauses' <- local (const Nested) $ traverse pretty' clauses
           pure $ pretty name <> parens (withCommas $ map pretty values) <+> ":-" <> hardline <>
                 indent 2 (vsep (zipWith (<>) clauses' separators))
+        Options _ name mInput mOutput -> do
+          let optionArgs = parens (withCommas $ catMaybes [pretty <$> mInput, pretty <$> mOutput])
+          pure $ "@options" <+> pretty name <> optionArgs <> "."
         DeclareType _ name tys ->
           pure $ "@def" <+> pretty name <> parens (withCommas $ map pretty tys) <> "."
         Module _ decls -> do
           decls' <- traverse pretty' decls
           pure $ vsep $ intersperse mempty decls'
+
+instance Pretty Input where
+  pretty Input =
+    "input"
+
+instance Pretty Output where
+  pretty Output =
+    "output"

@@ -17,7 +17,9 @@ module Prelude
   , groupBy
   ) where
 
-import Relude hiding (Type, Constraint, Op, swap, and, id, (.), map, first)
+import Relude hiding ( Type, Constraint, Option, Op
+                     , swap, and, id, (.), map, first
+                     )
 import Control.Arrow hiding (second, loop, (<+>))
 import Control.Comonad
 import Control.Category

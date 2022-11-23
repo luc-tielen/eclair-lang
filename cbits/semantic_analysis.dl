@@ -8,6 +8,9 @@
 .decl rule(rule_id: unsigned, name: symbol)
 .decl rule_arg(rule_id: unsigned, rule_arg_pos: unsigned, rule_arg_id: unsigned)
 .decl rule_clause(rule_id: unsigned, rule_clause_pos: unsigned, rule_clause_id: unsigned)
+.decl options(options_id: unsigned, relation_name: symbol)
+.decl input_relation(relation_name: symbol)
+.decl output_relation(relation_name: symbol)
 .decl declare_type(node_id: unsigned, name: symbol)
 .decl module(node_id: unsigned)
 .decl module_declaration(module_id: unsigned, declaration_id: unsigned)
@@ -30,6 +33,8 @@
 .decl wildcard_in_rule_head(rule_node_id: unsigned, rule_arg_id: unsigned, pos: unsigned)
 .decl wildcard_in_assignment(assign_node_id: unsigned, wildcard_node_id: unsigned)
 .decl rule_with_contradiction(rule_id: unsigned)
+.decl duplicate_options(node_id1: unsigned, node_id2: unsigned)
+.decl option_for_unknown_relation(node_id: unsigned, relation_name: symbol)
 
 .input lit_number
 .input lit_string
@@ -40,6 +45,9 @@
 .input rule
 .input rule_arg
 .input rule_clause
+.input options
+.input input_relation
+.input output_relation
 .input declare_type
 .input module
 .input module_declaration
@@ -53,6 +61,8 @@
 .output wildcard_in_rule_head
 .output wildcard_in_assignment
 .output rule_with_contradiction
+.output duplicate_options
+.output option_for_unknown_relation
 
 // Top level facts: no variables allowed
 variable_in_fact(atom_arg_id, var_name) :-
@@ -90,6 +100,16 @@ wildcard_in_assignment(assign_node_id, lhs_node_id) :-
 wildcard_in_assignment(assign_node_id, rhs_node_id) :-
   assign(assign_node_id, _, rhs_node_id),
   wildcard(rhs_node_id).
+
+duplicate_options(node_id1, node_id2) :-
+  options(node_id1, relation_name),
+  options(node_id2, relation_name),
+  // < instead of != makes errors less noisy
+  node_id1 < node_id2.
+
+option_for_unknown_relation(node_id, relation_name) :-
+  options(node_id, relation_name),
+  !declare_type(_, relation_name).
 
 // All variables with the same name in a rule are aliases of each other.
 alias(rule_id, var_id1, var_id2) :-

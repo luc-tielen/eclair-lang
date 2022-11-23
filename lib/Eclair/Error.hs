@@ -209,16 +209,40 @@ wildcardInAssignmentToReport file' fileContent spanMap (WildcardInAssignment ass
       hints' = ["This statement can be removed since it has no effect."]
    in Err Nothing title markers hints'
 
+duplicateOptionsToReport :: FilePath -> Text -> SpanMap -> DuplicateOptions -> Report Text
+duplicateOptionsToReport file' fileContent spanMap (DuplicateOptions nodeId1 nodeId2) =
+  let title = "Found duplicate options for a relation"
+      srcLoc1 = getSourcePos file' fileContent spanMap nodeId1
+      srcLoc2 = getSourcePos file' fileContent spanMap nodeId2
+      markers = [ (srcLoc1, Where "First occurrence of '@options'.")
+                , (srcLoc2, This "Second occurrence of '@options'.")
+                ]
+      hints' = [ Hint "Only one '@options' declaration is allowed per relation. Remove all redundant declarations."]
+   in Err Nothing title markers hints'
+
+optionsForUnknownRelationToReport :: FilePath -> Text -> SpanMap -> OptionsForUnknownRelation -> Report Text
+optionsForUnknownRelationToReport file' fileContent spanMap (OptionsForUnknownRelation nodeId relation) =
+  let title = "Found options for an unknown relation"
+      srcLoc = getSourcePos file' fileContent spanMap nodeId
+      markers = [ (srcLoc, This $ "Cannot apply options to unknown relation '" <> unId relation <> "'.")
+                ]
+      hints' = [ Hint $ "1) Declare the relation '" <> unId relation <> "'."
+               , Hint   "2) Or remove this redundant options declaration."
+               ]
+   in Err Nothing title markers hints'
+
 -- NOTE: pattern match is done this way to keep track of additional errors that need to be reported
 {-# ANN semanticErrorsToReports ("HLint: ignore Use record patterns" :: String) #-}
 semanticErrorsToReports :: FilePath -> Text -> SpanMap -> SemanticErrors -> [Report Text]
-semanticErrorsToReports file' fileContent spanMap e@(SemanticErrors _ _ _ _ _ _) =
+semanticErrorsToReports file' fileContent spanMap e@(SemanticErrors _ _ _ _ _ _ _ _) =
   concat [ emptyModuleReports
          , ungroundedVarReports
          , variableInFactReports
          , wildcardInFactReports
          , wildcardInRuleHeadReports
          , wildcardInAssignmentReports
+         , duplicateOpts
+         , optsForUnknownRelations
          ]
   where
     getReportsFor :: (SemanticErrors -> Container a)
@@ -231,6 +255,8 @@ semanticErrorsToReports file' fileContent spanMap e@(SemanticErrors _ _ _ _ _ _)
     wildcardInFactReports = getReportsFor wildcardsInFacts wildcardInFactToReport
     wildcardInRuleHeadReports = getReportsFor wildcardsInRuleHeads wildcardInRuleHeadToReport
     wildcardInAssignmentReports = getReportsFor wildcardsInAssignments wildcardInAssignmentToReport
+    duplicateOpts = getReportsFor duplicateOptions duplicateOptionsToReport
+    optsForUnknownRelations = getReportsFor optionsForUnknownRelations optionsForUnknownRelationToReport
 
 pluralize :: Int -> Text -> Text -> Text
 pluralize count singular plural' =
@@ -283,5 +309,5 @@ style = reAnnotate style'
       CodeStyle ->
         color White
 
-instance HasHints Void msg where
+instance HasHints CustomParseErr msg where
   hints = const mempty
