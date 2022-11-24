@@ -16,7 +16,7 @@ module Eclair.RA.IndexSelection
 -- http://www.vldb.org/pvldb/vol12/p141-subotic.pdf
 
 import Data.Maybe (fromJust)
-import Eclair.AST.IR (UsageMode(..))
+import Eclair.Id
 import Eclair.RA.IR
 import Eclair.Pretty
 import Eclair.Comonads
@@ -53,9 +53,9 @@ type IndexSelection = [(Relation, Map SearchSignature Index)]
 type IndexMap = Map Relation (Set Index)
 type IndexSelector = Relation -> SearchSignature -> Index
 
-runIndexSelection :: TypeInfo -> Map Relation UsageMode -> RA -> (IndexMap, IndexSelector)
-runIndexSelection typeInfo usageMapping ra =
-  let searchMap = searchesForProgram typeInfo usageMapping ra
+runIndexSelection :: TypeInfo -> RA -> (IndexMap, IndexSelector)
+runIndexSelection typeInfo ra =
+  let searchMap = searchesForProgram typeInfo ra
       indexSelection :: IndexSelection
       indexSelection = Map.foldrWithKey (\r searchSet acc ->
         let graph = buildGraph searchSet
@@ -75,21 +75,17 @@ data SearchFact
   | Related Relation Relation
   deriving (Eq, Ord)
 
-searchesForProgram :: TypeInfo -> Map Relation UsageMode -> RA -> SearchMap
-searchesForProgram typeInfo usageMapping ra =
+-- All relations (including delta_XXX, new_XXX) need atleast one index for full order search
+-- Swap operation requires indices of r1 and r2 to be related.
+searchesForProgram :: TypeInfo -> RA -> SearchMap
+searchesForProgram typeInfo ra =
   let raSearchFacts = execState (gcata (dsitribute extractEqualities) constraintsForRA ra) mempty
-      outputSearchFacts = getOutputSearchFacts typeInfo usageMapping
-      initialSearchFacts = raSearchFacts <> outputSearchFacts
-      facts = initialSearchFacts <> getAdditionalSearchFacts typeInfo initialSearchFacts
+      relationFullSearches = getFullSearchesForRelations typeInfo
+      facts = raSearchFacts <> relationFullSearches
    in solve facts
   where
     addFact fact = modify (fact:)
     constraintsForRA = \case
-      ProjectF r values -> do
-        -- TODO: handle this with type declaration instead
-        let columns = columnsFor values
-            signature = SearchSignature $ Set.fromList columns
-        addFact $ SearchOn r signature
       SearchF r a (traverse_ tSnd -> m) (tThd -> action) -> do
         -- 1. Only direct constraints in the search matter, since that is what
         --    is used to select the index with, afterwards we are already
@@ -106,8 +102,15 @@ searchesForProgram typeInfo usageMapping ra =
         let cs = columnsFor cols
             signature = SearchSignature $ Set.fromList cs
         addFact $ SearchOn r signature
-      SwapF r1 r2  -> addFact $ Related r1 r2
-      raf -> traverse_ tThd raf
+      MergeF from' _ -> do
+        -- Always add a full search signature for the from relation, so we don't lose any data.
+        let columns = columnsFor . fromJust $ Map.lookup (stripIdPrefixes from') typeInfo
+            signature = SearchSignature $ Set.fromList columns
+        addFact $ SearchOn from' signature
+      SwapF r1 r2  ->
+        addFact $ Related r1 r2
+      raf ->
+        traverse_ tThd raf
 
     dsitribute
       :: Corecursive t
@@ -119,37 +122,15 @@ searchesForProgram typeInfo usageMapping ra =
           base_t_a = map tThd m
         in Triple (embed base_t_t) (g base_t_tb) base_t_a
 
--- We always add an index on all columns for output facts,
--- to get back all results.
-getOutputSearchFacts :: TypeInfo -> Map Relation UsageMode -> [SearchFact]
-getOutputSearchFacts typeInfo usageMapping =
-  usageMapping
-    & Map.toList
-    & mapMaybe (\(r, mode) ->
-      if mode == Output || mode == InputOutput
-        then SearchOn r . toSearchSignature <$> Map.lookup r typeInfo
-        else Nothing)
-
--- Finds all facts that didn't have any searches,
--- and defaults those to a search that makes use of all columns.
--- TODO is this function still needed now that we have getOutputSearchFacts?
--- Maybe if we have SA check + optimizations to remove dead clauses..
-getAdditionalSearchFacts :: TypeInfo -> [SearchFact] -> [SearchFact]
-getAdditionalSearchFacts typeInfo searchFacts =
+-- For every relation we add atleast 1 one index with all columns.
+getFullSearchesForRelations :: TypeInfo -> [SearchFact]
+getFullSearchesForRelations typeInfo =
   [ SearchOn r . toSearchSignature $ unsafeLookup r
   | r <- Map.keys typeInfo
-  , r `notElem` rs
   ]
   where
-    rs = mapMaybe searchedOnRelation searchFacts
     unsafeLookup r = fromJust $ Map.lookup r typeInfo
-    searchedOnRelation = \case
-      SearchOn r _ -> Just r
-      _ -> Nothing
-
-toSearchSignature :: [a] -> SearchSignature
-toSearchSignature =
-  SearchSignature . Set.fromList . columnsFor
+    toSearchSignature = SearchSignature . Set.fromList . columnsFor
 
 -- TODO better name
 data Val

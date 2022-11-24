@@ -33,7 +33,7 @@ search fact1 as fact10 do
 declare_type Program
 {
   symbol_table
-  fact1 btree(num_columns=2, index=[1], block_size=256, search_type=linear)
+  fact1 btree(num_columns=2, index=[1,0], block_size=256, search_type=linear)
   fact2 btree(num_columns=2, index=[0,1], block_size=256, search_type=linear)
 }
 

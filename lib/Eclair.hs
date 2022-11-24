@@ -140,10 +140,9 @@ rules config = \case
     liftIO $ putTextLn $ printDoc ra
   CompileEIR path -> do
     stringMapping <- Rock.fetch (StringMapping path)
-    usageMapping <- Rock.fetch (UsageMapping path)
     ra <- Rock.fetch (CompileRA path)
     typeInfo <- Rock.fetch (Typecheck path)
-    pure $ compileToEIR stringMapping usageMapping typeInfo ra
+    pure $ compileToEIR stringMapping typeInfo ra
   EmitEIR path -> do
     eir <- Rock.fetch (CompileEIR path)
     liftIO $ putTextLn $ printDoc eir

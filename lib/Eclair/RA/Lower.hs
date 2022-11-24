@@ -19,13 +19,12 @@ import Eclair.RA.IR (RA)
 import Eclair.RA.IndexSelection
 import qualified Eclair.EIR.IR as EIR
 import qualified Eclair.RA.IR as RA
-import qualified Eclair.AST.IR as AST
 import qualified Eclair.LLVM.Metadata as M
 
 
-compileToEIR :: StringMap -> Map Relation AST.UsageMode -> TypeInfo -> RA -> EIR
-compileToEIR stringMap usageMapping typeInfo ra =
-  let (indexMap, getIndexForSearch) = runIndexSelection typeInfo usageMapping ra
+compileToEIR :: StringMap -> TypeInfo -> RA -> EIR
+compileToEIR stringMap typeInfo ra =
+  let (indexMap, getIndexForSearch) = runIndexSelection typeInfo ra
       containerInfos' = getContainerInfos indexMap typeInfo
       end = "the.end"
       lowerState = LowerState typeInfo indexMap getIndexForSearch containerInfos' end mempty
@@ -46,12 +45,12 @@ compileInit stringMap = do
   relationInitActions <- forEachRelation program $ \(r, idx, _) relationPtr ->
     call r idx EIR.InitializeEmpty [relationPtr]
   let addSymbolActions = toSymbolTableInsertActions symbolTable stringMap
-      initActions = symbolTableInitAction : relationInitActions ++ addSymbolActions
+      initActions = symbolTableInitAction : relationInitActions <> addSymbolActions
   apiFn "eclair_program_init" [] (EIR.Pointer EIR.Program) $
     assign program heapAllocProgram
     : initActions
     -- Open question: if some facts are known at compile time, search for derived facts up front?
-    ++ [ ret program ]
+    <> [ ret program ]
 
 toSymbolTableInsertActions :: CodegenM EIR -> StringMap -> [CodegenM EIR]
 toSymbolTableInsertActions symbolTable stringMap =
@@ -72,7 +71,7 @@ compileDestroy = do
   let destroyActions = symbolTableDestroyAction : relationDestroyActions
   apiFn "eclair_program_destroy" [EIR.Pointer EIR.Program] EIR.Void $
     destroyActions
-    ++ [ freeProgram program ]
+    <> [ freeProgram program ]
 
 compileRun :: RA -> CodegenM EIR
 compileRun ra = do
@@ -127,7 +126,7 @@ generateProgramInstructions = gcata (distribute extractEqualities) $ \case
         insertStmts = flip map indices $ \idx ->
           -- NOTE: The insert function is different for each r + idx combination though!
           call r idx EIR.Insert [lookupRelationByIndex r idx, var']
-    block $ allocValue : assignStmts ++ insertStmts
+    block $ allocValue : assignStmts <> insertStmts
   RA.PurgeF r ->
     block =<< relationUnaryFn r EIR.Purge
   RA.SwapF r1 r2 ->
@@ -176,7 +175,7 @@ generateProgramInstructions = gcata (distribute extractEqualities) $ \case
     containsVar <- var "contains_result"
     let assignActions = zipWith (assign . fieldAccess value) [0..] columnValues
     block $ allocValue : assignActions
-        ++ [ assign containsVar $ call r idx EIR.Contains [relationPtr, value]
+        <> [ assign containsVar $ call r idx EIR.Contains [relationPtr, value]
             , not' containsVar
             ]
   RA.ColumnIndexF a' col -> ask >>= \case

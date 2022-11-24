@@ -10,7 +10,6 @@ import Test.Hspec
 import System.FilePath
 import Eclair.Id
 import Eclair.Parser
-import Eclair.AST.IR (UsageMode(..))
 import Eclair.AST.Lower
 import Eclair.RA.IndexSelection
 import qualified Eclair.TypeSystem as TS
@@ -18,8 +17,8 @@ import qualified Data.Text as T
 import NeatInterpolation
 
 
-idxSel :: FilePath -> Text -> Map Id UsageMode -> IndexMap
-idxSel path text' usageMapping = do
+idxSel :: FilePath -> Text -> IndexMap
+idxSel path text' = do
   let file = "tests/fixtures" </> path <.> "dl"
       parseResult = map (\(ast, _, _) -> ast) $ parseText file text'
    in case parseResult of
@@ -29,7 +28,7 @@ idxSel path text' usageMapping = do
         Left _ -> panic $ "Failed to typecheck " <> toText file <> "!"
         Right typeInfo -> do
           let ra = compileToRA ast
-              (indexMap, _) = runIndexSelection typeInfo usageMapping ra
+              (indexMap, _) = runIndexSelection typeInfo ra
            in indexMap
 
 toSelection :: [(T.Text, [[Column]])] -> IndexMap
@@ -50,8 +49,7 @@ spec = describe "Index selection" $ parallel $ do
       edge(2, 3).
 
       another(1,2,3).
-      |] (Map.fromList [(Id "edge", Input), (Id "another", Input)])
-      `shouldBe`
+      |] `shouldBe`
       toSelection [("another", [[0,1,2]]), ("edge", [[0,1]])]
 
   it "creates indexes for a single non-recursive rule" $ do
@@ -62,8 +60,7 @@ spec = describe "Index selection" $ parallel $ do
       edge(1,2).
 
       path(x,y) :- edge(x,y).
-      |] (Map.fromList [(Id "edge", Input), (Id "path", Output)])
-      `shouldBe`
+      |] `shouldBe`
       toSelection [("edge", [[0,1]]), ("path", [[0,1]])]
 
   it "creates indexes for nested searches correctly" $ do
@@ -78,8 +75,7 @@ spec = describe "Index selection" $ parallel $ do
       third(x, y) :-
         first(y),
         second(x, y).
-      |] (Map.fromList [(Id "first", Input), (Id "second", Input), (Id "third", Output)])
-      `shouldBe`
+      |] `shouldBe`
       toSelection [ ("first",  [[0]])
                   , ("second", [[1,0]])
                   , ("third",  [[0,1]])
@@ -111,8 +107,7 @@ spec = describe "Index selection" $ parallel $ do
       a(z) :-
         d(z, z, 12, z),
         other(z).
-      |] (Map.fromList [(Id "a", Input), (Id "b", Input), (Id "c", Input), (Id "d", Input), (Id "other", Input)])
-      `shouldBe`
+      |] `shouldBe`
       toSelection [ ("a", [[0]])
                   , ("b", [[0,1]])
                   , ("c", [[0,1,2]])
@@ -150,8 +145,7 @@ spec = describe "Index selection" $ parallel $ do
       d(x) :-
         // [0, 2]
         triple(123, x, 456).
-      |] (Map.fromList [(Id "a", Input), (Id "b", Input), (Id "c", Input), (Id "d", Input), (Id "triple", Input)])
-      `shouldBe`
+      |] `shouldBe`
       toSelection [ ("a", [[0]])
                   , ("b", [[0]])
                   , ("c", [[0,1,2]])
@@ -189,9 +183,7 @@ spec = describe "Index selection" $ parallel $ do
       fifth(x) :-
         // [1] => [1,0,2]
         first(x, 123, a).
-      |] (Map.fromList [(Id "first", Input), (Id "second", Input)
-                       , (Id "third", Input), (Id "fourth", Input), (Id "fifth", Input)])
-      `shouldBe`
+      |] `shouldBe`
       toSelection [ ("first", [[1,0,2], [2,1]])
                   , ("second", [[0]])
                   , ("third", [[0]])
@@ -209,8 +201,7 @@ spec = describe "Index selection" $ parallel $ do
       chain(x, y, z) :-
         link(x, y),
         link(y, z).
-      |] (Map.fromList [(Id "link", Input), (Id "chain", Output)])
-      `shouldBe`
+      |] `shouldBe`
       toSelection [ ("link", [[0,1]])
                   , ("chain", [[0,1,2]])
                   ]
@@ -225,8 +216,7 @@ spec = describe "Index selection" $ parallel $ do
       path(x, y) :-
         edge(x, z),
         path(z, y).
-      |] (Map.fromList [(Id "edge", Input), (Id "path", Output)])
-      `shouldBe`
+      |] `shouldBe`
       toSelection [ ("delta_path", [[0,1]])
                   , ("new_path", [[0,1]])
                   , ("path", [[0,1]])
@@ -248,8 +238,7 @@ spec = describe "Index selection" $ parallel $ do
       c(2).
       c(x) :- b(x), d(x).
       d(3).
-      |] (Map.fromList [(Id "a", Input), (Id "b", Input), (Id "c", Input), (Id "d", Input)])
-      `shouldBe`
+      |] `shouldBe`
       toSelection [ ("a", [[0]])
                   , ("b", [[0]])
                   , ("new_b", [[0]])
@@ -276,14 +265,13 @@ spec = describe "Index selection" $ parallel $ do
         a(123, 123, x, y, z).
 
       b(x) :-
-        // [4,2,3]
+        // [2,3,4]
         a(x, y, 123, 123, 123).
 
       b(x) :-
         // [4] => [4,2,3]
         a(x, y, z, a, 123).
-      |] (Map.fromList [(Id "a", Input), (Id "b", Input)])
-      `shouldBe`
+      |] `shouldBe`
       toSelection [ ("a", [[0,1,2,3,4], [4,2,3]])
                   , ("b", [[0]])
                   ]
@@ -299,8 +287,7 @@ spec = describe "Index selection" $ parallel $ do
       path(x, z) :-
         edge(x, y),
         path(y, z).
-      |] (Map.fromList [(Id "edge", Input), (Id "path", Output)])
-      `shouldBe`
+      |] `shouldBe`
       toSelection [ ("delta_path", [[0,1]])
                   , ("new_path", [[0,1]])
                   , ("path", [[0,1]])
@@ -318,8 +305,7 @@ spec = describe "Index selection" $ parallel $ do
       reachable(x, z) :-
         edge(x, _),
         reachable(_, z).
-      |] (Map.fromList [(Id "edge", Input), (Id "reachable", Output)])
-      `shouldBe`
+      |] `shouldBe`
       toSelection [ ("delta_reachable", [[0,1]])
                   , ("new_reachable", [[0,1]])
                   , ("reachable", [[0,1]])
