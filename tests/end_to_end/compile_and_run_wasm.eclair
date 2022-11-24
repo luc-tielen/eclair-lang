@@ -24,6 +24,8 @@
 
 @def edge(u32, u32).
 @def reachable(u32, u32).
+@options edge(input).
+@options reachable(output).
 
 reachable(x, y) :-
   edge(x, y).

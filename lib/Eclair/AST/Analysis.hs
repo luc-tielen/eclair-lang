@@ -18,6 +18,7 @@ module Eclair.AST.Analysis
   , OptionsForUnknownRelation(..)
   , IR.NodeId(..)
   , Container
+  , computeUsageMapping
   ) where
 
 import qualified Language.Souffle.Interpreted as S
@@ -346,12 +347,18 @@ analysis prog = S.mkAnalysis addFacts run getFacts
         local (const $ Just nodeId) $ do
           sequence_ argActions
           sequence_ clauseActions
-      IR.OptionsF nodeId name mInput mOutput -> do
+      IR.OptionsF nodeId name usageMode -> do
         S.addFact prog $ Options nodeId name
-        for_ mInput $ const $
-          S.addFact prog $ InputRelation name
-        for_ mOutput $ const $
-          S.addFact prog $ OutputRelation name
+        case usageMode of
+          IR.Input ->
+            S.addFact prog $ InputRelation name
+          IR.Output ->
+            S.addFact prog $ OutputRelation name
+          IR.InputOutput -> do
+            S.addFact prog $ InputRelation name
+            S.addFact prog $ OutputRelation name
+          IR.Internal ->
+            pass
       IR.DeclareTypeF nodeId ty _ ->
         S.addFact prog $ DeclareType nodeId ty
       IR.ModuleF nodeId (unzip -> (declNodeIds, actions)) -> do
@@ -387,7 +394,7 @@ analysis prog = S.mkAnalysis addFacts run getFacts
       IR.AssignF nodeId _ _ -> nodeId
       IR.AtomF nodeId _ _ -> nodeId
       IR.RuleF nodeId _ _ _ -> nodeId
-      IR.OptionsF nodeId _ _ _ -> nodeId
+      IR.OptionsF nodeId _ _ -> nodeId
       IR.DeclareTypeF nodeId _ _ -> nodeId
       IR.ModuleF nodeId _ -> nodeId
 
@@ -399,3 +406,12 @@ runAnalysis ast = S.runSouffle SemanticAnalysis $ \case
   Nothing -> panic "Failed to load Souffle during semantic analysis!"
   Just prog -> S.execAnalysis (analysis prog) ast
 
+computeUsageMapping :: IR.AST -> Map Id IR.UsageMode
+computeUsageMapping ast =
+  Map.fromList pairs
+  where
+    pairs = flip cata ast $ \case
+      IR.OptionsF _ name mode ->
+        one (name, mode)
+      astf ->
+        fold astf

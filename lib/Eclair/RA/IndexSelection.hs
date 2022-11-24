@@ -16,6 +16,7 @@ module Eclair.RA.IndexSelection
 -- http://www.vldb.org/pvldb/vol12/p141-subotic.pdf
 
 import Data.Maybe (fromJust)
+import Eclair.AST.IR (UsageMode(..))
 import Eclair.RA.IR
 import Eclair.Pretty
 import Eclair.Comonads
@@ -33,8 +34,10 @@ newtype SearchSignature
   = SearchSignature (Set Column)
   deriving (Eq, Ord, Show)
 
-newtype Index = Index [Column]  -- TODO: use NonEmpty
-  deriving (Eq, Ord, Show)
+newtype Index
+  = Index
+  { unIndex :: [Column]  -- TODO: use NonEmpty
+  } deriving (Eq, Ord, Show)
 
 instance Pretty Index where
   pretty (Index columns) =
@@ -50,9 +53,9 @@ type IndexSelection = [(Relation, Map SearchSignature Index)]
 type IndexMap = Map Relation (Set Index)
 type IndexSelector = Relation -> SearchSignature -> Index
 
-runIndexSelection :: TypeInfo -> RA -> (IndexMap, IndexSelector)
-runIndexSelection typeInfo ra =
-  let searchMap = searchesForProgram typeInfo ra
+runIndexSelection :: TypeInfo -> Map Relation UsageMode -> RA -> (IndexMap, IndexSelector)
+runIndexSelection typeInfo usageMapping ra =
+  let searchMap = searchesForProgram typeInfo usageMapping ra
       indexSelection :: IndexSelection
       indexSelection = Map.foldrWithKey (\r searchSet acc ->
         let graph = buildGraph searchSet
@@ -72,10 +75,12 @@ data SearchFact
   | Related Relation Relation
   deriving (Eq, Ord)
 
-searchesForProgram :: TypeInfo -> RA -> SearchMap
-searchesForProgram typeInfo ra =
-  let searchFacts = execState (gcata (dsitribute extractEqualities) constraintsForRA ra) mempty
-      facts = searchFacts ++ getAdditionalSearchFacts typeInfo searchFacts
+searchesForProgram :: TypeInfo -> Map Relation UsageMode -> RA -> SearchMap
+searchesForProgram typeInfo usageMapping ra =
+  let raSearchFacts = execState (gcata (dsitribute extractEqualities) constraintsForRA ra) mempty
+      outputSearchFacts = getOutputSearchFacts typeInfo usageMapping
+      initialSearchFacts = raSearchFacts <> outputSearchFacts
+      facts = initialSearchFacts <> getAdditionalSearchFacts typeInfo initialSearchFacts
    in solve facts
   where
     addFact fact = modify (fact:)
@@ -114,9 +119,21 @@ searchesForProgram typeInfo ra =
           base_t_a = map tThd m
         in Triple (embed base_t_t) (g base_t_tb) base_t_a
 
+-- We always add an index on all columns for output facts,
+-- to get back all results.
+getOutputSearchFacts :: TypeInfo -> Map Relation UsageMode -> [SearchFact]
+getOutputSearchFacts typeInfo usageMapping =
+  usageMapping
+    & Map.toList
+    & mapMaybe (\(r, mode) ->
+      if mode == Output || mode == InputOutput
+        then SearchOn r . toSearchSignature <$> Map.lookup r typeInfo
+        else Nothing)
 
 -- Finds all facts that didn't have any searches,
 -- and defaults those to a search that makes use of all columns.
+-- TODO is this function still needed now that we have getOutputSearchFacts?
+-- Maybe if we have SA check + optimizations to remove dead clauses..
 getAdditionalSearchFacts :: TypeInfo -> [SearchFact] -> [SearchFact]
 getAdditionalSearchFacts typeInfo searchFacts =
   [ SearchOn r . toSearchSignature $ unsafeLookup r
@@ -126,10 +143,13 @@ getAdditionalSearchFacts typeInfo searchFacts =
   where
     rs = mapMaybe searchedOnRelation searchFacts
     unsafeLookup r = fromJust $ Map.lookup r typeInfo
-    toSearchSignature = SearchSignature . Set.fromList . columnsFor
     searchedOnRelation = \case
       SearchOn r _ -> Just r
       _ -> Nothing
+
+toSearchSignature :: [a] -> SearchSignature
+toSearchSignature =
+  SearchSignature . Set.fromList . columnsFor
 
 -- TODO better name
 data Val

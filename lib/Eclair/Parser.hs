@@ -140,21 +140,27 @@ optionsParser :: NodeId -> Parser AST
 optionsParser nodeId = do
   void $ lexeme $ P.chunk "@options"
   name <- lexeme identifier
-  (mInput, mOutput) <- betweenParens $ do
+  usageMode <- betweenParens $ do
     options <- optionParser `P.sepBy1` lexeme comma
     let (inputs, outputs) = partitionEithers options
-    when (length inputs > 1) $ do
+        inputLength = length inputs
+        outputLength = length outputs
+    when (inputLength > 1) $ do
       P.customFailure TooManyInputOptions
-    when (length outputs > 1) $ do
+    when (outputLength > 1) $ do
       P.customFailure TooManyOutputOptions
 
-    pure (viaNonEmpty head inputs, viaNonEmpty head outputs)
+    pure $ case (inputLength, outputLength) of
+      (0, 1) -> Output
+      (1, 0) -> Input
+      (1, 1) -> InputOutput
+      _      -> Internal
 
   void $ P.char '.'
-  pure $ Options nodeId name mInput mOutput
+  pure $ Options nodeId name usageMode
   where
     optionParser = lexeme $
-      Left Input <$ P.chunk "input" <|> Right Output <$ P.chunk "output"
+      Left <$> P.chunk "input" <|> Right <$> P.chunk "output"
 
 data FactOrRule = FactType | RuleType
 

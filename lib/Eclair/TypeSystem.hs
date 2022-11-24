@@ -307,7 +307,7 @@ getNodeId :: AST -> NodeId
 getNodeId = \case
   Module nodeId _ -> nodeId
   DeclareType nodeId _ _ -> nodeId
-  Options nodeId _ _ _ -> nodeId
+  Options nodeId _ _ -> nodeId
   Rule nodeId _ _ _ -> nodeId
   Atom nodeId _ _ -> nodeId
   Assign nodeId _ _ -> nodeId

@@ -1,9 +1,8 @@
 
 module Eclair.RA.Lower ( compileToEIR ) where
 
-import Prelude hiding (head)
+import Prelude
 import Data.Maybe (fromJust)
-import Data.List (head)
 
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -20,12 +19,13 @@ import Eclair.RA.IR (RA)
 import Eclair.RA.IndexSelection
 import qualified Eclair.EIR.IR as EIR
 import qualified Eclair.RA.IR as RA
+import qualified Eclair.AST.IR as AST
 import qualified Eclair.LLVM.Metadata as M
 
 
-compileToEIR :: StringMap -> TypeInfo -> RA -> EIR
-compileToEIR stringMap typeInfo ra =
-  let (indexMap, getIndexForSearch) = runIndexSelection typeInfo ra
+compileToEIR :: StringMap -> Map Relation AST.UsageMode -> TypeInfo -> RA -> EIR
+compileToEIR stringMap usageMapping typeInfo ra =
+  let (indexMap, getIndexForSearch) = runIndexSelection typeInfo usageMapping ra
       containerInfos' = getContainerInfos indexMap typeInfo
       end = "the.end"
       lowerState = LowerState typeInfo indexMap getIndexForSearch containerInfos' end mempty
@@ -121,7 +121,7 @@ generateProgramInstructions = gcata (distribute extractEqualities) $ \case
     let -- NOTE: for allocating a value, the index does not matter
         -- (a value is always represented as [N x i32] internally)
         -- This saves us doing a few stack allocations.
-        firstIdx = head indices
+        firstIdx = fromJust $ viaNonEmpty head indices
         allocValue = assign var' $ stackAlloc r firstIdx EIR.Value
         assignStmts = zipWith (assign . fieldAccess var') [0..] values'
         insertStmts = flip map indices $ \idx ->
@@ -135,7 +135,7 @@ generateProgramInstructions = gcata (distribute extractEqualities) $ \case
   RA.MergeF r1 r2 -> do
     -- NOTE: r1 = from/src, r2 = to/dst
     -- TODO: which idx? just select first matching? or idx on all columns?
-    idxR1 <- head <$> indexesForRelation r1
+    idxR1 <- fromJust . viaNonEmpty head <$> indexesForRelation r1
     let relation1Ptr = lookupRelationByIndex r1 idxR1
 
     indices2 <- indexesForRelation r2

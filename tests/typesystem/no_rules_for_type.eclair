@@ -4,5 +4,7 @@
 
 @def edge(u32, u32).
 @def chain(u32, u32, u32).
+@options edge(input).
+@options chain(output).
 
 // CHECK: chain

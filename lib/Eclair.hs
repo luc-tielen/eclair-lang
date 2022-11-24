@@ -22,6 +22,7 @@ import Eclair.EIR.Lower
 import Eclair.Parser
 import Eclair.Pretty
 import Eclair.Error
+import Eclair.Id
 import Eclair.ArgParser (Target(..))
 import Eclair.AST.IR
 import Eclair.AST.Transforms
@@ -55,6 +56,7 @@ data Query a where
   CompileLLVM :: FilePath -> Query Module
   EmitLLVM :: FilePath -> Query ()
   StringMapping :: FilePath -> Query (Map Text Word32)
+  UsageMapping :: FilePath -> Query (Map Id UsageMode)
 
 queryFilePath :: Query a -> FilePath
 queryFilePath = \case
@@ -70,6 +72,7 @@ queryFilePath = \case
   CompileLLVM path         -> path
   EmitLLVM path            -> path
   StringMapping path       -> path
+  UsageMapping path    -> path
 
 queryEnum :: Query a -> Int
 queryEnum = \case
@@ -85,6 +88,7 @@ queryEnum = \case
   CompileLLVM {}         -> 9
   EmitLLVM {}            -> 10
   StringMapping {}       -> 11
+  UsageMapping {}    -> 12
 
 deriveGEq ''Query
 
@@ -125,6 +129,9 @@ rules config = \case
   StringMapping path -> do
     (_, mapping) <- Rock.fetch (TransformAST path)
     pure mapping
+  UsageMapping path -> do
+    (ast, _, _) <- Rock.fetch (Parse path)
+    pure $ SA.computeUsageMapping ast
   CompileRA path -> do
     ast <- fst <$> Rock.fetch (TransformAST path)
     pure $ compileToRA ast
@@ -133,16 +140,18 @@ rules config = \case
     liftIO $ putTextLn $ printDoc ra
   CompileEIR path -> do
     stringMapping <- Rock.fetch (StringMapping path)
+    usageMapping <- Rock.fetch (UsageMapping path)
     ra <- Rock.fetch (CompileRA path)
     typeInfo <- Rock.fetch (Typecheck path)
-    pure $ compileToEIR stringMapping typeInfo ra
+    pure $ compileToEIR stringMapping usageMapping typeInfo ra
   EmitEIR path -> do
     eir <- Rock.fetch (CompileEIR path)
     liftIO $ putTextLn $ printDoc eir
   CompileLLVM path -> do
     eir <- Rock.fetch (CompileEIR path)
     stringMapping <- Rock.fetch (StringMapping path)
-    liftIO $ compileToLLVM config stringMapping eir
+    usageMapping <- Rock.fetch (UsageMapping path)
+    liftIO $ compileToLLVM config stringMapping usageMapping eir
   EmitLLVM path -> do
     llvmModule <- Rock.fetch (CompileLLVM path)
     liftIO $ putTextLn $ ppllvm llvmModule

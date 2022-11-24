@@ -38,8 +38,8 @@ type EIR = EIR.EIR
 type EIRF = EIR.EIRF
 type Relation = EIR.Relation
 
-compileToLLVM :: Maybe Target -> StringMap -> EIR -> IO Module
-compileToLLVM target stringMapping eir = do
+compileToLLVM :: Maybe Target -> StringMap -> Map Id UsageMode -> EIR -> IO Module
+compileToLLVM target stringMapping usageMapping eir = do
   ctx <- LibLLVM.mkContext
   llvmMod <- LibLLVM.mkModule ctx "eclair"
   if target == Just Wasm32
@@ -73,11 +73,11 @@ compileToLLVM target stringMapping eir = do
         lift $ do
           traverse_ (processDecl lowerState) decls
           usingReaderT (relationMapping, metas, lowerState) $ do
-            addFactsFn <- generateAddFactsFn
+            addFactsFn <- generateAddFactsFn usageMapping
             _ <- generateAddFact addFactsFn
-            _ <- generateGetFactsFn
+            _ <- generateGetFactsFn usageMapping
             _ <- generateFreeBufferFn
-            _ <- generateFactCountFn
+            _ <- generateFactCountFn usageMapping
             _ <- generateEncodeStringFn
             generateDecodeStringFn
       _ ->
@@ -370,11 +370,11 @@ generateAddFact addFactsFn = do
     _ <- call addFactsFn [program, factType, memory, int32 1]
     retVoid
 
-generateAddFactsFn :: MonadFix m => CodegenInOutT (ModuleBuilderT m) Operand
-generateAddFactsFn = do
+generateAddFactsFn :: MonadFix m => Map Id UsageMode -> CodegenInOutT (ModuleBuilderT m) Operand
+generateAddFactsFn usageMapping = do
   (relationMapping, metas, lowerState) <- ask
 
-  let relations = getRelations metas
+  let relations = S.filter (isInputRelation usageMapping) $ getRelations metas
       args = [ (ptr (programType lowerState), ParameterName "eclair_program")
              , (i32, ParameterName "fact_type")
              , (ptr i32, ParameterName "memory")
@@ -396,10 +396,10 @@ generateAddFactsFn = do
           fn <- toCodegenInOut lowerState $ lookupFunction r idx EIR.Insert
           call fn [relationPtr, valuePtr]
 
-generateGetFactsFn :: MonadFix m => CodegenInOutT (ModuleBuilderT m) Operand
-generateGetFactsFn = do
+generateGetFactsFn :: MonadFix m => Map Relation UsageMode -> CodegenInOutT (ModuleBuilderT m) Operand
+generateGetFactsFn usageMapping = do
   (relationMapping, metas, lowerState) <- ask
-  let relations = getRelations metas
+  let relations = S.filter (isOutputRelation usageMapping) $ getRelations metas
       args = [ (ptr (programType lowerState), ParameterName "eclair_program")
              , (i32, ParameterName "fact_type")
              ]
@@ -408,7 +408,7 @@ generateGetFactsFn = do
   apiFunction "eclair_get_facts" args returnType $ \[program, factType] -> do
     switchOnFactType relations relationMapping (ret $ nullPtr i32) factType $ \r -> do
       let indexes = indexesFor lowerState r
-          idx = fromJust $ viaNonEmpty head indexes  -- TODO: which idx? just select first matching?
+          idx = fromJust $ findLongestIndex indexes
           doCall op args' = do
             fn <- toCodegenInOut lowerState $ lookupFunction r idx op
             call fn args'
@@ -453,10 +453,10 @@ generateFreeBufferFn = do
     _ <- call freeFn [memory]
     retVoid
 
-generateFactCountFn :: MonadFix m => CodegenInOutT (ModuleBuilderT m) Operand
-generateFactCountFn = do
+generateFactCountFn :: MonadFix m => Map Id UsageMode -> CodegenInOutT (ModuleBuilderT m) Operand
+generateFactCountFn usageMapping = do
   (relationMapping, metas, lowerState) <- ask
-  let relations = getRelations metas
+  let relations = S.filter (isOutputRelation usageMapping) $ getRelations metas
       args = [ (ptr (programType lowerState), ParameterName "eclair_program")
              , (i32, ParameterName "fact_type")
              ]
@@ -464,7 +464,7 @@ generateFactCountFn = do
   apiFunction "eclair_fact_count" args returnType $ \[program, factType] -> do
     switchOnFactType relations relationMapping (ret $ int32 0) factType $ \r -> do
       let indexes = indexesFor lowerState r
-          idx = fromJust $ viaNonEmpty head indexes  -- TODO: which idx? just select first matching? or idx on all columns?
+          idx = fromJust $ findLongestIndex indexes
           doCall op args' = do
             fn <- toCodegenInOut lowerState $ lookupFunction r idx op
             call fn args'
@@ -472,6 +472,14 @@ generateFactCountFn = do
       relationPtr <- gep program [int32 0, treeOffset]
       relationSize <- doCall EIR.Size [relationPtr]
       ret =<< trunc relationSize i32
+
+-- A helper function for easily finding the "longest" index.
+-- This is important for when you need to retrieve facts, since this index will
+-- contain the most facts.
+findLongestIndex :: [Index] -> Maybe Index
+findLongestIndex =
+  -- TODO use NonEmpty
+  viaNonEmpty head . sortOn (Dual . length . unIndex)
 
 -- NOTE: string does not need to be 0-terminated, length field is used to determine length (in bytes).
 -- Eclair makes an internal copy of the string, for simpler memory management.
@@ -523,6 +531,20 @@ generateDecodeStringFn = do
       ret =<< symbolPtr `bitcast` ptr i8
 
     ret $ nullPtr i8
+
+isOutputRelation :: Map Relation UsageMode -> Relation -> Bool
+isOutputRelation usageMapping r =
+  case M.lookup r usageMapping of
+    Just Output -> True
+    Just InputOutput -> True
+    _ -> False
+
+isInputRelation :: Map Relation UsageMode -> Relation -> Bool
+isInputRelation usageMapping r =
+  case M.lookup r usageMapping of
+    Just Input -> True
+    Just InputOutput -> True
+    _ -> False
 
 -- TODO: move all lower level code below to Codegen.hs to keep high level overview here!
 

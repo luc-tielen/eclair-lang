@@ -12,6 +12,8 @@
 //--- program.eclair
 @def a(u32).
 @def b(u32, u32, u32).
+@options a(input, output).
+@options b(input, output).
 //--- expected_eclair_add_facts_llvm.out
 define external ccc void @eclair_add_facts(%program* %eclair_program_0, i32 %fact_type_0, i32* %memory_0, i32 %fact_count_0) "wasm-export-name"="eclair_add_facts" {
 start:
