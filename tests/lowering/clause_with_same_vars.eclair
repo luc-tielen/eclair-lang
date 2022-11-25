@@ -8,8 +8,8 @@
 // RUN: diff %t/expected_eclair_program_run.out %t/actual_eclair_program_run.out
 
 // RUN: %eclair compile --emit llvm %t/program.eclair > %t/actual_llvm.out
-// RUN: %extract_snippet %t/actual_llvm.out "@eclair_program_run" > %t/actual_eclair_program_run_llvm.out
-// RUN: diff %t/expected_eclair_program_run_llvm.out %t/actual_eclair_program_run_llvm.out
+// RUN: %extract_snippet %t/actual_llvm.out "define.*@eclair_program_run" > %t/actual_eclair_program_run_llvm.out
+// RUN: diff -w %t/expected_eclair_program_run_llvm.out %t/actual_eclair_program_run_llvm.out
 
 //--- program.eclair
 @def a(u32).

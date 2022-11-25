@@ -1,7 +1,7 @@
 // RUN: split-file %s %t
 
 // RUN: %eclair compile --target wasm32 --emit llvm %t/program.eclair > %t/actual_llvm.out
-// RUN: %extract_snippet %t/actual_llvm.out "@memcmp_wasm32" > %t/actual_wasm_memcmp.out
+// RUN: %extract_snippet %t/actual_llvm.out "define.*@memcmp_wasm32" > %t/actual_wasm_memcmp.out
 // RUN: diff %t/expected_wasm_memcmp.out %t/actual_wasm_memcmp.out
 
 //--- program.eclair

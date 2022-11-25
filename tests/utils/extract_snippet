@@ -1,31 +1,4 @@
-#!/usr/bin/env node
-
-const { readFileSync } = require("fs");
-
-const extractFunction = (file, pattern) => {
-  const text = readFileSync(file, "utf8");
-  const lines = text.split("\n");
-
-  const startLineIdx = lines.findIndex((line) => line.includes(pattern));
-  const snippetLineCount =
-    lines.slice(startLineIdx).findIndex((line) => line.trim() == "") ||
-    lines.length - startLineIdx;
-  const endLineIdx = startLineIdx + snippetLineCount;
-
-  return lines.slice(startLineIdx, endLineIdx).join("\n");
-};
-
-const main = () => {
-  if (process.argv.length < 4) {
-    console.error("Usage: extract_snippet FILE PATTERN");
-    return;
-  }
-
-  const file = process.argv[2];
-  const pattern = process.argv[3];
-  const snippet = extractFunction(file, pattern);
-
-  console.log(snippet);
-};
-
-main();
+#!/bin/bash
+# Print lines starting from a match on a pattern ($2), up to first empty line.
+# Use sed again to trim the trailing newline
+sed -n "/^.*$2.*/,/^\$/p" $1 | sed '/^$/d'
