@@ -83,7 +83,7 @@ generateProgramInstructions = gcata (distribute extractEqualities) $ \case
   RA.ModuleF (map extract -> actions) -> block actions
   RA.ParF (map extract -> actions) -> parallel actions
   RA.SearchF r alias clauses (extract -> action) -> do
-    let eqsInSearch = execWriter $ traverse_ tSnd clauses
+    let eqsInSearch = foldMap tSnd clauses
         eqs = concatMap normalizedEqToConstraints eqsInSearch
     idx <- idxFromConstraints r alias eqs
     let relationPtr = lookupRelationByIndex r idx

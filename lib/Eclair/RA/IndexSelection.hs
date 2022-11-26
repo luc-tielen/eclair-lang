@@ -86,13 +86,12 @@ searchesForProgram typeInfo ra =
   where
     addFact fact = modify (fact:)
     constraintsForRA = \case
-      SearchF r a (traverse_ tSnd -> m) (tThd -> action) -> do
+      SearchF r a (foldMap tSnd -> eqs) (tThd -> action) -> do
         -- 1. Only direct constraints in the search matter, since that is what
         --    is used to select the index with, afterwards we are already
         --    looping over the value!
         -- 2. Only equality constraints matter, not "NoElem" constraints!
-        let eqs = execWriter m
-            cs = concatMap normalizedEqToConstraints eqs
+        let cs = concatMap normalizedEqToConstraints eqs
         let relevantCols = mapMaybe (columnsForRelation a) cs
             signature = SearchSignature $ Set.fromList relevantCols
         unless (null relevantCols) $ do
@@ -142,22 +141,22 @@ data NormalizedEquality
   = Equality Alias Column Val
   deriving Show
 
-extractEqualities :: RAF (RA, Writer [NormalizedEquality] ()) -> Writer [NormalizedEquality] ()
+extractEqualities :: RAF (RA, [NormalizedEquality]) -> [NormalizedEquality]
 extractEqualities = \case
   ConstrainF (lhs, _) (rhs, _) -> do
     case (lhs, rhs) of
       (ColumnIndex lA lCol, ColumnIndex rA rCol) ->
-        tell [ Equality lA lCol (AliasVal rA rCol)
-             , Equality rA rCol (AliasVal lA lCol)
-             ]
+        [ Equality lA lCol (AliasVal rA rCol)
+        , Equality rA rCol (AliasVal lA lCol)
+        ]
       (ColumnIndex lA lCol, Lit r) ->
-        tell [Equality lA lCol (Constant r)]
+        [Equality lA lCol (Constant r)]
       (Lit l, ColumnIndex rA rCol) ->
-        tell [Equality rA rCol (Constant l)]
+        [Equality rA rCol (Constant l)]
       _ ->
-        pass
+        mempty
   raf ->
-    traverse_ snd raf
+    foldMap snd raf
 
 normalizedEqToConstraints :: NormalizedEquality -> [(Relation, Column)]
 normalizedEqToConstraints = \case
