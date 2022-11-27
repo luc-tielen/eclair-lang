@@ -25,10 +25,10 @@ dependencies:
     version: ">= 4.7 && < 5"
     mixin:
       - hiding (Prelude)
-  - relude == 1.0.*
+  - relude == 1.1.*
   - extra == 1.*
   - text == 1.*
-  - bytestring == 0.10.*
+  - bytestring == 0.11.*
   - vector == 0.12.*
   - containers == 0.*
   - transformers == 0.*
@@ -38,7 +38,7 @@ dependencies:
   - prettyprinter == 1.7.*
   - prettyprinter-ansi-terminal == 1.*
   - megaparsec == 9.*
-  - souffle-haskell == 3.4.0
+  - souffle-haskell == 3.5.1
   - recursion-schemes == 5.*
   - comonad == 5.*
   - algebraic-graphs == 0.*
@@ -114,7 +114,7 @@ executables:
         version: ">= 4.7 && < 5"
         mixin:
           - hiding (Prelude)
-      - relude == 1.0.*
+      - relude == 1.1.*
       - directory == 1.*
     ghc-options:
       - -threaded
