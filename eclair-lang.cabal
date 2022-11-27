@@ -97,7 +97,7 @@ library
   build-depends:
       algebraic-graphs ==0.*
     , base >=4.7 && <5
-    , bytestring ==0.10.*
+    , bytestring ==0.11.*
     , comonad ==5.*
     , containers ==0.*
     , dependent-sum >=0.6 && <1
@@ -114,9 +114,9 @@ library
     , prettyprinter ==1.7.*
     , prettyprinter-ansi-terminal ==1.*
     , recursion-schemes ==5.*
-    , relude ==1.0.*
+    , relude ==1.1.*
     , rock ==0.3.*
-    , souffle-haskell ==3.4.0
+    , souffle-haskell ==3.5.1
     , text ==1.*
     , transformers ==0.*
     , vector ==0.12.*
@@ -167,7 +167,7 @@ executable eclair
   build-depends:
       algebraic-graphs ==0.*
     , base >=4.7 && <5
-    , bytestring ==0.10.*
+    , bytestring ==0.11.*
     , comonad ==5.*
     , containers ==0.*
     , dependent-sum >=0.6 && <1
@@ -186,9 +186,9 @@ executable eclair
     , prettyprinter ==1.7.*
     , prettyprinter-ansi-terminal ==1.*
     , recursion-schemes ==5.*
-    , relude ==1.0.*
+    , relude ==1.1.*
     , rock ==0.3.*
-    , souffle-haskell ==3.4.0
+    , souffle-haskell ==3.5.1
     , text ==1.*
     , transformers ==0.*
     , vector ==0.12.*
@@ -240,7 +240,7 @@ test-suite eclair-test
   build-depends:
       algebraic-graphs ==0.*
     , base >=4.7 && <5
-    , bytestring ==0.10.*
+    , bytestring ==0.11.*
     , comonad ==5.*
     , containers ==0.*
     , dependent-sum >=0.6 && <1
@@ -263,10 +263,10 @@ test-suite eclair-test
     , prettyprinter ==1.7.*
     , prettyprinter-ansi-terminal ==1.*
     , recursion-schemes ==5.*
-    , relude ==1.0.*
+    , relude ==1.1.*
     , rock ==0.3.*
     , silently ==1.2.*
-    , souffle-haskell ==3.4.0
+    , souffle-haskell ==3.5.1
     , text ==1.*
     , transformers ==0.*
     , vector ==0.12.*
