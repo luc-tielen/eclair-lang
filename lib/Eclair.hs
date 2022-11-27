@@ -1,4 +1,4 @@
-{-# LANGUAGE GADTs, QuasiQuotes, TemplateHaskell #-}
+{-# LANGUAGE GADTs, QuasiQuotes, TemplateHaskell, PackageImports #-}
 
 module Eclair
   ( parse
@@ -33,7 +33,7 @@ import LLVM.Codegen (Module, ppllvm)
 import Control.Exception
 import qualified Rock
 import Data.GADT.Compare.TH (deriveGEq)
-import Data.Some
+import "dependent-sum" Data.Some
 
 
 type RA = RA.RA
