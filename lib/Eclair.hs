@@ -1,4 +1,4 @@
-{-# LANGUAGE GADTs, QuasiQuotes, TemplateHaskell, PackageImports #-}
+{-# LANGUAGE GADTs, QuasiQuotes, TemplateHaskell, PackageImports, StandaloneDeriving #-}
 
 module Eclair
   ( parse
@@ -55,6 +55,8 @@ data Query a where
   CompileLLVM :: FilePath -> Query Module
   EmitLLVM :: FilePath -> Query ()
   StringMapping :: FilePath -> Query (Map Text Word32)
+  
+deriving instance Eq (Query a)
 
 queryFilePath :: Query a -> FilePath
 queryFilePath = \case
