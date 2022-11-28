@@ -36,7 +36,7 @@ RUN apt-get update \
 
 # install and set ghc
 RUN source /root/.ghcup/env \
-    && ghcup install ghc --force 9.0.2 && ghcup set ghc 9.0.2 \
+    && ghcup install ghc --force 9.2.4 && ghcup set ghc 9.2.4 \
     && ghcup install cabal --force 3.6.2.0 && ghcup set cabal 3.6.2.0 \
     && cabal install hspec-discover
 
