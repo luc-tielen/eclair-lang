@@ -64,7 +64,7 @@ parseFile path = do
   fileExists <- doesFileExist path
   if fileExists
   then do
-    contents <- readFileText path
+    contents <- decodeUtf8 <$> readFileBS path
     pure $ parseText path contents
   else
     pure $ Left $ FileNotFound path

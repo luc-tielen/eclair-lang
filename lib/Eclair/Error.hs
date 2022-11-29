@@ -34,20 +34,20 @@ handleErrors = \case
       FileNotFound {} ->
         hPutStrLn stderr $ "File not found: " <> file'
       ParsingError parseError -> do
-        content <- readFile file'
+        content <- decodeUtf8 <$> readFileBS file'
         let diagnostic = errorDiagnosticFromBundle Nothing "Failed to parse file" Nothing parseError
             diagnostic' = addFile diagnostic file' content
          in renderError diagnostic'
 
   TypeErr file' spanMap errs -> do
-    content <- readFileText file'
+    content <- decodeUtf8 <$> readFileBS file'
     let reports = map (typeErrorToReport file' content spanMap) errs
         diagnostic = foldl' addReport def reports
         diagnostic' = addFile diagnostic file' (toString content)
      in renderError diagnostic'
 
   SemanticErr file' spanMap semanticErr -> do
-    content <- readFileText file'
+    content <- decodeUtf8 <$> readFileBS file'
     let reports = semanticErrorsToReports file' content spanMap semanticErr
         diagnostic = foldl' addReport def reports
         diagnostic' = addFile diagnostic file' (toString content)
