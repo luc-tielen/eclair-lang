@@ -8,6 +8,7 @@ module Eclair.Parser
   , Span(..)
   , SpanMap
   , lookupSpan
+  , lookupNodeId
   , SourcePos(..)
   , SourceSpan(..)
   , spanToSourceSpan
@@ -51,6 +52,22 @@ insertSpan nodeId span' (SpanMap path m) =
 lookupSpan :: SpanMap -> NodeId -> Span
 lookupSpan (SpanMap _path m) nodeId =
   fromJust $ M.lookup (unNodeId nodeId) m
+
+-- Finds the most specific NodeId (that corresponds with the smallest span)
+lookupNodeId :: SpanMap -> Int -> Maybe NodeId
+lookupNodeId (SpanMap _ m) offset =
+  m & M.toList
+    & filter (containsOffset . snd)
+    & sortWith (spanSize . snd)
+    & viaNonEmpty head
+    & map (NodeId . fst)
+  where
+    -- TODO: check if we need <= instead of <?
+    containsOffset span' =
+      offset >= beginPos span' && offset < endPos span'
+
+    spanSize span' =
+      endPos span' - beginPos span'
 
 type ParserState = (Word32, SpanMap)
 type Parser = P.ParsecT ParseErr Text (State ParserState)
