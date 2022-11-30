@@ -2,6 +2,7 @@ module Eclair.TypeSystem
   ( Type(..)
   , TypeError(..)
   , Context(..)
+  , getContextNodeId
   , TypeInfo
   , typeCheck
   ) where
@@ -29,6 +30,12 @@ data Context
   | WhileInferring NodeId
   | WhileUnifying NodeId
   deriving (Eq, Ord, Show)
+
+getContextNodeId :: Context -> NodeId
+getContextNodeId = \case
+  WhileChecking nodeId -> nodeId
+  WhileInferring nodeId -> nodeId
+  WhileUnifying nodeId -> nodeId
 
 -- NOTE: for now, no actual types are checked since everything is a u32.
 data TypeError

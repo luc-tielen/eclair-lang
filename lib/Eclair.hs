@@ -3,6 +3,8 @@
 module Eclair
   ( parse
   , semanticAnalysis
+  , typeCheck
+  , emitDiagnostics
   , transformAST
   , compileRA
   , compileEIR
@@ -13,7 +15,7 @@ module Eclair
   , emitEIR
   , emitLLVM
   , EclairError(..)
-  , handleErrors
+  , handleErrorsCLI
   ) where
 
 import Eclair.AST.Lower
@@ -46,6 +48,7 @@ data Query a where
   Parse :: FilePath -> Query (AST, NodeId, SpanMap)
   RunSemanticAnalysis :: FilePath -> Query SA.Result
   Typecheck :: FilePath -> Query TS.TypeInfo
+  Diagnostics :: FilePath -> Query [EclairError]
   TransformAST :: FilePath -> Query (AST, StringMap)
   EmitSimplifiedAST :: FilePath -> Query ()
   CompileRA :: FilePath -> Query RA
@@ -61,6 +64,7 @@ queryFilePath = \case
   Parse path               -> path
   RunSemanticAnalysis path -> path
   Typecheck path           -> path
+  Diagnostics path         -> path
   TransformAST path        -> path
   EmitSimplifiedAST path   -> path
   CompileRA path           -> path
@@ -76,15 +80,16 @@ queryEnum = \case
   Parse {}               -> 0
   RunSemanticAnalysis {} -> 1
   Typecheck {}           -> 2
-  TransformAST {}        -> 3
-  EmitSimplifiedAST {}   -> 4
-  CompileRA {}           -> 5
-  EmitRA {}              -> 6
-  CompileEIR {}          -> 7
-  EmitEIR {}             -> 8
-  CompileLLVM {}         -> 9
-  EmitLLVM {}            -> 10
-  StringMapping {}       -> 11
+  Diagnostics {}         -> 3
+  TransformAST {}        -> 4
+  EmitSimplifiedAST {}   -> 5
+  CompileRA {}           -> 6
+  EmitRA {}              -> 7
+  CompileEIR {}          -> 8
+  EmitEIR {}             -> 9
+  CompileLLVM {}         -> 10
+  EmitLLVM {}            -> 11
+  StringMapping {}       -> 12
 
 deriveGEq ''Query
 
@@ -111,6 +116,23 @@ rules config = \case
   Typecheck path -> do
     (ast, _, spans) <- Rock.fetch (Parse path)
     liftIO . either (throwIO . TypeErr path spans) pure $ TS.typeCheck ast
+  Diagnostics path -> liftIO $ do
+    -- TODO reuse existing tasks -> refactor task error handling;
+    -- don't use exceptions, always continue and store errors
+    parseResult <- parseFile path
+    case parseResult of
+      Left err ->
+        pure $ one $ ParseErr path err
+      Right (ast, _, spans) -> do
+        saResult <- SA.runAnalysis ast
+        let saErrors = SA.semanticErrors saResult
+            tcResult = TS.typeCheck ast
+        pure $ catMaybes
+          [ if SA.hasSemanticErrors saResult
+              then Just $ SemanticErr path spans saErrors
+              else Nothing
+          , either (Just . TypeErr path spans) (const Nothing) tcResult
+          ]
   TransformAST path -> do
     -- Need to run SA and typechecking before any transformations / lowering
     -- to ensure we don't perform work on invalid programs.
@@ -160,6 +182,14 @@ parse cfg =
 semanticAnalysis :: Config -> FilePath -> IO SA.Result
 semanticAnalysis cfg =
   runQuery cfg . RunSemanticAnalysis
+
+typeCheck :: Config -> FilePath -> IO TS.TypeInfo
+typeCheck cfg =
+  runQuery cfg . Typecheck
+
+emitDiagnostics :: Config -> FilePath -> IO [EclairError]
+emitDiagnostics cfg =
+  runQuery cfg . Diagnostics
 
 transformAST :: Config -> FilePath -> IO (AST, StringMap)
 transformAST cfg =

@@ -29,6 +29,7 @@ import System.Directory.Extra (doesFileExist)
 type ParseErr = Void
 type ParseError = P.ParseErrorBundle Text ParseErr
 
+-- A source span (begin and end position)
 data Span
   = Span
   { beginPos :: {-# UNPACK #-} !Int
@@ -253,6 +254,7 @@ withRecovery endChar p =
 
 -- Helpers for producing error messages:
 
+-- Line and column information. 1-based!
 data SourcePos
   = SourcePos
   { sourcePosLine :: {-# UNPACK #-} !Int
