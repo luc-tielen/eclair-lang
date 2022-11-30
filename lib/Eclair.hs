@@ -175,9 +175,9 @@ runQuery config query = do
   let task = Rock.fetch query
   Rock.runTask (Rock.memoise memoVar $ rules config) task
 
-parse :: Config -> FilePath -> IO AST
+parse :: Config -> FilePath -> IO (AST, SpanMap)
 parse cfg =
-  map (\(ast, _, _) -> ast) . runQuery cfg . Parse
+  map (\(ast, _, spanMap) -> (ast, spanMap)) . runQuery cfg . Parse
 
 semanticAnalysis :: Config -> FilePath -> IO SA.Result
 semanticAnalysis cfg =
