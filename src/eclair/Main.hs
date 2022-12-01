@@ -18,4 +18,4 @@ main = do
             EmitRA -> emitRA
             EmitEIR -> emitEIR
             EmitLLVM -> emitLLVM
-      fn (cpuTarget cfg) file `catch` handleErrors
+      fn (cpuTarget cfg) file `catch` handleErrorsCLI

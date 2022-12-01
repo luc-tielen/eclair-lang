@@ -3,11 +3,17 @@ cradle:
     - path: "lib"
       component: "lib:eclair-lang"
 
-    - path: "src/Main.hs"
+    - path: "src/eclair/Main.hs"
       component: "eclair-lang:exe:eclair"
 
-    - path: "src/Paths_eclair_lang.hs"
+    - path: "src/eclair/Paths_eclair_lang.hs"
       component: "eclair-lang:exe:eclair"
+
+    - path: "src/lsp/Main.hs"
+      component: "eclair-lang:exe:eclair-lsp-server"
+
+    - path: "src/lsp/Paths_eclair_lang.hs"
+      component: "eclair-lang:exe:eclair-lsp-server"
 
     - path: "tests"
       component: "eclair-lang:test:eclair-test"

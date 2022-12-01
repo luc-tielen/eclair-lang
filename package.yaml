@@ -49,15 +49,6 @@ dependencies:
   - optparse-applicative == 0.16.*
   - diagnose == 2.3.*
   - dlist == 1.*
-  # The following are all LSP dependencies..
-  - lsp == 1.4.*
-  - lsp-types == 1.4.*
-  - data-default == 0.7.*
-  - aeson
-  - hslogger == 1.3.*
-  - filepath == 1.4.*
-  - lens == 5.2.*
-  - rope-utf16-splay == 0.3.*
 
 default-extensions:
   - OverloadedStrings
@@ -116,7 +107,7 @@ library:
 executables:
   eclair:
     main: Main.hs
-    source-dirs: src
+    source-dirs: src/eclair
     dependencies:
       - eclair-lang
       - name: base
@@ -130,6 +121,33 @@ executables:
       - -rtsopts
       - -with-rtsopts=-N
       # - -Wall
+
+  # Separate executable so these dependencies are not always needed for Eclair.
+  eclair-lsp-server:
+    main: Main.hs
+    source-dirs: src/lsp
+    dependencies:
+      - eclair-lang
+      - name: base
+        version: ">= 4.7 && < 5"
+        mixin:
+          - hiding (Prelude)
+      - relude == 1.0.*
+      - lsp == 1.4.*
+      - lsp-types == 1.4.*
+      - lens == 5.2.*
+      - recursion-schemes == 5.*
+      - data-default == 0.7.*
+      - aeson
+      - hslogger == 1.3.*
+      - filepath == 1.4.*
+      - directory == 1.*
+      - rope-utf16-splay == 0.3.*
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+      - -Wall
 
 tests:
   eclair-test:
