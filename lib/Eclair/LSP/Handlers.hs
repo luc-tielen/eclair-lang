@@ -23,6 +23,7 @@ import qualified Language.LSP.Server as LSP
 import qualified Language.LSP.Types as LSP.Types
 import Eclair
 import Eclair.Id
+import Eclair.Error
 import Eclair.Pretty
 import Eclair.Parser
 import Eclair.AST.IR
@@ -30,50 +31,59 @@ import Eclair.LSP.State
 import Eclair.LSP.Diagnostics
 
 
--- TODO completionHandler and documentLinkHandler (see Dhall LSP)
+-- TODO implement completionHandler and documentLinkHandler (see Dhall LSP)
 
 hoverHandler :: Handlers HandlerM
 hoverHandler =
-    LSP.requestHandler STextDocumentHover $ \request respond -> handleErrorWithDefault respond Nothing $ do
-        let uri_ = request ^. params . textDocument . uri
-            pos = request ^. params . position
-        file <- fileFromUri uri_
-        fileOffset <- posToOffset pos uri_
-        let mTarget = Nothing
+  LSP.requestHandler STextDocumentHover $ \request respond -> handleErrorWithDefault respond Nothing $ do
+    let uri_ = request ^. params . textDocument . uri
+        pos = request ^. params . position
+    file <- fileFromUri uri_
+    fileContent <- readUri uri_
+    fileOffset <- posToOffset pos uri_
+    let mTarget = Nothing
 
-        -- TODO store cached info using Rock
+    -- TODO store cached info using Rock
 
-        tcResult <- liftIO $ try $ do
-            (ast, spanMap) <- parse mTarget file
-            (ast, spanMap,) <$> typeCheck mTarget file
-        case tcResult of
-          Left err ->
-            case err of
-              ParseErr {} ->
-                throwE (Error, "Failed to parse file!")
-              SemanticErr {} ->
-                -- TODO respond with semantic error info if location matches
-                throwE (Error, "File contains semantic errors!")
-              TypeErr {} ->
-                -- TODO respond with type error at location if location matches
-                throwE (Error, "File failed to typecheck!")
-          Right (ast, spanMap, typeInfo) -> do
-            let maybeResult = do
-                  nodeId <- lookupNodeId spanMap fileOffset
-                  identifier <- findIdentifierByNodeId ast nodeId
-                  ty <- Map.lookup identifier typeInfo
-                  pure (nodeId, ty)
+    tcResult <- liftIO $ try $ do
+      (ast, spanMap) <- parse mTarget file
+      (ast, spanMap,) <$> typeCheck mTarget file
+    case tcResult of
+      Left err ->
+        case err of
+          ParseErr {} ->
+            throwE (Error, "Failed to parse file!")
+          _ -> do
+            issues <- liftIO $ errorToIssues (const (pure fileContent)) err
+            let mIssue = flip find issues $ \i ->
+                  let loc = issueLocation i
+                      (startPos, endPos) = (toPos $ locationStart loc, toPos $ locationEnd loc)
+                    in startPos <= pos && pos <= endPos
+            case mIssue of
+              Nothing ->
+                throwE (Error, "File contains errors!")
+              Just issue ->
+                throwE (Error, renderIssueMessage file fileContent issue)
 
-            case maybeResult of
-              Nothing -> do
-                throwE (Info, "No type information for this position!")
-              Just (nodeId, ty) -> do
-                fileContent <- readUri uri_
-                let span' = lookupSpan spanMap nodeId
-                    sourceSpan = spanToSourceSpan file fileContent span'
-                    _range = Just $ sourceSpanToLspRange sourceSpan
-                    _contents = HoverContents (MarkupContent MkPlainText (printDoc ty))
-                respond (Right (Just Hover{ _contents, _range }))
+      Right (ast, spanMap, typeInfo) -> do
+        let maybeResult = do
+              nodeId <- lookupNodeId spanMap fileOffset
+              identifier <- findIdentifierByNodeId ast nodeId
+              ty <- Map.lookup identifier typeInfo
+              pure (nodeId, ty)
+        case maybeResult of
+          Nothing -> do
+            throwE (Info, "No type information for this position!")
+          Just (nodeId, ty) -> do
+            let span' = lookupSpan spanMap nodeId
+                sourceSpan = spanToSourceSpan file fileContent span'
+                _range = Just $ sourceSpanToLspRange sourceSpan
+                _contents = HoverContents (MarkupContent MkPlainText (printDoc ty))
+            respond (Right (Just Hover{ _contents, _range }))
+  where
+    toPos pos =
+      LSP.Types.Position (fromIntegral $ posLine pos)
+                         (fromIntegral $ posColumn pos)
 
 findIdentifierByNodeId :: AST -> NodeId -> Maybe Id
 findIdentifierByNodeId ast nodeId = getFirst $ flip cata ast $ \case
@@ -113,13 +123,13 @@ posToOffset pos uri' = do
 didOpenTextDocumentNotificationHandler :: Handlers HandlerM
 didOpenTextDocumentNotificationHandler =
   LSP.notificationHandler STextDocumentDidOpen $ \notification -> do
-    let _uri = notification^.params.textDocument.uri
+    let _uri = notification ^. params . textDocument . uri
     diagnosticsHandler _uri
 
 didSaveTextDocumentNotificationHandler :: Handlers HandlerM
 didSaveTextDocumentNotificationHandler =
   LSP.notificationHandler STextDocumentDidSave $ \notification -> do
-    let _uri = notification^.params.textDocument.uri
+    let _uri = notification ^. params . textDocument . uri
     diagnosticsHandler _uri
 
 diagnosticsHandler :: Uri -> HandlerM ()

@@ -119,12 +119,13 @@ rules config = \case
   Diagnostics path -> liftIO $ do
     -- TODO reuse existing tasks -> refactor task error handling;
     -- don't use exceptions, always continue and store errors
+    -- TODO read from LSP VFS => make readFile a parameter to rules
     parseResult <- parseFile path
     case parseResult of
       Left err ->
         pure $ one $ ParseErr path err
       Right (ast, _, spans) -> do
-        saResult <- SA.runAnalysis ast
+        saResult <- SA.runAnalysis ast  -- TODO requires Souffle!
         let saErrors = SA.semanticErrors saResult
             tcResult = TS.typeCheck ast
         pure $ catMaybes

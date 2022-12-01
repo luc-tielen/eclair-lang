@@ -79,7 +79,7 @@ data Pos
 -- Contains the file, start and end of the position.
 data Location
   = Location
-  { locationFile :: {-# UNPACK #-} !FilePath
+  { locationFile :: FilePath
   , locationStart :: {-# UNPACK #-} !Pos
   , locationEnd :: {-# UNPACK #-} !Pos
   }
