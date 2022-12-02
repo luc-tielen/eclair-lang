@@ -14,6 +14,7 @@ module Eclair
   , emitRA
   , emitEIR
   , emitLLVM
+  , Parameters(..)
   , EclairError(..)
   , handleErrorsCLI
   ) where
@@ -101,11 +102,17 @@ instance Hashable (Some Query) where
   hashWithSalt salt (Some query) =
     hashWithSalt salt query
 
+data Parameters
+  = Parameters
+  { paramsConfig :: !Config
+  , paramsReadSourceFile :: FilePath -> IO (Maybe Text)
+  }
 
-rules :: Config -> Rock.Rules Query
-rules config = \case
-  Parse path ->
-    liftIO $ either (throwIO . ParseErr path) pure =<< parseFile path
+rules :: Parameters -> Rock.Rules Query
+rules params = \case
+  Parse path -> liftIO $ do
+    parseResult <- parseFile (paramsReadSourceFile params) path
+    either (throwIO . ParseErr path) pure parseResult
   RunSemanticAnalysis path -> do
     (ast, _, spans) <- Rock.fetch (Parse path)
     result <- liftIO $ SA.runAnalysis ast
@@ -120,7 +127,7 @@ rules config = \case
     -- TODO reuse existing tasks -> refactor task error handling;
     -- don't use exceptions, always continue and store errors
     -- TODO read from LSP VFS => make readFile a parameter to rules
-    parseResult <- parseFile path
+    parseResult <- parseFile (paramsReadSourceFile params) path
     case parseResult of
       Left err ->
         pure $ one $ ParseErr path err
@@ -165,66 +172,66 @@ rules config = \case
   CompileLLVM path -> do
     eir <- Rock.fetch (CompileEIR path)
     stringMapping <- Rock.fetch (StringMapping path)
-    liftIO $ compileToLLVM config stringMapping eir
+    liftIO $ compileToLLVM (paramsConfig params) stringMapping eir
   EmitLLVM path -> do
     llvmModule <- Rock.fetch (CompileLLVM path)
     liftIO $ putTextLn $ ppllvm llvmModule
 
-runQuery :: Config -> Query a -> IO a
-runQuery config query = do
+runQuery :: Parameters -> Query a -> IO a
+runQuery params query = do
   memoVar <- newIORef mempty
   let task = Rock.fetch query
-  Rock.runTask (Rock.memoise memoVar $ rules config) task
+  Rock.runTask (Rock.memoise memoVar $ rules params) task
 
-parse :: Config -> FilePath -> IO (AST, SpanMap)
-parse cfg =
-  map (\(ast, _, spanMap) -> (ast, spanMap)) . runQuery cfg . Parse
+parse :: Parameters -> FilePath -> IO (AST, SpanMap)
+parse params =
+  map (\(ast, _, spanMap) -> (ast, spanMap)) . runQuery params . Parse
 
-semanticAnalysis :: Config -> FilePath -> IO SA.Result
-semanticAnalysis cfg =
-  runQuery cfg . RunSemanticAnalysis
+semanticAnalysis :: Parameters -> FilePath -> IO SA.Result
+semanticAnalysis params =
+  runQuery params . RunSemanticAnalysis
 
-typeCheck :: Config -> FilePath -> IO TS.TypeInfo
-typeCheck cfg =
-  runQuery cfg . Typecheck
+typeCheck :: Parameters -> FilePath -> IO TS.TypeInfo
+typeCheck params =
+  runQuery params . Typecheck
 
-emitDiagnostics :: Config -> FilePath -> IO [EclairError]
-emitDiagnostics cfg =
-  runQuery cfg . Diagnostics
+emitDiagnostics :: Parameters -> FilePath -> IO [EclairError]
+emitDiagnostics params =
+  runQuery params . Diagnostics
 
-transformAST :: Config -> FilePath -> IO (AST, StringMap)
-transformAST cfg =
-  runQuery cfg . TransformAST
+transformAST :: Parameters -> FilePath -> IO (AST, StringMap)
+transformAST params =
+  runQuery params . TransformAST
 
-emitSimplifiedAST :: Config -> FilePath -> IO ()
-emitSimplifiedAST cfg =
-  runQuery cfg . EmitSimplifiedAST
+emitSimplifiedAST :: Parameters -> FilePath -> IO ()
+emitSimplifiedAST params =
+  runQuery params . EmitSimplifiedAST
 
-compileRA :: Config -> FilePath -> IO RA
-compileRA cfg =
-  runQuery cfg . CompileRA
+compileRA :: Parameters -> FilePath -> IO RA
+compileRA params =
+  runQuery params . CompileRA
 
-emitRA :: Config -> FilePath -> IO ()
-emitRA cfg =
-  runQuery cfg . EmitRA
+emitRA :: Parameters -> FilePath -> IO ()
+emitRA params =
+  runQuery params . EmitRA
 
-compileEIR :: Config -> FilePath -> IO EIR
-compileEIR cfg =
-  runQuery cfg . CompileEIR
+compileEIR :: Parameters -> FilePath -> IO EIR
+compileEIR params =
+  runQuery params . CompileEIR
 
-emitEIR :: Config -> FilePath -> IO ()
-emitEIR cfg =
-  runQuery cfg . EmitEIR
+emitEIR :: Parameters -> FilePath -> IO ()
+emitEIR params =
+  runQuery params . EmitEIR
 
-compileLLVM :: Config -> FilePath -> IO Module
-compileLLVM cfg =
-  runQuery cfg . CompileLLVM
+compileLLVM :: Parameters -> FilePath -> IO Module
+compileLLVM params =
+  runQuery params . CompileLLVM
 
-compile :: Config -> FilePath -> IO Module
+compile :: Parameters -> FilePath -> IO Module
 compile =
   compileLLVM
 
-emitLLVM :: Config -> FilePath -> IO ()
-emitLLVM cfg =
-  runQuery cfg . EmitLLVM
+emitLLVM :: Parameters -> FilePath -> IO ()
+emitLLVM params =
+  runQuery params . EmitLLVM
 

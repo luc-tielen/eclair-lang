@@ -12,7 +12,6 @@ import Data.Default
 import System.Exit (ExitCode(..))
 import Language.LSP.Server (Options(..), ServerDefinition(..), type (<~>)(..))
 import Language.LSP.Types
-import qualified Control.Monad.Trans.Except as Except
 import qualified Data.Aeson as Aeson
 import qualified Language.LSP.Server as LSP
 import qualified System.Exit as Exit
@@ -27,6 +26,7 @@ import Eclair.LSP.Handlers
     , cancelationHandler
     )
 import Eclair.LSP.State
+import Eclair
 
 -- | The main entry point for the LSP server.
 run :: Maybe FilePath -> IO ()
@@ -66,10 +66,13 @@ run mLogFile = do
           backward = liftIO
 
           forward :: HandlerM a -> IO a
-          forward handler =
-            -- TODO modifyIORef state.
+          forward handler = do
+            -- TODO modifyIORef state
             LSP.runLspT environment $ do
-              Except.runExceptT handler >>= \case
+              -- This should work, since the VFS is wrapped by a TVar
+              let tryReadFile = lspReadFromVFS environment
+                  params = Parameters Nothing tryReadFile
+              runReaderT (runExceptT handler) params >>= \case
                 Left (Log, _message) -> do
                   let _xtype = MtLog
                   LSP.sendNotification SWindowLogMessage LogMessageParams{..}

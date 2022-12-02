@@ -15,7 +15,7 @@ import Control.Exception
 import Control.Monad.Trans.Except (catchE, throwE)
 import Language.LSP.Server (Handlers)
 import Language.LSP.Types hiding (Range(..), line)
-import Language.LSP.Types.Lens
+import Language.LSP.Types.Lens hiding (parameters)
 import qualified Text.Megaparsec as P
 import qualified Text.Megaparsec.Char as P
 import qualified Data.Map.Strict as Map
@@ -41,13 +41,13 @@ hoverHandler =
     file <- fileFromUri uri_
     fileContent <- readUri uri_
     fileOffset <- posToOffset pos uri_
-    let mTarget = Nothing
 
     -- TODO store cached info using Rock
 
+    parameters <- ask
     tcResult <- liftIO $ try $ do
-      (ast, spanMap) <- parse mTarget file
-      (ast, spanMap,) <$> typeCheck mTarget file
+      (ast, spanMap) <- parse parameters file
+      (ast, spanMap,) <$> typeCheck parameters file
     case tcResult of
       Left err ->
         case err of
@@ -135,8 +135,8 @@ didSaveTextDocumentNotificationHandler =
 diagnosticsHandler :: Uri -> HandlerM ()
 diagnosticsHandler _uri = do
   file <- fileFromUri _uri
-  let mTarget = Nothing
-  errs <- liftIO $ emitDiagnostics mTarget file
+  parameters <- ask
+  errs <- liftIO $ emitDiagnostics parameters file
   -- TODO cache errors in server state?
   let _version = Nothing
   _diagnostics <- List . mconcat <$> traverse (errorToDiagnostics _uri) errs

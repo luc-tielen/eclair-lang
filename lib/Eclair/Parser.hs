@@ -25,7 +25,6 @@ import qualified Data.Text.Read as TR
 import qualified Text.Megaparsec as P
 import qualified Text.Megaparsec.Char as P
 import qualified Text.Megaparsec.Char.Lexer as L
-import System.Directory.Extra (doesFileExist)
 
 type ParseErr = Void
 type ParseError = P.ParseErrorBundle Text ParseErr
@@ -77,16 +76,15 @@ data ParsingError
   | ParsingError ParseError
   deriving (Show)
 
-parseFile :: FilePath -> IO (Either ParsingError (AST, NodeId, SpanMap))
-parseFile path = do
-  fileExists <- doesFileExist path
-  if fileExists
-  then do
-    contents <- readFileText path
-    pure $ parseText path contents
-  else
-    pure $ Left $ FileNotFound path
-
+parseFile :: (FilePath -> IO (Maybe Text))
+          -> FilePath -> IO (Either ParsingError (AST, NodeId, SpanMap))
+parseFile tryReadFile path = do
+  mContents <- tryReadFile path
+  case mContents of
+    Nothing ->
+      pure $ Left $ FileNotFound path
+    Just contents -> do
+      pure $ parseText path contents
 
 parseText :: FilePath -> Text -> Either ParsingError (AST, NodeId, SpanMap)
 parseText path text =
