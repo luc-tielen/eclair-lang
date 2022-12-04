@@ -43,7 +43,7 @@ $ cabal --version
 Run the following commands to download and build Souffle from source:
 
 ```bash
-$ sudo apt install bison build-essential clang cmake doxygen flex g++ git \
+$ sudo apt install bison build-essential cmake doxygen flex g++ git \
   libffi-dev libncurses5-dev libsqlite3-dev make mcpp python sqlite zlib1g-dev
 
 $ git clone git@github.com:souffle-lang/souffle.git
@@ -68,6 +68,8 @@ Next we need to install LLVM 14. Run the steps below to install it on your
 system.
 
 ```bash
+# If these packages are not available on your system, try installing using this
+# link: https://apt.llvm.org/.
 $ sudo apt install llvm-14
 $ sudo apt install lld-14
 $ sudo apt install clang-14  # Optional, if you want to use clang instead of llc
