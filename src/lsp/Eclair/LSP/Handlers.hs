@@ -11,7 +11,7 @@ module Eclair.LSP.Handlers
   ) where
 
 import Control.Lens ((^.))
-import Control.Exception
+import Data.Maybe (fromJust)
 import Control.Monad.Trans.Except (catchE, throwE)
 import Language.LSP.Server (Handlers)
 import Language.LSP.Types hiding (Range(..), line)
@@ -36,6 +36,7 @@ import Eclair.LSP.Diagnostics
 hoverHandler :: Handlers HandlerM
 hoverHandler =
   LSP.requestHandler STextDocumentHover $ \request respond -> handleErrorWithDefault respond Nothing $ do
+    readSourceFile <- asks (map (map fromJust) . paramsReadSourceFile)
     let uri_ = request ^. params . textDocument . uri
         pos = request ^. params . position
     file <- fileFromUri uri_
@@ -45,25 +46,21 @@ hoverHandler =
     -- TODO store cached info using Rock
 
     parameters <- ask
-    tcResult <- liftIO $ try $ do
-      (ast, spanMap) <- parse parameters file
-      (ast, spanMap,) <$> typeCheck parameters file
+    tcResult <- liftIO $ runExceptT $ do
+      (ast, spanMap) <- ExceptT (parse parameters file)
+      (ast, spanMap,) <$> ExceptT (typeCheck parameters file)
     case tcResult of
-      Left err ->
-        case err of
-          ParseErr {} ->
-            throwE (Error, "Failed to parse file!")
-          _ -> do
-            issues <- liftIO $ errorToIssues (const (pure fileContent)) err
-            let mIssue = flip find issues $ \i ->
-                  let loc = issueLocation i
-                      (startPos, endPos) = (toPos $ locationStart loc, toPos $ locationEnd loc)
-                    in startPos <= pos && pos <= endPos
-            case mIssue of
-              Nothing ->
-                throwE (Error, "File contains errors!")
-              Just issue ->
-                throwE (Error, renderIssueMessage file fileContent issue)
+      Left errs -> do
+        issues <- mconcat <$> liftIO (traverse (errorToIssues readSourceFile) errs)
+        let mIssue = flip find issues $ \i ->
+              let loc = issueLocation i
+                  (startPos, endPos) = (toPos $ locationStart loc, toPos $ locationEnd loc)
+                in startPos <= pos && pos <= endPos
+        case mIssue of
+          Nothing ->
+            throwE (Error, "File contains errors!")
+          Just issue ->
+            throwE (Error, renderIssueMessage file fileContent issue)
 
       Right (ast, spanMap, typeInfo) -> do
         let maybeResult = do

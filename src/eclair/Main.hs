@@ -1,6 +1,5 @@
 module Main (main) where
 
-import Control.Exception
 import Eclair.ArgParser
 import Eclair
 import GHC.IO.Encoding
@@ -27,4 +26,5 @@ main = do
             EmitEIR -> emitEIR
             EmitLLVM -> emitLLVM
           params = Parameters (cpuTarget cfg) tryReadFile
-      fn params file `catch` handleErrorsCLI
+      whenLeftM_ (fn params file) $
+        traverse_ handleErrorsCLI

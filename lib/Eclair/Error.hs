@@ -221,14 +221,6 @@ typeErrorToReport file' fileContent spanMap e = case e of
         let srcLoc = getSourcePos file' fileContent spanMap nodeId
           in (srcLoc, mkMarker $ show i <> ") While unifying these types..")
 
-emptyModuleToReport :: FilePath -> Text -> SpanMap -> EmptyModule -> Report Text
-emptyModuleToReport _ _ _ (EmptyModule _) =
-  let title = "Empty module"
-      markers = []
-      -- TODO: write out some more getting started docs
-      hints' = ["See https://github.com/luc-tielen/eclair-lang#example-code for some example code! :)"]
-   in Err Nothing title markers hints'
-
 variableInFactToReport :: FilePath -> Text -> SpanMap -> VariableInFact -> Report Text
 variableInFactToReport file' fileContent spanMap e =
   let srcLoc = mainErrorPosition file' fileContent spanMap e
@@ -284,9 +276,8 @@ wildcardInAssignmentToReport file' fileContent spanMap e@(WildcardInAssignment a
 -- NOTE: pattern match is done this way to keep track of additional errors that need to be reported
 {-# ANN semanticErrorsToReportsWithLocations ("HLint: ignore Use record patterns" :: String) #-}
 semanticErrorsToReportsWithLocations :: FilePath -> Text -> SpanMap -> SemanticErrors -> [(Report Text, Location)]
-semanticErrorsToReportsWithLocations file' fileContent spanMap e@(SemanticErrors _ _ _ _ _ _) =
-  concat [ emptyModuleReports
-         , ungroundedVarReports
+semanticErrorsToReportsWithLocations file' fileContent spanMap e@(SemanticErrors _ _ _ _ _) =
+  concat [ ungroundedVarReports
          , variableInFactReports
          , wildcardInFactReports
          , wildcardInRuleHeadReports
@@ -300,7 +291,6 @@ semanticErrorsToReportsWithLocations file' fileContent spanMap e@(SemanticErrors
       -> [(Report Text, Location)]
     getReportsWithLocationsFor f g =
       map (g file' fileContent spanMap &&& positionToLocation . mainErrorPosition file' fileContent spanMap) (f e)
-    emptyModuleReports = getReportsWithLocationsFor emptyModules emptyModuleToReport
     ungroundedVarReports = getReportsWithLocationsFor ungroundedVars ungroundedVarToReport
     variableInFactReports = getReportsWithLocationsFor variablesInFacts variableInFactToReport
     wildcardInFactReports = getReportsWithLocationsFor wildcardsInFacts wildcardInFactToReport
@@ -357,10 +347,6 @@ instance HasMainErrorPosition TypeError where
 
     HoleFound nodeId _ _ _ ->
       getSourcePos file' content spanMap nodeId
-
-instance HasMainErrorPosition EmptyModule where
-  mainErrorPosition file' content spanMap (EmptyModule nodeId) =
-    getSourcePos file' content spanMap nodeId
 
 instance HasMainErrorPosition WildcardInAssignment where
   mainErrorPosition file' content spanMap (WildcardInAssignment _ nodeId) =

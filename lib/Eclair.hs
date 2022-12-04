@@ -33,7 +33,6 @@ import qualified Eclair.EIR.IR as EIR
 import qualified Eclair.TypeSystem as TS
 import qualified Eclair.AST.Analysis as SA
 import LLVM.Codegen (Module, ppllvm)
-import Control.Exception
 import qualified Rock
 import Data.GADT.Compare.TH (deriveGEq)
 import Data.Some
@@ -47,9 +46,9 @@ type Config = Maybe Target
 
 data Query a where
   Parse :: FilePath -> Query (AST, NodeId, SpanMap)
-  RunSemanticAnalysis :: FilePath -> Query SA.Result
+  RunSemanticAnalysis :: FilePath -> Query SA.SemanticInfo
   Typecheck :: FilePath -> Query TS.TypeInfo
-  Diagnostics :: FilePath -> Query [EclairError]
+  EmitDiagnostics :: FilePath -> Query ()
   TransformAST :: FilePath -> Query (AST, StringMap)
   EmitSimplifiedAST :: FilePath -> Query ()
   CompileRA :: FilePath -> Query RA
@@ -65,7 +64,7 @@ queryFilePath = \case
   Parse path               -> path
   RunSemanticAnalysis path -> path
   Typecheck path           -> path
-  Diagnostics path         -> path
+  EmitDiagnostics path     -> path
   TransformAST path        -> path
   EmitSimplifiedAST path   -> path
   CompileRA path           -> path
@@ -81,7 +80,7 @@ queryEnum = \case
   Parse {}               -> 0
   RunSemanticAnalysis {} -> 1
   Typecheck {}           -> 2
-  Diagnostics {}         -> 3
+  EmitDiagnostics {}     -> 3
   TransformAST {}        -> 4
   EmitSimplifiedAST {}   -> 5
   CompileRA {}           -> 6
@@ -108,130 +107,136 @@ data Parameters
   , paramsReadSourceFile :: FilePath -> IO (Maybe Text)
   }
 
-rules :: Parameters -> Rock.Rules Query
-rules params = \case
+rules :: Parameters -> Rock.GenRules (Rock.Writer [EclairError] Query) Query
+rules params (Rock.Writer query) = case query of
   Parse path -> liftIO $ do
-    parseResult <- parseFile (paramsReadSourceFile params) path
-    either (throwIO . ParseErr path) pure parseResult
+    (ast, nodeId, spanMap, mParseErr) <- parseFile (paramsReadSourceFile params) path
+    pure ((ast, nodeId, spanMap), ParseErr path <$> maybeToList mParseErr)
   RunSemanticAnalysis path -> do
     (ast, _, spans) <- Rock.fetch (Parse path)
     result <- liftIO $ SA.runAnalysis ast
-    let errors = SA.semanticErrors result
-    when (SA.hasSemanticErrors result) $ do
-      liftIO $ (throwIO . SemanticErr path spans) errors
-    pure result
+    let errs = if SA.hasSemanticErrors result
+                 then one $ SemanticErr path spans $ SA.semanticErrors result
+                 else mempty
+    pure (SA.semanticInfo result, errs)
   Typecheck path -> do
     (ast, _, spans) <- Rock.fetch (Parse path)
-    liftIO . either (throwIO . TypeErr path spans) pure $ TS.typeCheck ast
-  Diagnostics path -> liftIO $ do
-    -- TODO reuse existing tasks -> refactor task error handling;
-    -- don't use exceptions, always continue and store errors
-    -- TODO read from LSP VFS => make readFile a parameter to rules
-    parseResult <- parseFile (paramsReadSourceFile params) path
-    case parseResult of
+    case TS.typeCheck ast of
       Left err ->
-        pure $ one $ ParseErr path err
-      Right (ast, _, spans) -> do
-        saResult <- SA.runAnalysis ast  -- TODO requires Souffle!
-        let saErrors = SA.semanticErrors saResult
-            tcResult = TS.typeCheck ast
-        pure $ catMaybes
-          [ if SA.hasSemanticErrors saResult
-              then Just $ SemanticErr path spans saErrors
-              else Nothing
-          , either (Just . TypeErr path spans) (const Nothing) tcResult
-          ]
-  TransformAST path -> do
+        pure (mempty, one $ TypeErr path spans err)
+      Right typeInfo ->
+        pure (typeInfo, mempty)
+  EmitDiagnostics path -> noError $ do
+    -- Just triggering these tasks collects all the corresponding errors.
+    _ <- Rock.fetch (Parse path)
+    _ <- Rock.fetch (RunSemanticAnalysis path)
+    _ <- Rock.fetch (Typecheck path)
+    pass
+  TransformAST path -> noError $ do
     -- Need to run SA and typechecking before any transformations / lowering
     -- to ensure we don't perform work on invalid programs.
     -- And thanks to rock, the results will be cached anyway.
     analysis <- Rock.fetch (RunSemanticAnalysis path)
     _ <- Rock.fetch (Typecheck path)
     (ast, nodeId, _) <- Rock.fetch (Parse path)
-    pure $ simplify nodeId (SA.semanticInfo analysis) ast
-  EmitSimplifiedAST path -> do
+    pure $ simplify nodeId analysis ast
+  EmitSimplifiedAST path -> noError $ do
     (ast, _) <- Rock.fetch (TransformAST path)
     liftIO $ putTextLn $ printDoc ast
-  StringMapping path -> do
+  StringMapping path -> noError $ do
     (_, mapping) <- Rock.fetch (TransformAST path)
     pure mapping
-  CompileRA path -> do
+  CompileRA path -> noError $ do
     ast <- fst <$> Rock.fetch (TransformAST path)
     pure $ compileToRA ast
-  EmitRA path -> do
+  EmitRA path -> noError $ do
     ra <- Rock.fetch (CompileRA path)
     liftIO $ putTextLn $ printDoc ra
-  CompileEIR path -> do
+  CompileEIR path -> noError $ do
     stringMapping <- Rock.fetch (StringMapping path)
     ra <- Rock.fetch (CompileRA path)
     typeInfo <- Rock.fetch (Typecheck path)
     pure $ compileToEIR stringMapping typeInfo ra
-  EmitEIR path -> do
+  EmitEIR path -> noError $ do
     eir <- Rock.fetch (CompileEIR path)
     liftIO $ putTextLn $ printDoc eir
-  CompileLLVM path -> do
+  CompileLLVM path -> noError $ do
     eir <- Rock.fetch (CompileEIR path)
     stringMapping <- Rock.fetch (StringMapping path)
     liftIO $ compileToLLVM (paramsConfig params) stringMapping eir
-  EmitLLVM path -> do
+  EmitLLVM path -> noError $ do
     llvmModule <- Rock.fetch (CompileLLVM path)
     liftIO $ putTextLn $ ppllvm llvmModule
 
-runQuery :: Parameters -> Query a -> IO a
+-- Helper function for tasks that don't emit any errors.
+noError :: Rock.Task Query a -> Rock.Task Query (a, [EclairError])
+noError task =
+  (, mempty) <$> task
+
+type CompilerM a = IO (Either [EclairError] a)
+
+runQuery :: Parameters -> Query a -> CompilerM a
 runQuery params query = do
   memoVar <- newIORef mempty
+  errRef <- newIORef mempty
   let task = Rock.fetch query
-  Rock.runTask (Rock.memoise memoVar $ rules params) task
+      onError :: q -> [EclairError] -> Rock.Task Query ()
+      onError _ errs =
+        liftIO $ modifyIORef errRef (errs <>)
+  result <- Rock.runTask (Rock.memoise memoVar $ Rock.writer onError $ rules params) task
+  errs <- readIORef errRef
+  pure $ if null errs then Right result else Left errs
 
-parse :: Parameters -> FilePath -> IO (AST, SpanMap)
+parse :: Parameters -> FilePath -> CompilerM (AST, SpanMap)
 parse params =
-  map (\(ast, _, spanMap) -> (ast, spanMap)) . runQuery params . Parse
+  map (map (\(ast, _, spanMap) -> (ast, spanMap))) . runQuery params . Parse
 
-semanticAnalysis :: Parameters -> FilePath -> IO SA.Result
+semanticAnalysis :: Parameters -> FilePath -> CompilerM SA.SemanticInfo
 semanticAnalysis params =
   runQuery params . RunSemanticAnalysis
 
-typeCheck :: Parameters -> FilePath -> IO TS.TypeInfo
+typeCheck :: Parameters -> FilePath -> CompilerM TS.TypeInfo
 typeCheck params =
   runQuery params . Typecheck
 
 emitDiagnostics :: Parameters -> FilePath -> IO [EclairError]
-emitDiagnostics params =
-  runQuery params . Diagnostics
+emitDiagnostics params = do
+  f <<$>> runQuery params . EmitDiagnostics
+  where
+    f = fromLeft mempty
 
-transformAST :: Parameters -> FilePath -> IO (AST, StringMap)
+transformAST :: Parameters -> FilePath -> CompilerM (AST, StringMap)
 transformAST params =
   runQuery params . TransformAST
 
-emitSimplifiedAST :: Parameters -> FilePath -> IO ()
+emitSimplifiedAST :: Parameters -> FilePath -> CompilerM ()
 emitSimplifiedAST params =
   runQuery params . EmitSimplifiedAST
 
-compileRA :: Parameters -> FilePath -> IO RA
+compileRA :: Parameters -> FilePath -> CompilerM RA
 compileRA params =
   runQuery params . CompileRA
 
-emitRA :: Parameters -> FilePath -> IO ()
+emitRA :: Parameters -> FilePath -> CompilerM ()
 emitRA params =
   runQuery params . EmitRA
 
-compileEIR :: Parameters -> FilePath -> IO EIR
+compileEIR :: Parameters -> FilePath -> CompilerM EIR
 compileEIR params =
   runQuery params . CompileEIR
 
-emitEIR :: Parameters -> FilePath -> IO ()
+emitEIR :: Parameters -> FilePath -> CompilerM ()
 emitEIR params =
   runQuery params . EmitEIR
 
-compileLLVM :: Parameters -> FilePath -> IO Module
+compileLLVM :: Parameters -> FilePath -> CompilerM Module
 compileLLVM params =
   runQuery params . CompileLLVM
 
-compile :: Parameters -> FilePath -> IO Module
+compile :: Parameters -> FilePath -> CompilerM Module
 compile =
   compileLLVM
 
-emitLLVM :: Parameters -> FilePath -> IO ()
+emitLLVM :: Parameters -> FilePath -> CompilerM ()
 emitLLVM params =
   runQuery params . EmitLLVM
-

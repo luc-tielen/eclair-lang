@@ -22,12 +22,22 @@ import qualified Data.Text as T
 import qualified Data.Vector as V
 import qualified Data.Map as M
 import qualified Data.Text.Read as TR
+import qualified Data.List.NonEmpty as NE
 import qualified Text.Megaparsec as P
+import qualified Text.Megaparsec.Internal as P
 import qualified Text.Megaparsec.Char as P
 import qualified Text.Megaparsec.Char.Lexer as L
 
 type ParseErr = Void
 type ParseError = P.ParseErrorBundle Text ParseErr
+
+type ParserState = (Word32, SpanMap)
+type Parser = P.ParsecT ParseErr Text (State ParserState)
+
+data ParsingError
+  = FileNotFound FilePath
+  | ParsingError ParseError
+  deriving (Show)
 
 -- A source span (begin and end position)
 data Span
@@ -68,33 +78,58 @@ lookupNodeId (SpanMap _ m) offset =
     spanSize span' =
       endPos span' - beginPos span'
 
-type ParserState = (Word32, SpanMap)
-type Parser = P.ParsecT ParseErr Text (State ParserState)
-
-data ParsingError
-  = FileNotFound FilePath
-  | ParsingError ParseError
-  deriving (Show)
-
 parseFile :: (FilePath -> IO (Maybe Text))
-          -> FilePath -> IO (Either ParsingError (AST, NodeId, SpanMap))
+          -> FilePath -> IO (AST, NodeId, SpanMap, Maybe ParsingError)
 parseFile tryReadFile path = do
   mContents <- tryReadFile path
   case mContents of
     Nothing ->
-      pure $ Left $ FileNotFound path
-    Just contents -> do
+      pure (emptyModule, NodeId 0, SpanMap path mempty, Just $ FileNotFound path)
+    Just contents ->
       pure $ parseText path contents
 
-parseText :: FilePath -> Text -> Either ParsingError (AST, NodeId, SpanMap)
+parseText :: FilePath -> Text -> (AST, NodeId, SpanMap, Maybe ParsingError)
 parseText path text =
-  g <$> f (runState (P.runParserT astParser path text) (0, SpanMap path mempty))
+  f $ runState (runParserT path text astParser) (0, SpanMap path mempty)
   where
-    f (m, c) = case m of
-      Left a -> Left (ParsingError a)
-      Right b -> Right (b, c)
-    g :: (AST, ParserState) -> (AST, NodeId, SpanMap)
-    g (ast, ps) = (ast, NodeId $ fst ps, snd ps)
+    f ((mAst, mErr), s) =
+      (fromMaybe emptyModule mAst, NodeId $ fst s, snd s, mErr)
+
+emptyModule :: AST
+emptyModule = Module (NodeId 0) mempty
+
+-- Uses the internals of Megaparsec to try and return a parse result along
+-- with possible parse errors.
+runParserT :: FilePath -> Text -> Parser a -> State ParserState (Maybe a, Maybe ParsingError)
+runParserT path text p = do
+  let s = initialState path text
+  (P.Reply s' _ result) <- P.runParsecT p s
+  let toBundle es =
+        P.ParseErrorBundle
+          { P.bundleErrors = NE.sortWith P.errorOffset es,
+            P.bundlePosState = P.statePosState s
+          }
+  pure $ case result of
+    P.Error fatalError ->
+      (Nothing, Just $ ParsingError $ toBundle $ fatalError :| P.stateParseErrors s')
+    P.OK x ->
+      let nonFatalErrs = viaNonEmpty toBundle (P.stateParseErrors s')
+       in (Just x, ParsingError <$> nonFatalErrs)
+  where
+    initialState name s =
+      P.State
+        { P.stateInput = s,
+          P.stateOffset = 0,
+          P.statePosState =
+            P.PosState
+              { P.pstateInput = s,
+                P.pstateOffset = 0,
+                P.pstateSourcePos = P.initialPos name,
+                P.pstateTabWidth = P.defaultTabWidth,
+                P.pstateLinePrefix = ""
+              },
+          P.stateParseErrors = []
+        }
 
 freshNodeId :: Parser NodeId
 freshNodeId = do
