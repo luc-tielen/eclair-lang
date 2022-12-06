@@ -156,7 +156,7 @@ rules params (Rock.Writer query) = case query of
     stringMapping <- Rock.fetch (StringMapping path)
     ra <- Rock.fetch (CompileRA path)
     typeInfo <- Rock.fetch (Typecheck path)
-    pure $ compileToEIR stringMapping typeInfo ra
+    pure $ compileToEIR stringMapping (TS.infoTypedefs typeInfo) ra
   EmitEIR path -> noError $ do
     eir <- Rock.fetch (CompileEIR path)
     liftIO $ putTextLn $ printDoc eir

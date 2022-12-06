@@ -3,39 +3,50 @@ module Eclair.TypeSystem
   , TypeError(..)
   , Context(..)
   , getContextNodeId
-  , TypeInfo
+  , TypeInfo(..)
+  , TypedefInfo
   , typeCheck
   ) where
 
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
 import qualified Data.IntMap as IntMap
-import Eclair.AST.IR
-import Eclair.Id
 import qualified Data.DList as DList
 import Data.DList (DList)
 import qualified Data.DList.DNonEmpty as DNonEmpty
 import Data.DList.DNonEmpty (DNonEmpty)
+import Control.Monad.Extra
+import Eclair.AST.IR
+import Eclair.Id
 
 -- NOTE: This module contains a lot of partial functions due to the fact
 -- that the rest of the compiler relies heavily on recursion-schemes.
 -- This is however one place where I have not figured out how to apply a
 -- recursion-scheme here.. yet!
+--
+-- TODO: Maybe a variant of a mutumorphism might work here?
 
 
-type TypeInfo = Map Id [Type]
+type TypedefInfo = Map Id [Type]
+data TypeInfo
+  = TypeInfo
+  { infoTypedefs :: TypedefInfo
+  , resolvedTypes :: Map NodeId Type
+  }
+
+instance Semigroup TypeInfo where
+  TypeInfo tdInfo1 resolved1 <> TypeInfo tdInfo2 resolved2 =
+    TypeInfo (tdInfo1 <> tdInfo2) (resolved1 <> resolved2)
+
+instance Monoid TypeInfo where
+  mempty =
+    TypeInfo mempty mempty
 
 data Context
   = WhileChecking NodeId
   | WhileInferring NodeId
   | WhileUnifying NodeId
   deriving (Eq, Ord, Show)
-
-getContextNodeId :: Context -> NodeId
-getContextNodeId = \case
-  WhileChecking nodeId -> nodeId
-  WhileInferring nodeId -> nodeId
-  WhileUnifying nodeId -> nodeId
 
 -- NOTE: for now, no actual types are checked since everything is a u32.
 data TypeError
@@ -47,126 +58,61 @@ data TypeError
   | HoleFound NodeId (NonEmpty Context) Type (Map Id Type)
   deriving (Eq, Ord, Show)
 
-typeCheck :: AST -> Either [TypeError] TypeInfo
-typeCheck ast
-  | null errors' = pure $ map snd typedefMap
-  | otherwise   = throwError errors'
-  where
-    errors' = checkDecls typedefMap ast ++ duplicateErrors typedefs'
-    typedefs' = extractTypeDefs ast
-    typedefMap = Map.fromList typedefs'
-
 type TypedefMap = Map Id (NodeId, [Type])
 type UnresolvedHole = Type -> Map Id Type -> TypeError
 
-data CheckState
-  = CheckState
+data Env
+  = Env
   { typedefs :: TypedefMap
-  , typeEnv :: Map Id Type
-  , substitution :: IntMap Type
-  , nextVar :: Int
-  , errors :: DList TypeError
-  , unresolvedHoles :: DList (Type, UnresolvedHole)
+  , tcContext :: DNonEmpty Context
   }
 
-type TypeCheckM = ReaderT (DNonEmpty Context) (State CheckState)
+-- State used to report type information back to the user (via LSP)
+data TrackingState
+  = TrackingState
+  { directlyResolvedTypes :: Map NodeId Type  -- literals are immediately resolved
+  , trackedVariables :: [(Id, NodeId)]
+  }
 
-runM :: Context -> TypedefMap -> TypeCheckM a -> [TypeError]
-runM ctx typedefMap m =
-  let tcState = CheckState typedefMap mempty mempty 0 mempty mempty
-   in toList . errors $ execState (runReaderT m (pure ctx)) tcState
+data CheckState
+  = CheckState
+  { typeEnv :: Map Id Type
+  , substitution :: IntMap Type
+  , varCounter :: Int
+  , errors :: DList TypeError
+  , unresolvedHoles :: DList (Type, UnresolvedHole)
+  -- The tracking state is not needed for the typechecking algorithm,
+  -- but is used to report information back to the user (via LSP).
+  , trackingState :: TrackingState
+  }
 
-addContext :: Context -> (TypeCheckM a -> TypeCheckM a)
-addContext ctx = local (`DNonEmpty.snoc` ctx)
+newtype TypeCheckM a =
+  TypeCheckM (RWS Env () CheckState a)
+  deriving (Functor, Applicative, Monad, MonadState CheckState, MonadReader Env)
+  via (RWS Env () CheckState)
 
-getContext :: TypeCheckM (NonEmpty Context)
-getContext = asks DNonEmpty.toNonEmpty
 
-emitError :: TypeError -> TypeCheckM ()
-emitError err =
-  modify $ \s -> s { errors = DList.snoc (errors s) err }
-
-bindVar :: Id -> Type -> TypeCheckM ()
-bindVar var ty =
-  modify $ \s -> s { typeEnv = Map.insert var ty (typeEnv s) }
-
-lookupRelationType :: Id -> TypeCheckM (Maybe (NodeId, [Type]))
-lookupRelationType name =
-  gets (Map.lookup name . typedefs)
-
--- A variable can either be a concrete type, or a unification variable.
--- In case of unification variable, try looking it up in current substitution.
--- As a result, this will make it so variables in a rule body with same name have the same type.
--- NOTE: if this ends up not being powerful enough, need to upgrade to SCC + a solver for each group of "linked" variables.
-lookupVarType :: Id -> TypeCheckM (Maybe Type)
-lookupVarType var = do
-  (maybeVarTy, subst) <- gets (Map.lookup var . typeEnv &&& substitution)
-  case maybeVarTy of
-    Just (TUnknown u) -> pure $ IntMap.lookup u subst
-    maybeTy -> pure maybeTy
-
--- Generates a fresh unification variable.
-freshType :: TypeCheckM Type
-freshType = do
-  x <- gets nextVar
-  modify $ \s -> s { nextVar = nextVar s + 1 }
-  pure $ TUnknown x
-
--- | Tries to unify 2 types, emitting an error in case it fails to unify.
-unifyType :: NodeId -> Type -> Type -> TypeCheckM ()
-unifyType nodeId t1 t2 = addContext (WhileUnifying nodeId) $ do
-  subst <- gets substitution
-  unifyType' (substituteType subst t1) (substituteType subst t2)
+typeCheck :: AST -> Either [TypeError] TypeInfo
+typeCheck ast
+  | null errors' = pure $ TypeInfo (map snd typedefMap) resolvedTys
+  | otherwise   = throwError errors'
   where
-    unifyType' ty1 ty2 =
-      case (ty1, ty2) of
-        (U32, U32) ->
-          pass
-        (Str, Str) ->
-          pass
-        (TUnknown x, TUnknown y) | x == y ->
-          pass
-        (TUnknown u, ty) ->
-          updateSubst u ty
-        (ty, TUnknown u) ->
-          updateSubst u ty
-        _ -> do
-          ctx <- getContext
-          emitError $ UnificationFailure ty1 ty2 ctx
-
-    -- Update the current substitutions
-    updateSubst :: Int -> Type -> TypeCheckM ()
-    updateSubst u ty =
-      modify $ \s ->
-        s { substitution = IntMap.insert u ty (substitution s) }
-
--- Recursively applies a substitution to a type
-substituteType :: IntMap Type -> Type -> Type
-substituteType subst = \case
-  U32 ->
-    U32
-  Str ->
-    Str
-  TUnknown unknown ->
-    case IntMap.lookup unknown subst of
-      Nothing ->
-        TUnknown unknown
-      Just (TUnknown unknown') | unknown == unknown' ->
-        TUnknown unknown
-      Just ty ->
-        substituteType subst ty
-
+    (typeErrors, resolvedTys) = checkDecls typedefMap ast
+    errors' = typeErrors ++ duplicateErrors typedefs'
+    typedefs' = extractTypeDefs ast
+    typedefMap = Map.fromList typedefs'
 
 -- TODO: try to merge with checkDecl?
-checkDecls :: TypedefMap -> AST -> [TypeError]
+checkDecls :: TypedefMap -> AST -> ([TypeError], Map NodeId Type)
 checkDecls typedefMap = \case
   Module _ decls ->
-    -- NOTE: By doing runM once per decl, each decl is checked with a clean state
-    let beginContext d =
-          WhileChecking (getNodeId d)
-     in concatMap (\d -> runM (beginContext d) typedefMap $ checkDecl d) decls
+    -- NOTE: By using runM once per decl, each decl is checked with a clean state
+    let results = map (\d -> runM (beginContext d) typedefMap $ checkDecl d) decls
+     in bimap fold fold $ partitionEithers results
   _ ->
     panic "Unexpected AST node in 'checkDecls'"
+  where
+    beginContext d = WhileChecking (getNodeId d)
 
 checkDecl :: AST -> TypeCheckM ()
 checkDecl ast = case ast of
@@ -216,57 +162,169 @@ checkArgCount name (nodeIdTypeDef, types) (nodeId, args) = do
     emitError $ ArgCountMismatch name (nodeIdTypeDef, expectedArgCount) (nodeId, actualArgCount)
 
 checkExpr :: AST -> Type -> TypeCheckM ()
-checkExpr ast expectedTy = addContext (WhileChecking $ getNodeId ast) $ case ast of
-  l@(Lit nodeId _) -> do
-    actualTy <- inferExpr l
-    -- NOTE: No need to call 'unifyType', types of literals are always concrete types.
-    when (actualTy /= expectedTy) $ do
-      ctx <- getContext
-      emitError $ TypeMismatch nodeId actualTy expectedTy ctx
-  PWildcard {} ->
-    -- NOTE: no checking happens for wildcards, since they always refer to
-    -- unique vars (and thus cannot cause type errors)
-    pass
-  Var nodeId var -> do
-    lookupVarType var >>= \case
-      Nothing ->
-        -- TODO: also store in context/state a variable was bound here for better errors?
-        bindVar var expectedTy
-      Just actualTy -> do
-        when (actualTy /= expectedTy) $ do
-          ctx <- getContext
-          emitError $ TypeMismatch nodeId actualTy expectedTy ctx
-  Hole nodeId -> do
-    holeTy <- emitHoleFoundError nodeId
-    unifyType nodeId holeTy expectedTy
-  e -> do
-    -- Basically an unexpected / unhandled case => try inferring as a last resort.
-    actualTy <- inferExpr e
-    unifyType (getNodeId e) actualTy expectedTy
+checkExpr ast expectedTy = do
+  let nodeId = getNodeId ast
+  addContext (WhileChecking nodeId) $ case ast of
+    l@Lit {} -> do
+      actualTy <- inferExpr l
+      -- NOTE: No need to call 'unifyType', types of literals are always concrete types.
+      when (actualTy /= expectedTy) $ do
+        ctx <- getContext
+        emitError $ TypeMismatch nodeId actualTy expectedTy ctx
+    PWildcard {} ->
+      -- NOTE: no checking happens for wildcards, since they always refer to
+      -- unique vars (and thus cannot cause type errors)
+      pass
+    Var _ var -> do
+      lookupVarType var >>= \case
+        Nothing ->
+          -- TODO: also store in context/state a variable was bound here for better errors?
+          bindVar var expectedTy
+        Just actualTy -> do
+          when (actualTy /= expectedTy) $ do
+            ctx <- getContext
+            emitError $ TypeMismatch nodeId actualTy expectedTy ctx
+    Hole {} -> do
+      holeTy <- emitHoleFoundError nodeId
+      unifyType nodeId holeTy expectedTy
+    e -> do
+      -- Basically an unexpected / unhandled case => try inferring as a last resort.
+      actualTy <- inferExpr e
+      unifyType (getNodeId e) actualTy expectedTy
 
 inferExpr :: AST -> TypeCheckM Type
-inferExpr ast = addContext (WhileInferring $ getNodeId ast) $ case ast of
-  Lit _ lit ->
-    case lit of
-      LNumber {} ->
-        pure U32
-      LString {} ->
-        pure Str
-  Var _ var -> do
-    lookupVarType var >>= \case
-      Nothing -> do
-        ty <- freshType
-        -- This introduces potentially a unification variable into the type environment, but we need this
-        -- for complicated rule bodies where a variable occurs in more than one place.
-        -- (Otherwise a variable is treated as new each time).
-        bindVar var ty
-        pure ty
+inferExpr ast = do
+  let nodeId = getNodeId ast
+  addContext (WhileInferring nodeId) $ case ast of
+    Lit _ lit -> do
+      case lit of
+        LNumber {} ->
+          pure U32
+        LString {} ->
+          pure Str
+    Var _ var -> do
+      lookupVarType var >>= \case
+        Nothing -> do
+          ty <- freshType
+          -- This introduces potentially a unification variable into the type environment, but we need this
+          -- for complicated rule bodies where a variable occurs in more than one place.
+          -- (Otherwise a variable is treated as new each time).
+          bindVar var ty
+          pure ty
+        Just ty ->
+          pure ty
+    Hole {} ->
+      emitHoleFoundError nodeId
+    _ ->
+      panic "Unexpected case in 'inferExpr'"
+
+runM :: Context -> TypedefMap -> TypeCheckM a -> Either [TypeError] (Map NodeId Type)
+runM ctx typedefMap action =
+  let (TypeCheckM m) = action *> computeTypeInfoById
+      trackState = TrackingState mempty mempty
+      tcState = CheckState mempty mempty 0 mempty mempty trackState
+      env = Env typedefMap (pure ctx)
+      (typeInfoById, endState, _) = runRWS m env tcState
+      errs = toList . errors $ endState
+   in if null errs then Right typeInfoById else Left errs
+
+emitError :: TypeError -> TypeCheckM ()
+emitError err =
+  modify $ \s -> s { errors = DList.snoc (errors s) err }
+
+bindVar :: Id -> Type -> TypeCheckM ()
+bindVar var ty =
+  modify $ \s -> s { typeEnv = Map.insert var ty (typeEnv s) }
+
+lookupRelationType :: Id -> TypeCheckM (Maybe (NodeId, [Type]))
+lookupRelationType name =
+  asks (Map.lookup name . typedefs)
+
+-- A variable can either be a concrete type, or a unification variable.
+-- In case of unification variable, try looking it up in current substitution.
+-- As a result, this will make it so variables in a rule body with same name have the same type.
+-- NOTE: if this ends up not being powerful enough, need to upgrade to SCC + a solver for each group of "linked" variables.
+lookupVarType :: Id -> TypeCheckM (Maybe Type)
+lookupVarType var = do
+  (maybeVarTy, subst) <- gets (Map.lookup var . typeEnv &&& substitution)
+  case maybeVarTy of
+    Just (TUnknown u) -> pure $ IntMap.lookup u subst
+    maybeTy -> pure maybeTy
+
+-- Generates a fresh unification variable.
+freshType :: TypeCheckM Type
+freshType = do
+  x <- gets varCounter
+  modify $ \s -> s { varCounter = varCounter s + 1 }
+  pure $ TUnknown x
+
+-- | Tries to unify 2 types, emitting an error in case it fails to unify.
+unifyType :: NodeId -> Type -> Type -> TypeCheckM ()
+unifyType nodeId t1 t2 = addContext (WhileUnifying nodeId) $ do
+  subst <- gets substitution
+  unifyType' (substituteType subst t1) (substituteType subst t2)
+  where
+    unifyType' ty1 ty2 =
+      case (ty1, ty2) of
+        (U32, U32) ->
+          pass
+        (Str, Str) ->
+          pass
+        (TUnknown x, TUnknown y) | x == y ->
+          pass
+        (TUnknown u, ty) ->
+          updateSubst u ty
+        (ty, TUnknown u) ->
+          updateSubst u ty
+        _ -> do
+          ctx <- getContext
+          emitError $ UnificationFailure ty1 ty2 ctx
+
+    -- Update the current substitutions
+    updateSubst :: Int -> Type -> TypeCheckM ()
+    updateSubst u ty =
+      modify $ \s ->
+        s { substitution = IntMap.insert u ty (substitution s) }
+
+-- Recursively applies a substitution to a type
+substituteType :: IntMap Type -> Type -> Type
+substituteType subst = \case
+  U32 ->
+    U32
+  Str ->
+    Str
+  TUnknown unknown ->
+    case IntMap.lookup unknown subst of
+      Nothing ->
+        TUnknown unknown
+      Just (TUnknown unknown') | unknown == unknown' ->
+        TUnknown unknown
       Just ty ->
-        pure ty
-  Hole nodeId ->
-    emitHoleFoundError nodeId
-  _ ->
-    panic "Unexpected case in 'inferExpr'"
+        substituteType subst ty
+
+computeTypeInfoById :: TypeCheckM (Map NodeId Type)
+computeTypeInfoById = do
+  ts <- gets trackingState
+  let vars = Map.toList $ Map.fromListWith (<>) $ one <<$>> trackedVariables ts
+  resolvedVarTypes <- flip concatMapM vars $ \(var, nodeIds) -> do
+    varTy <- lookupVarType var
+    pure $ mapMaybe (\nodeId -> (nodeId,) <$> varTy) nodeIds
+
+  pure $ directlyResolvedTypes ts <> Map.fromList resolvedVarTypes
+
+addContext :: Context -> (TypeCheckM a -> TypeCheckM a)
+addContext ctx = local $ \env ->
+  env { tcContext = tcContext env `DNonEmpty.snoc` ctx }
+
+getContext :: TypeCheckM (NonEmpty Context)
+getContext =
+  asks (DNonEmpty.toNonEmpty . tcContext)
+
+getContextNodeId :: Context -> NodeId
+getContextNodeId = \case
+  WhileChecking nodeId -> nodeId
+  WhileInferring nodeId -> nodeId
+  WhileUnifying nodeId -> nodeId
 
 emitHoleFoundError :: NodeId -> TypeCheckM Type
 emitHoleFoundError nodeId = do

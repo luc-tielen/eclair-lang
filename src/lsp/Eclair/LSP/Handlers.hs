@@ -22,11 +22,10 @@ import qualified Data.Map.Strict as Map
 import qualified Language.LSP.Server as LSP
 import qualified Language.LSP.Types as LSP.Types
 import Eclair
-import Eclair.Id
 import Eclair.Error
 import Eclair.Pretty
 import Eclair.Parser
-import Eclair.AST.IR
+import Eclair.TypeSystem (resolvedTypes)
 import Eclair.LSP.State
 import Eclair.LSP.Diagnostics
 
@@ -62,11 +61,10 @@ hoverHandler =
           Just issue ->
             throwE (Error, renderIssueMessage file fileContent issue)
 
-      Right (ast, spanMap, typeInfo) -> do
+      Right (_, spanMap, typeInfo) -> do
         let maybeResult = do
               nodeId <- lookupNodeId spanMap fileOffset
-              identifier <- findIdentifierByNodeId ast nodeId
-              ty <- Map.lookup identifier typeInfo
+              ty <- Map.lookup nodeId (resolvedTypes typeInfo)
               pure (nodeId, ty)
         case maybeResult of
           Nothing -> do
@@ -81,13 +79,6 @@ hoverHandler =
     toPos pos =
       LSP.Types.Position (fromIntegral $ posLine pos)
                          (fromIntegral $ posColumn pos)
-
-findIdentifierByNodeId :: AST -> NodeId -> Maybe Id
-findIdentifierByNodeId ast nodeId = getFirst $ flip cata ast $ \case
-  VarF varNodeId var | nodeId == varNodeId ->
-    First (Just var)
-  astf ->
-    fold astf
 
 sourceSpanToLspRange :: SourceSpan -> LSP.Types.Range
 sourceSpanToLspRange sourceSpan =

@@ -63,7 +63,7 @@ type ContainerInfo = (Relation, Index, M.Metadata)
 
 data LowerState
   = LowerState
-  { typeEnv :: TypeInfo
+  { typeEnv :: TypedefInfo
   , idxMap :: IndexMap
   , idxSelector :: IndexSelector
   , containerInfos :: [ContainerInfo]
