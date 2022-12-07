@@ -9,6 +9,7 @@ clean:
 
 test:
 	@cabal run eclair-test
+	@cabal run eclair-lsp-test
 	@lit tests/ -v
 
 .PHONY: build configure clean test
