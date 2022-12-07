@@ -4,6 +4,7 @@ module Eclair.LSP.Handlers
   ( initializedHandler
   , workspaceChangeConfigurationHandler
   , didOpenTextDocumentNotificationHandler
+  , didChangeTextDocumentNotificationHandler
   , didSaveTextDocumentNotificationHandler
   , textDocumentChangeHandler
   , cancelationHandler
@@ -111,6 +112,12 @@ posToOffset pos uri' = do
 didOpenTextDocumentNotificationHandler :: Handlers HandlerM
 didOpenTextDocumentNotificationHandler =
   LSP.notificationHandler STextDocumentDidOpen $ \notification -> do
+    let _uri = notification ^. params . textDocument . uri
+    diagnosticsHandler _uri
+
+didChangeTextDocumentNotificationHandler :: Handlers HandlerM
+didChangeTextDocumentNotificationHandler =
+  LSP.notificationHandler STextDocumentDidChange $ \notification -> do
     let _uri = notification ^. params . textDocument . uri
     diagnosticsHandler _uri
 

@@ -18,6 +18,7 @@ import qualified System.Exit as Exit
 import qualified System.Log.Logger
 import Eclair.LSP.Handlers
     ( didOpenTextDocumentNotificationHandler
+    , didChangeTextDocumentNotificationHandler
     , didSaveTextDocumentNotificationHandler
     , hoverHandler
     , initializedHandler
@@ -53,6 +54,7 @@ run mLogFile = do
       staticHandlers =
         mconcat
           [ didOpenTextDocumentNotificationHandler
+          , didChangeTextDocumentNotificationHandler
           , didSaveTextDocumentNotificationHandler
           , initializedHandler
           , workspaceChangeConfigurationHandler
