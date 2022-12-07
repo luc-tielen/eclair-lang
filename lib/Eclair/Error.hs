@@ -12,7 +12,6 @@ module Eclair.Error
   ) where
 
 import qualified Data.Map as M
-import qualified Data.Set as S
 import qualified Text.Megaparsec as P
 import Data.List (partition)
 import Eclair.AST.Analysis
@@ -22,8 +21,6 @@ import Eclair.Id
 import Prettyprinter
 import Prettyprinter.Render.Terminal
 import Error.Diagnose hiding (stderr)
-import Error.Diagnose.Compat.Megaparsec
-
 
 data EclairError
   = ParseErr FilePath ParsingError
@@ -49,7 +46,8 @@ handleErrorsCLI e = do
             pure $ "File not found: " <> pretty file'
           ParsingError parseError -> do
             content <- toString <$> readFileText file'
-            let diagnostic = errorDiagnosticFromBundle Nothing "Failed to parse file" Nothing parseError
+            let reports = map fst $ errReportsWithLocationsFromBundle "Failed to parse file" parseError
+                diagnostic = foldl' addReport def reports
                 diagnostic' = addFile diagnostic file' content
              in pure $ prettyError useColor diagnostic'
 
@@ -386,7 +384,7 @@ errReportsWithLocationsFromBundle msg errBundle =
               [(source, This m1), (source, Where m2)]
             _ ->
               [(source, This "<<Unknown error>>")]
-          report = Err Nothing msg markers (errorHints e)
+          report = Err Nothing msg markers mempty
       in (report, positionToLocation source)
 
     fromSourcePos sourcePos =
@@ -394,14 +392,6 @@ errReportsWithLocationsFromBundle msg errBundle =
           begin' = both (fromIntegral . P.unPos) (P.sourceLine sourcePos, P.sourceColumn sourcePos)
           end' = second (+ 1) begin'
        in Position begin' end' (P.sourceName sourcePos)
-
-    errorHints = \case
-      P.TrivialError {} ->
-        mempty
-      P.FancyError _ errs ->
-        S.toList errs >>= \case
-          P.ErrorCustom e -> hints e
-          _ -> mempty
 
 
 data UseColor = UseColor
@@ -442,6 +432,3 @@ style = reAnnotate style'
         bold <> style' st
       CodeStyle ->
         color White
-
-instance HasHints Void msg where
-  hints = const mempty

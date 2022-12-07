@@ -32,7 +32,7 @@ data TypeInfo
   = TypeInfo
   { infoTypedefs :: TypedefInfo
   , resolvedTypes :: Map NodeId Type
-  }
+  } deriving Show
 
 instance Semigroup TypeInfo where
   TypeInfo tdInfo1 resolved1 <> TypeInfo tdInfo2 resolved2 =
@@ -174,8 +174,10 @@ checkExpr ast expectedTy = do
     PWildcard {} ->
       -- NOTE: no checking happens for wildcards, since they always refer to
       -- unique vars (and thus cannot cause type errors)
-      pass
+      trackDirectlyResolvedType nodeId expectedTy
     Var _ var -> do
+      trackVariable nodeId var
+
       lookupVarType var >>= \case
         Nothing ->
           -- TODO: also store in context/state a variable was bound here for better errors?
@@ -197,12 +199,14 @@ inferExpr ast = do
   let nodeId = getNodeId ast
   addContext (WhileInferring nodeId) $ case ast of
     Lit _ lit -> do
-      case lit of
-        LNumber {} ->
-          pure U32
-        LString {} ->
-          pure Str
+      let ty = case lit of
+            LNumber {} -> U32
+            LString {} -> Str
+      trackDirectlyResolvedType nodeId ty
+      pure ty
     Var _ var -> do
+      trackVariable nodeId var
+
       lookupVarType var >>= \case
         Nothing -> do
           ty <- freshType
@@ -344,6 +348,18 @@ processUnresolvedHoles = do
       emitError $ hole (substituteType subst holeTy) solvedEnv
 
     modify' $ \s -> s { unresolvedHoles = mempty }
+
+trackDirectlyResolvedType :: NodeId -> Type -> TypeCheckM ()
+trackDirectlyResolvedType nodeId ty = do
+  ts <- gets trackingState
+  let ts' = ts { directlyResolvedTypes = directlyResolvedTypes ts <> one (nodeId, ty) }
+  modify $ \s -> s { trackingState = ts' }
+
+trackVariable :: NodeId -> Id -> TypeCheckM ()
+trackVariable nodeId var = do
+  ts <- gets trackingState
+  let ts' = ts { trackedVariables = (var, nodeId) : trackedVariables ts }
+  modify $ \s -> s { trackingState = ts' }
 
 duplicateErrors :: [(Id, (NodeId, [Type]))] -> [TypeError]
 duplicateErrors typeDefs

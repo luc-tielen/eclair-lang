@@ -71,7 +71,6 @@ lookupNodeId (SpanMap _ m) offset =
     & viaNonEmpty head
     & map (NodeId . fst)
   where
-    -- TODO: check if we need <= instead of <?
     containsOffset span' =
       offset >= beginPos span' && offset < endPos span'
 

@@ -152,7 +152,7 @@ executables:
 tests:
   eclair-test:
     main: test.hs
-    source-dirs: tests
+    source-dirs: tests/eclair
     dependencies:
       - hspec >= 2.6.1 && < 3.0.0
       - hspec-hedgehog == 0.*
@@ -165,3 +165,18 @@ tests:
         version: ">= 4.7 && < 5"
         mixin:
           - hiding (Prelude)
+  eclair-lsp-test:
+    main: Main.hs
+    source-dirs: tests/lsp
+    build-tools: eclair-lsp-server
+    dependencies:
+      - eclair-lang
+      - name: base
+        version: ">= 4.7 && < 5"
+        mixin:
+          - hiding (Prelude)
+      - lsp == 1.4.*
+      - lsp-types == 1.4.*
+      - lsp-test == 0.14.*
+      - hspec >= 2.6.1 && < 3.0.0
+      - rope-utf16-splay == 0.3.*
