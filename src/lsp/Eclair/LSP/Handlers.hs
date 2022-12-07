@@ -26,7 +26,7 @@ import Eclair.Error
 import Eclair.Pretty
 import Eclair.Parser
 import Eclair.TypeSystem (resolvedTypes)
-import Eclair.LSP.State
+import Eclair.LSP.Monad
 import Eclair.LSP.Diagnostics
 
 

@@ -6,7 +6,7 @@ module Eclair.LSP.Diagnostics
 import Language.LSP.Types hiding (Range(..), Location(..), ParseError, Position, line)
 import qualified Language.LSP.Types as LSP
 import Eclair.Error
-import Eclair.LSP.State
+import Eclair.LSP.Monad
 
 
 errorToDiagnostics :: Uri -> EclairError -> HandlerM [Diagnostic]

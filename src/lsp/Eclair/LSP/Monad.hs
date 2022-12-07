@@ -1,4 +1,4 @@
-module Eclair.LSP.State
+module Eclair.LSP.Monad
   ( HandlerM
   , Severity(..)
   , ServerConfig

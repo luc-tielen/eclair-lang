@@ -209,7 +209,7 @@ executable eclair-lsp-server
       Eclair.LSP
       Eclair.LSP.Diagnostics
       Eclair.LSP.Handlers
-      Eclair.LSP.State
+      Eclair.LSP.Monad
       Paths_eclair_lang
   autogen-modules:
       Paths_eclair_lang

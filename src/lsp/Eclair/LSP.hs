@@ -25,7 +25,7 @@ import Eclair.LSP.Handlers
     , textDocumentChangeHandler
     , cancelationHandler
     )
-import Eclair.LSP.State
+import Eclair.LSP.Monad
 import Eclair
 
 -- | The main entry point for the LSP server.
