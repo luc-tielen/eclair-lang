@@ -45,21 +45,21 @@ handleErrorsCLI e = do
           FileNotFound {} ->
             pure $ "File not found: " <> pretty file'
           ParsingError parseError -> do
-            content <- toString <$> readFileText file'
+            content <- decodeUtf8 <$> readFileBS file'
             let reports = map fst $ errReportsWithLocationsFromBundle "Failed to parse file" parseError
                 diagnostic = foldl' addReport def reports
                 diagnostic' = addFile diagnostic file' content
              in pure $ prettyError useColor diagnostic'
 
       TypeErr file' spanMap errs -> do
-        content <- readFileText file'
+        content <- decodeUtf8 <$> readFileBS file'
         let reports = map (typeErrorToReport file' content spanMap) errs
             diagnostic = foldl' addReport def reports
             diagnostic' = addFile diagnostic file' (toString content)
          in pure $ prettyError useColor diagnostic'
 
       SemanticErr file' spanMap semanticErr -> do
-        content <- readFileText file'
+        content <- decodeUtf8 <$> readFileBS file'
         let reports = map fst $ semanticErrorsToReportsWithLocations file' content spanMap semanticErr
             diagnostic = foldl' addReport def reports
             diagnostic' = addFile diagnostic file' (toString content)

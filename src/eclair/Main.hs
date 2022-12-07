@@ -11,7 +11,7 @@ tryReadFile :: FilePath -> IO (Maybe Text)
 tryReadFile file = do
   fileExists <- doesFileExist file
   if fileExists
-    then Just <$> readFileText file
+    then Just . decodeUtf8 <$> readFileBS file
     else pure Nothing
 
 main :: IO ()
