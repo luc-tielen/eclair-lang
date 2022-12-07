@@ -1,0 +1,7 @@
+@def number(u32).
+
+number(123, ).
+number(456).
+number(789, ).
+
+

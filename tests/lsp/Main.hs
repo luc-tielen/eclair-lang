@@ -41,8 +41,10 @@ diagnosticsSpec fixtureDir = describe "Diagnostics action" $ parallel $ do
   it "reports invalid syntax" $ do
     runSession "eclair-lsp" fullCaps fixtureDir $ do
       _ <- openDoc "invalid_syntax.eclair" "eclair"
-      [diag] <- waitForDiagnosticsSource "Eclair.Parser"
-      liftIO $ _severity diag `shouldBe` Just DsError
+      [diag1, diag2] <- waitForDiagnosticsSource "Eclair.Parser"
+      liftIO $ do
+        _severity diag1 `shouldBe` Just DsError
+        _severity diag2 `shouldBe` Just DsError
 
   it "reports semantic errors" $ do
     runSession "eclair-lsp" fullCaps fixtureDir $ do
@@ -50,7 +52,7 @@ diagnosticsSpec fixtureDir = describe "Diagnostics action" $ parallel $ do
       [diag] <- waitForDiagnosticsSource "Eclair.SemanticAnalysis"
       liftIO $ do
         _severity diag `shouldBe` Just DsError
-        toString (_message diag) `shouldContain` "Unbound variable"
+        toString (_message diag) `shouldContain` "Wildcard in top level fact"
 
   it "reports type errors" $ do
     runSession "eclair-lsp" fullCaps fixtureDir $ do
@@ -58,7 +60,7 @@ diagnosticsSpec fixtureDir = describe "Diagnostics action" $ parallel $ do
       [diag] <- waitForDiagnosticsSource "Eclair.Typesystem"
       liftIO $ do
         _severity diag `shouldBe` Just DsError
-        toString (_message diag) `shouldContain` "Expression doesn't match annotation"
+        toString (_message diag) `shouldContain` "Type mismatch"
 
 main :: IO ()
 main = do

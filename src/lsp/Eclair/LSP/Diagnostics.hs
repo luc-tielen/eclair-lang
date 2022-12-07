@@ -5,15 +5,19 @@ module Eclair.LSP.Diagnostics
 
 import Language.LSP.Types hiding (Range(..), Location(..), ParseError, Position, line)
 import qualified Language.LSP.Types as LSP
+import Language.LSP.Server (getLspEnv)
 import Eclair.Error
 import Eclair.LSP.Monad
+import Data.Maybe (fromJust)
 
 
 errorToDiagnostics :: Uri -> EclairError -> HandlerM [Diagnostic]
 errorToDiagnostics uri err = do
   file <- fileFromUri uri
   fileContent <- readUri (filePathToUri file)
-  issues <- liftIO $ errorToIssues (const (pure fileContent)) err
+  env <- lift getLspEnv
+  let readSourceFile = map (map fromJust) $ lspReadFromVFS env
+  issues <- liftIO $ errorToIssues readSourceFile err
   let source = errorSource err
   pure $ map (toDiagnostic source file fileContent) issues
   where
