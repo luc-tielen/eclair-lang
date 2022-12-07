@@ -18,13 +18,11 @@ import qualified System.Exit as Exit
 import qualified System.Log.Logger
 import Eclair.LSP.Handlers
     ( didOpenTextDocumentNotificationHandler
-    -- TODO: this hides edits in neovim until insert mode is exited?
-    -- , didChangeTextDocumentNotificationHandler
+    , didChangeTextDocumentNotificationHandler
     , didSaveTextDocumentNotificationHandler
     , hoverHandler
     , initializedHandler
     , workspaceChangeConfigurationHandler
-    , textDocumentChangeHandler
     , cancelationHandler
     )
 import Eclair.LSP.Monad
@@ -55,11 +53,10 @@ run mLogFile = do
       staticHandlers =
         mconcat
           [ didOpenTextDocumentNotificationHandler
-          -- , didChangeTextDocumentNotificationHandler
+          , didChangeTextDocumentNotificationHandler
           , didSaveTextDocumentNotificationHandler
           , initializedHandler
           , workspaceChangeConfigurationHandler
-          , textDocumentChangeHandler
           , cancelationHandler
           , hoverHandler
           ]

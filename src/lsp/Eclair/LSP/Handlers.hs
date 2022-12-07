@@ -149,11 +149,6 @@ workspaceChangeConfigurationHandler =
   LSP.notificationHandler SWorkspaceDidChangeConfiguration $ const pass
 
 -- This handler is a stub to prevent `lsp:no handler for:` messages.
-textDocumentChangeHandler :: Handlers HandlerM
-textDocumentChangeHandler =
-  LSP.notificationHandler STextDocumentDidChange $ const pass
-
--- This handler is a stub to prevent `lsp:no handler for:` messages.
 cancelationHandler :: Handlers HandlerM
 cancelationHandler =
   LSP.notificationHandler SCancelRequest $ const pass
