@@ -6,9 +6,9 @@ module Eclair.LSP.Handlers
   , didOpenTextDocumentNotificationHandler
   , didChangeTextDocumentNotificationHandler
   , didSaveTextDocumentNotificationHandler
-  , textDocumentChangeHandler
   , cancelationHandler
   , hoverHandler
+  , documentHighlightHandler
   ) where
 
 import Control.Lens ((^.))
@@ -29,9 +29,79 @@ import Eclair.Parser
 import Eclair.TypeSystem (resolvedTypes)
 import Eclair.LSP.Monad
 import Eclair.LSP.Diagnostics
+import Eclair.AST.IR
+import Eclair.Id
 
 
 -- TODO implement completionHandler and documentLinkHandler (see Dhall LSP)
+
+documentHighlightHandler :: Handlers HandlerM
+documentHighlightHandler =
+  LSP.requestHandler STextDocumentDocumentHighlight $ \request respond ->
+    handleErrorWithDefault respond mempty $ do
+      let uri_ = request ^. params . textDocument . uri
+          pos = request ^. params . position
+      file <- fileFromUri uri_
+      parameters <- ask
+      fileOffset <- posToOffset pos uri_
+      parseResult <- liftIO $ runExceptT $ do
+        (ast, spanMap) <- ExceptT (parse parameters file)
+        let mNodeId = lookupNodeId spanMap fileOffset
+        (ast, spanMap,) <$> liftEither (maybeToRight [] mNodeId)
+      case parseResult of
+        Left _errs ->
+          throwE (Error, "Failed to get highlight information!")
+        Right (ast, spanMap, nodeId) -> do
+          fileContent <- readUri uri_
+          let refs = findReferences ast nodeId
+              highlights = getHighlights file fileContent spanMap refs
+
+          appendFile "/tmp/lsp.log" (show highlights)
+          respond (Right $ List highlights)
+  where
+    getHighlights file fileContent spanMap =
+      map (\refNodeId ->
+        let span' = lookupSpan spanMap refNodeId
+            sourceSpan = spanToSourceSpan file fileContent span'
+            _range = sourceSpanToLspRange sourceSpan
+            _kind = Nothing
+        in DocumentHighlight {..})
+
+-- TODO implement for concepts besides variables
+findReferences :: AST -> NodeId -> [NodeId]
+findReferences ast nodeId =
+  -- TODO use gcata, refactor
+  map fst $ zygo (combine getVarId getVars) getRefs ast
+  where
+    combine f g =
+      f . map fst &&& g . map snd
+
+    getVarId = \case
+      VarF varNodeId var | nodeId == varNodeId ->
+        First (Just var)
+      astf ->
+        fold astf
+
+    getVars = \case
+      VarF _ var ->
+        [var]
+      astf ->
+        fold astf
+
+    getRefs :: ASTF ((First Id, [Id]), [(NodeId, Id)]) -> [(NodeId, Id)]
+    getRefs = \case
+      RuleF _ _ args clauses -> do
+        case getFirst $ foldMap (fst . fst) $ args <> clauses of
+          Nothing -> mempty
+          Just var ->
+            filter (\(_, var') -> var == var') $ foldMap snd $ args <> clauses
+
+      VarF varNodeId var ->
+        [(varNodeId, var)]
+
+      astf ->
+        foldMap snd astf
+
 
 hoverHandler :: Handlers HandlerM
 hoverHandler =

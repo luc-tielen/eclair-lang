@@ -21,6 +21,7 @@ import Eclair.LSP.Handlers
     , didChangeTextDocumentNotificationHandler
     , didSaveTextDocumentNotificationHandler
     , hoverHandler
+    , documentHighlightHandler
     , initializedHandler
     , workspaceChangeConfigurationHandler
     , cancelationHandler
@@ -59,6 +60,7 @@ run mLogFile = do
           , workspaceChangeConfigurationHandler
           , cancelationHandler
           , hoverHandler
+          , documentHighlightHandler
           ]
 
       interpretHandler environment = Iso{..}
