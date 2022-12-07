@@ -123,7 +123,6 @@ errorToIssues readTextFile = \case
     let reportsWithLocs = semanticErrorsToReportsWithLocations file' content spanMap semanticErrs
     pure $ map (uncurry Issue) reportsWithLocs
 
-
 typeErrorToReport :: FilePath -> Text -> SpanMap -> TypeError -> Report Text
 typeErrorToReport file' fileContent spanMap e = case e of
   UnknownAtom _ factName ->

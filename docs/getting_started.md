@@ -22,7 +22,7 @@ compiler.
 ```bash
 $ curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | sh
 $ ghcup tui
-# In the terminal UI, select GHC9.0.2, Haskell language server 1.8 and Cabal 3.6.
+# In the terminal UI, select GHC 9.2.4, Haskell language server 1.8 and Cabal 3.6.
 # Important: both install + set them!
 $ cabal install hpack
 $ cabal install hspec-discover
@@ -98,11 +98,11 @@ Run the following commands (see https://www.haskell.org/ghcup/) to install `ghcu
 ```bash
 $ curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | sh
 $ ghcup tui
-# In the terminal UI, select GHC9.0.2, Haskell language server 1.8 and Cabal 3.6.
+# In the terminal UI, select GHC 9.2.4, Haskell language server 1.8 and Cabal 3.6.
 # Important: both install + set them!
 ```
 
-The following commandss are only needed when working on the compiler.
+The following commands are only needed when working on the compiler.
 Run the commands to install `hpack`, `hspec-discover`, and `hlint`.
 
 ```bash

@@ -1,4 +1,4 @@
-{-# LANGUAGE GADTs, QuasiQuotes, TemplateHaskell #-}
+{-# LANGUAGE GADTs, QuasiQuotes, TemplateHaskell, PackageImports, StandaloneDeriving #-}
 
 module Eclair
   ( parse
@@ -31,7 +31,7 @@ import qualified Eclair.AST.Analysis as SA
 import LLVM.Codegen (Module, ppllvm)
 import qualified Rock
 import Data.GADT.Compare.TH (deriveGEq)
-import Data.Some
+import "dependent-sum" Data.Some
 
 
 type RA = RA.RA
@@ -54,6 +54,8 @@ data Query a where
   CompileLLVM :: FilePath -> Query Module
   EmitLLVM :: FilePath -> Query ()
   StringMapping :: FilePath -> Query (Map Text Word32)
+  
+deriving instance Eq (Query a)
 
 queryFilePath :: Query a -> FilePath
 queryFilePath = \case

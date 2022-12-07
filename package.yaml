@@ -1,5 +1,5 @@
 name: eclair-lang
-version: 0.0.1
+version: 0.2.0
 synopsis: "Eclair: an experimental and minimal Datalog that compiles to LLVM."
 description: "Eclair: an experimental and minimal Datalog that compiles to LLVM."
 homepage: https://github.com/luc-tielen/eclair-lang
@@ -25,10 +25,10 @@ dependencies:
     version: ">= 4.7 && < 5"
     mixin:
       - hiding (Prelude)
-  - relude == 1.0.*
+  - relude == 1.1.*
   - extra == 1.*
   - text == 1.*
-  - bytestring == 0.10.*
+  - bytestring == 0.11.*
   - vector == 0.12.*
   - containers == 0.*
   - transformers == 0.*
@@ -38,7 +38,7 @@ dependencies:
   - prettyprinter == 1.7.*
   - prettyprinter-ansi-terminal == 1.*
   - megaparsec == 9.*
-  - souffle-haskell == 3.4.0
+  - souffle-haskell == 3.5.1
   - recursion-schemes == 5.*
   - comonad == 5.*
   - algebraic-graphs == 0.*
@@ -74,6 +74,7 @@ default-extensions:
 ghc-options:
   - -Wall
   - -Wincomplete-patterns
+  - -Wno-incomplete-uni-patterns
   - -fhide-source-paths
   - -fno-show-valid-hole-fits
   - -fno-sort-valid-hole-fits
@@ -114,7 +115,7 @@ executables:
         version: ">= 4.7 && < 5"
         mixin:
           - hiding (Prelude)
-      - relude == 1.0.*
+      - relude == 1.1.*
       - directory == 1.*
     ghc-options:
       - -threaded
@@ -132,7 +133,7 @@ executables:
         version: ">= 4.7 && < 5"
         mixin:
           - hiding (Prelude)
-      - relude == 1.0.*
+      - relude == 1.1.*
       - lsp == 1.4.*
       - lsp-types == 1.4.*
       - lens == 5.2.*
