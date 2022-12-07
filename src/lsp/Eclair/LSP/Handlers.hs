@@ -56,7 +56,6 @@ documentHighlightHandler =
           let refs = findReferences ast nodeId
               highlights = getHighlights file fileContent spanMap refs
 
-          appendFile "/tmp/lsp.log" (show highlights)
           respond (Right $ List highlights)
   where
     getHighlights file fileContent spanMap =
@@ -64,34 +63,25 @@ documentHighlightHandler =
         let span' = lookupSpan spanMap refNodeId
             sourceSpan = spanToSourceSpan file fileContent span'
             _range = sourceSpanToLspRange sourceSpan
-            _kind = Nothing
+            _kind = Just HkText
         in DocumentHighlight {..})
 
 -- TODO implement for concepts besides variables
 findReferences :: AST -> NodeId -> [NodeId]
 findReferences ast nodeId =
   -- TODO use gcata, refactor
-  map fst $ zygo (combine getVarId getVars) getRefs ast
+  map fst $ zygo getVarId getRefs ast
   where
-    combine f g =
-      f . map fst &&& g . map snd
-
     getVarId = \case
       VarF varNodeId var | nodeId == varNodeId ->
         First (Just var)
       astf ->
         fold astf
 
-    getVars = \case
-      VarF _ var ->
-        [var]
-      astf ->
-        fold astf
-
-    getRefs :: ASTF ((First Id, [Id]), [(NodeId, Id)]) -> [(NodeId, Id)]
+    getRefs :: ASTF (First Id, [(NodeId, Id)]) -> [(NodeId, Id)]
     getRefs = \case
       RuleF _ _ args clauses -> do
-        case getFirst $ foldMap (fst . fst) $ args <> clauses of
+        case getFirst $ foldMap fst $ args <> clauses of
           Nothing -> mempty
           Just var ->
             filter (\(_, var') -> var == var') $ foldMap snd $ args <> clauses
@@ -155,8 +145,8 @@ sourceSpanToLspRange :: SourceSpan -> LSP.Types.Range
 sourceSpanToLspRange sourceSpan =
   let srcBegin = sourceSpanBegin sourceSpan
       srcEnd = sourceSpanEnd sourceSpan
-      rangeStart = LSP.Types.Position (fromIntegral $ sourcePosLine srcBegin) (fromIntegral $ sourcePosColumn srcBegin)
-      rangeEnd = LSP.Types.Position (fromIntegral $ sourcePosLine srcEnd) (fromIntegral $ sourcePosColumn srcEnd)
+      rangeStart = LSP.Types.Position (fromIntegral $ sourcePosLine srcBegin - 1) (fromIntegral $ sourcePosColumn srcBegin - 1)
+      rangeEnd = LSP.Types.Position (fromIntegral $ sourcePosLine srcEnd - 1) (fromIntegral $ sourcePosColumn srcEnd - 1)
    in LSP.Types.Range rangeStart rangeEnd
 
 -- A hack to go from the LSP position to the offset in the file.
