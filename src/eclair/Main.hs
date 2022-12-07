@@ -4,6 +4,7 @@ import Eclair.ArgParser
 import Eclair
 import GHC.IO.Encoding
 import System.Directory
+import qualified Data.Text.IO as TIO
 
 
 tryReadFile :: FilePath -> IO (Maybe Text)
@@ -26,5 +27,9 @@ main = do
             EmitEIR -> emitEIR
             EmitLLVM -> emitLLVM
           params = Parameters (cpuTarget cfg) tryReadFile
-      whenLeftM_ (fn params file) $
-        traverse_ handleErrorsCLI
+      whenLeftM_ (fn params file) $ \errs -> do
+        let errActions =
+              errs
+                & map handleErrorsCLI
+                & intersperse (TIO.hPutStr stderr "\n")
+        sequence_ errActions

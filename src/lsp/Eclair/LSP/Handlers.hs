@@ -124,6 +124,7 @@ diagnosticsHandler :: Uri -> HandlerM ()
 diagnosticsHandler _uri = do
   file <- fileFromUri _uri
   parameters <- ask
+
   errs <- liftIO $ emitDiagnostics parameters file
   -- TODO cache errors in server state?
   let _version = Nothing

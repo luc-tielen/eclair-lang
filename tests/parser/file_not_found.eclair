@@ -2,7 +2,7 @@
 // RUN: split-file %t/input.test %t
 
 // RUN: %eclair compile foo.eclair 2> %t/actual_output
-// RUN: diff %t/expected_output %t/actual_output
+// RUN: diff -w %t/expected_output %t/actual_output
 
 //--- expected_output
 File not found: foo.eclair
