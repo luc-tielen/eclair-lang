@@ -31,9 +31,9 @@ data Target
   = Wasm32
   deriving (Eq, Show)
 
-newtype Config
+data Config
   = Compile CompileConfig
-  -- TODO add LSP
+  | LSP
   deriving (Eq, Show)
 
 
@@ -45,12 +45,15 @@ parseArgs = handleParseResult . execParserPure parserPrefs parserInfo
     parserInfo = info (parser <**> helper) desc
 
 parser :: Parser Config
-parser = hsubparser $ longCompileCommand <> shortCompileCommand
+parser = hsubparser (longCompileCommand <> shortCompileCommand)
+      <|> hsubparser lspCommand
   where
     longCompileCommand = command "compile" compileCommand
     shortCompileCommand = command "c" compileCommand
     compileCommand = info compileParser compileDesc
     compileDesc = fullDesc <> header "eclair compile" <> progDesc "Compiles Datalog files."
+    lspCommand = command "lsp" $ info (pure LSP) lspDesc
+    lspDesc = fullDesc <> header "eclair lsp" <> progDesc "Runs the Eclair LSP server."
 
 compileParser :: Parser Config
 compileParser = Compile <$> compileParser'

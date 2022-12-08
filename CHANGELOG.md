@@ -8,6 +8,10 @@ The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-has
 ### Added
 
 - Typed hole support
+- LSP support
+  - Document highlight
+  - Hover
+  - Diagnostics
 
 ## [0.1.0] - 2022-11-20
 

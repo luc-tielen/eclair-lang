@@ -9,6 +9,3 @@ source-repository-package
     type: git
     location: https://github.com/luc-tielen/diagnose.git
     tag: 93cd476fa680a4dc50881d880820f97d5cb02e9e
-
-package diagnose
-    flags: +megaparsec-compat

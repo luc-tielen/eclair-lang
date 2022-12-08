@@ -9,6 +9,8 @@ clean:
 
 test:
 	@cabal run eclair-test
+	# next line is broken on CI
+	#@cabal run eclair-lsp-test
 	@lit tests/ -v
 
 .PHONY: build configure clean test

@@ -3,19 +3,18 @@
 module Eclair
   ( parse
   , semanticAnalysis
-  , transformAST
-  , compileRA
-  , compileEIR
-  , compileLLVM
-  , compile
+  , typeCheck
+  , emitDiagnostics
   , emitSimplifiedAST
   , emitRA
   , emitEIR
   , emitLLVM
+  , Parameters(..)
   , EclairError(..)
-  , handleErrors
+  , handleErrorsCLI
   ) where
 
+import Control.Exception
 import Eclair.AST.Lower
 import Eclair.RA.Lower
 import Eclair.EIR.Lower
@@ -30,7 +29,6 @@ import qualified Eclair.EIR.IR as EIR
 import qualified Eclair.TypeSystem as TS
 import qualified Eclair.AST.Analysis as SA
 import LLVM.Codegen (Module, ppllvm)
-import Control.Exception
 import qualified Rock
 import Data.GADT.Compare.TH (deriveGEq)
 import "dependent-sum" Data.Some
@@ -44,8 +42,9 @@ type Config = Maybe Target
 
 data Query a where
   Parse :: FilePath -> Query (AST, NodeId, SpanMap)
-  RunSemanticAnalysis :: FilePath -> Query SA.Result
+  RunSemanticAnalysis :: FilePath -> Query SA.SemanticInfo
   Typecheck :: FilePath -> Query TS.TypeInfo
+  EmitDiagnostics :: FilePath -> Query ()
   TransformAST :: FilePath -> Query (AST, StringMap)
   EmitSimplifiedAST :: FilePath -> Query ()
   CompileRA :: FilePath -> Query RA
@@ -63,6 +62,7 @@ queryFilePath = \case
   Parse path               -> path
   RunSemanticAnalysis path -> path
   Typecheck path           -> path
+  EmitDiagnostics path     -> path
   TransformAST path        -> path
   EmitSimplifiedAST path   -> path
   CompileRA path           -> path
@@ -78,15 +78,16 @@ queryEnum = \case
   Parse {}               -> 0
   RunSemanticAnalysis {} -> 1
   Typecheck {}           -> 2
-  TransformAST {}        -> 3
-  EmitSimplifiedAST {}   -> 4
-  CompileRA {}           -> 5
-  EmitRA {}              -> 6
-  CompileEIR {}          -> 7
-  EmitEIR {}             -> 8
-  CompileLLVM {}         -> 9
-  EmitLLVM {}            -> 10
-  StringMapping {}       -> 11
+  EmitDiagnostics {}     -> 3
+  TransformAST {}        -> 4
+  EmitSimplifiedAST {}   -> 5
+  CompileRA {}           -> 6
+  EmitRA {}              -> 7
+  CompileEIR {}          -> 8
+  EmitEIR {}             -> 9
+  CompileLLVM {}         -> 10
+  EmitLLVM {}            -> 11
+  StringMapping {}       -> 12
 
 deriveGEq ''Query
 
@@ -98,104 +99,141 @@ instance Hashable (Some Query) where
   hashWithSalt salt (Some query) =
     hashWithSalt salt query
 
+data Parameters
+  = Parameters
+  { paramsConfig :: !Config
+  , paramsReadSourceFile :: FilePath -> IO (Maybe Text)
+  }
 
-rules :: Config -> Rock.Rules Query
-rules config = \case
-  Parse path ->
-    liftIO $ either (throwIO . ParseErr path) pure =<< parseFile path
+rules :: Rock.Task Query ()
+      -> Parameters
+      -> Rock.GenRules (Rock.Writer [EclairError] Query) Query
+rules abortOnError params (Rock.Writer query) = case query of
+  Parse path -> liftIO $ do
+    (ast, nodeId, spanMap, mParseErr) <- parseFile (paramsReadSourceFile params) path
+    pure ((ast, nodeId, spanMap), ParseErr path <$> maybeToList mParseErr)
   RunSemanticAnalysis path -> do
     (ast, _, spans) <- Rock.fetch (Parse path)
     result <- liftIO $ SA.runAnalysis ast
-    let errors = SA.semanticErrors result
-    when (SA.hasSemanticErrors result) $ do
-      liftIO $ (throwIO . SemanticErr path spans) errors
-    pure result
+    let errs = if SA.hasSemanticErrors result
+                 then one $ SemanticErr path spans $ SA.semanticErrors result
+                 else mempty
+    pure (SA.semanticInfo result, errs)
   Typecheck path -> do
     (ast, _, spans) <- Rock.fetch (Parse path)
-    liftIO . either (throwIO . TypeErr path spans) pure $ TS.typeCheck ast
-  TransformAST path -> do
+    case TS.typeCheck ast of
+      Left err ->
+        pure (mempty, one $ TypeErr path spans err)
+      Right typeInfo ->
+        pure (typeInfo, mempty)
+  EmitDiagnostics path -> noError $ do
+    -- Just triggering these tasks collects all the corresponding errors.
+    _ <- Rock.fetch (Parse path)
+    _ <- Rock.fetch (RunSemanticAnalysis path)
+    _ <- Rock.fetch (Typecheck path)
+    pass
+  TransformAST path -> noError $ do
     -- Need to run SA and typechecking before any transformations / lowering
     -- to ensure we don't perform work on invalid programs.
     -- And thanks to rock, the results will be cached anyway.
     analysis <- Rock.fetch (RunSemanticAnalysis path)
     _ <- Rock.fetch (Typecheck path)
+    -- Past this point, the code should be valid!
+    -- We abort if this is not the case.
+    abortOnError
     (ast, nodeId, _) <- Rock.fetch (Parse path)
-    pure $ simplify nodeId (SA.semanticInfo analysis) ast
-  EmitSimplifiedAST path -> do
+    pure $ simplify nodeId analysis ast
+  EmitSimplifiedAST path -> noError $ do
     (ast, _) <- Rock.fetch (TransformAST path)
     liftIO $ putTextLn $ printDoc ast
-  StringMapping path -> do
+  StringMapping path -> noError $ do
     (_, mapping) <- Rock.fetch (TransformAST path)
     pure mapping
-  CompileRA path -> do
+  CompileRA path -> noError $ do
     ast <- fst <$> Rock.fetch (TransformAST path)
     pure $ compileToRA ast
-  EmitRA path -> do
+  EmitRA path -> noError $ do
     ra <- Rock.fetch (CompileRA path)
     liftIO $ putTextLn $ printDoc ra
-  CompileEIR path -> do
+  CompileEIR path -> noError $ do
     stringMapping <- Rock.fetch (StringMapping path)
     ra <- Rock.fetch (CompileRA path)
     typeInfo <- Rock.fetch (Typecheck path)
-    pure $ compileToEIR stringMapping typeInfo ra
-  EmitEIR path -> do
+    pure $ compileToEIR stringMapping (TS.infoTypedefs typeInfo) ra
+  EmitEIR path -> noError $ do
     eir <- Rock.fetch (CompileEIR path)
     liftIO $ putTextLn $ printDoc eir
-  CompileLLVM path -> do
+  CompileLLVM path -> noError $ do
     eir <- Rock.fetch (CompileEIR path)
     stringMapping <- Rock.fetch (StringMapping path)
-    liftIO $ compileToLLVM config stringMapping eir
-  EmitLLVM path -> do
+    liftIO $ compileToLLVM (paramsConfig params) stringMapping eir
+  EmitLLVM path -> noError $ do
     llvmModule <- Rock.fetch (CompileLLVM path)
     liftIO $ putTextLn $ ppllvm llvmModule
 
-runQuery :: Config -> Query a -> IO a
-runQuery config query = do
+-- Helper function for tasks that don't emit any errors.
+noError :: Rock.Task Query a -> Rock.Task Query (a, [EclairError])
+noError task =
+  (, mempty) <$> task
+
+type CompilerM a = IO (Either [EclairError] a)
+
+data Aborted = Aborted
+  deriving (Show, Exception)
+
+runQuery :: Parameters -> Query a -> CompilerM a
+runQuery params query = do
   memoVar <- newIORef mempty
-  let task = Rock.fetch query
-  Rock.runTask (Rock.memoise memoVar $ rules config) task
+  errRef <- newIORef mempty
 
-parse :: Config -> FilePath -> IO AST
-parse cfg =
-  map (\(ast, _, _) -> ast) . runQuery cfg . Parse
+  let onError :: q -> [EclairError] -> Rock.Task Query ()
+      onError _ errs =
+        liftIO $ modifyIORef errRef (<> errs)
+      abortOnError = do
+        errs <- readIORef errRef
+        unless (null errs) $
+          liftIO $ throwIO Aborted
+      handleAbort =
+        handle $ \Aborted -> do
+          errs <- readIORef errRef
+          pure $ Left errs
+      task = Rock.fetch query
 
-semanticAnalysis :: Config -> FilePath -> IO SA.Result
-semanticAnalysis cfg =
-  runQuery cfg . RunSemanticAnalysis
+  handleAbort $ do
+    result <- Rock.runTask (Rock.memoise memoVar $ Rock.writer onError $ rules abortOnError params) task
+    errs <- readIORef errRef
+    pure $ if null errs then Right result else Left errs
 
-transformAST :: Config -> FilePath -> IO (AST, StringMap)
-transformAST cfg =
-  runQuery cfg . TransformAST
+parse :: Parameters -> FilePath -> CompilerM (AST, SpanMap)
+parse params =
+  map (map (\(ast, _, spanMap) -> (ast, spanMap))) . runQuery params . Parse
 
-emitSimplifiedAST :: Config -> FilePath -> IO ()
-emitSimplifiedAST cfg =
-  runQuery cfg . EmitSimplifiedAST
+semanticAnalysis :: Parameters -> FilePath -> CompilerM SA.SemanticInfo
+semanticAnalysis params =
+  runQuery params . RunSemanticAnalysis
 
-compileRA :: Config -> FilePath -> IO RA
-compileRA cfg =
-  runQuery cfg . CompileRA
+typeCheck :: Parameters -> FilePath -> CompilerM TS.TypeInfo
+typeCheck params =
+  runQuery params . Typecheck
 
-emitRA :: Config -> FilePath -> IO ()
-emitRA cfg =
-  runQuery cfg . EmitRA
+emitDiagnostics :: Parameters -> FilePath -> IO [EclairError]
+emitDiagnostics params = do
+  f <<$>> runQuery params . EmitDiagnostics
+  where
+    f = fromLeft mempty
 
-compileEIR :: Config -> FilePath -> IO EIR
-compileEIR cfg =
-  runQuery cfg . CompileEIR
+emitSimplifiedAST :: Parameters -> FilePath -> CompilerM ()
+emitSimplifiedAST params =
+  runQuery params . EmitSimplifiedAST
 
-emitEIR :: Config -> FilePath -> IO ()
-emitEIR cfg =
-  runQuery cfg . EmitEIR
+emitRA :: Parameters -> FilePath -> CompilerM ()
+emitRA params =
+  runQuery params . EmitRA
 
-compileLLVM :: Config -> FilePath -> IO Module
-compileLLVM cfg =
-  runQuery cfg . CompileLLVM
+emitEIR :: Parameters -> FilePath -> CompilerM ()
+emitEIR params =
+  runQuery params . EmitEIR
 
-compile :: Config -> FilePath -> IO Module
-compile =
-  compileLLVM
-
-emitLLVM :: Config -> FilePath -> IO ()
-emitLLVM cfg =
-  runQuery cfg . EmitLLVM
-
+emitLLVM :: Parameters -> FilePath -> CompilerM ()
+emitLLVM params =
+  runQuery params . EmitLLVM

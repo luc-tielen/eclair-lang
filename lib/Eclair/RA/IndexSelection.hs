@@ -19,7 +19,7 @@ import Data.Maybe (fromJust)
 import Eclair.RA.IR
 import Eclair.Pretty
 import Eclair.Comonads
-import Eclair.TypeSystem (TypeInfo)
+import Eclair.TypeSystem (TypedefInfo)
 import Algebra.Graph.Bipartite.AdjacencyMap
 import Algebra.Graph.Bipartite.AdjacencyMap.Algorithm hiding (matching)
 import qualified Data.Set as Set
@@ -50,9 +50,9 @@ type IndexSelection = [(Relation, Map SearchSignature Index)]
 type IndexMap = Map Relation (Set Index)
 type IndexSelector = Relation -> SearchSignature -> Index
 
-runIndexSelection :: TypeInfo -> RA -> (IndexMap, IndexSelector)
-runIndexSelection typeInfo ra =
-  let searchMap = searchesForProgram typeInfo ra
+runIndexSelection :: TypedefInfo -> RA -> (IndexMap, IndexSelector)
+runIndexSelection typedefInfo ra =
+  let searchMap = searchesForProgram typedefInfo ra
       indexSelection :: IndexSelection
       indexSelection = Map.foldrWithKey (\r searchSet acc ->
         let graph = buildGraph searchSet
@@ -72,10 +72,10 @@ data SearchFact
   | Related Relation Relation
   deriving (Eq, Ord)
 
-searchesForProgram :: TypeInfo -> RA -> SearchMap
-searchesForProgram typeInfo ra =
+searchesForProgram :: TypedefInfo -> RA -> SearchMap
+searchesForProgram typedefInfo ra =
   let searchFacts = execState (gcata (dsitribute extractEqualities) constraintsForRA ra) mempty
-      facts = searchFacts ++ getAdditionalSearchFacts typeInfo searchFacts
+      facts = searchFacts ++ getAdditionalSearchFacts typedefInfo searchFacts
    in solve facts
   where
     addFact fact = modify (fact:)
@@ -117,7 +117,7 @@ searchesForProgram typeInfo ra =
 
 -- Finds all facts that didn't have any searches,
 -- and defaults those to a search that makes use of all columns.
-getAdditionalSearchFacts :: TypeInfo -> [SearchFact] -> [SearchFact]
+getAdditionalSearchFacts :: TypedefInfo -> [SearchFact] -> [SearchFact]
 getAdditionalSearchFacts typeInfo searchFacts =
   [ SearchOn r . toSearchSignature $ unsafeLookup r
   | r <- Map.keys typeInfo
