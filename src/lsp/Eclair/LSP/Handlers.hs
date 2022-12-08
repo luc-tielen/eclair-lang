@@ -30,7 +30,6 @@ import Eclair.TypeSystem (resolvedTypes)
 import Eclair.LSP.Monad
 import Eclair.LSP.Diagnostics
 import Eclair.AST.IR
-import Eclair.Id
 
 
 -- TODO implement completionHandler and documentLinkHandler (see Dhall LSP)
@@ -69,7 +68,6 @@ documentHighlightHandler =
 -- TODO implement for concepts besides variables
 findReferences :: AST -> NodeId -> [NodeId]
 findReferences ast nodeId =
-  -- TODO use gcata, refactor
   map fst $ zygo getVarId getRefs ast
   where
     getVarId = \case
@@ -78,13 +76,13 @@ findReferences ast nodeId =
       astf ->
         fold astf
 
-    getRefs :: ASTF (First Id, [(NodeId, Id)]) -> [(NodeId, Id)]
     getRefs = \case
       RuleF _ _ args clauses -> do
-        case getFirst $ foldMap fst $ args <> clauses of
-          Nothing -> mempty
-          Just var ->
-            filter (\(_, var') -> var == var') $ foldMap snd $ args <> clauses
+        let subtrees = args <> clauses
+         in case getFirst $ foldMap fst subtrees of
+              Nothing -> mempty
+              Just var ->
+                filter ((== var) . snd) $ foldMap snd subtrees
 
       VarF varNodeId var ->
         [(varNodeId, var)]
