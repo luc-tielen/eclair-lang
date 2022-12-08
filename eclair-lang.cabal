@@ -185,6 +185,7 @@ executable eclair
     , optparse-applicative ==0.16.*
     , prettyprinter ==1.7.*
     , prettyprinter-ansi-terminal ==1.*
+    , process ==1.6.*
     , recursion-schemes ==5.*
     , relude ==1.1.*
     , rock ==0.3.*
