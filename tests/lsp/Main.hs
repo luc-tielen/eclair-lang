@@ -11,6 +11,10 @@ import Language.LSP.Types
     , HoverContents (..)
     , MarkupContent (..)
     , Position (..)
+    , Range(..)
+    , List(..)
+    , DocumentHighlight (..)
+    , DocumentHighlightKind (..)
     )
 import qualified GHC.IO.Encoding
 
@@ -62,9 +66,23 @@ diagnosticsSpec fixtureDir = describe "Diagnostics action" $ parallel $ do
         _severity diag `shouldBe` Just DsError
         toString (_message diag) `shouldContain` "Type mismatch"
 
+highlightSpec :: FilePath -> Spec
+highlightSpec fixtureDir = describe "Document highlight action" $ do
+  it "highlights same identifiers in scope" $ do
+    runSession "eclair-lsp" fullCaps fixtureDir $ do
+      docId <- openDoc "highlight_test.eclair" "eclair"
+      let varZPos = Position 7 10
+      List hls <- getHighlights docId varZPos
+      liftIO $ do
+        hls `shouldBe`
+          [ DocumentHighlight (Range (Position 7 10) (Position 7 11)) (Just HkText)
+          , DocumentHighlight (Range (Position 8 12) (Position 8 13)) (Just HkText)
+          ]
+
 main :: IO ()
 main = do
   GHC.IO.Encoding.setLocaleEncoding GHC.IO.Encoding.utf8
   hspec $ do
     hoveringSpec (baseDir "hovering")
     diagnosticsSpec (baseDir "diagnostics")
+    highlightSpec (baseDir "highlights")
