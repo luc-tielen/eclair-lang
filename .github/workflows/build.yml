@@ -17,8 +17,9 @@ jobs:
       - name: Build and test
         run: |
           set -eo pipefail
-          docker build -f Dockerfile . -t eclair:$(date +%s) | tee eclair-lang-${{matrix.os}}.log
-          docker run --rm eclair:$(date +%s) bash -c "make test" | tee -a eclair-lang-${{matrix.os}}.log
+          export TIMESTAMP=$(date +%s)
+          docker build -f Dockerfile . -t eclair:$TIMESTAMP | tee eclair-lang-${{matrix.os}}.log
+          docker run --rm eclair:$TIMESTAMP bash -c "make test" | tee -a eclair-lang-${{matrix.os}}.log
 
       - name: Upload logs
         if: ${{ always() }}
