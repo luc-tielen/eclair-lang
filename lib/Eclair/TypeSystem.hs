@@ -165,8 +165,6 @@ checkDecl :: AST -> TypeCheckM ()
 checkDecl ast = case ast of
   DeclareType {} ->
     pass
-  Options {} ->
-    pass
   Atom nodeId name args -> do
     ctx <- getContext
     -- TODO find better way to update context only for non-top level atoms
@@ -298,7 +296,7 @@ duplicateErrors typeDefs
 
 extractTypeDefs :: AST -> [(Id, (NodeId, [Type]))]
 extractTypeDefs = cata $ \case
-  DeclareTypeF nodeId name tys -> [(name, (nodeId, tys))]
+  DeclareTypeF nodeId name tys _ -> [(name, (nodeId, tys))]
   AtomF {} -> mempty
   RuleF {} -> mempty
   astf -> foldMap identity astf
@@ -306,8 +304,7 @@ extractTypeDefs = cata $ \case
 getNodeId :: AST -> NodeId
 getNodeId = \case
   Module nodeId _ -> nodeId
-  DeclareType nodeId _ _ -> nodeId
-  Options nodeId _ _ -> nodeId
+  DeclareType nodeId _ _ _ -> nodeId
   Rule nodeId _ _ _ -> nodeId
   Atom nodeId _ _ -> nodeId
   Assign nodeId _ _ -> nodeId

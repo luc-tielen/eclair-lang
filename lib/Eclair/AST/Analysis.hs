@@ -14,8 +14,7 @@ module Eclair.AST.Analysis
   , WildcardInRuleHead(..)
   , WildcardInAssignment(..)
   , RuleWithContradiction(..)
-  , DuplicateOptions(..)
-  , OptionsForUnknownRelation(..)
+  , DeadCode(..)
   , IR.NodeId(..)
   , Container
   , computeUsageMapping
@@ -102,23 +101,23 @@ data DeclareType
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions DeclareType "declare_type" 'S.Input
 
-data Options
-  = Options NodeId Id
-  deriving stock Generic
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions Options "options" 'S.Input
-
 newtype InputRelation
   = InputRelation Id
   deriving stock Generic
   deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions InputRelation "input_fact" 'S.Input
+  deriving S.Fact via S.FactOptions InputRelation "input_relation" 'S.Input
 
 newtype OutputRelation
   = OutputRelation Id
   deriving stock Generic
   deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions OutputRelation "output_fact" 'S.Input
+  deriving S.Fact via S.FactOptions OutputRelation "output_relation" 'S.Input
+
+newtype InternalRelation
+  = InternalRelation Id
+  deriving stock Generic
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions InternalRelation "internal_relation" 'S.Input
 
 newtype Module
   = Module NodeId
@@ -208,17 +207,11 @@ newtype EmptyModule
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions EmptyModule "empty_module" 'S.Output
 
-data DuplicateOptions
-  = DuplicateOptions NodeId NodeId
+newtype DeadCode
+  = DeadCode NodeId
   deriving stock (Generic, Eq, Show)
   deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions DuplicateOptions "duplicate_options" 'S.Output
-
-data OptionsForUnknownRelation
-  = OptionsForUnknownRelation NodeId Id
-  deriving stock (Generic, Eq, Show)
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions OptionsForUnknownRelation "option_for_unknown_relation" 'S.Output
+  deriving S.Fact via S.FactOptions DeadCode "dead_code" 'S.Output
 
 data SemanticAnalysis
   = SemanticAnalysis
@@ -235,9 +228,9 @@ data SemanticAnalysis
        , RuleArg
        , RuleClause
        , DeclareType
-       , Options
        , InputRelation
        , OutputRelation
+       , InternalRelation
        , Module
        , ModuleDecl
        , RuleVariable
@@ -249,8 +242,7 @@ data SemanticAnalysis
        , WildcardInRuleHead
        , WildcardInFact
        , WildcardInAssignment
-       , DuplicateOptions
-       , OptionsForUnknownRelation
+       , DeadCode
        ]
 
 -- TODO: change to Vector when finished for performance
@@ -290,8 +282,7 @@ data SemanticErrors
   , wildcardsInFacts :: Container WildcardInFact
   , wildcardsInRuleHeads :: Container WildcardInRuleHead
   , wildcardsInAssignments :: Container WildcardInAssignment
-  , duplicateOptions :: Container DuplicateOptions
-  , optionsForUnknownRelations :: Container OptionsForUnknownRelation
+  , deadRules :: Container DeadCode
   }
   deriving (Eq, Show, Exception)
 
@@ -303,8 +294,7 @@ hasSemanticErrors result =
   isNotNull wildcardsInFacts ||
   isNotNull wildcardsInRuleHeads ||
   isNotNull wildcardsInAssignments ||
-  isNotNull duplicateOptions ||
-  isNotNull optionsForUnknownRelations
+  isNotNull deadRules
   where
     errs = semanticErrors result
     isNotNull :: (SemanticErrors -> [a]) -> Bool
@@ -347,8 +337,9 @@ analysis prog = S.mkAnalysis addFacts run getFacts
         local (const $ Just nodeId) $ do
           sequence_ argActions
           sequence_ clauseActions
-      IR.OptionsF nodeId name usageMode -> do
-        S.addFact prog $ Options nodeId name
+      IR.DeclareTypeF nodeId name _ usageMode -> do
+        S.addFact prog $ DeclareType nodeId name
+
         case usageMode of
           IR.Input ->
             S.addFact prog $ InputRelation name
@@ -358,9 +349,7 @@ analysis prog = S.mkAnalysis addFacts run getFacts
             S.addFact prog $ InputRelation name
             S.addFact prog $ OutputRelation name
           IR.Internal ->
-            pass
-      IR.DeclareTypeF nodeId ty _ ->
-        S.addFact prog $ DeclareType nodeId ty
+            S.addFact prog $ InternalRelation name
       IR.ModuleF nodeId (unzip -> (declNodeIds, actions)) -> do
         S.addFact prog $ Module nodeId
         S.addFacts prog $ map (ModuleDecl nodeId) declNodeIds
@@ -383,7 +372,6 @@ analysis prog = S.mkAnalysis addFacts run getFacts
                              <*> S.getFacts prog
                              <*> S.getFacts prog
                              <*> S.getFacts prog
-                             <*> S.getFacts prog
       pure $ Result info errs
 
     getNodeId :: IR.ASTF NodeId -> NodeId
@@ -394,8 +382,7 @@ analysis prog = S.mkAnalysis addFacts run getFacts
       IR.AssignF nodeId _ _ -> nodeId
       IR.AtomF nodeId _ _ -> nodeId
       IR.RuleF nodeId _ _ _ -> nodeId
-      IR.OptionsF nodeId _ _ -> nodeId
-      IR.DeclareTypeF nodeId _ _ -> nodeId
+      IR.DeclareTypeF nodeId _ _ _ -> nodeId
       IR.ModuleF nodeId _ -> nodeId
 
     mapWithPos :: (Word32 -> a -> b) -> [a] -> [b]
@@ -411,7 +398,7 @@ computeUsageMapping ast =
   Map.fromList pairs
   where
     pairs = flip cata ast $ \case
-      IR.OptionsF _ name mode ->
+      IR.DeclareTypeF _ name _ mode ->
         one (name, mode)
       astf ->
         fold astf

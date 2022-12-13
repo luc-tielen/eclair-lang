@@ -8,21 +8,24 @@
 .decl rule(rule_id: unsigned, name: symbol)
 .decl rule_arg(rule_id: unsigned, rule_arg_pos: unsigned, rule_arg_id: unsigned)
 .decl rule_clause(rule_id: unsigned, rule_clause_pos: unsigned, rule_clause_id: unsigned)
-.decl options(options_id: unsigned, relation_name: symbol)
 .decl input_relation(relation_name: symbol)
 .decl output_relation(relation_name: symbol)
+.decl internal_relation(relation_name: symbol)
 .decl declare_type(node_id: unsigned, name: symbol)
 .decl module(node_id: unsigned)
 .decl module_declaration(module_id: unsigned, declaration_id: unsigned)
 .decl rule_variable(rule_id: unsigned, variable_id: unsigned)
 
 // Internal rules
+.decl dead_internal_relation(relation_name: symbol)
 .decl literal_contradiction(lit_id1: unsigned, lit_id2: unsigned)
 .decl wildcard(node_id: unsigned) inline
 .decl rule_head_var(rule_id: unsigned, var_id: unsigned, var_name: symbol)
 .decl rule_clause_var(rule_id: unsigned, var_id: unsigned, var_name: symbol)
 .decl alias(rule_id: unsigned, id1: unsigned, id2: unsigned)
 .decl points_to(rule_id: unsigned, id1: unsigned, id2: unsigned)
+.decl depends_on(r1: symbol, r2: symbol)
+.decl live_rule(relation: symbol)
 
 // Output facts / rules
 .decl points_to_var(rule_id: unsigned, var_id1: unsigned, var_id2: unsigned, var_name: symbol)
@@ -33,8 +36,7 @@
 .decl wildcard_in_rule_head(rule_node_id: unsigned, rule_arg_id: unsigned, pos: unsigned)
 .decl wildcard_in_assignment(assign_node_id: unsigned, wildcard_node_id: unsigned)
 .decl rule_with_contradiction(rule_id: unsigned)
-.decl duplicate_options(node_id1: unsigned, node_id2: unsigned)
-.decl option_for_unknown_relation(node_id: unsigned, relation_name: symbol)
+.decl dead_code(node_id: unsigned)
 
 .input lit_number
 .input lit_string
@@ -45,9 +47,9 @@
 .input rule
 .input rule_arg
 .input rule_clause
-.input options
 .input input_relation
 .input output_relation
+.input internal_relation
 .input declare_type
 .input module
 .input module_declaration
@@ -60,9 +62,61 @@
 .output empty_module
 .output wildcard_in_rule_head
 .output wildcard_in_assignment
-.output rule_with_contradiction
-.output duplicate_options
-.output option_for_unknown_relation
+.output dead_code
+
+// r1 depends on r2 if rule r1 refers to r2 in the body
+depends_on(r1, r2) :-
+  rule(rule_id, r1),
+  rule_clause(rule_id, _, clause_id),
+  atom(clause_id, r2).
+
+// Output relations are always live.
+live_rule(relation) :-
+  output_relation(relation).
+
+// A rule is live if it is depended on by another live rule.
+live_rule(r2) :-
+  depends_on(r1, r2),
+  live_rule(r1).
+
+// Dead rules are the opposite set of all the live rules.
+dead_code(node_id) :-
+  rule(node_id, r),
+  !live_rule(r).
+
+// Type definitions also need to be marked as dead.
+dead_code(node_id) :-
+  declare_type(node_id, r),
+  !live_rule(r).
+
+// Atoms too.
+dead_code(node_id) :-
+  atom(node_id, r)
+  !live_rule(r).
+
+// Rules are dead if one of the clauses is statically known to produce no results.
+dead_code(rule_id) :-
+  rule_with_contradiction(rule_id).
+
+// A rule is dead if it depends on another dead rule.
+// Note that this only looks at one specific rule that contains the dead code, not the entire relation.
+dead_code(rule_id) :-
+  rule_clause(rule_id, _, rule_clause_id),
+  dead_code(rule_clause_id).
+
+// Dead internal relations potentially affect other dead rules too.
+dead_code(atom_id) :-
+  dead_internal_relation(r),
+  atom(atom_id, r).
+
+// An internal relation is dead if there are no top level atoms and it doesn't depend on anything.
+dead_internal_relation(r) :-
+  internal_relation(r),
+  module_declaration(_, atom_id),
+  !atom(atom_id, r),
+  !depends_on(r, _).
+
+// TODO which one of these are errors, which are ok to be optimized?
 
 // Top level facts: no variables allowed
 variable_in_fact(atom_arg_id, var_name) :-
@@ -100,16 +154,6 @@ wildcard_in_assignment(assign_node_id, lhs_node_id) :-
 wildcard_in_assignment(assign_node_id, rhs_node_id) :-
   assign(assign_node_id, _, rhs_node_id),
   wildcard(rhs_node_id).
-
-duplicate_options(node_id1, node_id2) :-
-  options(node_id1, relation_name),
-  options(node_id2, relation_name),
-  // < instead of != makes errors less noisy
-  node_id1 < node_id2.
-
-option_for_unknown_relation(node_id, relation_name) :-
-  options(node_id, relation_name),
-  !declare_type(_, relation_name).
 
 // All variables with the same name in a rule are aliases of each other.
 alias(rule_id, var_id1, var_id2) :-

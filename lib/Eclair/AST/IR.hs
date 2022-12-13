@@ -10,6 +10,7 @@ module Eclair.AST.IR
   , Type(..)
   , NodeId(..)
   , UsageMode(..)
+  , Attributes
   ) where
 
 import Prettyprinter
@@ -41,6 +42,9 @@ data UsageMode
   | Internal  -- This variant is only used internally (pun intended).
   deriving (Eq, Show)
 
+-- Later this will also contain (Maybe StorageType), ...
+type Attributes = UsageMode
+
 data AST
   = Lit NodeId Literal
   | Var NodeId Id
@@ -48,8 +52,7 @@ data AST
   | Assign NodeId AST AST
   | Atom NodeId Id [Value]
   | Rule NodeId Id [Value] [Clause]
-  | Options NodeId Id UsageMode
-  | DeclareType NodeId Id [Type]
+  | DeclareType NodeId Id [Type] Attributes
   | Module NodeId [Decl]
   deriving (Eq, Show)
 
@@ -94,19 +97,18 @@ instance Pretty AST where
           clauses' <- local (const Nested) $ traverse pretty' clauses
           pure $ pretty name <> parens (withCommas $ map pretty values) <+> ":-" <> hardline <>
                 indent 2 (vsep (zipWith (<>) clauses' separators))
-        Options _ name usageMode -> do
-          let optionArgs = parens (pretty usageMode)
-          pure $ "@options" <+> pretty name <> optionArgs <> "."
-        DeclareType _ name tys ->
-          pure $ "@def" <+> pretty name <> parens (withCommas $ map pretty tys) <> "."
+        DeclareType _ name tys attrs ->
+          pure $ "@def"
+            <+> pretty name
+             <> parens (withCommas $ map pretty tys)
+             <> prettyAttrs
+             <> "."
+          where
+            prettyAttrs = case attrs of
+              Internal -> ""
+              Input -> " input"
+              Output -> " output"
+              InputOutput -> " input output"
         Module _ decls -> do
           decls' <- traverse pretty' decls
           pure $ vsep $ intersperse mempty decls'
-
-instance Pretty UsageMode where
-  pretty = \case
-    Input -> "input"
-    Output -> "output"
-    InputOutput -> "input, output"
-    Internal -> "internal"
-

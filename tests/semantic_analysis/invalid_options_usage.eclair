@@ -5,60 +5,22 @@
 // RUN: %eclair compile %t/program1.eclair 2> %t/actual1.out
 // RUN: diff %t/expected1.out %t/actual1.out
 
-@options unknown(input, output).
+@def fact(string) input input.
+@def fact2(string) output output output.
 
 //--- expected1.out
-[error]: Found options for an unknown relation
-     ╭──▶ TEST_DIR/program1.eclair@4:1-4:33
-     │
-   4 │ @options unknown(input, output).
-     • ┬───────────────────────────────
-     • ╰╸ Cannot apply options to unknown relation 'unknown'.
-     •
-     │ Hint: 1) Declare the relation 'unknown'.
-     │ Hint: 2) Or remove this redundant options declaration.
-─────╯
-//--- program2.eclair
-// RUN: %eclair compile %t/program2.eclair 2> %t/actual2.out
-// RUN: diff %t/expected2.out %t/actual2.out
-@def fact(string).
-@options fact(input, output).
-@options fact(input, output).
-
-//--- expected2.out
-[error]: Found duplicate options for a relation
-     ╭──▶ TEST_DIR/program2.eclair@5:1-5:30
-     │
-   4 │ @options fact(input, output).
-     • ┬────────────────────────────
-     • ╰╸ First occurrence of '@options'.
-   5 │ @options fact(input, output).
-     • ┬────────────────────────────
-     • ╰╸ Second occurrence of '@options'.
-     •
-     │ Hint: Only one '@options' declaration is allowed per relation. Remove all redundant declarations.
-─────╯
-//--- program3.eclair
-// RUN: %eclair compile %t/program3.eclair 2> %t/actual3.out
-// RUN: diff -w %t/expected3.out %t/actual3.out
-@def fact(string).
-@def fact2(string).
-@options fact(input, input).
-@options fact2(output, output, output).
-
-//--- expected3.out
 [error]: Failed to parse file
-     ╭──▶ TEST_DIR/program3.eclair@5:27-5:28
+     ╭──▶ TEST_DIR/program1.eclair@4:30-4:31
      │
-   5 │ @options fact(input, input).
-     •                           ┬
-     •                           ╰╸ More than one option of type 'input' is not allowed.
+   4 │ @def fact(string) input input.
+     •                              ┬
+     •                              ╰╸ More than one option of type 'input' is not allowed.
 ─────╯
 
 [error]: Failed to parse file
-     ╭──▶ TEST_DIR/program3.eclair@6:38-6:39
+     ╭──▶ TEST_DIR/program1.eclair@5:40-5:41
      │
-   6 │ @options fact2(output, output, output).
-     •                                      ┬
-     •                                      ╰╸ More than one option of type 'output' is not allowed.
+   5 │ @def fact2(string) output output output.
+     •                                        ┬
+     •                                        ╰╸ More than one option of type 'output' is not allowed.
 ─────╯

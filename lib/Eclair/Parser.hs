@@ -118,8 +118,7 @@ declParser = do
   c <- P.lookAhead P.anySingle
   case c of
     '@' ->
-      withNodeId $ \nodeId ->
-        typedefParser nodeId <|> optionsParser nodeId
+      withNodeId typedefParser
     _ -> factOrRuleParser
 
 typeParser :: Parser Type
@@ -132,34 +131,27 @@ typedefParser :: NodeId -> Parser AST
 typedefParser nodeId = do
   void $ lexeme $ P.chunk "@def"
   name <- lexeme identifier
-  tys <- betweenParens $ typeParser `P.sepBy1` lexeme comma
+  tys <- lexeme $ betweenParens $ typeParser `P.sepBy1` lexeme comma
+  attrs <- attributesParser
   void $ P.char '.'
-  pure $ DeclareType nodeId name tys
-
-optionsParser :: NodeId -> Parser AST
-optionsParser nodeId = do
-  void $ lexeme $ P.chunk "@options"
-  name <- lexeme identifier
-  usageMode <- betweenParens $ do
-    options <- optionParser `P.sepBy1` lexeme comma
-    let (inputs, outputs) = partitionEithers options
-        inputLength = length inputs
-        outputLength = length outputs
-    when (inputLength > 1) $ do
-      P.customFailure TooManyInputOptions
-    when (outputLength > 1) $ do
-      P.customFailure TooManyOutputOptions
-
-    pure $ case (inputLength, outputLength) of
-      (0, 1) -> Output
-      (1, 0) -> Input
-      (1, 1) -> InputOutput
-      _      -> Internal
-
-  void $ P.char '.'
-  pure $ Options nodeId name usageMode
+  pure $ DeclareType nodeId name tys attrs
   where
-    optionParser = lexeme $
+    attributesParser = map (fromMaybe Internal) $ lexeme $ optional $ do
+      options <- some attrParser
+      let (inputs, outputs) = partitionEithers options
+          inputLength = length inputs
+          outputLength = length outputs
+      when (inputLength > 1) $ do
+        P.customFailure TooManyInputOptions
+      when (outputLength > 1) $ do
+        P.customFailure TooManyOutputOptions
+
+      pure $ case (inputLength, outputLength) of
+        (0, 1) -> Output
+        (1, 0) -> Input
+        _      -> InputOutput
+
+    attrParser = lexeme $
       Left <$> P.chunk "input" <|> Right <$> P.chunk "output"
 
 data FactOrRule = FactType | RuleType
