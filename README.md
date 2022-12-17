@@ -110,13 +110,13 @@ If you run the resulting program, this should print the reachable node pairs
 
 ## Roadmap
 
-- [ ] Release 0.0.2
+- [x] LSP support
 - [x] Allow setting options on relations for performance finetuning
 - [ ] Support arithmetic / logical / ... operators
 - [ ] Generic, extensible primops
+- [ ] Release 0.2.0
 - [ ] Support negation, `!=` operator
 - [ ] Optimizations on the AST / RA / LLVM level
-- [ ] LSP support
 - [ ] Support other underlying data structures than btree
 - [ ] Syntactic sugar (disjunctions in rule bodies, multiple rule heads, ...)
 - [ ] Support Datalog programs spanning multiple files

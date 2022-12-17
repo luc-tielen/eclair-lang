@@ -22,12 +22,12 @@ import qualified Eclair.RA.IR as RA
 import qualified Eclair.LLVM.Metadata as M
 
 
-compileToEIR :: StringMap -> TypeInfo -> RA -> EIR
-compileToEIR stringMap typeInfo ra =
-  let (indexMap, getIndexForSearch) = runIndexSelection typeInfo ra
-      containerInfos' = getContainerInfos indexMap typeInfo
+compileToEIR :: StringMap -> TypedefInfo -> RA -> EIR
+compileToEIR stringMap typedefInfo ra =
+  let (indexMap, getIndexForSearch) = runIndexSelection typedefInfo ra
+      containerInfos' = getContainerInfos indexMap typedefInfo
       end = "the.end"
-      lowerState = LowerState typeInfo indexMap getIndexForSearch containerInfos' end mempty
+      lowerState = LowerState typedefInfo indexMap getIndexForSearch containerInfos' end mempty
       moduleStmts :: [CodegenM EIR]
       moduleStmts =
         [ declareProgram $ map (\(r, _, m) -> (r, m)) containerInfos'
@@ -278,14 +278,14 @@ forEachIndex r f = do
   indices <- indexesForRelation r
   pure $ map f indices
 
-getContainerInfos :: IndexMap -> TypeInfo -> [ContainerInfo]
-getContainerInfos indexMap typeInfo = containerInfos'
+getContainerInfos :: IndexMap -> TypedefInfo -> [ContainerInfo]
+getContainerInfos indexMap typedefInfo = containerInfos'
   where
     combinations r idxs =
       (r,) <$> Set.toList idxs
     toContainerInfo r idx =
       let r' = stripIdPrefixes r
-          meta = M.mkMeta idx $ fromJust $ Map.lookup r' typeInfo
+          meta = M.mkMeta idx $ fromJust $ Map.lookup r' typedefInfo
        in (r, idx, meta)
     storesList = Map.foldMapWithKey combinations indexMap
     containerInfos' = map (uncurry toContainerInfo) storesList

@@ -6,7 +6,7 @@
 
 //--- program.eclair
 @def edge(u32,).
-@def path(u32, u32).
+@def path(u32, u32) output.
 @def broken.
 
 edge(1, 2).
@@ -42,8 +42,38 @@ edge(2, 3).
 [error]: Failed to parse file
      ╭──▶ TEST_DIR/program.eclair@7:12-7:13
      │
-  7 │ path(x, y) :
+   7 │ path(x, y) :
      •            ┬
      •            ├╸ unexpected ":<newline>"
      •            ╰╸ expecting ":-" or '.'
+─────╯
+
+[error]: Missing type definition
+     ╭──▶ TEST_DIR/program.eclair@5:1-5:12
+     │
+   5 │ edge(1, 2).
+     • ┬──────────
+     • ╰╸ Could not find a type definition for 'edge'.
+     •
+     │ Hint: You can solve this by adding a type definition for 'edge'.
+─────╯
+
+[error]: Missing type definition
+     ╭──▶ TEST_DIR/program.eclair@11:3-11:13
+     │
+  11 │   edge(x, z),
+     •   ┬─────────
+     •   ╰╸ Could not find a type definition for 'edge'.
+     •
+     │ Hint: You can solve this by adding a type definition for 'edge'.
+─────╯
+
+[error]: Missing type definition
+     ╭──▶ TEST_DIR/program.eclair@14:1-14:12
+     │
+  14 │ edge(2, 3).
+     • ┬──────────
+     • ╰╸ Could not find a type definition for 'edge'.
+     •
+     │ Hint: You can solve this by adding a type definition for 'edge'.
 ─────╯

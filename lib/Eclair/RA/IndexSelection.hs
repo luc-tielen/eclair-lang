@@ -20,7 +20,7 @@ import Eclair.Id
 import Eclair.RA.IR
 import Eclair.Pretty
 import Eclair.Comonads
-import Eclair.TypeSystem (TypeInfo)
+import Eclair.TypeSystem (TypedefInfo)
 import Algebra.Graph.Bipartite.AdjacencyMap
 import Algebra.Graph.Bipartite.AdjacencyMap.Algorithm hiding (matching)
 import qualified Data.Set as Set
@@ -53,9 +53,9 @@ type IndexSelection = [(Relation, Map SearchSignature Index)]
 type IndexMap = Map Relation (Set Index)
 type IndexSelector = Relation -> SearchSignature -> Index
 
-runIndexSelection :: TypeInfo -> RA -> (IndexMap, IndexSelector)
-runIndexSelection typeInfo ra =
-  let searchMap = searchesForProgram typeInfo ra
+runIndexSelection :: TypedefInfo -> RA -> (IndexMap, IndexSelector)
+runIndexSelection typedefInfo ra =
+  let searchMap = searchesForProgram typedefInfo ra
       indexSelection :: IndexSelection
       indexSelection = Map.foldrWithKey (\r searchSet acc ->
         let graph = buildGraph searchSet
@@ -77,10 +77,10 @@ data SearchFact
 
 -- All relations (including delta_XXX, new_XXX) need atleast one index for full order search
 -- Swap operation requires indices of r1 and r2 to be related.
-searchesForProgram :: TypeInfo -> RA -> SearchMap
-searchesForProgram typeInfo ra =
+searchesForProgram :: TypedefInfo -> RA -> SearchMap
+searchesForProgram typedefInfo ra =
   let raSearchFacts = execState (gcata (dsitribute extractEqualities) constraintsForRA ra) mempty
-      relationFullSearches = getFullSearchesForRelations typeInfo
+      relationFullSearches = getFullSearchesForRelations typedefInfo
       facts = raSearchFacts <> relationFullSearches
    in solve facts
   where
@@ -103,7 +103,7 @@ searchesForProgram typeInfo ra =
         addFact $ SearchOn r signature
       MergeF from' _ -> do
         -- Always add a full search signature for the from relation, so we don't lose any data.
-        let columns = columnsFor . fromJust $ Map.lookup (stripIdPrefixes from') typeInfo
+        let columns = columnsFor . fromJust $ Map.lookup (stripIdPrefixes from') typedefInfo
             signature = SearchSignature $ Set.fromList columns
         addFact $ SearchOn from' signature
       SwapF r1 r2  ->
@@ -122,13 +122,13 @@ searchesForProgram typeInfo ra =
         in Triple (embed base_t_t) (g base_t_tb) base_t_a
 
 -- For every relation we add atleast 1 one index with all columns.
-getFullSearchesForRelations :: TypeInfo -> [SearchFact]
-getFullSearchesForRelations typeInfo =
+getFullSearchesForRelations :: TypedefInfo -> [SearchFact]
+getFullSearchesForRelations typedefInfo =
   [ SearchOn r . toSearchSignature $ unsafeLookup r
-  | r <- Map.keys typeInfo
+  | r <- Map.keys typedefInfo
   ]
   where
-    unsafeLookup r = fromJust $ Map.lookup r typeInfo
+    unsafeLookup r = fromJust $ Map.lookup r typedefInfo
     toSearchSignature = SearchSignature . Set.fromList . columnsFor
 
 -- TODO better name

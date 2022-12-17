@@ -8,6 +8,7 @@ module Eclair.Parser
   , Span(..)
   , SpanMap
   , lookupSpan
+  , lookupNodeId
   , SourcePos(..)
   , SourceSpan(..)
   , spanToSourceSpan
@@ -21,10 +22,11 @@ import qualified Data.Text as T
 import qualified Data.Vector as V
 import qualified Data.Map as M
 import qualified Data.Text.Read as TR
+import qualified Data.List.NonEmpty as NE
 import qualified Text.Megaparsec as P
+import qualified Text.Megaparsec.Internal as P
 import qualified Text.Megaparsec.Char as P
 import qualified Text.Megaparsec.Char.Lexer as L
-import System.Directory.Extra (doesFileExist)
 
 data CustomParseErr
   = TooManyInputOptions
@@ -40,6 +42,15 @@ instance P.ShowErrorComponent CustomParseErr where
 
 type ParseError = P.ParseErrorBundle Text CustomParseErr
 
+type ParserState = (Word32, SpanMap)
+type Parser = P.ParsecT CustomParseErr Text (State ParserState)
+
+data ParsingError
+  = FileNotFound FilePath
+  | ParsingError ParseError
+  deriving (Show)
+
+-- A source span (begin and end position)
 data Span
   = Span
   { beginPos :: {-# UNPACK #-} !Int
@@ -62,34 +73,74 @@ lookupSpan :: SpanMap -> NodeId -> Span
 lookupSpan (SpanMap _path m) nodeId =
   fromJust $ M.lookup (unNodeId nodeId) m
 
-type ParserState = (Word32, SpanMap)
-type Parser = P.ParsecT CustomParseErr Text (State ParserState)
-
-data ParsingError
-  = FileNotFound FilePath
-  | ParsingError ParseError
-  deriving (Show)
-
-parseFile :: FilePath -> IO (Either ParsingError (AST, NodeId, SpanMap))
-parseFile path = do
-  fileExists <- doesFileExist path
-  if fileExists
-  then do
-    contents <- readFileText path
-    pure $ parseText path contents
-  else
-    pure $ Left $ FileNotFound path
-
-
-parseText :: FilePath -> Text -> Either ParsingError (AST, NodeId, SpanMap)
-parseText path text =
-  g <$> f (runState (P.runParserT astParser path text) (0, SpanMap path mempty))
+-- Finds the most specific NodeId (that corresponds with the smallest span)
+lookupNodeId :: SpanMap -> Int -> Maybe NodeId
+lookupNodeId (SpanMap _ m) offset =
+  m & M.toList
+    & filter (containsOffset . snd)
+    & sortWith (spanSize . snd)
+    & viaNonEmpty head
+    & map (NodeId . fst)
   where
-    f (m, c) = case m of
-      Left a -> Left (ParsingError a)
-      Right b -> Right (b, c)
-    g :: (AST, ParserState) -> (AST, NodeId, SpanMap)
-    g (ast, ps) = (ast, NodeId $ fst ps, snd ps)
+    containsOffset span' =
+      offset >= beginPos span' && offset < endPos span'
+
+    spanSize span' =
+      endPos span' - beginPos span'
+
+parseFile
+  :: (FilePath -> IO (Maybe Text))
+  -> FilePath -> IO (AST, NodeId, SpanMap, Maybe ParsingError)
+parseFile tryReadFile path = do
+  mContents <- tryReadFile path
+  case mContents of
+    Nothing ->
+      pure (emptyModule, NodeId 0, SpanMap path mempty, Just $ FileNotFound path)
+    Just contents ->
+      pure $ parseText path contents
+
+parseText :: FilePath -> Text -> (AST, NodeId, SpanMap, Maybe ParsingError)
+parseText path text =
+  f $ runState (runParserT path text astParser) (0, SpanMap path mempty)
+  where
+    f ((mAst, mErr), s) =
+      (fromMaybe emptyModule mAst, NodeId $ fst s, snd s, mErr)
+
+emptyModule :: AST
+emptyModule = Module (NodeId 0) mempty
+
+-- Uses the internals of Megaparsec to try and return a parse result along
+-- with possible parse errors.
+runParserT :: FilePath -> Text -> Parser a -> State ParserState (Maybe a, Maybe ParsingError)
+runParserT path text p = do
+  let s = initialState path text
+  (P.Reply s' _ result) <- P.runParsecT p s
+  let toBundle es =
+        P.ParseErrorBundle
+          { P.bundleErrors = NE.sortWith P.errorOffset es,
+            P.bundlePosState = P.statePosState s
+          }
+  pure $ case result of
+    P.Error fatalError ->
+      (Nothing, Just $ ParsingError $ toBundle $ fatalError :| P.stateParseErrors s')
+    P.OK x ->
+      let nonFatalErrs = viaNonEmpty toBundle (P.stateParseErrors s')
+       in (Just x, ParsingError <$> nonFatalErrs)
+  where
+    initialState name s =
+      P.State
+        { P.stateInput = s,
+          P.stateOffset = 0,
+          P.statePosState =
+            P.PosState
+              { P.pstateInput = s,
+                P.pstateOffset = 0,
+                P.pstateSourcePos = P.initialPos name,
+                P.pstateTabWidth = P.defaultTabWidth,
+                P.pstateLinePrefix = ""
+              },
+          P.stateParseErrors = []
+        }
 
 freshNodeId :: Parser NodeId
 freshNodeId = do
@@ -284,6 +335,7 @@ withRecovery endChar p =
 
 -- Helpers for producing error messages:
 
+-- Line and column information. 1-based!
 data SourcePos
   = SourcePos
   { sourcePosLine :: {-# UNPACK #-} !Int

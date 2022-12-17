@@ -32,7 +32,6 @@
 .decl points_to_var(rule_id: unsigned, var_id1: unsigned, var_id2: unsigned, var_name: symbol)
 .decl variable_in_fact(node_id: unsigned, var_name: symbol)
 .decl ungrounded_variable(rule_id: unsigned, var_id: unsigned, var_name: symbol)
-.decl empty_module(node_id: unsigned)
 .decl wildcard_in_fact(fact_node_id: unsigned,  fact_arg_id: unsigned, pos: unsigned)
 .decl wildcard_in_rule_head(rule_node_id: unsigned, rule_arg_id: unsigned, pos: unsigned)
 .decl wildcard_in_assignment(assign_node_id: unsigned, wildcard_node_id: unsigned)
@@ -62,7 +61,6 @@
 .output variable_in_fact
 .output wildcard_in_fact
 .output ungrounded_variable
-.output empty_module
 .output wildcard_in_rule_head
 .output wildcard_in_assignment
 .output dead_code
@@ -142,10 +140,6 @@ ungrounded_variable(rule_id, var_id, var_name) :-
   rule_head_var(rule_id, var_id, var_name),
   var_name != "_",
   !rule_clause_var(rule_id, _, var_name).  // Only compare by variable name!
-
-empty_module(node_id) :-
-  module(node_id),
-  !module_declaration(node_id, _).
 
 wildcard(node_id) :-
   variable(node_id, "_").

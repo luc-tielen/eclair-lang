@@ -1,0 +1,3 @@
+@def number(u32).
+
+number("abc").
