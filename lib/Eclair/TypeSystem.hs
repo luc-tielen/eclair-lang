@@ -2,7 +2,7 @@ module Eclair.TypeSystem
   ( Type(..)
   , TypeError(..)
   , Context(..)
-  , getContextNodeId
+  , getContextLocation
   , TypeInfo(..)
   , TypedefInfo
   , typeCheck
@@ -42,29 +42,33 @@ instance Monoid TypeInfo where
   mempty =
     TypeInfo mempty mempty
 
-data Context
-  = WhileChecking NodeId
-  | WhileInferring NodeId
-  | WhileUnifying NodeId
-  deriving (Eq, Ord, Show)
+data Context loc
+  = WhileChecking loc
+  | WhileInferring loc
+  | WhileUnifying loc
+  deriving (Eq, Ord, Show, Functor)
 
 -- NOTE: for now, no actual types are checked since everything is a u32.
-data TypeError
-  = UnknownAtom NodeId Id
-  | ArgCountMismatch Id (NodeId, Int) (NodeId, Int)
-  | DuplicateTypeDeclaration Id (NonEmpty (NodeId, [Type]))
-  | TypeMismatch NodeId Type Type (NonEmpty Context)  -- 1st type is actual, 2nd is expected
-  | UnificationFailure Type Type (NonEmpty Context)
-  | HoleFound NodeId (NonEmpty Context) Type (Map Id Type)
-  deriving (Eq, Ord, Show)
+data TypeError loc
+  = UnknownAtom loc Id
+  | ArgCountMismatch Id (loc, Int) (loc, Int)
+  | DuplicateTypeDeclaration Id (NonEmpty (loc, [Type]))
+  | TypeMismatch loc Type Type (NonEmpty (Context loc))  -- 1st type is actual, 2nd is expected
+  | UnificationFailure Type Type (NonEmpty (Context loc))
+  | HoleFound loc (NonEmpty (Context loc)) Type (Map Id Type)
+  deriving (Eq, Ord, Show, Functor)
+
+-- Only used internally in this module.
+type Ctx = Context NodeId
+type TypeErr = TypeError NodeId
 
 type TypedefMap = Map Id (NodeId, [Type])
-type UnresolvedHole = Type -> Map Id Type -> TypeError
+type UnresolvedHole = Type -> Map Id Type -> TypeErr
 
 data Env
   = Env
   { typedefs :: TypedefMap
-  , tcContext :: DNonEmpty Context
+  , tcContext :: DNonEmpty Ctx
   }
 
 -- State used to report type information back to the user (via LSP)
@@ -79,7 +83,7 @@ data CheckState
   { typeEnv :: Map Id Type
   , substitution :: IntMap Type
   , varCounter :: Int
-  , errors :: DList TypeError
+  , errors :: DList TypeErr
   , unresolvedHoles :: DList (Type, UnresolvedHole)
   -- The tracking state is not needed for the typechecking algorithm,
   -- but is used to report information back to the user (via LSP).
@@ -92,7 +96,7 @@ newtype TypeCheckM a =
   via (RWS Env () CheckState)
 
 
-typeCheck :: AST -> Either [TypeError] TypeInfo
+typeCheck :: AST -> Either [TypeErr] TypeInfo
 typeCheck ast
   | null errors' = pure $ TypeInfo (map snd typedefMap) resolvedTys
   | otherwise   = throwError errors'
@@ -103,7 +107,7 @@ typeCheck ast
     typedefMap = Map.fromList typedefs'
 
 -- TODO: try to merge with checkDecl?
-checkDecls :: TypedefMap -> AST -> ([TypeError], Map NodeId Type)
+checkDecls :: TypedefMap -> AST -> ([TypeErr], Map NodeId Type)
 checkDecls typedefMap = \case
   Module _ decls ->
     -- NOTE: By using runM once per decl, each decl is checked with a clean state
@@ -222,7 +226,7 @@ inferExpr ast = do
     _ ->
       panic "Unexpected case in 'inferExpr'"
 
-runM :: Context -> TypedefMap -> TypeCheckM a -> Either [TypeError] (Map NodeId Type)
+runM :: Ctx -> TypedefMap -> TypeCheckM a -> Either [TypeErr] (Map NodeId Type)
 runM ctx typedefMap action =
   let (TypeCheckM m) = action *> computeTypeInfoById
       trackState = TrackingState mempty mempty
@@ -232,7 +236,7 @@ runM ctx typedefMap action =
       errs = toList . errors $ endState
    in if null errs then Right typeInfoById else Left errs
 
-emitError :: TypeError -> TypeCheckM ()
+emitError :: TypeErr -> TypeCheckM ()
 emitError err =
   modify $ \s -> s { errors = DList.snoc (errors s) err }
 
@@ -316,19 +320,19 @@ computeTypeInfoById = do
 
   pure $ directlyResolvedTypes ts <> Map.fromList resolvedVarTypes
 
-addContext :: Context -> (TypeCheckM a -> TypeCheckM a)
+addContext :: Ctx -> (TypeCheckM a -> TypeCheckM a)
 addContext ctx = local $ \env ->
   env { tcContext = tcContext env `DNonEmpty.snoc` ctx }
 
-getContext :: TypeCheckM (NonEmpty Context)
+getContext :: TypeCheckM (NonEmpty Ctx)
 getContext =
   asks (DNonEmpty.toNonEmpty . tcContext)
 
-getContextNodeId :: Context -> NodeId
-getContextNodeId = \case
-  WhileChecking nodeId -> nodeId
-  WhileInferring nodeId -> nodeId
-  WhileUnifying nodeId -> nodeId
+getContextLocation :: Context loc -> loc
+getContextLocation = \case
+  WhileChecking loc -> loc
+  WhileInferring loc -> loc
+  WhileUnifying loc -> loc
 
 emitHoleFoundError :: NodeId -> TypeCheckM Type
 emitHoleFoundError nodeId = do
@@ -361,14 +365,14 @@ trackVariable nodeId var = do
   let ts' = ts { trackedVariables = (var, nodeId) : trackedVariables ts }
   modify $ \s -> s { trackingState = ts' }
 
-duplicateErrors :: [(Id, (NodeId, [Type]))] -> [TypeError]
+duplicateErrors :: [(Id, (NodeId, [Type]))] -> [TypeErr]
 duplicateErrors typeDefs
   = sort typeDefs
   & groupBy ((==) `on` fst)
   & filter (\xs -> length xs /= 1)
   & map toDuplicateTypeDecl
   where
-    toDuplicateTypeDecl :: NonEmpty (Id, (NodeId, [Type])) -> TypeError
+    toDuplicateTypeDecl :: NonEmpty (Id, (NodeId, [Type])) -> TypeErr
     toDuplicateTypeDecl declInfo =
       let name = fst $ head declInfo
           decls = map snd declInfo

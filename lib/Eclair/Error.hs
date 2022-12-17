@@ -24,7 +24,7 @@ import Error.Diagnose hiding (stderr)
 
 data EclairError
   = ParseErr FilePath ParsingError
-  | TypeErr FilePath SpanMap [TypeError]
+  | TypeErr FilePath SpanMap [TypeError NodeId]
   | SemanticErr FilePath SpanMap (SemanticErrors NodeId)
   deriving (Show, Exception)
 
@@ -53,7 +53,8 @@ handleErrorsCLI e = do
 
       TypeErr file' spanMap errs -> do
         content <- decodeUtf8 <$> readFileBS file'
-        let reports = map (typeErrorToReport file' content spanMap) errs
+        let errsWithPositions = getSourcePos file' content spanMap <<$>> errs
+            reports = map typeErrorToReport errsWithPositions
             diagnostic = foldl' addReport def reports
             diagnostic' = addFile diagnostic file' (toString content)
          in pure $ prettyError useColor diagnostic'
@@ -115,9 +116,9 @@ errorToIssues readTextFile = \case
 
   TypeErr file' spanMap errs -> do
     content <- readTextFile file'
-    let toReport = typeErrorToReport file' content spanMap
-        toLocation = positionToLocation . getTypeErrorPosition file' content spanMap
-    pure $ map (uncurry Issue . (toReport &&& toLocation)) errs
+    let errsWithPositions = getSourcePos file' content spanMap <<$>> errs
+        toLocation = positionToLocation . mainErrorPosition
+    pure $ map (uncurry Issue . (typeErrorToReport &&& toLocation)) errsWithPositions
 
   SemanticErr file' spanMap semanticErrs -> do
     content <- readTextFile file'
@@ -125,19 +126,16 @@ errorToIssues readTextFile = \case
         reportsWithLocs = semanticErrorsToReportsWithLocations semanticErrsWithPositions
     pure $ map (uncurry Issue) reportsWithLocs
 
-typeErrorToReport :: FilePath -> Text -> SpanMap -> TypeError -> Report Text
-typeErrorToReport file' fileContent spanMap e = case e of
+typeErrorToReport :: TypeError Position -> Report Text
+typeErrorToReport e = case e of
   UnknownAtom _ factName ->
-    let srcLoc = getTypeErrorPosition file' fileContent spanMap e
-        title = "Missing type definition"
-        markers = [(srcLoc, This $ "Could not find a type definition for '" <> unId factName <> "'.")]
+    let title = "Missing type definition"
+        markers = [(mainErrorPosition e, This $ "Could not find a type definition for '" <> unId factName <> "'.")]
         hints = [Hint $ "You can solve this by adding a type definition for '" <> unId factName <> "'."]
     in Err Nothing title markers hints
 
-  ArgCountMismatch factName (typedefNodeId, expectedCount) (_, actualCount) ->
+  ArgCountMismatch factName (expectedSrcLoc, expectedCount) (actualSrcLoc, actualCount) ->
     let title = "Found an unexpected amount of arguments for fact '" <> unId factName <> "'"
-        expectedSrcLoc = getSourcePos file' fileContent spanMap typedefNodeId
-        actualSrcLoc = getTypeErrorPosition file' fileContent spanMap e
         markers = [ (actualSrcLoc, This $ show actualCount <> pluralize actualCount " argument is" " arguments are" <> " provided here.")
                   , (expectedSrcLoc, Where $ "'" <> unId factName <> "' is defined with " <> show expectedCount <>
                     pluralize expectedCount " argument." " arguments.")
@@ -150,19 +148,16 @@ typeErrorToReport file' fileContent spanMap e = case e of
     where
       title = "Multiple type declarations for fact '" <> unId factName <> "'"
       mainMarker =
-        let srcLoc = getTypeErrorPosition file' fileContent spanMap e
-         in (srcLoc, This $ "'" <> unId factName <> "' is originally defined here.")
-      markers = tail decls & toList & map (\(nodeId, _tys) ->
-        let srcLoc = getSourcePos file' fileContent spanMap nodeId
-         in (srcLoc, Where $ "'" <> unId factName <> "' is re-defined here."))
+        (mainErrorPosition e, This $ "'" <> unId factName <> "' is originally defined here.")
+      markers = tail decls & toList & map (\(srcLoc, _tys) ->
+        (srcLoc, Where $ "'" <> unId factName <> "' is re-defined here."))
       hints = [Hint $ "You can solve this by removing the duplicate definitions for '" <> unId factName <> "'."]
 
   TypeMismatch _ actualTy expectedTy ctx ->
     Err Nothing title markers hints
       where
         title = "Type mismatch"
-        srcLoc = getTypeErrorPosition file' fileContent spanMap e
-        lastMarker = (srcLoc, This $ show (length ctx + 1) <> ") Expected this to be of type " <> renderType expectedTy <> ","
+        lastMarker = (mainErrorPosition e, This $ show (length ctx + 1) <> ") Expected this to be of type " <> renderType expectedTy <> ","
                     <> " but it actually has type " <> renderType actualTy <> ".")
         markers = zipWith renderDeduction markerTypes (toList ctx) ++ [lastMarker]
         markerTypes = zip [1..] $ repeat Where
@@ -179,12 +174,11 @@ typeErrorToReport file' fileContent spanMap e = case e of
   HoleFound _ ctx holeTy typeEnv ->
     Err Nothing title markers hints
       where
-        srcLoc = getTypeErrorPosition file' fileContent spanMap e
         title = "Found hole"
         markerTypes =  zip [1..] $ repeat Where
         deductions = zipWith renderDeduction markerTypes (toList ctx)
         markers = deductions <>
-          [(srcLoc, This $ show (length deductions + 1) <> ") Found hole with type " <> renderType holeTy <> ".")]
+          [(mainErrorPosition e, This $ show (length deductions + 1) <> ") Found hole with type " <> renderType holeTy <> ".")]
         typeEntries =
           typeEnv
             & M.mapWithKey (\var ty -> (ty, renderBinding var ty))
@@ -208,17 +202,14 @@ typeErrorToReport file' fileContent spanMap e = case e of
     markersForTypeError ctx =
       zip [1..] $ replicate (length ctx - 1) Where ++ [This]
 
-    renderDeduction :: (Int, Text -> Marker a) -> Context -> (Position, Marker a)
+    renderDeduction :: (Int, Text -> Marker a) -> Context Position -> (Position, Marker a)
     renderDeduction (i, mkMarker) = \case
-      WhileChecking nodeId ->
-        let srcLoc = getSourcePos file' fileContent spanMap nodeId
-          in (srcLoc, mkMarker $ show i <> ") While checking the type of this..")
-      WhileInferring nodeId ->
-        let srcLoc = getSourcePos file' fileContent spanMap nodeId
-          in (srcLoc, mkMarker $ show i <> ") While inferring the type of this..")
-      WhileUnifying nodeId ->
-        let srcLoc = getSourcePos file' fileContent spanMap nodeId
-          in (srcLoc, mkMarker $ show i <> ") While unifying these types..")
+      WhileChecking srcLoc ->
+        (srcLoc, mkMarker $ show i <> ") While checking the type of this..")
+      WhileInferring srcLoc ->
+        (srcLoc, mkMarker $ show i <> ") While inferring the type of this..")
+      WhileUnifying srcLoc ->
+        (srcLoc, mkMarker $ show i <> ") While unifying these types..")
 
 variableInFactToReport :: VariableInFact Position -> Report Text
 variableInFactToReport e =
@@ -353,28 +344,14 @@ instance HasMainErrorPosition (WildcardInRuleHead Position) where
   mainErrorPosition (WildcardInRuleHead _ ruleArgPos _) = ruleArgPos
 instance HasMainErrorPosition (WildcardInFact Position) where
   mainErrorPosition (WildcardInFact _ factArgPos _) = factArgPos
-
-getTypeErrorPosition :: FilePath -> Text -> SpanMap -> TypeError -> Position
-getTypeErrorPosition file' fileContent spanMap = \case
-  UnknownAtom nodeId _ ->
-    getSourcePos file' fileContent spanMap nodeId
-
-  ArgCountMismatch _ _ (nodeId, _) ->
-    getSourcePos file' fileContent spanMap nodeId
-
-  DuplicateTypeDeclaration _ decls ->
-    let nodeId = fst $ head decls
-      in getSourcePos file' fileContent spanMap nodeId
-
-  TypeMismatch nodeId _ _ _ ->
-    getSourcePos file' fileContent spanMap nodeId
-
-  UnificationFailure _ _ ctx ->
-    getSourcePos file' fileContent spanMap $ getContextNodeId (last ctx)
-
-  HoleFound nodeId _ _ _ ->
-    getSourcePos file' fileContent spanMap nodeId
-
+instance HasMainErrorPosition (TypeError Position) where
+  mainErrorPosition = \case
+    UnknownAtom pos _ -> pos
+    ArgCountMismatch _ _ (pos, _) -> pos
+    DuplicateTypeDeclaration _ decls -> fst $ head decls
+    TypeMismatch pos _ _ _ -> pos
+    UnificationFailure _ _ ctx -> getContextLocation (last ctx)
+    HoleFound pos _ _ _ -> pos
 
 -- Helper function to transform a Megaparsec error bundle into multiple reports
 -- Extracted from the Diagnose library, and simplified for usage in Eclair.
