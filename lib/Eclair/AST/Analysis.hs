@@ -148,50 +148,50 @@ data PointsToVar
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions PointsToVar "points_to_var" 'S.Output
 
-data VariableInFact
-  = VariableInFact NodeId Id
-  deriving stock (Generic, Eq, Show)
+data VariableInFact loc
+  = VariableInFact loc Id
+  deriving stock (Generic, Eq, Show, Functor)
   deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions VariableInFact "variable_in_fact" 'S.Output
+  deriving S.Fact via S.FactOptions (VariableInFact loc) "variable_in_fact" 'S.Output
 
-data UngroundedVar
+data UngroundedVar loc
   = UngroundedVar
-  { ungroundedRuleNodeId :: NodeId
-  , ungroundedVarNodeId :: NodeId
+  { ungroundedRuleLoc :: loc
+  , ungroundedVarLoc :: loc
   , ungroundedVarName :: Id
   }
-  deriving stock (Generic, Eq, Show)
+  deriving stock (Generic, Eq, Show, Functor)
   deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions UngroundedVar "ungrounded_variable" 'S.Output
+  deriving S.Fact via S.FactOptions (UngroundedVar loc) "ungrounded_variable" 'S.Output
 
-data WildcardInFact
+data WildcardInFact loc
   = WildcardInFact
-  { factNodeId :: NodeId
-  , factArgId :: NodeId
+  { factLoc :: loc
+  , factArgLoc :: loc
   , wildcardFactPos :: Position
   }
-  deriving stock (Generic, Eq, Show)
+  deriving stock (Generic, Eq, Show, Functor)
   deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions WildcardInFact "wildcard_in_fact" 'S.Output
+  deriving S.Fact via S.FactOptions (WildcardInFact loc) "wildcard_in_fact" 'S.Output
 
-data WildcardInRuleHead
+data WildcardInRuleHead loc
   = WildcardInRuleHead
-  { wildcardRuleNodeId :: NodeId
-  , wildcardRuleArgId :: NodeId
+  { wildcardRuleLoc :: loc
+  , wildcardRuleArgLoc :: loc
   , wildcardRuleHeadPos :: Position
   }
-  deriving stock (Generic, Eq, Show)
+  deriving stock (Generic, Eq, Show, Functor)
   deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions WildcardInRuleHead "wildcard_in_rule_head" 'S.Output
+  deriving S.Fact via S.FactOptions (WildcardInRuleHead loc) "wildcard_in_rule_head" 'S.Output
 
-data WildcardInAssignment
+data WildcardInAssignment loc
   = WildcardInAssignment
-  { wildcardAssignNodeId :: NodeId
-  , wildcardNodeId :: NodeId
+  { wildcardAssignLoc :: loc
+  , wildcardLoc :: loc
   }
-  deriving stock (Generic, Eq, Show)
+  deriving stock (Generic, Eq, Show, Functor)
   deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions WildcardInAssignment "wildcard_in_assignment" 'S.Output
+  deriving S.Fact via S.FactOptions (WildcardInAssignment loc) "wildcard_in_assignment" 'S.Output
 
 newtype DeadCode
   = DeadCode { unDeadCode :: NodeId }
@@ -199,17 +199,17 @@ newtype DeadCode
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions DeadCode "dead_code" 'S.Output
 
-newtype NoOutputRelation
-  = NoOutputRelation NodeId
-  deriving stock (Generic, Eq, Show)
+newtype NoOutputRelation loc
+  = NoOutputRelation loc
+  deriving stock (Generic, Eq, Show, Functor)
   deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions NoOutputRelation "no_output_relation" 'S.Output
+  deriving S.Fact via S.FactOptions (NoOutputRelation loc) "no_output_relation" 'S.Output
 
-data DeadInternalRelation
-  = DeadInternalRelation NodeId Id
-  deriving stock (Generic, Eq, Show)
+data DeadInternalRelation loc
+  = DeadInternalRelation loc Id
+  deriving stock (Generic, Eq, Show, Functor)
   deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions DeadInternalRelation "dead_internal_relation" 'S.Output
+  deriving S.Fact via S.FactOptions (DeadInternalRelation loc) "dead_internal_relation" 'S.Output
 
 data SemanticAnalysis
   = SemanticAnalysis
@@ -233,14 +233,14 @@ data SemanticAnalysis
        , ModuleDecl
        , RuleVariable
        , PointsToVar
-       , VariableInFact
-       , UngroundedVar
-       , WildcardInRuleHead
-       , WildcardInFact
-       , WildcardInAssignment
+       , VariableInFact NodeId
+       , UngroundedVar NodeId
+       , WildcardInRuleHead NodeId
+       , WildcardInFact NodeId
+       , WildcardInAssignment NodeId
        , DeadCode
-       , NoOutputRelation
-       , DeadInternalRelation
+       , NoOutputRelation NodeId
+       , DeadInternalRelation NodeId
        ]
 
 -- TODO: change to Vector when finished for performance
@@ -268,21 +268,21 @@ data SemanticInfo
 data Result
   = Result
   { semanticInfo :: SemanticInfo
-  , semanticErrors :: SemanticErrors
+  , semanticErrors :: SemanticErrors NodeId
   }
   deriving (Eq, Show)
 
-data SemanticErrors
+data SemanticErrors loc
   = SemanticErrors
-  { variablesInFacts :: Container VariableInFact
-  , ungroundedVars :: Container UngroundedVar
-  , wildcardsInFacts :: Container WildcardInFact
-  , wildcardsInRuleHeads :: Container WildcardInRuleHead
-  , wildcardsInAssignments :: Container WildcardInAssignment
-  , deadInternalRelations :: Container DeadInternalRelation
-  , noOutputRelations :: Container NoOutputRelation
+  { variablesInFacts :: Container (VariableInFact loc)
+  , ungroundedVars :: Container (UngroundedVar loc)
+  , wildcardsInFacts :: Container (WildcardInFact loc)
+  , wildcardsInRuleHeads :: Container (WildcardInRuleHead loc)
+  , wildcardsInAssignments :: Container (WildcardInAssignment loc)
+  , deadInternalRelations :: Container (DeadInternalRelation loc)
+  , noOutputRelations :: Container (NoOutputRelation loc)
   }
-  deriving (Eq, Show, Exception)
+  deriving (Eq, Show, Exception, Functor)
 
 hasSemanticErrors :: Result -> Bool
 hasSemanticErrors result =
@@ -295,7 +295,7 @@ hasSemanticErrors result =
   isNotNull noOutputRelations
   where
     errs = semanticErrors result
-    isNotNull :: (SemanticErrors -> [a]) -> Bool
+    isNotNull :: (SemanticErrors NodeId -> [a]) -> Bool
     isNotNull f = not . null $ f errs
 
 analysis :: S.Handle SemanticAnalysis -> S.Analysis S.SouffleM IR.AST Result
