@@ -210,29 +210,36 @@ wildcardInAssignmentToReport file' fileContent spanMap (WildcardInAssignment ass
    in Err Nothing title markers hints'
 
 
-deadRuleToReport :: FilePath -> Text -> SpanMap -> DeadCode -> Report Text
-deadRuleToReport file' fileContent spanMap (DeadCode nodeId) =
-  let title = "Dead code"
+deadInternalRelationToReport :: FilePath -> Text -> SpanMap -> DeadInternalRelation -> Report Text
+deadInternalRelationToReport file' fileContent spanMap (DeadInternalRelation nodeId r) =
+  let title = "Dead internal relation"
       srcLoc = getSourcePos file' fileContent spanMap nodeId
-      markers = [ (srcLoc, This "The rule does not contribute to the final results of the program") ]
-      hints' = [ Hint "Remove this rule if it is no longer needed."
-               , Hint "Add 'output' at the end of a '@def' to indicate this rule is an output relation."
-               , Hint "Otherwise, this might indicate a logic error in your code."
+      markers = [(srcLoc, This $ "The internal rule '" <> unId r <> "' has no facts or rules defined and will never produce results.")]
+      hints' = [ Hint "This might indicate a logic error in your code."
+               , Hint "Remove this rule if it is no longer needed."
+               , Hint "Add 'input' to the declaration to indicate this rule is an input."
                ]
    in Err Nothing title markers hints'
 
+noOutputRelationsToReport :: FilePath -> Text -> SpanMap -> NoOutputRelation -> Report Text
+noOutputRelationsToReport file' _ _ (NoOutputRelation _) =
+  let title = "No output relations found"
+      markers = [(startOfFile file', This "This module does not produce any results")]
+      hints' = [ Hint "Add an 'output' qualifier to one of the relations defined in this module." ]
+  in Err Nothing title markers hints'
 
 -- NOTE: pattern match is done this way to keep track of additional errors that need to be reported
 {-# ANN semanticErrorsToReports ("HLint: ignore Use record patterns" :: String) #-}
 semanticErrorsToReports :: FilePath -> Text -> SpanMap -> SemanticErrors -> [Report Text]
-semanticErrorsToReports file' fileContent spanMap e@(SemanticErrors _ _ _ _ _ _ _) =
+semanticErrorsToReports file' fileContent spanMap e@(SemanticErrors _ _ _ _ _ _ _ _) =
   concat [ emptyModuleReports
          , ungroundedVarReports
          , variableInFactReports
          , wildcardInFactReports
          , wildcardInRuleHeadReports
          , wildcardInAssignmentReports
-         , deadRuleReports
+         , deadInternalRelationReports
+         , noOutputReports
          ]
   where
     getReportsFor :: (SemanticErrors -> Container a)
@@ -245,7 +252,8 @@ semanticErrorsToReports file' fileContent spanMap e@(SemanticErrors _ _ _ _ _ _ 
     wildcardInFactReports = getReportsFor wildcardsInFacts wildcardInFactToReport
     wildcardInRuleHeadReports = getReportsFor wildcardsInRuleHeads wildcardInRuleHeadToReport
     wildcardInAssignmentReports = getReportsFor wildcardsInAssignments wildcardInAssignmentToReport
-    deadRuleReports = getReportsFor deadRules deadRuleToReport
+    deadInternalRelationReports = getReportsFor deadInternalRelations deadInternalRelationToReport
+    noOutputReports = getReportsFor noOutputRelations noOutputRelationsToReport
 
 pluralize :: Int -> Text -> Text -> Text
 pluralize count singular plural' =
@@ -272,6 +280,9 @@ renderError txt = do
   where
     useUnicode = True
     tabSpaces = 2
+
+startOfFile :: FilePath -> Position
+startOfFile = Position (1, 1) (1, 2)
 
 style :: Style
 style = reAnnotate style'

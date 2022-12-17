@@ -15,8 +15,8 @@
 // RUN: diff %t/expected_eclair_program_run_llvm.out %t/actual_eclair_program_run_llvm.out
 
 //--- program.eclair
-@def edge(u32, u32).
-@def another(u32, u32, u32).
+@def edge(u32, u32) output.
+@def another(u32, u32, u32) output.
 
 edge(1, 2).
 edge(2, 3).

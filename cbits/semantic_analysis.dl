@@ -17,7 +17,7 @@
 .decl rule_variable(rule_id: unsigned, variable_id: unsigned)
 
 // Internal rules
-.decl dead_internal_relation(relation_name: symbol)
+.decl has_output_relation(node_id: unsigned)
 .decl literal_contradiction(lit_id1: unsigned, lit_id2: unsigned)
 .decl wildcard(node_id: unsigned) inline
 .decl rule_head_var(rule_id: unsigned, var_id: unsigned, var_name: symbol)
@@ -25,6 +25,7 @@
 .decl alias(rule_id: unsigned, id1: unsigned, id2: unsigned)
 .decl points_to(rule_id: unsigned, id1: unsigned, id2: unsigned)
 .decl depends_on(r1: symbol, r2: symbol)
+.decl has_definitions(relation: symbol)
 .decl live_rule(relation: symbol)
 
 // Output facts / rules
@@ -37,6 +38,8 @@
 .decl wildcard_in_assignment(assign_node_id: unsigned, wildcard_node_id: unsigned)
 .decl rule_with_contradiction(rule_id: unsigned)
 .decl dead_code(node_id: unsigned)
+.decl no_output_relation(node_id: unsigned)
+.decl dead_internal_relation(node_id: unsigned, relation_name: symbol)
 
 .input lit_number
 .input lit_string
@@ -63,6 +66,8 @@
 .output wildcard_in_rule_head
 .output wildcard_in_assignment
 .output dead_code
+.output no_output_relation
+.output dead_internal_relation
 
 // r1 depends on r2 if rule r1 refers to r2 in the body
 depends_on(r1, r2) :-
@@ -91,7 +96,7 @@ dead_code(node_id) :-
 
 // Atoms too.
 dead_code(node_id) :-
-  atom(node_id, r)
+  atom(node_id, r),
   !live_rule(r).
 
 // Rules are dead if one of the clauses is statically known to produce no results.
@@ -104,19 +109,26 @@ dead_code(rule_id) :-
   rule_clause(rule_id, _, rule_clause_id),
   dead_code(rule_clause_id).
 
-// Dead internal relations potentially affect other dead rules too.
-dead_code(atom_id) :-
-  dead_internal_relation(r),
-  atom(atom_id, r).
+has_definitions(r) :-
+  (module_declaration(_, atom_id), atom(atom_id, r));
+  depends_on(r, _).
 
 // An internal relation is dead if there are no top level atoms and it doesn't depend on anything.
-dead_internal_relation(r) :-
+dead_internal_relation(decl_id, r) :-
+  declare_type(decl_id, r),
   internal_relation(r),
-  module_declaration(_, atom_id),
-  !atom(atom_id, r),
-  !depends_on(r, _).
+  !has_definitions(r).
 
 // TODO which one of these are errors, which are ok to be optimized?
+
+has_output_relation(node_id) :-
+  module_declaration(node_id, decl_id),
+  declare_type(decl_id, r),
+  output_relation(r).
+
+no_output_relation(node_id) :-
+  module_declaration(node_id, _),
+  !has_output_relation(node_id).
 
 // Top level facts: no variables allowed
 variable_in_fact(atom_arg_id, var_name) :-

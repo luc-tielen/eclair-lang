@@ -5,8 +5,8 @@
 // RUN: %eclair compile %t/program1.eclair 2> %t/actual1.out
 // RUN: diff -w %t/expected1.out %t/actual1.out
 
-@def edge(u32, u32).
-@def reachable(u32, u32).
+@def edge(u32, u32) input.
+@def reachable(u32, u32) output.
 
 reachable(x, y) :-
   edge(x, y),
@@ -52,7 +52,7 @@ reachable(x, y) :-
 // RUN: %eclair compile %t/program2.eclair 2> %t/actual2.out
 // RUN: diff %t/expected2.out %t/actual2.out
 
-@def fact(string, u32, u32).
+@def fact(string, u32, u32) output.
 
 fact(?, 42, ?).
 

@@ -27,7 +27,7 @@ simplify nodeId analysis = runTransform nodeId
   $   RmWildcards.transform
   -- Optimizations:
   >>> CopyPropagation.transform (pointsToAnalysis analysis)
-  >>> DCE.transform (rulesWithContradictions analysis)
+  >>> DCE.transform (deadCodeIds analysis)
 
   -- Transforms after optimizations:
   >>> UniqueVars.transform

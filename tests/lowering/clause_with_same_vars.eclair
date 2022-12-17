@@ -12,10 +12,10 @@
 // RUN: diff -w %t/expected_eclair_program_run_llvm.out %t/actual_eclair_program_run_llvm.out
 
 //--- program.eclair
-@def a(u32).
-@def b(u32, u32).
-@def c(u32, u32, u32, u32, u32).
-@def other(u32).
+@def a(u32) output.
+@def b(u32, u32) input.
+@def c(u32, u32, u32, u32, u32) input.
+@def other(u32) input.
 
 a(x) :-
   b(x, x),

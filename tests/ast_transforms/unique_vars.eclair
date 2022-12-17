@@ -7,10 +7,10 @@
 // RUN: diff -w %t/expected2.out %t/actual2.out
 
 //--- program1.eclair
-@def a(u32).
-@def b(u32, u32).
-@def c(u32, u32, u32, u32, u32).
-@def other(u32).
+@def a(u32) output.
+@def b(u32, u32) input.
+@def c(u32, u32, u32, u32, u32) input.
+@def other(u32) input.
 
 
 a(x) :-
@@ -22,13 +22,13 @@ a(y) :-
   other(y).
 
 //--- expected1.out
-@def a(u32).
+@def a(u32) output.
 
-@def b(u32, u32).
+@def b(u32, u32) input.
 
-@def c(u32, u32, u32, u32, u32).
+@def c(u32, u32, u32, u32, u32) input.
 
-@def other(u32).
+@def other(u32) input.
 
 a(x) :-
   b(x, @x_0),
@@ -41,8 +41,8 @@ a(y) :-
   y = @y_1,
   y = @y_0.
 //--- program2.eclair
-@def edge(u32, u32).
-@def path(u32, u32).
+@def edge(u32, u32) input.
+@def path(u32, u32) output.
 
 edge(1,2).
 
@@ -51,9 +51,9 @@ path(x, y) :-
   path(z, y).
 
 //--- expected2.out
-@def edge(u32, u32).
+@def edge(u32, u32) input.
 
-@def path(u32, u32).
+@def path(u32, u32) output.
 
 edge(1, 2).
 

@@ -18,7 +18,7 @@
 
 //--- program.eclair
 @def link(u32, u32).
-@def chain(u32, u32, u32).
+@def chain(u32, u32, u32) output.
 
 link(1,2).
 

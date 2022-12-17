@@ -13,8 +13,9 @@ module Eclair.AST.Analysis
   , WildcardInFact(..)
   , WildcardInRuleHead(..)
   , WildcardInAssignment(..)
-  , RuleWithContradiction(..)
   , DeadCode(..)
+  , DeadInternalRelation(..)
+  , NoOutputRelation(..)
   , IR.NodeId(..)
   , Container
   , computeUsageMapping
@@ -148,14 +149,6 @@ data PointsToVar
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions PointsToVar "points_to_var" 'S.Output
 
-newtype RuleWithContradiction
-  = RuleWithContradiction
-  { unRuleWithContradiction :: NodeId
-  }
-  deriving stock (Generic, Eq, Show)
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions RuleWithContradiction "rule_with_contradiction" 'S.Output
-
 data VariableInFact
   = VariableInFact NodeId Id
   deriving stock (Generic, Eq, Show)
@@ -208,10 +201,22 @@ newtype EmptyModule
   deriving S.Fact via S.FactOptions EmptyModule "empty_module" 'S.Output
 
 newtype DeadCode
-  = DeadCode NodeId
+  = DeadCode { unDeadCode :: NodeId }
   deriving stock (Generic, Eq, Show)
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions DeadCode "dead_code" 'S.Output
+
+newtype NoOutputRelation
+  = NoOutputRelation NodeId
+  deriving stock (Generic, Eq, Show)
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions NoOutputRelation "no_output_relation" 'S.Output
+
+data DeadInternalRelation
+  = DeadInternalRelation NodeId Id
+  deriving stock (Generic, Eq, Show)
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions DeadInternalRelation "dead_internal_relation" 'S.Output
 
 data SemanticAnalysis
   = SemanticAnalysis
@@ -235,7 +240,6 @@ data SemanticAnalysis
        , ModuleDecl
        , RuleVariable
        , PointsToVar
-       , RuleWithContradiction
        , VariableInFact
        , UngroundedVar
        , EmptyModule
@@ -243,6 +247,8 @@ data SemanticAnalysis
        , WildcardInFact
        , WildcardInAssignment
        , DeadCode
+       , NoOutputRelation
+       , DeadInternalRelation
        ]
 
 -- TODO: change to Vector when finished for performance
@@ -264,7 +270,7 @@ mkPointsToAnalysis =
 data SemanticInfo
   = SemanticInfo
   { pointsToAnalysis :: PointsToAnalysis
-  , rulesWithContradictions :: Container RuleWithContradiction
+  , deadCodeIds :: Container DeadCode
   } deriving (Eq, Show)
 
 data Result
@@ -282,7 +288,8 @@ data SemanticErrors
   , wildcardsInFacts :: Container WildcardInFact
   , wildcardsInRuleHeads :: Container WildcardInRuleHead
   , wildcardsInAssignments :: Container WildcardInAssignment
-  , deadRules :: Container DeadCode
+  , deadInternalRelations :: Container DeadInternalRelation
+  , noOutputRelations :: Container NoOutputRelation
   }
   deriving (Eq, Show, Exception)
 
@@ -294,7 +301,8 @@ hasSemanticErrors result =
   isNotNull wildcardsInFacts ||
   isNotNull wildcardsInRuleHeads ||
   isNotNull wildcardsInAssignments ||
-  isNotNull deadRules
+  isNotNull deadInternalRelations ||
+  isNotNull noOutputRelations
   where
     errs = semanticErrors result
     isNotNull :: (SemanticErrors -> [a]) -> Bool
@@ -366,6 +374,7 @@ analysis prog = S.mkAnalysis addFacts run getFacts
       info <- SemanticInfo <$> (mkPointsToAnalysis <$> S.getFacts prog)
                            <*> S.getFacts prog
       errs <- SemanticErrors <$> S.getFacts prog
+                             <*> S.getFacts prog
                              <*> S.getFacts prog
                              <*> S.getFacts prog
                              <*> S.getFacts prog

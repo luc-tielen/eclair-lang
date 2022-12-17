@@ -3,8 +3,8 @@
 // RUN: diff %t/expected.out %t/actual.out
 
 //--- program.eclair
-@def fact1(u32).
-@def fact2(u32).
+@def fact1(u32) input.
+@def fact2(u32) output.
 
 fact2(x) :-
   123 = 456,
@@ -32,6 +32,6 @@ fact2(x) :-
   z = 456.
 
 //--- expected.out
-@def fact1(u32).
+@def fact1(u32) input.
 
-@def fact2(u32).
+@def fact2(u32) output.

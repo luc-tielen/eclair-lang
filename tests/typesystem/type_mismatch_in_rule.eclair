@@ -5,8 +5,8 @@
 // RUN: diff -w %t/expected.out %t/actual.out
 
 //--- program.eclair
-@def fact1(u32).
-@def fact2(u32, string).
+@def fact1(u32) input.
+@def fact2(u32, string) output.
 fact2(123, x) :-
   fact1(x).
 

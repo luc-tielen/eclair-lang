@@ -9,6 +9,7 @@ module Eclair.AST.IR
   , Literal(..)
   , Type(..)
   , NodeId(..)
+  , getNodeId
   , UsageMode(..)
   , Attributes
   ) where
@@ -65,6 +66,17 @@ makeBaseFunctor ''AST
 pattern PWildcardF :: NodeId -> ASTF r
 pattern PWildcardF nodeId
   = VarF nodeId (Id "_")
+
+getNodeId :: AST -> NodeId
+getNodeId = \case
+  Module nodeId _ -> nodeId
+  DeclareType nodeId _ _ _ -> nodeId
+  Rule nodeId _ _ _ -> nodeId
+  Atom nodeId _ _ -> nodeId
+  Assign nodeId _ _ -> nodeId
+  Lit nodeId _ -> nodeId
+  Var nodeId _ -> nodeId
+  Hole nodeId -> nodeId
 
 instance Pretty Type where
   pretty = \case

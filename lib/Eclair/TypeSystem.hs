@@ -300,14 +300,3 @@ extractTypeDefs = cata $ \case
   AtomF {} -> mempty
   RuleF {} -> mempty
   astf -> foldMap identity astf
-
-getNodeId :: AST -> NodeId
-getNodeId = \case
-  Module nodeId _ -> nodeId
-  DeclareType nodeId _ _ _ -> nodeId
-  Rule nodeId _ _ _ -> nodeId
-  Atom nodeId _ _ -> nodeId
-  Assign nodeId _ _ -> nodeId
-  Lit nodeId _ -> nodeId
-  Var nodeId _ -> nodeId
-  Hole nodeId -> nodeId

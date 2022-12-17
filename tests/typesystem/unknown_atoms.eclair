@@ -10,6 +10,8 @@ top_level_atom(1).
 path(x, y) :-
   edge(x, y).
 
+@def result(u32) output.
+
 //--- expected.out
 [error]: Missing type definition
      ╭──▶ TEST_DIR/program.eclair@1:1-1:19
