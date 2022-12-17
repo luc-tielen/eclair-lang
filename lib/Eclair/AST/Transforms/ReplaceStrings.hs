@@ -19,11 +19,11 @@ transform =
   where
     rewrite :: RewriteRuleT (StateT StringMap) AST
     rewrite = \case
-      DeclareTypeF nodeId name tys -> do
+      DeclareTypeF nodeId name tys attrs -> do
         -- By putting the relation names in the symbol table, we can easily
         -- create a unique integer constant for the fact type mapping.
         _ <- replaceString (unId name)
-        pure $ DeclareType nodeId name tys
+        pure $ DeclareType nodeId name tys attrs
       LitF nodeId (LString s) ->
         Lit nodeId . LNumber <$> replaceString s
       astf ->

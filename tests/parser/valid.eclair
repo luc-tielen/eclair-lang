@@ -2,9 +2,9 @@
 // CHECK: project
 
 // u32
-@def fact1(u32).
-@def fact2(u32, u32, u32).
-  @def  fact3  (  u32  ,  u32  ).
+@def fact1(u32) output.
+@def fact2(u32, u32, u32) output.
+  @def  fact3  (  u32  ,  u32  ) output.
 
 fact3(1, 2).
 fact3(2, 3).
@@ -12,9 +12,9 @@ fact3(2, 3).
 fact2(1,2,3).
 
 // strings
-@def fact4(string).
-@def fact5(u32, string).
-@def fact6(string  ,  string,string  ).
+@def fact4(string) output.
+@def fact5(u32, string) output.
+@def fact6(string  ,  string,string  )     output  .
 
 fact4("").
 fact4("a").
@@ -25,9 +25,9 @@ fact4("\"\n\r\t\b\f\v\0").
 // NOTE: rules and assignments are tested implicitly in other tests
 
 // mix of everything
-@def edge(u32, u32).
-@def path(u32, u32).
-@def literals_in_rule(u32).
+@def edge(u32, u32) input.
+@def path(u32, u32) output.
+@def literals_in_rule(u32) output.
 
 edge(1, 2).
 edge(2, 3).
@@ -40,9 +40,9 @@ path(x, y) :-
   path(z, y).
 
 // This also checks for potential naming collisions
-@def u32(u32).
-@def string(string).
-@def mix(u32, string).
+@def u32(u32) input.
+@def string(string) input.
+@def mix(u32, string) input.
 literals_in_rule(789) :-
   u32(  123 ),
   string( "abc"),

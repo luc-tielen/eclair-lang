@@ -5,10 +5,12 @@
 // RUN: diff -w %t/expected.out %t/actual.out
 
 //--- program.eclair
-@def edge(u32, u32).
+@def edge(u32, u32) input.
 
 path(x, y) :-
   edge(x, y).
+
+@def out(u32) output.
 
 //--- expected.out
 [error]: Missing type definition

@@ -1,0 +1,32 @@
+// RUN: mkdir -p %t && sed s@TEST_DIR@%t@g %s > %t/input.test
+// RUN: split-file %t/input.test %t
+
+// RUN: %eclair compile %t/program1.eclair 2> %t/actual1.out
+// RUN: diff -w %t/expected1.out %t/actual1.out
+
+// RUN: %eclair compile %t/program2.eclair | FileCheck %t/program2.eclair
+
+//--- program1.eclair
+@def fact(u32) input.
+
+fact(123).
+
+//--- expected1.out
+[error]: No output relations found
+     ╭──▶ TEST_DIR/program1.eclair@1:1-1:2
+     │
+   1 │ @def fact(u32) input.
+     • ┬
+     • ╰╸ This module does not produce any results
+     •
+     │ Hint: Add an 'output' qualifier to one of the relations defined in this module.
+─────╯
+//--- program2.eclair
+@def fact(u32) input.
+@def fact2(u32) output.
+
+fact(123).
+
+fact2(x) :- fact(x).
+
+// CHECK: eclair_program_run

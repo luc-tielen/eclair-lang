@@ -19,7 +19,7 @@
 //--- program.eclair
 @def first(u32).
 @def second(u32, u32).
-@def third(u32, u32).
+@def third(u32, u32) output.
 
 first(1).
 second(2, 3).

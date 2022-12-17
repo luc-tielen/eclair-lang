@@ -129,8 +129,8 @@ typeErrorToReport file' fileContent spanMap e = case e of
     let srcLoc = mainErrorPosition file' fileContent spanMap e
         title = "Missing type definition"
         markers = [(srcLoc, This $ "Could not find a type definition for '" <> unId factName <> "'.")]
-        hints' = [Hint $ "You can solve this by adding a type definition for '" <> unId factName <> "'."]
-    in Err Nothing title markers hints'
+        hints = [Hint $ "You can solve this by adding a type definition for '" <> unId factName <> "'."]
+    in Err Nothing title markers hints
 
   ArgCountMismatch factName (typedefNodeId, expectedCount) (_, actualCount) ->
     let title = "Found an unexpected amount of arguments for fact '" <> unId factName <> "'"
@@ -140,11 +140,11 @@ typeErrorToReport file' fileContent spanMap e = case e of
                   , (expectedSrcLoc, Where $ "'" <> unId factName <> "' is defined with " <> show expectedCount <>
                     pluralize expectedCount " argument." " arguments.")
                   ]
-        hints' = [Hint $ "You can solve this by passing exactly " <> show expectedCount <> " arguments to '" <> unId factName <> "'."]
-    in Err Nothing title markers hints'
+        hints = [Hint $ "You can solve this by passing exactly " <> show expectedCount <> " arguments to '" <> unId factName <> "'."]
+    in Err Nothing title markers hints
 
   DuplicateTypeDeclaration factName decls ->
-    Err Nothing title (mainMarker:markers) hints'
+    Err Nothing title (mainMarker:markers) hints
     where
       title = "Multiple type declarations for fact '" <> unId factName <> "'"
       mainMarker =
@@ -153,10 +153,10 @@ typeErrorToReport file' fileContent spanMap e = case e of
       markers = tail decls & toList & map (\(nodeId, _tys) ->
         let srcLoc = getSourcePos file' fileContent spanMap nodeId
          in (srcLoc, Where $ "'" <> unId factName <> "' is re-defined here."))
-      hints' = [Hint $ "You can solve this by removing the duplicate definitions for '" <> unId factName <> "'."]
+      hints = [Hint $ "You can solve this by removing the duplicate definitions for '" <> unId factName <> "'."]
 
   TypeMismatch _ actualTy expectedTy ctx ->
-    Err Nothing title markers hints'
+    Err Nothing title markers hints
       where
         title = "Type mismatch"
         srcLoc = mainErrorPosition file' fileContent spanMap e
@@ -164,18 +164,18 @@ typeErrorToReport file' fileContent spanMap e = case e of
                     <> " but it actually has type " <> renderType actualTy <> ".")
         markers = zipWith renderDeduction markerTypes (toList ctx) ++ [lastMarker]
         markerTypes = zip [1..] $ repeat Where
-        hints' = []  -- Can we even give a meaningful error here? Look in type env? (if a var is used)
+        hints = []  -- Can we even give a meaningful error here? Look in type env? (if a var is used)
 
   UnificationFailure _ _ ctx ->
-    Err Nothing title markers hints'
+    Err Nothing title markers hints
       where
         title = "Type unification failure"
         markerTypes = markersForTypeError ctx
         markers = zipWith renderDeduction markerTypes (toList ctx)
-        hints' = []  -- What can we even give as a hint here? That it is a logical error?
+        hints = []  -- What can we even give as a hint here? That it is a logical error?
 
   HoleFound _ ctx holeTy typeEnv ->
-    Err Nothing title markers hints'
+    Err Nothing title markers hints
       where
         srcLoc = mainErrorPosition file' fileContent spanMap e
         title = "Found hole"
@@ -188,7 +188,7 @@ typeErrorToReport file' fileContent spanMap e = case e of
             & M.mapWithKey (\var ty -> (ty, renderBinding var ty))
             & toList
         (candidates, others) = partition (\(entryTy, _) -> entryTy == holeTy) typeEntries
-        hints' =
+        hints =
           map (Hint . (("Possible candidate: " <>) . snd)) candidates <>
           if null others
             then []
@@ -223,8 +223,8 @@ variableInFactToReport file' fileContent spanMap e =
   let srcLoc = mainErrorPosition file' fileContent spanMap e
       title = "Variable in top level fact"
       markers = [(srcLoc, This "Only constants are allowed in facts.")]
-      hints' = ["You can solve this by replacing the variable with a constant."]
-   in Err Nothing title markers hints'
+      hints = ["You can solve this by replacing the variable with a constant."]
+   in Err Nothing title markers hints
 
 ungroundedVarToReport :: FilePath -> Text -> SpanMap -> UngroundedVar -> Report Text
 ungroundedVarToReport file' fileContent spanMap e@(UngroundedVar ruleNodeId _ var) =
@@ -234,8 +234,8 @@ ungroundedVarToReport file' fileContent spanMap e@(UngroundedVar ruleNodeId _ va
       markers = [ (srcLocVar, This $ "The variable '" <> unId var <> "' is ungrounded, meaning it is not directly bound as an argument to a relation.")
                 , (srcLocRule, Where $ "This rule contains no clauses that refer to '" <> unId var <> "'.")
                 ]
-      hints' = [Hint $ "Use the variable '" <> unId var <> "' as an argument in another clause in the same rule."]
-   in Err Nothing title markers hints'
+      hints = [Hint $ "Use the variable '" <> unId var <> "' as an argument in another clause in the same rule."]
+   in Err Nothing title markers hints
 
 wildcardInFactToReport :: FilePath -> Text -> SpanMap -> WildcardInFact -> Report Text
 wildcardInFactToReport file' fileContent spanMap e@(WildcardInFact factNodeId' _ _pos) =
@@ -245,8 +245,8 @@ wildcardInFactToReport file' fileContent spanMap e@(WildcardInFact factNodeId' _
       markers = [ (srcLocArg, This "Wildcard found.")
                 , (srcLocFact, Where "A top level fact only supports constants.\nVariables or wildcards are not allowed.")
                 ]
-      hints' = ["Replace the wildcard with a constant."]
-   in Err Nothing title markers hints'
+      hints = ["Replace the wildcard with a constant."]
+   in Err Nothing title markers hints
 
 wildcardInRuleHeadToReport :: FilePath -> Text -> SpanMap -> WildcardInRuleHead -> Report Text
 wildcardInRuleHeadToReport file' fileContent spanMap e@(WildcardInRuleHead ruleNodeId _ _pos) =
@@ -256,8 +256,8 @@ wildcardInRuleHeadToReport file' fileContent spanMap e@(WildcardInRuleHead ruleN
       markers = [ (srcLocArg, This "Wildcard found.")
                 , (srcLocRule, Where "Only constants and variables are allowed in the head of a rule.\nWildcards are not allowed.")
                 ]
-      hints' = ["Replace the wildcard with a constant or a variable."]
-   in Err Nothing title markers hints'
+      hints = ["Replace the wildcard with a constant or a variable."]
+   in Err Nothing title markers hints
 
 wildcardInAssignmentToReport :: FilePath -> Text -> SpanMap -> WildcardInAssignment -> Report Text
 wildcardInAssignmentToReport file' fileContent spanMap e@(WildcardInAssignment assignNodeId _) =
@@ -267,18 +267,39 @@ wildcardInAssignmentToReport file' fileContent spanMap e@(WildcardInAssignment a
       markers = [ (srcLocWildcard, This "Wildcard found.")
                 , (srcLocAssign, Where "Only constants and variables are allowed in an equality constraint.")
                 ]
-      hints' = ["This statement can be removed since it has no effect."]
-   in Err Nothing title markers hints'
+      hints = ["This statement can be removed since it has no effect."]
+   in Err Nothing title markers hints
+
+
+deadInternalRelationToReport :: FilePath -> Text -> SpanMap -> DeadInternalRelation -> Report Text
+deadInternalRelationToReport file' fileContent spanMap e@(DeadInternalRelation _ r) =
+  let title = "Dead internal relation"
+      srcLoc = mainErrorPosition file' fileContent spanMap e
+      markers = [(srcLoc, This $ "The internal rule '" <> unId r <> "' has no facts or rules defined and will never produce results.")]
+      hints = [ Hint "This might indicate a logic error in your code."
+               , Hint "Remove this rule if it is no longer needed."
+               , Hint "Add 'input' to the declaration to indicate this rule is an input."
+               ]
+   in Err Nothing title markers hints
+
+noOutputRelationsToReport :: FilePath -> Text -> SpanMap -> NoOutputRelation -> Report Text
+noOutputRelationsToReport file' fileContent spanMap e@(NoOutputRelation _) =
+  let title = "No output relations found"
+      markers = [(mainErrorPosition file' fileContent spanMap e, This "This module does not produce any results")]
+      hints = [ Hint "Add an 'output' qualifier to one of the relations defined in this module." ]
+  in Err Nothing title markers hints
 
 -- NOTE: pattern match is done this way to keep track of additional errors that need to be reported
 {-# ANN semanticErrorsToReportsWithLocations ("HLint: ignore Use record patterns" :: String) #-}
 semanticErrorsToReportsWithLocations :: FilePath -> Text -> SpanMap -> SemanticErrors -> [(Report Text, Location)]
-semanticErrorsToReportsWithLocations file' fileContent spanMap e@(SemanticErrors _ _ _ _ _) =
+semanticErrorsToReportsWithLocations file' fileContent spanMap e@(SemanticErrors _ _ _ _ _ _ _) =
   concat [ ungroundedVarReports
          , variableInFactReports
          , wildcardInFactReports
          , wildcardInRuleHeadReports
          , wildcardInAssignmentReports
+         , deadInternalRelationReports
+         , noOutputReports
          ]
   where
     getReportsWithLocationsFor
@@ -293,6 +314,8 @@ semanticErrorsToReportsWithLocations file' fileContent spanMap e@(SemanticErrors
     wildcardInFactReports = getReportsWithLocationsFor wildcardsInFacts wildcardInFactToReport
     wildcardInRuleHeadReports = getReportsWithLocationsFor wildcardsInRuleHeads wildcardInRuleHeadToReport
     wildcardInAssignmentReports = getReportsWithLocationsFor wildcardsInAssignments wildcardInAssignmentToReport
+    deadInternalRelationReports = getReportsWithLocationsFor deadInternalRelations deadInternalRelationToReport
+    noOutputReports = getReportsWithLocationsFor noOutputRelations noOutputRelationsToReport
 
 pluralize :: Int -> Text -> Text -> Text
 pluralize count singular plural' =
@@ -345,6 +368,14 @@ instance HasMainErrorPosition TypeError where
     HoleFound nodeId _ _ _ ->
       getSourcePos file' content spanMap nodeId
 
+instance HasMainErrorPosition NoOutputRelation where
+  mainErrorPosition file' _ _ (NoOutputRelation _) =
+    startOfFile file'
+
+instance HasMainErrorPosition DeadInternalRelation where
+  mainErrorPosition file' content spanMap (DeadInternalRelation nodeId _) =
+    getSourcePos file' content spanMap nodeId
+
 instance HasMainErrorPosition WildcardInAssignment where
   mainErrorPosition file' content spanMap (WildcardInAssignment _ nodeId) =
     getSourcePos file' content spanMap nodeId
@@ -368,7 +399,7 @@ instance HasMainErrorPosition WildcardInFact where
 
 -- Helper function to transform a Megaparsec error bundle into multiple reports
 -- Extracted from the Diagnose library, and simplified for usage in Eclair.
-errReportsWithLocationsFromBundle :: Text -> P.ParseErrorBundle Text Void -> [(Report Text, Location)]
+errReportsWithLocationsFromBundle :: Text -> P.ParseErrorBundle Text CustomParseErr -> [(Report Text, Location)]
 errReportsWithLocationsFromBundle msg errBundle =
   toList (addLabelAndLocation <$> P.bundleErrors errBundle)
   where
@@ -406,6 +437,9 @@ prettyError useColor =
         else unAnnotate
     useUnicode = True
     tabSpaces = 2
+
+startOfFile :: FilePath -> Position
+startOfFile = Position (1, 1) (1, 2)
 
 style :: Style
 style = reAnnotate style'

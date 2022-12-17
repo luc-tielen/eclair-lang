@@ -9,6 +9,9 @@ module Eclair.AST.IR
   , Literal(..)
   , Type(..)
   , NodeId(..)
+  , getNodeId
+  , UsageMode(..)
+  , Attributes
   ) where
 
 import Prettyprinter
@@ -33,6 +36,16 @@ data Type
   | TUnknown Int  -- NOTE: unification variable, only used internally!
   deriving (Eq, Ord, Show)
 
+data UsageMode
+  = Input
+  | Output
+  | InputOutput
+  | Internal  -- This variant is only used internally (pun intended).
+  deriving (Eq, Show)
+
+-- Later this will also contain (Maybe StorageType), ...
+type Attributes = UsageMode
+
 data AST
   = Lit NodeId Literal
   | Var NodeId Id
@@ -40,7 +53,7 @@ data AST
   | Assign NodeId AST AST
   | Atom NodeId Id [Value]
   | Rule NodeId Id [Value] [Clause]
-  | DeclareType NodeId Id [Type]
+  | DeclareType NodeId Id [Type] Attributes
   | Module NodeId [Decl]
   deriving (Eq, Show)
 
@@ -53,6 +66,17 @@ makeBaseFunctor ''AST
 pattern PWildcardF :: NodeId -> ASTF r
 pattern PWildcardF nodeId
   = VarF nodeId (Id "_")
+
+getNodeId :: AST -> NodeId
+getNodeId = \case
+  Module nodeId _ -> nodeId
+  DeclareType nodeId _ _ _ -> nodeId
+  Rule nodeId _ _ _ -> nodeId
+  Atom nodeId _ _ -> nodeId
+  Assign nodeId _ _ -> nodeId
+  Lit nodeId _ -> nodeId
+  Var nodeId _ -> nodeId
+  Hole nodeId -> nodeId
 
 instance Pretty Type where
   pretty = \case
@@ -85,8 +109,18 @@ instance Pretty AST where
           clauses' <- local (const Nested) $ traverse pretty' clauses
           pure $ pretty name <> parens (withCommas $ map pretty values) <+> ":-" <> hardline <>
                 indent 2 (vsep (zipWith (<>) clauses' separators))
-        DeclareType _ name tys ->
-          pure $ "@def" <+> pretty name <> parens (withCommas $ map pretty tys) <> "."
+        DeclareType _ name tys attrs ->
+          pure $ "@def"
+            <+> pretty name
+             <> parens (withCommas $ map pretty tys)
+             <> prettyAttrs
+             <> "."
+          where
+            prettyAttrs = case attrs of
+              Internal -> ""
+              Input -> " input"
+              Output -> " output"
+              InputOutput -> " input output"
         Module _ decls -> do
           decls' <- traverse pretty' decls
           pure $ vsep $ intersperse mempty decls'

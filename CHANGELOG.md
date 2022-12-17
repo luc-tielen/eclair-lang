@@ -12,6 +12,12 @@ The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-has
   - Document highlight
   - Hover
   - Diagnostics
+- Improved dead code elimination
+
+### Changed
+
+- Relations now can have additional qualifiers marking them as inputs or
+  outputs. Not providing any qualifier means it is now an internal fact.
 
 ## [0.1.0] - 2022-11-20
 

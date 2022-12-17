@@ -111,11 +111,11 @@ If you run the resulting program, this should print the reachable node pairs
 ## Roadmap
 
 - [x] LSP support
-- [ ] Allow setting options on relations for performance finetuning
-- [ ] Release 0.2.0
-- [ ] Generic, extensible primops
-- [ ] Support negation, `!=` operator
+- [x] Allow setting options on relations for performance finetuning
 - [ ] Support arithmetic / logical / ... operators
+- [ ] Generic, extensible primops
+- [ ] Release 0.2.0
+- [ ] Support negation, `!=` operator
 - [ ] Optimizations on the AST / RA / LLVM level
 - [ ] Support other underlying data structures than btree
 - [ ] Syntactic sugar (disjunctions in rule bodies, multiple rule heads, ...)

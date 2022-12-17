@@ -262,7 +262,7 @@ spec = describe "Index selection" $ parallel $ do
         a(123, 123, x, y, z).
 
       b(x) :-
-        // [4,2,3]
+        // [2,3,4]
         a(x, y, 123, 123, 123).
 
       b(x) :-

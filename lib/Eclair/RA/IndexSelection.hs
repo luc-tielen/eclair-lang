@@ -16,6 +16,7 @@ module Eclair.RA.IndexSelection
 -- http://www.vldb.org/pvldb/vol12/p141-subotic.pdf
 
 import Data.Maybe (fromJust)
+import Eclair.Id
 import Eclair.RA.IR
 import Eclair.Pretty
 import Eclair.Comonads
@@ -33,8 +34,10 @@ newtype SearchSignature
   = SearchSignature (Set Column)
   deriving (Eq, Ord, Show)
 
-newtype Index = Index [Column]  -- TODO: use NonEmpty
-  deriving (Eq, Ord, Show)
+newtype Index
+  = Index
+  { unIndex :: [Column]  -- TODO: use NonEmpty
+  } deriving (Eq, Ord, Show)
 
 instance Pretty Index where
   pretty (Index columns) =
@@ -72,26 +75,23 @@ data SearchFact
   | Related Relation Relation
   deriving (Eq, Ord)
 
+-- All relations (including delta_XXX, new_XXX) need atleast one index for full order search
+-- Swap operation requires indices of r1 and r2 to be related.
 searchesForProgram :: TypedefInfo -> RA -> SearchMap
 searchesForProgram typedefInfo ra =
-  let searchFacts = execState (gcata (dsitribute extractEqualities) constraintsForRA ra) mempty
-      facts = searchFacts ++ getAdditionalSearchFacts typedefInfo searchFacts
+  let raSearchFacts = execState (gcata (dsitribute extractEqualities) constraintsForRA ra) mempty
+      relationFullSearches = getFullSearchesForRelations typedefInfo
+      facts = raSearchFacts <> relationFullSearches
    in solve facts
   where
     addFact fact = modify (fact:)
     constraintsForRA = \case
-      ProjectF r values -> do
-        -- TODO: handle this with type declaration instead
-        let columns = columnsFor values
-            signature = SearchSignature $ Set.fromList columns
-        addFact $ SearchOn r signature
-      SearchF r a (traverse_ tSnd -> m) (tThd -> action) -> do
+      SearchF r a (foldMap tSnd -> eqs) (tThd -> action) -> do
         -- 1. Only direct constraints in the search matter, since that is what
         --    is used to select the index with, afterwards we are already
         --    looping over the value!
         -- 2. Only equality constraints matter, not "NoElem" constraints!
-        let eqs = execWriter m
-            cs = concatMap normalizedEqToConstraints eqs
+        let cs = concatMap normalizedEqToConstraints eqs
         let relevantCols = mapMaybe (columnsForRelation a) cs
             signature = SearchSignature $ Set.fromList relevantCols
         unless (null relevantCols) $ do
@@ -101,8 +101,15 @@ searchesForProgram typedefInfo ra =
         let cs = columnsFor cols
             signature = SearchSignature $ Set.fromList cs
         addFact $ SearchOn r signature
-      SwapF r1 r2  -> addFact $ Related r1 r2
-      raf -> traverse_ tThd raf
+      MergeF from' _ -> do
+        -- Always add a full search signature for the from relation, so we don't lose any data.
+        let columns = columnsFor . fromJust $ Map.lookup (stripIdPrefixes from') typedefInfo
+            signature = SearchSignature $ Set.fromList columns
+        addFact $ SearchOn from' signature
+      SwapF r1 r2  ->
+        addFact $ Related r1 r2
+      raf ->
+        traverse_ tThd raf
 
     dsitribute
       :: Corecursive t
@@ -114,22 +121,15 @@ searchesForProgram typedefInfo ra =
           base_t_a = map tThd m
         in Triple (embed base_t_t) (g base_t_tb) base_t_a
 
-
--- Finds all facts that didn't have any searches,
--- and defaults those to a search that makes use of all columns.
-getAdditionalSearchFacts :: TypedefInfo -> [SearchFact] -> [SearchFact]
-getAdditionalSearchFacts typeInfo searchFacts =
+-- For every relation we add atleast 1 one index with all columns.
+getFullSearchesForRelations :: TypedefInfo -> [SearchFact]
+getFullSearchesForRelations typedefInfo =
   [ SearchOn r . toSearchSignature $ unsafeLookup r
-  | r <- Map.keys typeInfo
-  , r `notElem` rs
+  | r <- Map.keys typedefInfo
   ]
   where
-    rs = mapMaybe searchedOnRelation searchFacts
-    unsafeLookup r = fromJust $ Map.lookup r typeInfo
+    unsafeLookup r = fromJust $ Map.lookup r typedefInfo
     toSearchSignature = SearchSignature . Set.fromList . columnsFor
-    searchedOnRelation = \case
-      SearchOn r _ -> Just r
-      _ -> Nothing
 
 -- TODO better name
 data Val
@@ -141,22 +141,22 @@ data NormalizedEquality
   = Equality Alias Column Val
   deriving Show
 
-extractEqualities :: RAF (RA, Writer [NormalizedEquality] ()) -> Writer [NormalizedEquality] ()
+extractEqualities :: RAF (RA, [NormalizedEquality]) -> [NormalizedEquality]
 extractEqualities = \case
   ConstrainF (lhs, _) (rhs, _) -> do
     case (lhs, rhs) of
       (ColumnIndex lA lCol, ColumnIndex rA rCol) ->
-        tell [ Equality lA lCol (AliasVal rA rCol)
-             , Equality rA rCol (AliasVal lA lCol)
-             ]
+        [ Equality lA lCol (AliasVal rA rCol)
+        , Equality rA rCol (AliasVal lA lCol)
+        ]
       (ColumnIndex lA lCol, Lit r) ->
-        tell [Equality lA lCol (Constant r)]
+        [Equality lA lCol (Constant r)]
       (Lit l, ColumnIndex rA rCol) ->
-        tell [Equality rA rCol (Constant l)]
+        [Equality rA rCol (Constant l)]
       _ ->
-        pass
+        mempty
   raf ->
-    traverse_ snd raf
+    foldMap snd raf
 
 normalizedEqToConstraints :: NormalizedEquality -> [(Relation, Column)]
 normalizedEqToConstraints = \case

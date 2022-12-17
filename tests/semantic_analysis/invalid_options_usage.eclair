@@ -1,0 +1,26 @@
+// RUN: mkdir -p %t && sed s@TEST_DIR@%t@g %s > %t/input.test
+// RUN: split-file %t/input.test %t
+
+//--- program1.eclair
+// RUN: %eclair compile %t/program1.eclair 2> %t/actual1.out
+// RUN: diff %t/expected1.out %t/actual1.out
+
+@def fact(string) input input.
+@def fact2(string) output output output.
+
+//--- expected1.out
+[error]: Failed to parse file
+     ╭──▶ TEST_DIR/program1.eclair@4:30-4:31
+     │
+   4 │ @def fact(string) input input.
+     •                              ┬
+     •                              ╰╸ More than one option of type 'input' is not allowed.
+─────╯
+
+[error]: Failed to parse file
+     ╭──▶ TEST_DIR/program1.eclair@5:40-5:41
+     │
+   5 │ @def fact2(string) output output output.
+     •                                        ┬
+     •                                        ╰╸ More than one option of type 'output' is not allowed.
+─────╯

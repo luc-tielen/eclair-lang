@@ -20,7 +20,7 @@
 
 //--- program.eclair
 @def edge(u32, u32).
-@def path(u32, u32).
+@def path(u32, u32) output.
 
 edge(1,2).
 

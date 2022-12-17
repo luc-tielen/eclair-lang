@@ -8,6 +8,8 @@
 edge(1, 2).
 path(3, 4).
 
+@def result(u32) output.
+
 //--- expected.out
 [error]: Missing type definition
      ╭──▶ TEST_DIR/program.eclair@1:1-1:12

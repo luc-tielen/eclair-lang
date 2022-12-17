@@ -377,18 +377,7 @@ duplicateErrors typeDefs
 
 extractTypeDefs :: AST -> [(Id, (NodeId, [Type]))]
 extractTypeDefs = cata $ \case
-  DeclareTypeF nodeId name tys -> [(name, (nodeId, tys))]
+  DeclareTypeF nodeId name tys _ -> [(name, (nodeId, tys))]
   AtomF {} -> mempty
   RuleF {} -> mempty
   astf -> foldMap identity astf
-
-getNodeId :: AST -> NodeId
-getNodeId = \case
-  Module nodeId _ -> nodeId
-  DeclareType nodeId _ _ -> nodeId
-  Rule nodeId _ _ _ -> nodeId
-  Atom nodeId _ _ -> nodeId
-  Assign nodeId _ _ -> nodeId
-  Lit nodeId _ -> nodeId
-  Var nodeId _ -> nodeId
-  Hole nodeId -> nodeId

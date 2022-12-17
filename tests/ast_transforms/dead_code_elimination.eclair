@@ -1,0 +1,20 @@
+// RUN: split-file %s %t
+// RUN: %eclair compile %t/program1.eclair --emit ast-simplified > %t/actual1.out
+// RUN: diff %t/expected1.out %t/actual1.out
+
+//--- program1.eclair
+@def live(u32) output.
+@def unused_input(u32) input.
+@def unused_internal(u32).
+@def unused_rule(u32).
+@def another_input(u32) input.
+
+unused_internal(1).
+
+unused_rule(x) :-
+  another_input(x).
+
+// NOTE: Rule with contradictions is tested in another file already.
+
+//--- expected1.out
+@def live(u32) output.

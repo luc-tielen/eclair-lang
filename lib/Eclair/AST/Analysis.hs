@@ -12,9 +12,12 @@ module Eclair.AST.Analysis
   , WildcardInFact(..)
   , WildcardInRuleHead(..)
   , WildcardInAssignment(..)
-  , RuleWithContradiction(..)
+  , DeadCode(..)
+  , DeadInternalRelation(..)
+  , NoOutputRelation(..)
   , IR.NodeId(..)
   , Container
+  , computeUsageMapping
   ) where
 
 import qualified Language.Souffle.Interpreted as S
@@ -98,6 +101,24 @@ data DeclareType
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions DeclareType "declare_type" 'S.Input
 
+newtype InputRelation
+  = InputRelation Id
+  deriving stock Generic
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions InputRelation "input_relation" 'S.Input
+
+newtype OutputRelation
+  = OutputRelation Id
+  deriving stock Generic
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions OutputRelation "output_relation" 'S.Input
+
+newtype InternalRelation
+  = InternalRelation Id
+  deriving stock Generic
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions InternalRelation "internal_relation" 'S.Input
+
 newtype Module
   = Module NodeId
   deriving stock Generic
@@ -126,14 +147,6 @@ data PointsToVar
   deriving stock (Generic, Eq, Show)
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions PointsToVar "points_to_var" 'S.Output
-
-newtype RuleWithContradiction
-  = RuleWithContradiction
-  { unRuleWithContradiction :: NodeId
-  }
-  deriving stock (Generic, Eq, Show)
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions RuleWithContradiction "rule_with_contradiction" 'S.Output
 
 data VariableInFact
   = VariableInFact NodeId Id
@@ -180,6 +193,24 @@ data WildcardInAssignment
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions WildcardInAssignment "wildcard_in_assignment" 'S.Output
 
+newtype DeadCode
+  = DeadCode { unDeadCode :: NodeId }
+  deriving stock (Generic, Eq, Show)
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions DeadCode "dead_code" 'S.Output
+
+newtype NoOutputRelation
+  = NoOutputRelation NodeId
+  deriving stock (Generic, Eq, Show)
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions NoOutputRelation "no_output_relation" 'S.Output
+
+data DeadInternalRelation
+  = DeadInternalRelation NodeId Id
+  deriving stock (Generic, Eq, Show)
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions DeadInternalRelation "dead_internal_relation" 'S.Output
+
 data SemanticAnalysis
   = SemanticAnalysis
   deriving S.Program
@@ -195,16 +226,21 @@ data SemanticAnalysis
        , RuleArg
        , RuleClause
        , DeclareType
+       , InputRelation
+       , OutputRelation
+       , InternalRelation
        , Module
        , ModuleDecl
        , RuleVariable
        , PointsToVar
-       , RuleWithContradiction
        , VariableInFact
        , UngroundedVar
        , WildcardInRuleHead
        , WildcardInFact
        , WildcardInAssignment
+       , DeadCode
+       , NoOutputRelation
+       , DeadInternalRelation
        ]
 
 -- TODO: change to Vector when finished for performance
@@ -226,7 +262,7 @@ mkPointsToAnalysis =
 data SemanticInfo
   = SemanticInfo
   { pointsToAnalysis :: PointsToAnalysis
-  , rulesWithContradictions :: Container RuleWithContradiction
+  , deadCodeIds :: Container DeadCode
   } deriving (Eq, Show)
 
 data Result
@@ -243,6 +279,8 @@ data SemanticErrors
   , wildcardsInFacts :: Container WildcardInFact
   , wildcardsInRuleHeads :: Container WildcardInRuleHead
   , wildcardsInAssignments :: Container WildcardInAssignment
+  , deadInternalRelations :: Container DeadInternalRelation
+  , noOutputRelations :: Container NoOutputRelation
   }
   deriving (Eq, Show, Exception)
 
@@ -252,7 +290,9 @@ hasSemanticErrors result =
   isNotNull ungroundedVars ||
   isNotNull wildcardsInFacts ||
   isNotNull wildcardsInRuleHeads ||
-  isNotNull wildcardsInAssignments
+  isNotNull wildcardsInAssignments ||
+  isNotNull deadInternalRelations ||
+  isNotNull noOutputRelations
   where
     errs = semanticErrors result
     isNotNull :: (SemanticErrors -> [a]) -> Bool
@@ -295,8 +335,19 @@ analysis prog = S.mkAnalysis addFacts run getFacts
         local (const $ Just nodeId) $ do
           sequence_ argActions
           sequence_ clauseActions
-      IR.DeclareTypeF nodeId ty _ ->
-        S.addFact prog $ DeclareType nodeId ty
+      IR.DeclareTypeF nodeId name _ usageMode -> do
+        S.addFact prog $ DeclareType nodeId name
+
+        case usageMode of
+          IR.Input ->
+            S.addFact prog $ InputRelation name
+          IR.Output ->
+            S.addFact prog $ OutputRelation name
+          IR.InputOutput -> do
+            S.addFact prog $ InputRelation name
+            S.addFact prog $ OutputRelation name
+          IR.Internal ->
+            S.addFact prog $ InternalRelation name
       IR.ModuleF nodeId (unzip -> (declNodeIds, actions)) -> do
         S.addFact prog $ Module nodeId
         S.addFacts prog $ map (ModuleDecl nodeId) declNodeIds
@@ -317,18 +368,20 @@ analysis prog = S.mkAnalysis addFacts run getFacts
                              <*> S.getFacts prog
                              <*> S.getFacts prog
                              <*> S.getFacts prog
+                             <*> S.getFacts prog
+                             <*> S.getFacts prog
       pure $ Result info errs
 
     getNodeId :: IR.ASTF NodeId -> NodeId
     getNodeId = \case
       IR.LitF nodeId _ -> nodeId
       IR.VarF nodeId _ -> nodeId
+      IR.HoleF nodeId -> nodeId
       IR.AssignF nodeId _ _ -> nodeId
       IR.AtomF nodeId _ _ -> nodeId
       IR.RuleF nodeId _ _ _ -> nodeId
-      IR.DeclareTypeF nodeId _ _ -> nodeId
+      IR.DeclareTypeF nodeId _ _ _ -> nodeId
       IR.ModuleF nodeId _ -> nodeId
-      IR.HoleF nodeId -> nodeId
 
     mapWithPos :: (Word32 -> a -> b) -> [a] -> [b]
     mapWithPos g = zipWith g [0..]
@@ -338,3 +391,12 @@ runAnalysis ast = S.runSouffle SemanticAnalysis $ \case
   Nothing -> panic "Failed to load Souffle during semantic analysis!"
   Just prog -> S.execAnalysis (analysis prog) ast
 
+computeUsageMapping :: IR.AST -> Map Id IR.UsageMode
+computeUsageMapping ast =
+  Map.fromList pairs
+  where
+    pairs = flip cata ast $ \case
+      IR.DeclareTypeF _ name _ mode ->
+        one (name, mode)
+      astf ->
+        fold astf

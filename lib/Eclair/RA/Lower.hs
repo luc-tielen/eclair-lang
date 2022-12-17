@@ -1,9 +1,8 @@
 
 module Eclair.RA.Lower ( compileToEIR ) where
 
-import Prelude hiding (head)
+import Prelude
 import Data.Maybe (fromJust)
-import Data.List (head)
 
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -46,12 +45,12 @@ compileInit stringMap = do
   relationInitActions <- forEachRelation program $ \(r, idx, _) relationPtr ->
     call r idx EIR.InitializeEmpty [relationPtr]
   let addSymbolActions = toSymbolTableInsertActions symbolTable stringMap
-      initActions = symbolTableInitAction : relationInitActions ++ addSymbolActions
+      initActions = symbolTableInitAction : relationInitActions <> addSymbolActions
   apiFn "eclair_program_init" [] (EIR.Pointer EIR.Program) $
     assign program heapAllocProgram
     : initActions
     -- Open question: if some facts are known at compile time, search for derived facts up front?
-    ++ [ ret program ]
+    <> [ ret program ]
 
 toSymbolTableInsertActions :: CodegenM EIR -> StringMap -> [CodegenM EIR]
 toSymbolTableInsertActions symbolTable stringMap =
@@ -72,7 +71,7 @@ compileDestroy = do
   let destroyActions = symbolTableDestroyAction : relationDestroyActions
   apiFn "eclair_program_destroy" [EIR.Pointer EIR.Program] EIR.Void $
     destroyActions
-    ++ [ freeProgram program ]
+    <> [ freeProgram program ]
 
 compileRun :: RA -> CodegenM EIR
 compileRun ra = do
@@ -84,7 +83,7 @@ generateProgramInstructions = gcata (distribute extractEqualities) $ \case
   RA.ModuleF (map extract -> actions) -> block actions
   RA.ParF (map extract -> actions) -> parallel actions
   RA.SearchF r alias clauses (extract -> action) -> do
-    let eqsInSearch = execWriter $ traverse_ tSnd clauses
+    let eqsInSearch = foldMap tSnd clauses
         eqs = concatMap normalizedEqToConstraints eqsInSearch
     idx <- idxFromConstraints r alias eqs
     let relationPtr = lookupRelationByIndex r idx
@@ -121,13 +120,13 @@ generateProgramInstructions = gcata (distribute extractEqualities) $ \case
     let -- NOTE: for allocating a value, the index does not matter
         -- (a value is always represented as [N x i32] internally)
         -- This saves us doing a few stack allocations.
-        firstIdx = head indices
+        firstIdx = fromJust $ viaNonEmpty head indices
         allocValue = assign var' $ stackAlloc r firstIdx EIR.Value
         assignStmts = zipWith (assign . fieldAccess var') [0..] values'
         insertStmts = flip map indices $ \idx ->
           -- NOTE: The insert function is different for each r + idx combination though!
           call r idx EIR.Insert [lookupRelationByIndex r idx, var']
-    block $ allocValue : assignStmts ++ insertStmts
+    block $ allocValue : assignStmts <> insertStmts
   RA.PurgeF r ->
     block =<< relationUnaryFn r EIR.Purge
   RA.SwapF r1 r2 ->
@@ -135,7 +134,7 @@ generateProgramInstructions = gcata (distribute extractEqualities) $ \case
   RA.MergeF r1 r2 -> do
     -- NOTE: r1 = from/src, r2 = to/dst
     -- TODO: which idx? just select first matching? or idx on all columns?
-    idxR1 <- head <$> indexesForRelation r1
+    idxR1 <- fromJust . viaNonEmpty head <$> indexesForRelation r1
     let relation1Ptr = lookupRelationByIndex r1 idxR1
 
     indices2 <- indexesForRelation r2
@@ -176,7 +175,7 @@ generateProgramInstructions = gcata (distribute extractEqualities) $ \case
     containsVar <- var "contains_result"
     let assignActions = zipWith (assign . fieldAccess value) [0..] columnValues
     block $ allocValue : assignActions
-        ++ [ assign containsVar $ call r idx EIR.Contains [relationPtr, value]
+        <> [ assign containsVar $ call r idx EIR.Contains [relationPtr, value]
             , not' containsVar
             ]
   RA.ColumnIndexF a' col -> ask >>= \case

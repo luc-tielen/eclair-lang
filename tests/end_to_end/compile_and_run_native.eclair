@@ -11,8 +11,8 @@
 
 //--- program.eclair
 
-@def edge(u32, u32).
-@def reachable(u32, u32).
+@def edge(u32, u32) input.
+@def reachable(u32, u32) output.
 
 reachable(x, y) :-
   edge(x, y).

@@ -5,39 +5,39 @@
 // RUN: diff -w %t/expected.out %t/actual.out
 
 //--- program.eclair
-@def edge(u32, u32).
-@def edge(u32, u32).
-@def path(u32, u32).
-@def edge(u32, u32).
-@def path(u32, u32).
+@def edge(u32, u32) output.
+@def edge(u32, u32) output.
+@def path(u32, u32) output.
+@def edge(u32, u32) output.
+@def path(u32, u32) output.
 
 //--- expected.out
 [error]: Multiple type declarations for fact 'edge'
-     ╭──▶ TEST_DIR/program.eclair@1:1-1:21
+     ╭──▶ TEST_DIR/program.eclair@1:1-1:28
      │
-   1 │ @def edge(u32, u32).
-     • ┬───────────────────
+   1 │ @def edge(u32, u32) output.
+     • ┬──────────────────────────
      • ╰╸ 'edge' is originally defined here.
-   2 │ @def edge(u32, u32).
-     • ┬───────────────────
+   2 │ @def edge(u32, u32) output.
+     • ┬──────────────────────────
      • ╰╸ 'edge' is re-defined here.
      •
-   4 │ @def edge(u32, u32).
-     • ┬───────────────────
+   4 │ @def edge(u32, u32) output.
+     • ┬──────────────────────────
      • ╰╸ 'edge' is re-defined here.
      •
      │ Hint: You can solve this by removing the duplicate definitions for 'edge'.
 ─────╯
 
 [error]: Multiple type declarations for fact 'path'
-     ╭──▶ TEST_DIR/program.eclair@3:1-3:21
+     ╭──▶ TEST_DIR/program.eclair@3:1-3:28
      │
-   3 │ @def path(u32, u32).
-     • ┬───────────────────
+   3 │ @def path(u32, u32) output.
+     • ┬──────────────────────────
      • ╰╸ 'path' is originally defined here.
      •
-   5 │ @def path(u32, u32).
-     • ┬───────────────────
+   5 │ @def path(u32, u32) output.
+     • ┬──────────────────────────
      • ╰╸ 'path' is re-defined here.
      •
      │ Hint: You can solve this by removing the duplicate definitions for 'path'.

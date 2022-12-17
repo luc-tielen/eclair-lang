@@ -1,0 +1,22 @@
+// RUN: mkdir -p %t && sed s@TEST_DIR@%t@g %s > %t/input.test
+// RUN: split-file %t/input.test %t
+
+// RUN: %eclair compile %t/program.eclair 2> %t/actual.out
+// RUN: diff %t/expected.out %t/actual.out
+
+//--- program.eclair
+@def fact(u32).
+@def fact2(u32) output.
+
+//--- expected.out
+[error]: Dead internal relation
+     ╭──▶ TEST_DIR/program.eclair@1:1-1:16
+     │
+   1 │ @def fact(u32).
+     • ┬──────────────
+     • ╰╸ The internal rule 'fact' has no facts or rules defined and will never produce results.
+     •
+     │ Hint: This might indicate a logic error in your code.
+     │ Hint: Remove this rule if it is no longer needed.
+     │ Hint: Add 'input' to the declaration to indicate this rule is an input.
+─────╯

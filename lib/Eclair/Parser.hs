@@ -3,7 +3,7 @@ module Eclair.Parser
   , parseText
   , Parser
   , ParseError
-  , ParseErr
+  , CustomParseErr
   , ParsingError(..)
   , Span(..)
   , SpanMap
@@ -28,11 +28,22 @@ import qualified Text.Megaparsec.Internal as P
 import qualified Text.Megaparsec.Char as P
 import qualified Text.Megaparsec.Char.Lexer as L
 
-type ParseErr = Void
-type ParseError = P.ParseErrorBundle Text ParseErr
+data CustomParseErr
+  = TooManyInputOptions
+  | TooManyOutputOptions
+  deriving (Eq, Ord, Show)
+
+instance P.ShowErrorComponent CustomParseErr where
+  showErrorComponent = \case
+    TooManyInputOptions ->
+      "More than one option of type 'input' is not allowed."
+    TooManyOutputOptions ->
+      "More than one option of type 'output' is not allowed."
+
+type ParseError = P.ParseErrorBundle Text CustomParseErr
 
 type ParserState = (Word32, SpanMap)
-type Parser = P.ParsecT ParseErr Text (State ParserState)
+type Parser = P.ParsecT CustomParseErr Text (State ParserState)
 
 data ParsingError
   = FileNotFound FilePath
@@ -77,8 +88,9 @@ lookupNodeId (SpanMap _ m) offset =
     spanSize span' =
       endPos span' - beginPos span'
 
-parseFile :: (FilePath -> IO (Maybe Text))
-          -> FilePath -> IO (AST, NodeId, SpanMap, Maybe ParsingError)
+parseFile
+  :: (FilePath -> IO (Maybe Text))
+  -> FilePath -> IO (AST, NodeId, SpanMap, Maybe ParsingError)
 parseFile tryReadFile path = do
   mContents <- tryReadFile path
   case mContents of
@@ -156,7 +168,8 @@ declParser :: Parser AST
 declParser = do
   c <- P.lookAhead P.anySingle
   case c of
-    '@' -> typedefParser
+    '@' ->
+      withNodeId typedefParser
     _ -> factOrRuleParser
 
 typeParser :: Parser Type
@@ -165,13 +178,32 @@ typeParser = lexeme $ u32 <|> str
     u32 = U32 <$ P.chunk "u32"
     str = Str <$ P.chunk "string"
 
-typedefParser :: Parser AST
-typedefParser = withNodeId $ \nodeId -> do
+typedefParser :: NodeId -> Parser AST
+typedefParser nodeId = do
   void $ lexeme $ P.chunk "@def"
   name <- lexeme identifier
-  tys <- betweenParens $ typeParser `P.sepBy1` lexeme comma
+  tys <- lexeme $ betweenParens $ typeParser `P.sepBy1` lexeme comma
+  attrs <- attributesParser
   void $ P.char '.'
-  pure $ DeclareType nodeId name tys
+  pure $ DeclareType nodeId name tys attrs
+  where
+    attributesParser = map (fromMaybe Internal) $ lexeme $ optional $ do
+      options <- some attrParser
+      let (inputs, outputs) = partitionEithers options
+          inputLength = length inputs
+          outputLength = length outputs
+      when (inputLength > 1) $ do
+        P.customFailure TooManyInputOptions
+      when (outputLength > 1) $ do
+        P.customFailure TooManyOutputOptions
+
+      pure $ case (inputLength, outputLength) of
+        (0, 1) -> Output
+        (1, 0) -> Input
+        _      -> InputOutput
+
+    attrParser = lexeme $
+      Left <$> P.chunk "input" <|> Right <$> P.chunk "output"
 
 data FactOrRule = FactType | RuleType
 

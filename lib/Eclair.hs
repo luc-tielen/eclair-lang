@@ -21,6 +21,7 @@ import Eclair.EIR.Lower
 import Eclair.Parser
 import Eclair.Pretty
 import Eclair.Error
+import Eclair.Id
 import Eclair.ArgParser (Target(..))
 import Eclair.AST.IR
 import Eclair.AST.Transforms
@@ -54,7 +55,8 @@ data Query a where
   CompileLLVM :: FilePath -> Query Module
   EmitLLVM :: FilePath -> Query ()
   StringMapping :: FilePath -> Query (Map Text Word32)
-  
+  UsageMapping :: FilePath -> Query (Map Id UsageMode)
+
 deriving instance Eq (Query a)
 
 queryFilePath :: Query a -> FilePath
@@ -72,6 +74,7 @@ queryFilePath = \case
   CompileLLVM path         -> path
   EmitLLVM path            -> path
   StringMapping path       -> path
+  UsageMapping path        -> path
 
 queryEnum :: Query a -> Int
 queryEnum = \case
@@ -88,6 +91,7 @@ queryEnum = \case
   CompileLLVM {}         -> 10
   EmitLLVM {}            -> 11
   StringMapping {}       -> 12
+  UsageMapping {}        -> 13
 
 deriveGEq ''Query
 
@@ -149,6 +153,9 @@ rules abortOnError params (Rock.Writer query) = case query of
   StringMapping path -> noError $ do
     (_, mapping) <- Rock.fetch (TransformAST path)
     pure mapping
+  UsageMapping path -> noError $ do
+    (ast, _, _) <- Rock.fetch (Parse path)
+    pure $ SA.computeUsageMapping ast
   CompileRA path -> noError $ do
     ast <- fst <$> Rock.fetch (TransformAST path)
     pure $ compileToRA ast
@@ -166,7 +173,8 @@ rules abortOnError params (Rock.Writer query) = case query of
   CompileLLVM path -> noError $ do
     eir <- Rock.fetch (CompileEIR path)
     stringMapping <- Rock.fetch (StringMapping path)
-    liftIO $ compileToLLVM (paramsConfig params) stringMapping eir
+    usageMapping <- Rock.fetch (UsageMapping path)
+    liftIO $ compileToLLVM (paramsConfig params) stringMapping usageMapping eir
   EmitLLVM path -> noError $ do
     llvmModule <- Rock.fetch (CompileLLVM path)
     liftIO $ putTextLn $ ppllvm llvmModule

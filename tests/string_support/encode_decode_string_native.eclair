@@ -13,7 +13,7 @@
 
 //--- program.eclair
 
-@def fact(u32).
+@def fact(u32) output.
 
 //--- main.c
 

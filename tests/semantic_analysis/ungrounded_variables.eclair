@@ -8,7 +8,7 @@
 // RUN: diff -w %t/top_level_facts_expected.out %t/top_level_facts_actual.out
 
 //--- program.eclair
-@def edge(u32, u32).
+@def edge(u32, u32) output.
 
 edge(a, 1).
 edge(2, b).
@@ -59,8 +59,8 @@ edge(c, d).
 // RUN: %eclair compile %t/program2.eclair 2> %t/ungrounded_var_in_rule_actual.out
 // RUN: diff -w %t/ungrounded_var_in_rule_expected.out %t/ungrounded_var_in_rule_actual.out
 
-@def edge(u32, u32).
-@def reachable(u32, u32).
+@def edge(u32, u32) input.
+@def reachable(u32, u32) output.
 
 reachable(x, z) :-
   edge(x, y).
@@ -112,8 +112,8 @@ reachable(a, b) :-
 // RUN: %eclair compile %t/program3.eclair 2> %t/ungrounded_var_check_in_rule_body_actual.out
 // RUN: diff -w %t/ungrounded_var_check_in_rule_body_expected.out %t/ungrounded_var_check_in_rule_body_actual.out
 
-@def edge(u32, u32).
-@def reachable(u32, u32).
+@def edge(u32, u32) input.
+@def reachable(u32, u32) output.
 
 reachable(x, z) :-
   edge(x, y),

@@ -1,17 +1,17 @@
 // TODO add tests for caching mechanism (e.g. single_nonrecursive_rule test)
-// TODO tests for symbol table
 
 // RUN: split-file %s %t
 
 // RUN: %eclair compile --emit llvm %t/program.eclair > %t/actual_llvm.out
-// RUN: %extract_snippet %t/actual_llvm.out "@eclair_add_facts" > %t/actual_eclair_add_facts_llvm.out
-// RUN: %extract_snippet %t/actual_llvm.out "@eclair_get_facts" > %t/actual_eclair_get_facts_llvm.out
+// RUN: %extract_snippet %t/actual_llvm.out "define.*@eclair_add_facts" > %t/actual_eclair_add_facts_llvm.out
+// RUN: %extract_snippet %t/actual_llvm.out "define.*@eclair_get_facts" > %t/actual_eclair_get_facts_llvm.out
 // RUN: diff %t/expected_eclair_add_facts_llvm.out %t/actual_eclair_add_facts_llvm.out
 // RUN: diff %t/expected_eclair_get_facts_llvm.out %t/actual_eclair_get_facts_llvm.out
 
 //--- program.eclair
-@def a(u32).
-@def b(u32, u32, u32).
+@def a(u32) input output.
+@def b(u32, u32, u32) input output.
+
 //--- expected_eclair_add_facts_llvm.out
 define external ccc void @eclair_add_facts(%program* %eclair_program_0, i32 %fact_type_0, i32* %memory_0, i32 %fact_count_0) "wasm-export-name"="eclair_add_facts" {
 start:
