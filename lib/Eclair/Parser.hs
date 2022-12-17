@@ -277,12 +277,17 @@ digitVector = V.fromList ['1'..'9']
 
 number :: Parser Literal
 number = LNumber <$> do
-  firstDigit <- P.satisfy (`V.elem` digitVector) P.<?> "non-zero digit"
-  digits <- P.takeWhileP Nothing isDigit
-  P.notFollowedBy P.letterChar
-  case TR.decimal $ T.cons firstDigit digits of
-    Right (result, _) -> pure result
-    Left err -> panic . toText $ "Error occurred during parsing of decimal number: " <> err
+  positiveNumber <|> zero
+  where
+    zero = 0 <$ P.char '0'
+
+    positiveNumber = do
+      firstDigit <- P.satisfy (`V.elem` digitVector) P.<?> "non-zero digit"
+      digits <- P.takeWhileP Nothing isDigit
+      P.notFollowedBy P.letterChar
+      case TR.decimal $ T.cons firstDigit digits of
+        Right (result, _) -> pure result
+        Left err -> panic . toText $ "Error occurred during parsing of decimal number: " <> err
 
 string :: Parser Literal
 string = LString <$> do

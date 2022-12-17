@@ -6,7 +6,7 @@
 @def fact2(u32, u32, u32) output.
   @def  fact3  (  u32  ,  u32  ) output.
 
-fact3(1, 2).
+fact3(0, 1).
 fact3(2, 3).
 
 fact2(1,2,3).
