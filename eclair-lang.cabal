@@ -92,7 +92,7 @@ library
       FlexibleInstances
       ScopedTypeVariables
       PatternSynonyms
-  ghc-options: -Wall -Wincomplete-patterns -Wno-incomplete-uni-patterns -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
+  ghc-options: -Wall -Wincomplete-patterns -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__ -Wall
   build-depends:
       algebraic-graphs ==0.*
@@ -162,7 +162,7 @@ executable eclair
       FlexibleInstances
       ScopedTypeVariables
       PatternSynonyms
-  ghc-options: -Wall -Wincomplete-patterns -Wno-incomplete-uni-patterns -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wall -Wincomplete-patterns -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits -threaded -rtsopts -with-rtsopts=-N
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__
   build-depends:
       algebraic-graphs ==0.*
@@ -236,7 +236,7 @@ executable eclair-lsp-server
       FlexibleInstances
       ScopedTypeVariables
       PatternSynonyms
-  ghc-options: -Wall -Wincomplete-patterns -Wno-incomplete-uni-patterns -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits -threaded -rtsopts -with-rtsopts=-N -Wall
+  ghc-options: -Wall -Wincomplete-patterns -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits -threaded -rtsopts -with-rtsopts=-N -Wall
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__
   build-depends:
       aeson
@@ -314,7 +314,7 @@ test-suite eclair-lsp-test
       FlexibleInstances
       ScopedTypeVariables
       PatternSynonyms
-  ghc-options: -Wall -Wincomplete-patterns -Wno-incomplete-uni-patterns -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
+  ghc-options: -Wall -Wincomplete-patterns -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__
   build-tools:
       eclair-lsp-server
@@ -393,7 +393,7 @@ test-suite eclair-test
       FlexibleInstances
       ScopedTypeVariables
       PatternSynonyms
-  ghc-options: -Wall -Wincomplete-patterns -Wno-incomplete-uni-patterns -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
+  ghc-options: -Wall -Wincomplete-patterns -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
   cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__
   build-depends:
       algebraic-graphs ==0.*

@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 {-# LANGUAGE RecursiveDo #-}
 
 module Eclair.EIR.Lower
