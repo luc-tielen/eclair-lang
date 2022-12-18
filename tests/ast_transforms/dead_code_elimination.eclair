@@ -3,7 +3,7 @@
 // RUN: diff %t/expected1.out %t/actual1.out
 
 //--- program1.eclair
-@def live(u32) output.
+@def empty_output(u32) output.
 @def unused_input(u32) input.
 @def unused_internal(u32).
 @def unused_rule(u32).
@@ -14,7 +14,55 @@ unused_internal(1).
 unused_rule(x) :-
   another_input(x).
 
+@def live1(u32) input output.
+@def live2(u32) output.
+@def live3(u32).
+@def live4(u32) output.
+@def live5(u32) input.
+@def live6(u32).
+@def live7(u32) output.
+
+live2(123).
+
+live3(x) :-
+  live2(x).
+
+live4(x) :-
+  live3(x).
+
+live6(x) :-
+  live5(x).
+
+live7(x) :-
+  live6(x).
+
 // NOTE: Rule with contradictions is tested in another file already.
 
 //--- expected1.out
-@def live(u32) output.
+@def live1(u32) input output.
+
+@def live2(u32) output.
+
+@def live3(u32).
+
+@def live4(u32) output.
+
+@def live5(u32) input.
+
+@def live6(u32).
+
+@def live7(u32) output.
+
+live2(123).
+
+live3(x) :-
+  live2(x).
+
+live4(x) :-
+  live3(x).
+
+live6(x) :-
+  live5(x).
+
+live7(x) :-
+  live6(x).

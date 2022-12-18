@@ -1,8 +1,6 @@
-// NOTE: this should probably give a dead code error
-
 // RUN: %eclair compile %s | FileCheck %s
 
 @def edge(u32, u32) input.
-@def chain(u32, u32, u32) output.
+@def chain(u32, u32, u32) input output.
 
 // CHECK: chain
