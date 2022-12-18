@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 module Eclair.RA.IndexSelection
   ( IndexMap
   , IndexSelector
@@ -16,6 +15,7 @@ module Eclair.RA.IndexSelection
 -- Based on the paper "Automatic Index Selection for Large-Scale Datalog Computation"
 -- http://www.vldb.org/pvldb/vol12/p141-subotic.pdf
 
+import qualified Data.List.NonEmpty as NE
 import Data.Maybe (fromJust)
 import Eclair.Id
 import Eclair.RA.IR
@@ -45,7 +45,7 @@ instance Pretty Index where
     brackets $ withCommas $ map pretty columns
 
 type SearchSet = Set SearchSignature
-type SearchChain = [SearchSignature]  -- TODO: NonEmpty
+type SearchChain = NonEmpty SearchSignature
 type SearchMap = Map Relation SearchSet
 type SearchGraph = AdjacencyMap SearchSignature SearchSignature
 type SearchMatching = Matching SearchSignature SearchSignature
@@ -198,7 +198,7 @@ getChainsFromMatching :: SearchGraph -> SearchMatching -> Set SearchChain
 getChainsFromMatching g m =
   let (covered, uncovered) = List.partition (`leftCovered` m) $ leftVertexList g
       uncoveredChains = map one uncovered
-      coveredChains = map (\n -> getChain [n] n) covered
+      coveredChains = map (\n -> getChain (pure n) n) covered
    in Set.fromList $ uncoveredChains <> coveredChains
   where
     leftCovered :: Ord a => a -> Matching a b -> Bool
@@ -208,15 +208,16 @@ getChainsFromMatching g m =
     --   - if it finds no match, we have reached end of the chain
     --   - Otherwise, we found the next node in the chain, and use
     --     this node to find rest of the chain.
+    getChain :: NonEmpty SearchSignature -> SearchSignature -> SearchChain
     getChain acc u =
       case Map.lookup u (pairOfLeft m) of
         Nothing ->
-          -- TODO difflist for performance?
+          -- TODO DNonEmpty for performance?
           -- Longest chain at end, needed in indexForChain
-          reverse acc
+          NE.reverse acc
         Just v ->
           -- Implicitly swap U and V side by passing in v as u:
-          getChain (v:acc) v
+          getChain (NE.cons v acc) v
 
 indicesFromChains :: SearchSet -> Set SearchChain -> Map SearchSignature Index
 indicesFromChains (Set.toList -> searchSet) (Set.toList -> chains) =
@@ -226,13 +227,12 @@ indicesFromChains (Set.toList -> searchSet) (Set.toList -> chains) =
                , signature `elem` chain
                ]
 
--- TODO: use NonEmpty for safety here
 -- NOTE: assumes chain is sorted from shortest to longest
 indexForChain :: SearchChain -> Index
 indexForChain chain = Index $ foldMap Set.toList columns
   where
-    SearchSignature shortest : rest = chain
-    diffColumns = zipWith columnDiff rest chain
+    SearchSignature shortest :| rest = chain
+    diffColumns = zipWith columnDiff rest (toList chain)
     columns = shortest : diffColumns
     columnDiff (SearchSignature long) (SearchSignature short) =
       long Set.\\ short
