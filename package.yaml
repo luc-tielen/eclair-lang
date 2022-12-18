@@ -74,7 +74,6 @@ default-extensions:
 ghc-options:
   - -Wall
   - -Wincomplete-patterns
-  - -Wno-incomplete-uni-patterns
   - -fhide-source-paths
   - -fno-show-valid-hole-fits
   - -fno-sort-valid-hole-fits

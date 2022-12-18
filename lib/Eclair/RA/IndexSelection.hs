@@ -26,6 +26,7 @@ import Algebra.Graph.Bipartite.AdjacencyMap.Algorithm hiding (matching)
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import qualified Data.List as List
+import qualified Data.DList.DNonEmpty as NE
 
 
 type Column = Int
@@ -44,7 +45,7 @@ instance Pretty Index where
     brackets $ withCommas $ map pretty columns
 
 type SearchSet = Set SearchSignature
-type SearchChain = [SearchSignature]  -- TODO: NonEmpty
+type SearchChain = NonEmpty SearchSignature
 type SearchMap = Map Relation SearchSet
 type SearchGraph = AdjacencyMap SearchSignature SearchSignature
 type SearchMatching = Matching SearchSignature SearchSignature
@@ -197,7 +198,7 @@ getChainsFromMatching :: SearchGraph -> SearchMatching -> Set SearchChain
 getChainsFromMatching g m =
   let (covered, uncovered) = List.partition (`leftCovered` m) $ leftVertexList g
       uncoveredChains = map one uncovered
-      coveredChains = map (\n -> getChain [n] n) covered
+      coveredChains = map (\n -> NE.toNonEmpty $ getChain (pure n) n) covered
    in Set.fromList $ uncoveredChains <> coveredChains
   where
     leftCovered :: Ord a => a -> Matching a b -> Bool
@@ -210,12 +211,11 @@ getChainsFromMatching g m =
     getChain acc u =
       case Map.lookup u (pairOfLeft m) of
         Nothing ->
-          -- TODO difflist for performance?
           -- Longest chain at end, needed in indexForChain
-          reverse acc
+          acc
         Just v ->
           -- Implicitly swap U and V side by passing in v as u:
-          getChain (v:acc) v
+          getChain (NE.snoc acc v) v
 
 indicesFromChains :: SearchSet -> Set SearchChain -> Map SearchSignature Index
 indicesFromChains (Set.toList -> searchSet) (Set.toList -> chains) =
@@ -225,13 +225,12 @@ indicesFromChains (Set.toList -> searchSet) (Set.toList -> chains) =
                , signature `elem` chain
                ]
 
--- TODO: use NonEmpty for safety here
 -- NOTE: assumes chain is sorted from shortest to longest
 indexForChain :: SearchChain -> Index
 indexForChain chain = Index $ foldMap Set.toList columns
   where
-    SearchSignature shortest : rest = chain
-    diffColumns = zipWith columnDiff rest chain
+    SearchSignature shortest :| rest = chain
+    diffColumns = zipWith columnDiff rest (toList chain)
     columns = shortest : diffColumns
     columnDiff (SearchSignature long) (SearchSignature short) =
       long Set.\\ short

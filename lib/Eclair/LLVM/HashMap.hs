@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 module Eclair.LLVM.HashMap
   ( HashMap(..)
   , Types(..)

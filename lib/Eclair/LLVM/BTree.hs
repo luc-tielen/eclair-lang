@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 {-# LANGUAGE RecursiveDo, FlexibleContexts, ScopedTypeVariables #-}
 
 module Eclair.LLVM.BTree
