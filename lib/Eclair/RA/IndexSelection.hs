@@ -15,7 +15,6 @@ module Eclair.RA.IndexSelection
 -- Based on the paper "Automatic Index Selection for Large-Scale Datalog Computation"
 -- http://www.vldb.org/pvldb/vol12/p141-subotic.pdf
 
-import qualified Data.List.NonEmpty as NE
 import Data.Maybe (fromJust)
 import Eclair.Id
 import Eclair.RA.IR
@@ -27,6 +26,7 @@ import Algebra.Graph.Bipartite.AdjacencyMap.Algorithm hiding (matching)
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import qualified Data.List as List
+import qualified Data.DList.DNonEmpty as NE
 
 
 type Column = Int
@@ -198,7 +198,7 @@ getChainsFromMatching :: SearchGraph -> SearchMatching -> Set SearchChain
 getChainsFromMatching g m =
   let (covered, uncovered) = List.partition (`leftCovered` m) $ leftVertexList g
       uncoveredChains = map one uncovered
-      coveredChains = map (\n -> getChain (pure n) n) covered
+      coveredChains = map (\n -> NE.toNonEmpty $ getChain (pure n) n) covered
    in Set.fromList $ uncoveredChains <> coveredChains
   where
     leftCovered :: Ord a => a -> Matching a b -> Bool
@@ -208,16 +208,14 @@ getChainsFromMatching g m =
     --   - if it finds no match, we have reached end of the chain
     --   - Otherwise, we found the next node in the chain, and use
     --     this node to find rest of the chain.
-    getChain :: NonEmpty SearchSignature -> SearchSignature -> SearchChain
     getChain acc u =
       case Map.lookup u (pairOfLeft m) of
         Nothing ->
-          -- TODO DNonEmpty for performance?
           -- Longest chain at end, needed in indexForChain
-          NE.reverse acc
+          acc
         Just v ->
           -- Implicitly swap U and V side by passing in v as u:
-          getChain (NE.cons v acc) v
+          getChain (NE.snoc acc v) v
 
 indicesFromChains :: SearchSet -> Set SearchChain -> Map SearchSignature Index
 indicesFromChains (Set.toList -> searchSet) (Set.toList -> chains) =
