@@ -18,7 +18,7 @@
 
 //--- program.eclair
 
-@def fact(u32) output.
+@def fact(u32) input output.
 
 //--- program.js
 

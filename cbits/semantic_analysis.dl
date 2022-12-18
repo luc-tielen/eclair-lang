@@ -25,6 +25,8 @@
 .decl alias(rule_id: unsigned, id1: unsigned, id2: unsigned)
 .decl points_to(rule_id: unsigned, id1: unsigned, id2: unsigned)
 .decl depends_on(r1: symbol, r2: symbol)
+.decl transitive_depends_on(r1: symbol, r2: symbol)
+.decl source(r: symbol)
 .decl has_definitions(relation: symbol)
 .decl live_rule(relation: symbol)
 
@@ -73,9 +75,33 @@ depends_on(r1, r2) :-
   rule_clause(rule_id, _, clause_id),
   atom(clause_id, r2).
 
-// Output relations are always live.
-live_rule(relation) :-
-  output_relation(relation).
+transitive_depends_on(r1, r2) :-
+  depends_on(r1, r2).
+
+transitive_depends_on(r1, r3) :-
+  depends_on(r1, r2),
+  transitive_depends_on(r2, r3).
+
+// An input can always be a source of data.
+source(r) :-
+  input_relation(r).
+
+// An internal or output relation can be a source of data if they define top level facts.
+source(r) :-
+  module_declaration(_, atom_id),
+  atom(atom_id, r),
+  !input_relation(r).  // internal or output relation
+
+// An output rule is live if it is a direct source of data.
+live_rule(r) :-
+  output_relation(r),
+  source(r).
+
+// An output rule is live if there is a path from the source to this output.
+live_rule(r1) :-
+  output_relation(r1),
+  transitive_depends_on(r1, r2),
+  source(r2).
 
 // A rule is live if it is depended on by another live rule.
 live_rule(r2) :-
@@ -113,8 +139,8 @@ has_definitions(r) :-
 
 // An internal relation is dead if there are no top level atoms and it doesn't depend on anything.
 dead_internal_relation(decl_id, r) :-
-  declare_type(decl_id, r),
   internal_relation(r),
+  declare_type(decl_id, r),
   !has_definitions(r).
 
 // TODO which one of these are errors, which are ok to be optimized?
