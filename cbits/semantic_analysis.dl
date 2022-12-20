@@ -2,7 +2,7 @@
 .decl lit_number(node_id: unsigned, value: unsigned)
 .decl lit_string(node_id: unsigned, value: symbol)
 .decl variable(node_id: unsigned, var_name: symbol)
-.decl assign(node_id: unsigned, lhs_node_id: unsigned, rhs_node_id: unsigned)
+.decl constraint(node_id: unsigned, op: symbol, lhs_node_id: unsigned, rhs_node_id: unsigned)
 .decl atom(node_id: unsigned, name: symbol)
 .decl atom_arg(atom_id: unsigned, atom_arg_pos: unsigned, atom_arg_id: unsigned)
 .decl rule(rule_id: unsigned, name: symbol)
@@ -17,6 +17,7 @@
 .decl rule_variable(rule_id: unsigned, variable_id: unsigned)
 
 // Internal rules
+.decl assign(node_id: unsigned, lhs_node_id: unsigned, rhs_node_id: unsigned) inline
 .decl has_output_relation(node_id: unsigned)
 .decl literal_contradiction(lit_id1: unsigned, lit_id2: unsigned)
 .decl wildcard(node_id: unsigned) inline
@@ -36,7 +37,7 @@
 .decl ungrounded_variable(rule_id: unsigned, var_id: unsigned, var_name: symbol)
 .decl wildcard_in_fact(fact_node_id: unsigned,  fact_arg_id: unsigned, pos: unsigned)
 .decl wildcard_in_rule_head(rule_node_id: unsigned, rule_arg_id: unsigned, pos: unsigned)
-.decl wildcard_in_assignment(assign_node_id: unsigned, wildcard_node_id: unsigned)
+.decl wildcard_in_constraint(constraint_node_id: unsigned, wildcard_node_id: unsigned)
 .decl rule_with_contradiction(rule_id: unsigned)
 .decl dead_code(node_id: unsigned)
 .decl no_output_relation(node_id: unsigned)
@@ -45,7 +46,7 @@
 .input lit_number
 .input lit_string
 .input variable
-.input assign
+.input constraint
 .input atom
 .input atom_arg
 .input rule
@@ -64,7 +65,7 @@
 .output wildcard_in_fact
 .output ungrounded_variable
 .output wildcard_in_rule_head
-.output wildcard_in_assignment
+.output wildcard_in_constraint
 .output dead_code
 .output no_output_relation
 .output dead_internal_relation
@@ -179,13 +180,16 @@ wildcard_in_fact(atom_id, atom_arg_id, pos) :-
   atom_arg(atom_id, pos, atom_arg_id),
   wildcard(atom_arg_id).
 
-wildcard_in_assignment(assign_node_id, lhs_node_id) :-
-  assign(assign_node_id, lhs_node_id, _),
+wildcard_in_constraint(constraint_node_id, lhs_node_id) :-
+  constraint(constraint_node_id, _, lhs_node_id, _),
   wildcard(lhs_node_id).
 
-wildcard_in_assignment(assign_node_id, rhs_node_id) :-
-  assign(assign_node_id, _, rhs_node_id),
+wildcard_in_constraint(constraint_node_id, rhs_node_id) :-
+  constraint(constraint_node_id, _, _, rhs_node_id),
   wildcard(rhs_node_id).
+
+assign(node_id, lhs_node_id, rhs_node_id) :-
+  constraint(node_id, "=", lhs_node_id, rhs_node_id).
 
 // All variables with the same name in a rule are aliases of each other.
 alias(rule_id, var_id1, var_id2) :-

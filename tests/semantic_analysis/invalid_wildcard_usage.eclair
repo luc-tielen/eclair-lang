@@ -23,7 +23,7 @@ a(_, 123).
      • ╰╸ A top level fact only supports constants.
      •    Variables or wildcards are not allowed.
      •
-     │ Note: Replace the wildcard with a constant.
+     │ Hint: Replace the wildcard with a constant.
 ─────╯
 
 [error]: Wildcard in top level fact
@@ -35,7 +35,7 @@ a(_, 123).
      • ╰╸ A top level fact only supports constants.
      •    Variables or wildcards are not allowed.
      •
-     │ Note: Replace the wildcard with a constant.
+     │ Hint: Replace the wildcard with a constant.
 ─────╯
 //--- program2.eclair
 
@@ -63,7 +63,7 @@ a(_, x) :-
      • ╰╸ Only constants and variables are allowed in the head of a rule.
      •    Wildcards are not allowed.
      •
-     │ Note: Replace the wildcard with a constant or a variable.
+     │ Hint: Replace the wildcard with a constant or a variable.
 ─────╯
 
 [error]: Wildcard in 'head' of rule
@@ -77,7 +77,7 @@ a(_, x) :-
      • ╰╸ Only constants and variables are allowed in the head of a rule.
      •    Wildcards are not allowed.
      •
-     │ Note: Replace the wildcard with a constant or a variable.
+     │ Hint: Replace the wildcard with a constant or a variable.
 ─────╯
 //--- program3.eclair
 
@@ -100,48 +100,52 @@ a(x) :-
   _ = _.
 
 //--- wildcard_in_assignment_expected.out
-[error]: Found wildcard in equality constraint
+[error]: Found wildcard in constraint
      ╭──▶ TEST_DIR/program3.eclair@10:3-10:4
      │
   10 │   _ = 123.
      •   ┬──────
      •   ├╸ Wildcard found.
-     •   ╰╸ Only constants and variables are allowed in an equality constraint.
+     •   ╰╸ Only constants and variables are allowed in a constraint.
      •
-     │ Note: This statement can be removed since it has no effect.
+     │ Hint: This statement can be removed since it has no effect.
+     │ Hint: Replace the wildcard with a variable.
 ─────╯
 
-[error]: Found wildcard in equality constraint
+[error]: Found wildcard in constraint
      ╭──▶ TEST_DIR/program3.eclair@14:9-14:10
      │
   14 │   123 = _.
      •   ┬─────┬
      •   │     ╰╸ Wildcard found.
-     •   ╰╸ Only constants and variables are allowed in an equality constraint.
+     •   ╰╸ Only constants and variables are allowed in a constraint.
      •
-     │ Note: This statement can be removed since it has no effect.
+     │ Hint: This statement can be removed since it has no effect.
+     │ Hint: Replace the wildcard with a variable.
 ─────╯
 
-[error]: Found wildcard in equality constraint
+[error]: Found wildcard in constraint
      ╭──▶ TEST_DIR/program3.eclair@18:3-18:4
      │
   18 │   _ = _.
      •   ┬────
      •   ├╸ Wildcard found.
-     •   ╰╸ Only constants and variables are allowed in an equality constraint.
+     •   ╰╸ Only constants and variables are allowed in a constraint.
      •
-     │ Note: This statement can be removed since it has no effect.
+     │ Hint: This statement can be removed since it has no effect.
+     │ Hint: Replace the wildcard with a variable.
 ─────╯
 
-[error]: Found wildcard in equality constraint
+[error]: Found wildcard in constraint
      ╭──▶ TEST_DIR/program3.eclair@18:7-18:8
      │
   18 │   _ = _.
      •   ┬───┬
      •   │   ╰╸ Wildcard found.
-     •   ╰╸ Only constants and variables are allowed in an equality constraint.
+     •   ╰╸ Only constants and variables are allowed in a constraint.
      •
-     │ Note: This statement can be removed since it has no effect.
+     │ Hint: This statement can be removed since it has no effect.
+     │ Hint: Replace the wildcard with a variable.
 ─────╯
 //--- program4.eclair
 

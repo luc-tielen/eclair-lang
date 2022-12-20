@@ -9,6 +9,7 @@ module Eclair.AST.IR
   , Literal(..)
   , Type(..)
   , ConstraintOp(..)
+  , isEqualityOp
   , NodeId(..)
   , getNodeId
   , UsageMode(..)
@@ -48,7 +49,12 @@ data UsageMode
 type Attributes = UsageMode
 
 data ConstraintOp
-  = Equals
+  = Equals          -- =
+  | NotEquals       -- !=
+  | LessThan        -- <
+  | LessOrEqual     -- <=
+  | GreaterThan     -- >
+  | GreaterOrEqual  -- >=
   deriving (Eq, Show)
 
 data AST
@@ -82,6 +88,12 @@ getNodeId = \case
   Lit nodeId _ -> nodeId
   Var nodeId _ -> nodeId
   Hole nodeId -> nodeId
+
+isEqualityOp :: ConstraintOp -> Bool
+isEqualityOp = \case
+  Equals -> True
+  NotEquals -> True
+  _ -> False
 
 instance Pretty Type where
   pretty = \case
@@ -132,4 +144,9 @@ instance Pretty AST where
 
 instance Pretty ConstraintOp where
   pretty = \case
-    Equals -> "="
+    Equals         -> "="
+    NotEquals      -> "!="
+    LessThan       -> "<"
+    LessOrEqual    -> "<="
+    GreaterThan    -> ">"
+    GreaterOrEqual -> ">="

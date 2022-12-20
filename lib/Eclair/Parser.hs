@@ -225,7 +225,7 @@ comma = lexeme $ P.char ','
 
 ruleClauseParser :: Parser AST
 ruleClauseParser = do
-  atomParser <|> assignParser
+  atomParser <|> constraintParser
 
 atomParser :: Parser AST
 atomParser = do
@@ -235,12 +235,12 @@ atomParser = do
     args <- lexeme $ betweenParens $ valueParser `P.sepBy1` comma
     pure $ Atom nodeId name args
 
-assignParser :: Parser AST
-assignParser = withNodeId $ \nodeId -> do
+constraintParser :: Parser AST
+constraintParser = withNodeId $ \nodeId -> do
   lhs <- lexeme valueParser
-  _ <- lexeme $ P.char '='
+  op <- constraintOpParser
   rhs <- lexeme valueParser
-  pure $ Constraint nodeId Equals lhs rhs
+  pure $ Constraint nodeId op lhs rhs
 
 valueParser :: Parser AST
 valueParser = lexeme $ withNodeId $ \nodeId ->
@@ -248,6 +248,15 @@ valueParser = lexeme $ withNodeId $ \nodeId ->
   Var nodeId <$> (identifier <|> wildcard) <|>
   Lit nodeId <$> literal
 
+constraintOpParser :: Parser ConstraintOp
+constraintOpParser = P.label "equality or comparison operator" $ lexeme $ do
+  toOp Equals (P.char '=') <|>
+    toOp LessThan (P.char '<') <|>
+    toOp GreaterThan (P.char '>') <|>
+    toOp NotEquals (P.string "!=") <|>
+    toOp LessOrEqual (P.string "<=") <|>
+    toOp GreaterOrEqual (P.string ">=")
+  where toOp op p = op <$ p
 
 -- Not sure if we want to support something like _abc?
 wildcard :: Parser Id

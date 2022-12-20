@@ -11,7 +11,7 @@ module Eclair.AST.Analysis
   , UngroundedVar(..)
   , WildcardInFact(..)
   , WildcardInRuleHead(..)
-  , WildcardInAssignment(..)
+  , WildcardInConstraint(..)
   , DeadCode(..)
   , DeadInternalRelation(..)
   , NoOutputRelation(..)
@@ -58,11 +58,11 @@ newtype Hole
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions Hole "hole" 'S.Input
 
-data Assign
-  = Assign { assignId :: NodeId, lhsId :: NodeId, rhsId :: NodeId }
+data Constraint
+  = Constraint { constraintId :: NodeId, op :: Text, lhsId :: NodeId, rhsId :: NodeId }
   deriving stock Generic
   deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions Assign "assign" 'S.Input
+  deriving S.Fact via S.FactOptions Constraint "constraint" 'S.Input
 
 data Atom
   = Atom NodeId Id
@@ -184,14 +184,14 @@ data WildcardInRuleHead loc
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions (WildcardInRuleHead loc) "wildcard_in_rule_head" 'S.Output
 
-data WildcardInAssignment loc
-  = WildcardInAssignment
+data WildcardInConstraint loc
+  = WildcardInConstraint
   { wildcardAssignLoc :: loc
   , wildcardLoc :: loc
   }
   deriving stock (Generic, Eq, Show, Functor)
   deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions (WildcardInAssignment loc) "wildcard_in_assignment" 'S.Output
+  deriving S.Fact via S.FactOptions (WildcardInConstraint loc) "wildcard_in_assignment" 'S.Output
 
 newtype DeadCode
   = DeadCode { unDeadCode :: NodeId }
@@ -219,7 +219,7 @@ data SemanticAnalysis
        , LitString
        , Var
        , Hole
-       , Assign
+       , Constraint
        , Atom
        , AtomArg
        , Rule
@@ -237,7 +237,7 @@ data SemanticAnalysis
        , UngroundedVar NodeId
        , WildcardInRuleHead NodeId
        , WildcardInFact NodeId
-       , WildcardInAssignment NodeId
+       , WildcardInConstraint NodeId
        , DeadCode
        , NoOutputRelation NodeId
        , DeadInternalRelation NodeId
@@ -278,7 +278,7 @@ data SemanticErrors loc
   , ungroundedVars :: Container (UngroundedVar loc)
   , wildcardsInFacts :: Container (WildcardInFact loc)
   , wildcardsInRuleHeads :: Container (WildcardInRuleHead loc)
-  , wildcardsInAssignments :: Container (WildcardInAssignment loc)
+  , wildcardsInAssignments :: Container (WildcardInConstraint loc)
   , deadInternalRelations :: Container (DeadInternalRelation loc)
   , noOutputRelations :: Container (NoOutputRelation loc)
   }
@@ -319,9 +319,14 @@ analysis prog = S.mkAnalysis addFacts run getFacts
       IR.HoleF nodeId ->
         S.addFact prog $ Hole nodeId
       IR.ConstraintF nodeId constraintOp (lhsId', lhsAction) (rhsId', rhsAction) -> do
-        case constraintOp of
-          IR.Equals -> do
-            S.addFact prog $ Assign nodeId lhsId' rhsId'
+        let textualOp = case constraintOp of
+              IR.Equals -> "="
+              IR.NotEquals -> "!="
+              IR.LessThan -> "<"
+              IR.LessOrEqual -> "<="
+              IR.GreaterThan -> "<"
+              IR.GreaterOrEqual -> "<="
+        S.addFact prog $ Constraint nodeId textualOp lhsId' rhsId'
         lhsAction
         rhsAction
       IR.AtomF nodeId atom (unzip -> (argNodeIds, actions)) -> do
