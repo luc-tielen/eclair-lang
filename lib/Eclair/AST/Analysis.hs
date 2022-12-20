@@ -318,8 +318,10 @@ analysis prog = S.mkAnalysis addFacts run getFacts
           S.addFact prog $ RuleVariable ruleId nodeId
       IR.HoleF nodeId ->
         S.addFact prog $ Hole nodeId
-      IR.AssignF nodeId (lhsId', lhsAction) (rhsId', rhsAction) -> do
-        S.addFact prog $ Assign nodeId lhsId' rhsId'
+      IR.ConstraintF nodeId constraintOp (lhsId', lhsAction) (rhsId', rhsAction) -> do
+        case constraintOp of
+          IR.Equals -> do
+            S.addFact prog $ Assign nodeId lhsId' rhsId'
         lhsAction
         rhsAction
       IR.AtomF nodeId atom (unzip -> (argNodeIds, actions)) -> do
@@ -377,7 +379,7 @@ analysis prog = S.mkAnalysis addFacts run getFacts
       IR.LitF nodeId _ -> nodeId
       IR.VarF nodeId _ -> nodeId
       IR.HoleF nodeId -> nodeId
-      IR.AssignF nodeId _ _ -> nodeId
+      IR.ConstraintF nodeId _ _ _ -> nodeId
       IR.AtomF nodeId _ _ -> nodeId
       IR.RuleF nodeId _ _ _ -> nodeId
       IR.DeclareTypeF nodeId _ _ _ -> nodeId

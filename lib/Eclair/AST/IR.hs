@@ -8,6 +8,7 @@ module Eclair.AST.IR
   , Decl
   , Literal(..)
   , Type(..)
+  , ConstraintOp(..)
   , NodeId(..)
   , getNodeId
   , UsageMode(..)
@@ -46,11 +47,15 @@ data UsageMode
 -- Later this will also contain (Maybe StorageType), ...
 type Attributes = UsageMode
 
+data ConstraintOp
+  = Equals
+  deriving (Eq, Show)
+
 data AST
   = Lit NodeId Literal
   | Var NodeId Id
   | Hole NodeId
-  | Assign NodeId AST AST
+  | Constraint NodeId ConstraintOp AST AST
   | Atom NodeId Id [Value]
   | Rule NodeId Id [Value] [Clause]
   | DeclareType NodeId Id [Type] Attributes
@@ -73,7 +78,7 @@ getNodeId = \case
   DeclareType nodeId _ _ _ -> nodeId
   Rule nodeId _ _ _ -> nodeId
   Atom nodeId _ _ -> nodeId
-  Assign nodeId _ _ -> nodeId
+  Constraint nodeId _ _ _ -> nodeId
   Lit nodeId _ -> nodeId
   Var nodeId _ -> nodeId
   Hole nodeId -> nodeId
@@ -96,8 +101,8 @@ instance Pretty AST where
           pure $ pretty v
         Hole _ ->
           pure "?"
-        Assign _ lhs rhs ->
-          pure $ pretty lhs <+> "=" <+> pretty rhs
+        Constraint _ op lhs rhs ->
+          pure $ pretty lhs <+> pretty op <+> pretty rhs
         Atom _ name values -> do
           end <- ask <&> \case
             TopLevel -> "."
@@ -124,3 +129,7 @@ instance Pretty AST where
         Module _ decls -> do
           decls' <- traverse pretty' decls
           pure $ vsep $ intersperse mempty decls'
+
+instance Pretty ConstraintOp where
+  pretty = \case
+    Equals -> "="

@@ -108,7 +108,7 @@ toClause :: AST.AST -> Clause
 toClause = \case
   AST.Atom _ name values ->
     AtomClause name (map toTerm values)
-  AST.Assign _ lhs rhs ->
+  AST.Constraint _ AST.Equals lhs rhs ->
     AssignClause (toTerm lhs) (toTerm rhs)
   _ ->
     panic "toClause: unsupported case"

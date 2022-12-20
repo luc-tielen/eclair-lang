@@ -146,7 +146,7 @@ checkDecl ast = case ast of
     traverse_ checkDecl clauses
     processUnresolvedHoles
 
-  Assign nodeId lhs rhs -> addCtx $ do
+  Constraint nodeId Equals lhs rhs -> addCtx $ do
     lhsTy <- inferExpr lhs
     rhsTy <- inferExpr rhs
     -- NOTE: Because inferred types of vars can contain unification variables,

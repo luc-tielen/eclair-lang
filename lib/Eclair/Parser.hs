@@ -240,7 +240,7 @@ assignParser = withNodeId $ \nodeId -> do
   lhs <- lexeme valueParser
   _ <- lexeme $ P.char '='
   rhs <- lexeme valueParser
-  pure $ Assign nodeId lhs rhs
+  pure $ Constraint nodeId Equals lhs rhs
 
 valueParser :: Parser AST
 valueParser = lexeme $ withNodeId $ \nodeId ->

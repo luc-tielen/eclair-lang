@@ -36,7 +36,7 @@ transform =
             nodeId' <- lift freshNodeId
             let v' = Id $ "@" <> unId v <> "_" <> show x
                 var' = Var nodeId v'  -- Same node id can be reused?
-                eq = Assign nodeId' var var'
+                eq = Constraint nodeId' Equals var var'
             modify $ \s -> s { equalities = eq : equalities s
                              , varMap = Map.insert v (x + 1) (varMap s)
                              }
