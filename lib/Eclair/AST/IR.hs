@@ -18,6 +18,7 @@ module Eclair.AST.IR
 
 import Prettyprinter
 import Eclair.Id
+import Eclair.Operator
 import Eclair.Literal
 import Eclair.Pretty
 import qualified Language.Souffle.Marshal as S
@@ -47,15 +48,6 @@ data UsageMode
 
 -- Later this will also contain (Maybe StorageType), ...
 type Attributes = UsageMode
-
-data ConstraintOp
-  = Equals          -- =
-  | NotEquals       -- !=
-  | LessThan        -- <
-  | LessOrEqual     -- <=
-  | GreaterThan     -- >
-  | GreaterOrEqual  -- >=
-  deriving (Eq, Show)
 
 data AST
   = Lit NodeId Literal
@@ -88,12 +80,6 @@ getNodeId = \case
   Lit nodeId _ -> nodeId
   Var nodeId _ -> nodeId
   Hole nodeId -> nodeId
-
-isEqualityOp :: ConstraintOp -> Bool
-isEqualityOp = \case
-  Equals -> True
-  NotEquals -> True
-  _ -> False
 
 instance Pretty Type where
   pretty = \case
@@ -141,12 +127,3 @@ instance Pretty AST where
         Module _ decls -> do
           decls' <- traverse pretty' decls
           pure $ vsep $ intersperse mempty decls'
-
-instance Pretty ConstraintOp where
-  pretty = \case
-    Equals         -> "="
-    NotEquals      -> "!="
-    LessThan       -> "<"
-    LessOrEqual    -> "<="
-    GreaterThan    -> ">"
-    GreaterOrEqual -> ">="

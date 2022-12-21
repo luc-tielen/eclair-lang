@@ -96,14 +96,14 @@ exit :: [Relation] -> CodegenM RA
 exit rs = pure $ RA.Exit rs
 
 noElemOf :: Relation -> [Term] -> CodegenM a -> CodegenM a
-noElemOf r ts = constrain (NotElem r ts)
+noElemOf r ts m = do
+  modify (NotElem r ts:)
+  m
 
-if' :: Term -> Term -> CodegenM RA -> CodegenM RA
-if' lhsTerm rhsTerm body = do
-  lhs <- resolveTerm lhsTerm
-  rhs <- resolveTerm rhsTerm
-  RA.If lhs rhs <$> body
-
+if' :: AST.ConstraintOp -> Term -> Term -> CodegenM RA -> CodegenM RA
+if' op lhs rhs body = do
+  cond <- RA.CompareOp op <$> resolveTerm lhs <*> resolveTerm rhs
+  RA.If cond <$> body
 
 data Term = VarTerm Id | LitTerm Word32
   deriving (Eq)
@@ -125,22 +125,17 @@ toTerm = \case
 data ConstraintExpr
   = NotElem Id [Term]
 
-constrain :: ConstraintExpr -> CodegenM a -> CodegenM a
-constrain c m = do
-  modify (c:)
-  m
-
 data Clause
   = AtomClause Id [Term]
   | ConstrainClause ConstraintExpr
-  | AssignClause Term Term
+  | BinOp AST.ConstraintOp Term Term
 
 toClause :: AST.AST -> Clause
 toClause = \case
   AST.Atom _ name values ->
     AtomClause name (map toTerm values)
-  AST.Constraint _ AST.Equals lhs rhs ->
-    AssignClause (toTerm lhs) (toTerm rhs)
+  AST.Constraint _ op lhs rhs ->
+    BinOp op (toTerm lhs) (toTerm rhs)
   _ ->
     panic "toClause: unsupported case"
 
@@ -172,7 +167,7 @@ resolveClause r col t = do
   let alias = relationToAlias r row
       lhs = RA.ColumnIndex alias col
   case t of
-    LitTerm x -> pure $ Just $ RA.Constrain lhs (RA.Lit x)
+    LitTerm x -> pure $ Just $ RA.CompareOp RA.Equals lhs (RA.Lit x)
     VarTerm v -> asks (lookupVar v . snd) >>= \case
       Nothing -> pure Nothing
       Just cs -> do
@@ -180,22 +175,22 @@ resolveClause r col t = do
         case relevantCs of
           [] -> pure Nothing
           ((Constraint r' _ col' _):_) ->
-            pure $ Just $ RA.Constrain lhs (RA.ColumnIndex r' col')
+            pure $ Just $ RA.CompareOp RA.Equals lhs (RA.ColumnIndex r' col')
   where lookupVar v (Constraints _ cMap) = M.lookup v cMap
         descendingClauseRow (Constraint _ row _ _) = Down row
         differentRelation (Constraint r' _ _ _) = r /= r'
 
 resolveExtraClauses :: CodegenM [RA]
 resolveExtraClauses = do
-  -- TODO: make algorithm smarter to take vars in use into account?
   extraClauses <- get
   modify (const [])
   traverse toRA extraClauses
   where
-    toRA (NotElem r ts) = RA.NotElem r <$> traverse resolveTerm ts
+    toRA = \case
+      NotElem r ts ->
+        RA.NotElem r <$> traverse resolveTerm ts
 
 findBestMatchingConstraint :: Constraints -> Id -> Maybe Constraint
 findBestMatchingConstraint (Constraints _ cs) var =
   viaNonEmpty head . sortOn ascendingClauseRow =<< M.lookup var cs
   where ascendingClauseRow (Constraint _ row _ _) = row
-

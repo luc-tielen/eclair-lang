@@ -61,6 +61,7 @@ library
       Eclair.LLVM.Table
       Eclair.LLVM.Template
       Eclair.LLVM.Vector
+      Eclair.Operator
       Eclair.Parser
       Eclair.Pretty
       Eclair.RA.Codegen

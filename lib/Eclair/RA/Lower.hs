@@ -88,7 +88,7 @@ generateProgramInstructions = gcata (distribute extractEqualities) $ \case
     idx <- idxFromConstraints r alias eqs
     let relationPtr = lookupRelationByIndex r idx
         isConstrain = \case
-          RA.Constrain _ _ -> True
+          RA.CompareOp {} -> True
           _ -> False
         queryClauses = map extract $ filter ((not . isConstrain) . tFst) clauses
         query = List.foldl1' and' queryClauses
@@ -152,8 +152,17 @@ generateProgramInstructions = gcata (distribute extractEqualities) $ \case
   RA.LoopF (map extract -> actions) -> do
     end <- labelId "loop.end"
     block [withEndLabel end $ loop actions, label end]
-  RA.IfF (extract -> lhs) (extract -> rhs) (extract -> action) -> do
-    if' (equals lhs rhs) action
+  RA.IfF (extract -> condition) (extract -> action) -> do
+    if' condition action
+  RA.CompareOpF op (extract -> lhs) (extract -> rhs) -> do
+    let toComparison = case op of
+          RA.Equals -> equals
+          RA.NotEquals -> notEquals
+          RA.LessThan -> lessThan
+          RA.LessOrEqual -> lessOrEqual
+          RA.GreaterThan -> greaterThan
+          RA.GreaterOrEqual -> greaterOrEqual
+    toComparison lhs rhs
   RA.ExitF rs -> do
     end <- endLabel <$> getLowerState
     foldl' f (jump end) =<< traverse getFirstFieldOffset rs
@@ -165,8 +174,6 @@ generateProgramInstructions = gcata (distribute extractEqualities) $ \case
             isEmpty = call r idx EIR.IsEmpty [relationPtr]
         if' isEmpty inner
   RA.LitF x -> lit x
-  RA.ConstrainF (extract -> lhs) (extract -> rhs) ->
-    equals lhs rhs
   RA.NotElemF r (map extract -> columnValues) -> do
     value <- var "value"
     let idx = mkFindIndex columnValues

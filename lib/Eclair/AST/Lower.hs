@@ -123,10 +123,12 @@ nestedSearchAndProject relation intoRelation terms clauses =
                 then prependToId deltaPrefix clauseName
                 else clauseName
         in search relation' args inner
-      ConstrainClause (NotElem r values) ->
-        noElemOf r values inner
-      AssignClause lhs rhs ->
-        if' lhs rhs inner
+      ConstrainClause constraint ->
+        case constraint of
+          NotElem r values ->
+            noElemOf r values inner
+      BinOp op lhs rhs -> do
+        if' op lhs rhs inner
 
 isRecursive :: Relation -> [Clause] -> Bool
 isRecursive ruleName clauses =

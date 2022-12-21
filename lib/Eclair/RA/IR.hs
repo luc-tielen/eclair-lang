@@ -8,10 +8,12 @@ module Eclair.RA.IR
   , Clause
   , Action
   , ColumnIndex
+  , ConstraintOp(..)
   ) where
 
 import Eclair.Id
 import Eclair.Pretty
+import Eclair.Operator
 
 
 type Relation = Id
@@ -34,9 +36,9 @@ data RA
   | Module [RA]
   | Lit Word32
   | ColumnIndex Relation ColumnIndex
-  | Constrain RA RA  -- equality constraint
+  | CompareOp ConstraintOp RA RA
   | NotElem Relation [RA]
-  | If RA RA RA  -- NOTE: not the traditional if: args are lhs, rhs, body
+  | If RA RA  -- NOTE: args are condition and body
   deriving (Eq, Show)
 
 makeBaseFunctor ''RA
@@ -65,8 +67,8 @@ instance Pretty RA where
     Purge r -> "purge" <+> pretty r
     Par stmts -> "parallel do" <> prettyBlock stmts
     Loop stmts -> "loop do" <> prettyBlock stmts
-    If lhs rhs stmt ->
-      "if" <+> pretty lhs <+> "=" <+> pretty rhs <+> "do" <> prettyBlock [stmt]
+    If cond stmt ->
+      "if" <+> pretty cond <+> "do" <> prettyBlock [stmt]
     Exit rs ->
       let texts = map formatExitCondition rs
       in "exit if" <+> withAnds texts
@@ -74,7 +76,7 @@ instance Pretty RA where
       vsep $ map pretty stmts
     Lit x -> pretty x
     ColumnIndex r idx -> pretty r <> brackets (pretty idx)
-    Constrain lhs rhs -> pretty lhs <+> "=" <+> pretty rhs
+    CompareOp op lhs rhs -> pretty lhs <+> pretty op <+> pretty rhs
     NotElem r terms -> prettyValues terms <+> "∉" <+> pretty r
     where
       prettyValues terms = parens (withCommas $ map pretty terms)

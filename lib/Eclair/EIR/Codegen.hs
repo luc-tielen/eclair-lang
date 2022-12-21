@@ -94,7 +94,8 @@ lookupFunction r idx fn = do
 
     unsafeLookup r' idx' = fromJust . M.lookup (r', idx')
 
-lookupPrimOp :: Monad m => EIR.Op -> CodegenT m Operand
+type PrimOp m = Either Operand (Operand -> Operand -> CodegenT m Operand)
+lookupPrimOp :: Monad m => EIR.Op -> CodegenT m (PrimOp m)
 lookupPrimOp = \case
   EIR.SymbolTableInit ->
     toSymbolTableOp SymbolTable.symbolTableInit
@@ -103,9 +104,19 @@ lookupPrimOp = \case
   EIR.SymbolTableInsert ->
     toSymbolTableOp SymbolTable.symbolTableFindOrInsert
   EIR.RelationOp r idx fn ->
-    lookupFunction r idx fn
+    Left <$> lookupFunction r idx fn
+  EIR.ComparisonOp op ->
+    pure $ Right $ case op of
+      EIR.Equals -> eq
+      EIR.NotEquals -> ne
+      -- NOTE: this will result in issues for signed integers in the future, but ignoring that for now..
+      -- We can pass along the args then?
+      EIR.LessThan -> ult
+      EIR.LessOrEqual -> ule
+      EIR.GreaterThan -> ugt
+      EIR.GreaterOrEqual -> uge
   where
-    toSymbolTableOp llvmOp = do
+    toSymbolTableOp llvmOp = Left <$> do
       symbolTable <- gets symbolTableFns
       pure $ llvmOp symbolTable
 
