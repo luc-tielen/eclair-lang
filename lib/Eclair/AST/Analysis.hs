@@ -191,7 +191,7 @@ data WildcardInConstraint loc
   }
   deriving stock (Generic, Eq, Show, Functor)
   deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions (WildcardInConstraint loc) "wildcard_in_assignment" 'S.Output
+  deriving S.Fact via S.FactOptions (WildcardInConstraint loc) "wildcard_in_constraint" 'S.Output
 
 newtype DeadCode
   = DeadCode { unDeadCode :: NodeId }

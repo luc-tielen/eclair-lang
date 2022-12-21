@@ -161,3 +161,79 @@ a(x) :-
   b(_, _, x).
 
 //--- wildcard_valid_expected.out
+//--- program5.eclair
+
+// RUN: %eclair compile %t/program5.eclair 2> %t/wildcard_in_comparison_actual.out
+// RUN: diff -w %t/wildcard_in_comparison_expected.out %t/wildcard_in_comparison_actual.out
+
+@def a(u32) output.
+@def b(u32) input.
+
+a(x) :-
+  b(x),
+  123 < _,
+  123 <= _,
+  123 > _,
+  123 >= _,
+  123 != _.
+
+//--- wildcard_in_comparison_expected.out
+[error]: Found wildcard in constraint
+     ╭──▶ TEST_DIR/program5.eclair@10:9-10:10
+     │
+  10 │   123 < _,
+     •   ┬─────┬
+     •   │     ╰╸ Wildcard found.
+     •   ╰╸ Only constants and variables are allowed in a constraint.
+     •
+     │ Hint: This statement can be removed since it has no effect.
+     │ Hint: Replace the wildcard with a variable.
+─────╯
+
+[error]: Found wildcard in constraint
+     ╭──▶ TEST_DIR/program5.eclair@11:10-11:11
+     │
+  11 │   123 <= _,
+     •   ┬──────┬
+     •   │      ╰╸ Wildcard found.
+     •   ╰╸ Only constants and variables are allowed in a constraint.
+     •
+     │ Hint: This statement can be removed since it has no effect.
+     │ Hint: Replace the wildcard with a variable.
+─────╯
+
+[error]: Found wildcard in constraint
+     ╭──▶ TEST_DIR/program5.eclair@12:9-12:10
+     │
+  12 │   123 > _,
+     •   ┬─────┬
+     •   │     ╰╸ Wildcard found.
+     •   ╰╸ Only constants and variables are allowed in a constraint.
+     •
+     │ Hint: This statement can be removed since it has no effect.
+     │ Hint: Replace the wildcard with a variable.
+─────╯
+
+[error]: Found wildcard in constraint
+     ╭──▶ TEST_DIR/program5.eclair@13:10-13:11
+     │
+  13 │   123 >= _,
+     •   ┬──────┬
+     •   │      ╰╸ Wildcard found.
+     •   ╰╸ Only constants and variables are allowed in a constraint.
+     •
+     │ Hint: This statement can be removed since it has no effect.
+     │ Hint: Replace the wildcard with a variable.
+─────╯
+
+[error]: Found wildcard in constraint
+     ╭──▶ TEST_DIR/program5.eclair@14:10-14:11
+     │
+  14 │   123 != _.
+     •   ┬──────┬
+     •   │      ╰╸ Wildcard found.
+     •   ╰╸ Only constants and variables are allowed in a constraint.
+     •
+     │ Hint: This statement can be removed since it has no effect.
+     │ Hint: Replace the wildcard with a variable.
+─────╯

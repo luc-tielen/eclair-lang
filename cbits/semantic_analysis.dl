@@ -175,6 +175,7 @@ ungrounded_variable(rule_id, var_id, var_name) :-
   constraint(rule_clause_id, op, var_id, _),
   inequality_op(op),
   variable(var_id, var_name),
+  var_name != "_",
   !grounded_var(rule_id, var_name).
 
 ungrounded_variable(rule_id, var_id, var_name) :-
@@ -182,6 +183,7 @@ ungrounded_variable(rule_id, var_id, var_name) :-
   constraint(rule_clause_id, op, _, var_id),
   inequality_op(op),
   variable(var_id, var_name),
+  var_name != "_",
   !grounded_var(rule_id, var_name).
 
 inequality_op("!=").
