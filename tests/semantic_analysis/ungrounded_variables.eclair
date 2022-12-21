@@ -22,7 +22,7 @@ edge(c, d).
      •      ┬
      •      ╰╸ Only constants are allowed in facts.
      •
-     │ Note: You can solve this by replacing the variable with a constant.
+     │ Hint: You can solve this by replacing the variable with a constant.
 ─────╯
 
 [error]: Variable in top level fact
@@ -32,7 +32,7 @@ edge(c, d).
      •         ┬
      •         ╰╸ Only constants are allowed in facts.
      •
-     │ Note: You can solve this by replacing the variable with a constant.
+     │ Hint: You can solve this by replacing the variable with a constant.
 ─────╯
 
 [error]: Variable in top level fact
@@ -42,7 +42,7 @@ edge(c, d).
      •      ┬
      •      ╰╸ Only constants are allowed in facts.
      •
-     │ Note: You can solve this by replacing the variable with a constant.
+     │ Hint: You can solve this by replacing the variable with a constant.
 ─────╯
 
 [error]: Variable in top level fact
@@ -52,7 +52,7 @@ edge(c, d).
      •         ┬
      •         ╰╸ Only constants are allowed in facts.
      •
-     │ Note: You can solve this by replacing the variable with a constant.
+     │ Hint: You can solve this by replacing the variable with a constant.
 ─────╯
 //--- program2.eclair
 

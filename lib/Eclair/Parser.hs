@@ -229,7 +229,7 @@ ruleClauseParser = do
 
 atomParser :: Parser AST
 atomParser = do
-  P.notFollowedBy $ lexeme identifier *> P.char '='
+  P.notFollowedBy $ lexeme identifier *> constraintOpParser
   withNodeId $ \nodeId -> do
     name <- lexeme identifier
     args <- lexeme $ betweenParens $ valueParser `P.sepBy1` comma
@@ -251,12 +251,12 @@ valueParser = lexeme $ withNodeId $ \nodeId ->
 constraintOpParser :: Parser ConstraintOp
 constraintOpParser = P.label "equality or comparison operator" $ lexeme $ do
   toOp Equals (P.char '=') <|>
-    toOp LessThan (P.char '<') <|>
-    toOp GreaterThan (P.char '>') <|>
-    toOp NotEquals (P.string "!=") <|>
     toOp LessOrEqual (P.string "<=") <|>
-    toOp GreaterOrEqual (P.string ">=")
-  where toOp op p = op <$ p
+    toOp LessThan (P.char '<') <|>
+    toOp GreaterOrEqual (P.string ">=") <|>
+    toOp GreaterThan (P.char '>') <|>
+    toOp NotEquals (P.string "!=")
+  where toOp op p = op <$ lexeme p
 
 -- Not sure if we want to support something like _abc?
 wildcard :: Parser Id
