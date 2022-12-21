@@ -123,3 +123,18 @@ rule(x, y) :-
      •
      │ Hint: Use the variable 'z' as an argument in another clause in the same rule.
 ─────╯
+//--- program3.eclair
+
+// RUN: %eclair compile %t/program3.eclair 2> %t/program3_actual.out
+// RUN: diff -w %t/program3_expected.out %t/program3_actual.out
+
+@def fact(u32, u32) input.
+@def rule(u32, u32) output.
+
+rule(x, y) :-
+  x = z,
+  y = a,
+  a < z,
+  fact(x, y).
+
+//--- program3_expected.out
