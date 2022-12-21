@@ -8,6 +8,7 @@ The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-has
 ### Added
 
 - Typed hole support
+- Comparison operators
 - LSP support
   - Document highlight
   - Hover
