@@ -175,7 +175,7 @@ instance Pretty EIR where
     Var v -> pretty v
     Assign var value ->
       pretty var <+> "=" <+> pretty value
-    PrimOp op@(ComparisonOp {}) [arg1, arg2] ->
+    PrimOp op@ComparisonOp {} [arg1, arg2] ->
       pretty arg1 <+> pretty op <+> pretty arg2
     PrimOp op args ->
       pretty op <> parens (withCommas $ map pretty args)
