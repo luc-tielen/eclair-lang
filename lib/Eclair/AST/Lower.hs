@@ -18,7 +18,7 @@ compileToRA ast = RA.Module $ concatMap processDecls sortedDecls where
   processDecls = \case
     [Atom _ name values] -> runCodegen $
       let literals = getLiterals values
-       in emit $ project name (LitTerm <$> literals)
+       in one <$> project name (LitTerm <$> literals)
     [Rule _ name args clauses] ->
       let terms = map toTerm args
           clauses' = map toClause clauses
@@ -62,8 +62,8 @@ getLiterals = mapMaybe $ \case
     Nothing
 
 -- NOTE: These rules can all be evaluated in parallel inside the fixpoint loop
-processMultipleRules :: [AST] -> CodegenM ()
-processMultipleRules rules = traverse_ emit stmts where
+processMultipleRules :: [AST] -> CodegenM [RA]
+processMultipleRules rules = sequence stmts where
   stmts = mergeStmts ++ [loop (purgeStmts ++ ruleStmts ++ [exitStmt] ++ endLoopStmts)]
   mergeStmts = map (\r -> merge r (deltaRelationOf r)) relations
   purgeStmts = map (purge . newRelationOf) relations
@@ -80,7 +80,7 @@ processMultipleRules rules = traverse_ emit stmts where
   f (r, map toTerm -> ts, map toClause -> clauses) =
     recursiveRuleToStmt r ts clauses
 
-processSingleRule :: Relation -> [Term] -> [Clause] -> CodegenM ()
+processSingleRule :: Relation -> [Term] -> [Clause] -> CodegenM [RA]
 processSingleRule relation terms clauses
   | isRecursive relation clauses =
     let deltaRelation = deltaRelationOf relation
@@ -95,8 +95,8 @@ processSingleRule relation terms clauses
             , swap newRelation deltaRelation
             ]
           ]
-      in traverse_ emit stmts
-  | otherwise = emit $ ruleToStmt relation terms clauses
+      in sequence stmts
+  | otherwise = one <$> ruleToStmt relation terms clauses
 
 ruleToStmt :: Relation -> [Term] -> [Clause] -> CodegenM RA
 ruleToStmt relation terms clauses
@@ -123,10 +123,12 @@ nestedSearchAndProject relation intoRelation terms clauses =
                 then prependToId deltaPrefix clauseName
                 else clauseName
         in search relation' args inner
-      ConstrainClause (NotElem r values) ->
-        noElemOf r values inner
-      AssignClause lhs rhs ->
-        if' lhs rhs inner
+      ConstrainClause constraint ->
+        case constraint of
+          NotElem r values ->
+            noElemOf r values inner
+      BinOp op lhs rhs -> do
+        if' op lhs rhs inner
 
 isRecursive :: Relation -> [Clause] -> Bool
 isRecursive ruleName clauses =

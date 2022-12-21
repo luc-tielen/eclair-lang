@@ -38,6 +38,11 @@ module Eclair.RA.Codegen
   , not'
   , and'
   , equals
+  , notEquals
+  , lessThan
+  , lessOrEqual
+  , greaterThan
+  , greaterOrEqual
   , lit
   ) where
 
@@ -234,8 +239,28 @@ and' lhs rhs = do
     , EIR.And <$> lhsResult <*> rhsResult
     ]
 
+mkConstrainOp :: EIR.ConstraintOp -> CodegenM EIR -> CodegenM EIR -> CodegenM EIR
+mkConstrainOp op lhs rhs =
+  let args = sequence [lhs, rhs]
+   in EIR.PrimOp (EIR.ComparisonOp op) <$> args
+
 equals :: CodegenM EIR -> CodegenM EIR -> CodegenM EIR
-equals lhs rhs = EIR.Equals <$> lhs <*> rhs
+equals = mkConstrainOp EIR.Equals
+
+notEquals :: CodegenM EIR -> CodegenM EIR -> CodegenM EIR
+notEquals = mkConstrainOp EIR.NotEquals
+
+lessThan :: CodegenM EIR -> CodegenM EIR -> CodegenM EIR
+lessThan = mkConstrainOp EIR.LessThan
+
+lessOrEqual :: CodegenM EIR -> CodegenM EIR -> CodegenM EIR
+lessOrEqual = mkConstrainOp EIR.LessOrEqual
+
+greaterThan :: CodegenM EIR -> CodegenM EIR -> CodegenM EIR
+greaterThan = mkConstrainOp EIR.GreaterThan
+
+greaterOrEqual :: CodegenM EIR -> CodegenM EIR -> CodegenM EIR
+greaterOrEqual = mkConstrainOp EIR.GreaterOrEqual
 
 lit :: Word32 -> CodegenM EIR
 lit x =

@@ -215,7 +215,7 @@ variableInFactToReport :: VariableInFact Position -> Report Text
 variableInFactToReport e =
   let title = "Variable in top level fact"
       markers = [(mainErrorPosition e, This "Only constants are allowed in facts.")]
-      hints = ["You can solve this by replacing the variable with a constant."]
+      hints = [Hint "You can solve this by replacing the variable with a constant."]
    in Err Nothing title markers hints
 
 ungroundedVarToReport :: UngroundedVar Position -> Report Text
@@ -234,7 +234,7 @@ wildcardInFactToReport e@(WildcardInFact srcLocFact _ _pos) =
       markers = [ (mainErrorPosition e, This "Wildcard found.")
                 , (srcLocFact, Where "A top level fact only supports constants.\nVariables or wildcards are not allowed.")
                 ]
-      hints = ["Replace the wildcard with a constant."]
+      hints = [Hint "Replace the wildcard with a constant."]
    in Err Nothing title markers hints
 
 wildcardInRuleHeadToReport :: WildcardInRuleHead Position -> Report Text
@@ -243,16 +243,18 @@ wildcardInRuleHeadToReport e@(WildcardInRuleHead srcLocRule _ _pos) =
       markers = [ (mainErrorPosition e, This "Wildcard found.")
                 , (srcLocRule, Where "Only constants and variables are allowed in the head of a rule.\nWildcards are not allowed.")
                 ]
-      hints = ["Replace the wildcard with a constant or a variable."]
+      hints = [Hint "Replace the wildcard with a constant or a variable."]
    in Err Nothing title markers hints
 
-wildcardInAssignmentToReport :: WildcardInAssignment Position -> Report Text
-wildcardInAssignmentToReport e@(WildcardInAssignment srcLocAssign _) =
-  let title = "Found wildcard in equality constraint"
+wildcardInConstraintToReport :: WildcardInConstraint Position -> Report Text
+wildcardInConstraintToReport e@(WildcardInConstraint srcLocAssign _) =
+  let title = "Found wildcard in constraint"
       markers = [ (mainErrorPosition e, This "Wildcard found.")
-                , (srcLocAssign, Where "Only constants and variables are allowed in an equality constraint.")
+                , (srcLocAssign, Where "Only constants and variables are allowed in a constraint.")
                 ]
-      hints = ["This statement can be removed since it has no effect."]
+      hints = [ Hint "This statement can be removed since it has no effect."
+              , Hint "Replace the wildcard with a variable."
+              ]
    in Err Nothing title markers hints
 
 
@@ -297,7 +299,7 @@ semanticErrorsToReportsWithLocations e@(SemanticErrors _ _ _ _ _ _ _) =
     variableInFactReports = getReportsWithLocationsFor variablesInFacts variableInFactToReport
     wildcardInFactReports = getReportsWithLocationsFor wildcardsInFacts wildcardInFactToReport
     wildcardInRuleHeadReports = getReportsWithLocationsFor wildcardsInRuleHeads wildcardInRuleHeadToReport
-    wildcardInAssignmentReports = getReportsWithLocationsFor wildcardsInAssignments wildcardInAssignmentToReport
+    wildcardInAssignmentReports = getReportsWithLocationsFor wildcardsInAssignments wildcardInConstraintToReport
     deadInternalRelationReports = getReportsWithLocationsFor deadInternalRelations deadInternalRelationToReport
     noOutputReports = getReportsWithLocationsFor noOutputRelations noOutputRelationsToReport
 
@@ -334,8 +336,8 @@ instance HasMainErrorPosition (NoOutputRelation Position) where
   mainErrorPosition (NoOutputRelation pos) = startOfFile $ file pos
 instance HasMainErrorPosition (DeadInternalRelation Position) where
   mainErrorPosition (DeadInternalRelation pos _) = pos
-instance HasMainErrorPosition (WildcardInAssignment Position) where
-  mainErrorPosition (WildcardInAssignment _ pos) = pos
+instance HasMainErrorPosition (WildcardInConstraint Position) where
+  mainErrorPosition (WildcardInConstraint _ pos) = pos
 instance HasMainErrorPosition (UngroundedVar Position) where
   mainErrorPosition (UngroundedVar _ varPos _) = varPos
 instance HasMainErrorPosition (VariableInFact Position) where

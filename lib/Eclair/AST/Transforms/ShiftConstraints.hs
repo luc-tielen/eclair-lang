@@ -1,4 +1,4 @@
-module Eclair.AST.Transforms.ShiftAssignments
+module Eclair.AST.Transforms.ShiftConstraints
   ( transform
   ) where
 
@@ -16,14 +16,14 @@ transform =
       RuleF nodeId name values clauses -> do
         values' <- sequence values
         clauses' <- sequence clauses
-        let (assignClauses, restClauses) = partition isAssignment clauses'
-            clauses'' = restClauses <> assignClauses
+        let (constraintClauses, restClauses) = partition isConstraint clauses'
+            clauses'' = restClauses <> constraintClauses
         pure $ Rule nodeId name values' clauses''
       astf ->
         embed <$> sequence astf
 
-    isAssignment :: AST -> Bool
-    isAssignment = \case
-      Assign {} -> True
+    isConstraint :: AST -> Bool
+    isConstraint = \case
+      Constraint {} -> True
       _ -> False
 

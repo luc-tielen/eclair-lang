@@ -3,7 +3,6 @@
 module Eclair.AST.Codegen
   ( CodegenM
   , runCodegen
-  , emit
   , Term(..)
   , toTerm
   , ConstraintExpr(..)
@@ -47,23 +46,64 @@ data Constraints
 type ExtraConstraints = [ConstraintExpr]
 
 newtype CodegenM a
-  = CodeGenM (RWS (Row, Constraints) [RA] ExtraConstraints a)
+  = CodeGenM (RWS (Row, Constraints) () ExtraConstraints a)
   deriving ( Functor, Applicative, Monad
            , MonadReader (Row, Constraints)
            , MonadState ExtraConstraints
-           , MonadWriter [RA]
            )
-  via (RWS (Row, Constraints) [RA] ExtraConstraints)
+  via (RWS (Row, Constraints) () ExtraConstraints)
 
-runCodegen :: CodegenM a -> [RA]
+runCodegen :: CodegenM a -> a
 runCodegen (CodeGenM m) =
   let cs = Constraints mempty mempty
-   in snd $ execRWS m (Row 0, cs) []
+   in fst $ evalRWS m (Row 0, cs) []
 
-emit :: CodegenM RA -> CodegenM ()
-emit m = do
-  ra <- m
-  tell [ra]
+project :: Relation -> [Term] -> CodegenM RA
+project r ts =
+  RA.Project r <$> traverse resolveTerm ts
+
+search :: Relation -> [Term] -> CodegenM RA -> CodegenM RA
+search r ts inner = do
+  row <- asks fst
+  clauses <- traverse (uncurry (resolveClause r)) $ zip [0..] ts
+  (action, extraClauses) <- local updateState $ do
+    action <- inner
+    (action,) <$> resolveExtraClauses
+  let allClauses = catMaybes clauses ++ extraClauses
+  pure $ RA.Search r (relationToAlias r row) allClauses action
+  where
+    updateState (row, cs) =
+      let alias = relationToAlias r row
+       in (incrRow row, addConstraints alias row (zip [0..] ts) cs)
+    incrRow = Row . (+1) . unRow
+
+loop :: [CodegenM RA] -> CodegenM RA
+loop ms = RA.Loop <$> sequence ms
+
+parallel :: [CodegenM RA] -> CodegenM RA
+parallel ms = RA.Par <$> sequence ms
+
+merge :: Relation -> Relation -> CodegenM RA
+merge from' to' = pure $ RA.Merge from' to'
+
+swap :: Relation -> Relation -> CodegenM RA
+swap r1 r2 = pure $ RA.Swap r1 r2
+
+purge :: Relation -> CodegenM RA
+purge r = pure $ RA.Purge r
+
+exit :: [Relation] -> CodegenM RA
+exit rs = pure $ RA.Exit rs
+
+noElemOf :: Relation -> [Term] -> CodegenM a -> CodegenM a
+noElemOf r ts m = do
+  modify (NotElem r ts:)
+  m
+
+if' :: AST.ConstraintOp -> Term -> Term -> CodegenM RA -> CodegenM RA
+if' op lhs rhs body = do
+  cond <- RA.CompareOp op <$> resolveTerm lhs <*> resolveTerm rhs
+  RA.If cond <$> body
 
 data Term = VarTerm Id | LitTerm Word32
   deriving (Eq)
@@ -85,74 +125,23 @@ toTerm = \case
 data ConstraintExpr
   = NotElem Id [Term]
 
-noElemOf :: Relation -> [Term] -> CodegenM a -> CodegenM a
-noElemOf r ts = constrain (NotElem r ts)
-
-if' :: Term -> Term -> CodegenM RA -> CodegenM RA
-if' lhsTerm rhsTerm body = do
-  lhs <- resolveTerm lhsTerm
-  rhs <- resolveTerm rhsTerm
-  RA.If lhs rhs <$> body
-
-constrain :: ConstraintExpr -> CodegenM a -> CodegenM a
-constrain c m = do
-  modify (c:)
-  m
-
 data Clause
   = AtomClause Id [Term]
   | ConstrainClause ConstraintExpr
-  | AssignClause Term Term
+  | BinOp AST.ConstraintOp Term Term
 
 toClause :: AST.AST -> Clause
 toClause = \case
   AST.Atom _ name values ->
     AtomClause name (map toTerm values)
-  AST.Assign _ lhs rhs ->
-    AssignClause (toTerm lhs) (toTerm rhs)
+  AST.Constraint _ op lhs rhs ->
+    BinOp op (toTerm lhs) (toTerm rhs)
   _ ->
     panic "toClause: unsupported case"
-
-project :: Relation -> [Term] -> CodegenM RA
-project r ts =
-  RA.Project r <$> traverse resolveTerm ts
-
-search :: Relation -> [Term] -> CodegenM RA -> CodegenM RA
-search r ts inner = do
-  row <- asks fst
-  clauses <- traverse (uncurry (resolveClause r)) $ zip [0..] ts
-  (action, extraClauses) <- local updateState $ do
-    action <- inner
-    (action,) <$> resolveExtraClauses
-  let allClauses = catMaybes clauses ++ extraClauses
-  pure $ RA.Search r (relationToAlias r row) allClauses action
-  where
-    updateState (row, cs) =
-      let alias = relationToAlias r row
-       in (incrRow row, addConstraints alias row (zip [0..] ts) cs)
-    incrRow = Row . (+1) . unRow
 
 relationToAlias :: Relation -> Row -> RA.Alias
 relationToAlias r row =
   appendToId r (show $ unRow row)
-
-loop :: [CodegenM RA] -> CodegenM RA
-loop ms = RA.Loop <$> sequence ms
-
-parallel :: [CodegenM RA] -> CodegenM RA
-parallel ms = RA.Par <$> sequence ms
-
-merge :: Relation -> Relation -> CodegenM RA
-merge from' to' = pure $ RA.Merge from' to'
-
-swap :: Relation -> Relation -> CodegenM RA
-swap r1 r2 = pure $ RA.Swap r1 r2
-
-purge :: Relation -> CodegenM RA
-purge r = pure $ RA.Purge r
-
-exit :: [Relation] -> CodegenM RA
-exit rs = pure $ RA.Exit rs
 
 addConstraints :: Relation -> Row -> [(Column, Term)] -> Constraints -> Constraints
 addConstraints r row ts cs = foldl' addConstraint cs ts
@@ -178,7 +167,7 @@ resolveClause r col t = do
   let alias = relationToAlias r row
       lhs = RA.ColumnIndex alias col
   case t of
-    LitTerm x -> pure $ Just $ RA.Constrain lhs (RA.Lit x)
+    LitTerm x -> pure $ Just $ RA.CompareOp RA.Equals lhs (RA.Lit x)
     VarTerm v -> asks (lookupVar v . snd) >>= \case
       Nothing -> pure Nothing
       Just cs -> do
@@ -186,22 +175,22 @@ resolveClause r col t = do
         case relevantCs of
           [] -> pure Nothing
           ((Constraint r' _ col' _):_) ->
-            pure $ Just $ RA.Constrain lhs (RA.ColumnIndex r' col')
+            pure $ Just $ RA.CompareOp RA.Equals lhs (RA.ColumnIndex r' col')
   where lookupVar v (Constraints _ cMap) = M.lookup v cMap
         descendingClauseRow (Constraint _ row _ _) = Down row
         differentRelation (Constraint r' _ _ _) = r /= r'
 
 resolveExtraClauses :: CodegenM [RA]
 resolveExtraClauses = do
-  -- TODO: make algorithm smarter to take vars in use into account?
   extraClauses <- get
   modify (const [])
   traverse toRA extraClauses
   where
-    toRA (NotElem r ts) = RA.NotElem r <$> traverse resolveTerm ts
+    toRA = \case
+      NotElem r ts ->
+        RA.NotElem r <$> traverse resolveTerm ts
 
 findBestMatchingConstraint :: Constraints -> Id -> Maybe Constraint
 findBestMatchingConstraint (Constraints _ cs) var =
   viaNonEmpty head . sortOn ascendingClauseRow =<< M.lookup var cs
   where ascendingClauseRow (Constraint _ row _ _) = row
-

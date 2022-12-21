@@ -5,6 +5,7 @@ module Eclair.EIR.IR
   , EIRF(..)
   , Relation
   , Op(..)
+  , ConstraintOp(..)
   , Type(..)
   , Function(..)
   , LabelId(..)
@@ -12,6 +13,7 @@ module Eclair.EIR.IR
   ) where
 
 import Eclair.Id
+import Eclair.Operator
 import Eclair.Literal
 import Eclair.Pretty
 import Eclair.RA.IndexSelection (Index)
@@ -59,6 +61,7 @@ data Op
   | SymbolTableInit
   | SymbolTableDestroy
   | SymbolTableInsert
+  | ComparisonOp ConstraintOp
   deriving (Eq, Show)
 
 data Visibility
@@ -84,7 +87,6 @@ data EIR
   | If EIR EIR
   | Not EIR
   | And EIR EIR
-  | Equals EIR EIR
   | Jump LabelId
   | Label LabelId
   | Return EIR
@@ -144,6 +146,9 @@ instance Pretty Op where
       "symbol_table.insert"
     RelationOp r _idx fn ->
       pretty r <> "." <> pretty fn
+    ComparisonOp op ->
+      -- Since `=` is already used for assignment in EIR, we use `==` for comparison.
+      if op == Equals then "==" else pretty op
 
 instance Pretty EIR where
   pretty = \case
@@ -170,6 +175,8 @@ instance Pretty EIR where
     Var v -> pretty v
     Assign var value ->
       pretty var <+> "=" <+> pretty value
+    PrimOp op@ComparisonOp {} [arg1, arg2] ->
+      pretty arg1 <+> pretty op <+> pretty arg2
     PrimOp op args ->
       pretty op <> parens (withCommas $ map pretty args)
     HeapAllocateProgram ->
@@ -191,8 +198,6 @@ instance Pretty EIR where
       "not" <+> pretty bool'
     And bool1 bool2 ->
       pretty bool1 <+> "&&" <+> pretty bool2
-    Equals lhs rhs ->
-      pretty lhs <+> "==" <+> pretty rhs
     Jump label ->
       "goto" <+> pretty label
     Label label ->

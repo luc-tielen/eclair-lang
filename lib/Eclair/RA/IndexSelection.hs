@@ -144,7 +144,7 @@ data NormalizedEquality
 
 extractEqualities :: RAF (RA, [NormalizedEquality]) -> [NormalizedEquality]
 extractEqualities = \case
-  ConstrainF (lhs, _) (rhs, _) -> do
+  CompareOpF Equals (lhs, _) (rhs, _) -> do
     case (lhs, rhs) of
       (ColumnIndex lA lCol, ColumnIndex rA rCol) ->
         [ Equality lA lCol (AliasVal rA rCol)

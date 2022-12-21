@@ -10,7 +10,7 @@ import qualified Eclair.AST.Transforms.CopyPropagation as CopyPropagation
 import qualified Eclair.AST.Transforms.DeadCodeElimination as DCE
 import qualified Eclair.AST.Transforms.RemoveWildcards as RmWildcards
 import qualified Eclair.AST.Transforms.ReplaceStrings as ReplaceStrings
-import qualified Eclair.AST.Transforms.ShiftAssignments as ShiftAssigns
+import qualified Eclair.AST.Transforms.ShiftConstraints as ShiftConstraints
 import qualified Eclair.AST.Transforms.UniqueVars as UniqueVars
 
 
@@ -31,5 +31,5 @@ simplify nodeId analysis = runTransform nodeId
 
   -- Transforms after optimizations:
   >>> UniqueVars.transform
-  >>> ShiftAssigns.transform
+  >>> ShiftConstraints.transform
   >>> ReplaceStrings.transform

@@ -7,6 +7,7 @@ module Eclair.EIR.Lower
 
 import Prelude hiding (void)
 import qualified Prelude
+import qualified Relude (swap)
 import Control.Monad.Morph hiding (embed)
 import Data.Traversable (for)
 import qualified Data.ByteString as BS
@@ -124,12 +125,8 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
         b1 <- bool1
         b2 <- bool2
         and b1 b2
-      EIR.EqualsF (a, lhs) (b, rhs) -> do
-        valueA <- loadIfNeeded lhs a
-        valueB <- loadIfNeeded rhs b
-        valueA `eq` valueB
-      EIR.PrimOpF op (map snd -> args') ->
-        doPrimOp op args'
+      EIR.PrimOpF op args' ->
+        invokePrimOp op args'
       EIR.HeapAllocateProgramF -> do
         (malloc, (programTy, programSize)) <- gets (extMalloc . externals &&& programType &&& programSizeBytes)
         let memorySize = int32 $ fromIntegral programSize
@@ -185,8 +182,8 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
         program <- programVar
         memory <- program `bitcast` ptr i8 `named` "memory"
         Prelude.void $ call freeFn [memory]
-      EIR.PrimOpF op (map toOperand -> args') ->
-        Prelude.void $ doPrimOp op args'
+      EIR.PrimOpF op (map (Relude.swap . toOperandWithContext) -> args') ->
+        Prelude.void $ invokePrimOp op args'
       EIR.LoopF stmts ->
         loop $ traverse_ toInstrs stmts
       EIR.IfF (toOperand -> cond) (toInstrs -> body) -> do
@@ -205,14 +202,19 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
     toOperandWithContext (Triple eir operand _) =
       (operand, eir)
     toInstrs (Triple _ _ instrs) = instrs
-    doPrimOp :: Monad m => EIR.Op -> [CodegenT m Operand] -> CodegenT m Operand
-    doPrimOp op args' = do
-      argOperands <- sequence args'
-      fn <- lookupPrimOp op
-      call fn argOperands
+    invokePrimOp :: Monad m => EIR.Op -> [(EIR, CodegenT m Operand)] -> CodegenT m Operand
+    invokePrimOp op args' = do
+      lookupPrimOp op >>= \case
+        Left fn ->
+          call fn =<< traverse snd args'
+        Right compareInstr -> case args' of
+          [(a, lhs), (b, rhs)] -> do
+            valueA <- loadIfNeeded lhs a
+            valueB <- loadIfNeeded rhs b
+            compareInstr valueA valueB
+          _ ->
+            panic "Unexpected amount of arguments in 'invokePrimOp'!"
 
--- Here be recursion-schemes dragons...
---
 -- lowerM is a recursion-scheme that behaves like a zygomorphism, but it is
 -- enhanced in the sense that both functions passed to the zygomorphism have
 -- access to the original subtree.

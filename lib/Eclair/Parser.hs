@@ -225,22 +225,22 @@ comma = lexeme $ P.char ','
 
 ruleClauseParser :: Parser AST
 ruleClauseParser = do
-  atomParser <|> assignParser
+  atomParser <|> constraintParser
 
 atomParser :: Parser AST
 atomParser = do
-  P.notFollowedBy $ lexeme identifier *> P.char '='
+  P.notFollowedBy $ lexeme identifier *> constraintOpParser
   withNodeId $ \nodeId -> do
     name <- lexeme identifier
     args <- lexeme $ betweenParens $ valueParser `P.sepBy1` comma
     pure $ Atom nodeId name args
 
-assignParser :: Parser AST
-assignParser = withNodeId $ \nodeId -> do
+constraintParser :: Parser AST
+constraintParser = withNodeId $ \nodeId -> do
   lhs <- lexeme valueParser
-  _ <- lexeme $ P.char '='
+  op <- constraintOpParser
   rhs <- lexeme valueParser
-  pure $ Assign nodeId lhs rhs
+  pure $ Constraint nodeId op lhs rhs
 
 valueParser :: Parser AST
 valueParser = lexeme $ withNodeId $ \nodeId ->
@@ -248,6 +248,15 @@ valueParser = lexeme $ withNodeId $ \nodeId ->
   Var nodeId <$> (identifier <|> wildcard) <|>
   Lit nodeId <$> literal
 
+constraintOpParser :: Parser ConstraintOp
+constraintOpParser = P.label "equality or comparison operator" $ lexeme $ do
+  toOp Equals (P.char '=') <|>
+    toOp LessOrEqual (P.string "<=") <|>
+    toOp LessThan (P.char '<') <|>
+    toOp GreaterOrEqual (P.string ">=") <|>
+    toOp GreaterThan (P.char '>') <|>
+    toOp NotEquals (P.string "!=")
+  where toOp op p = op <$ lexeme p
 
 -- Not sure if we want to support something like _abc?
 wildcard :: Parser Id

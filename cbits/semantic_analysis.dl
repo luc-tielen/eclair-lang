@@ -2,7 +2,7 @@
 .decl lit_number(node_id: unsigned, value: unsigned)
 .decl lit_string(node_id: unsigned, value: symbol)
 .decl variable(node_id: unsigned, var_name: symbol)
-.decl assign(node_id: unsigned, lhs_node_id: unsigned, rhs_node_id: unsigned)
+.decl constraint(node_id: unsigned, op: symbol, lhs_node_id: unsigned, rhs_node_id: unsigned)
 .decl atom(node_id: unsigned, name: symbol)
 .decl atom_arg(atom_id: unsigned, atom_arg_pos: unsigned, atom_arg_id: unsigned)
 .decl rule(rule_id: unsigned, name: symbol)
@@ -17,11 +17,13 @@
 .decl rule_variable(rule_id: unsigned, variable_id: unsigned)
 
 // Internal rules
+.decl assign(node_id: unsigned, lhs_node_id: unsigned, rhs_node_id: unsigned) inline
+.decl inequality_op(op: symbol)
 .decl has_output_relation(node_id: unsigned)
 .decl literal_contradiction(lit_id1: unsigned, lit_id2: unsigned)
 .decl wildcard(node_id: unsigned) inline
 .decl rule_head_var(rule_id: unsigned, var_id: unsigned, var_name: symbol)
-.decl rule_clause_var(rule_id: unsigned, var_id: unsigned, var_name: symbol)
+.decl grounded_var(rule_id: unsigned, var_name: symbol)
 .decl alias(rule_id: unsigned, id1: unsigned, id2: unsigned)
 .decl points_to(rule_id: unsigned, id1: unsigned, id2: unsigned)
 .decl depends_on(r1: symbol, r2: symbol)
@@ -36,7 +38,7 @@
 .decl ungrounded_variable(rule_id: unsigned, var_id: unsigned, var_name: symbol)
 .decl wildcard_in_fact(fact_node_id: unsigned,  fact_arg_id: unsigned, pos: unsigned)
 .decl wildcard_in_rule_head(rule_node_id: unsigned, rule_arg_id: unsigned, pos: unsigned)
-.decl wildcard_in_assignment(assign_node_id: unsigned, wildcard_node_id: unsigned)
+.decl wildcard_in_constraint(constraint_node_id: unsigned, wildcard_node_id: unsigned)
 .decl rule_with_contradiction(rule_id: unsigned)
 .decl dead_code(node_id: unsigned)
 .decl no_output_relation(node_id: unsigned)
@@ -45,7 +47,7 @@
 .input lit_number
 .input lit_string
 .input variable
-.input assign
+.input constraint
 .input atom
 .input atom_arg
 .input rule
@@ -64,7 +66,7 @@
 .output wildcard_in_fact
 .output ungrounded_variable
 .output wildcard_in_rule_head
-.output wildcard_in_assignment
+.output wildcard_in_constraint
 .output dead_code
 .output no_output_relation
 .output dead_internal_relation
@@ -161,11 +163,34 @@ variable_in_fact(atom_arg_id, var_name) :-
   variable(atom_arg_id, var_name),
   var_name != "_".
 
-// Rules: no variables allowed in rule head if not used in rule body
+// Rules: no variables allowed in rule head if not used in a rule clause
 ungrounded_variable(rule_id, var_id, var_name) :-
   rule_head_var(rule_id, var_id, var_name),
   var_name != "_",
-  !rule_clause_var(rule_id, _, var_name).  // Only compare by variable name!
+  !grounded_var(rule_id, var_name).  // Only compare by variable name!
+
+// Variables used in a constraint (comparison or inequality) need to be grounded.
+ungrounded_variable(rule_id, var_id, var_name) :-
+  rule_clause(rule_id, _, rule_clause_id),
+  constraint(rule_clause_id, op, var_id, _),
+  inequality_op(op),
+  variable(var_id, var_name),
+  var_name != "_",
+  !grounded_var(rule_id, var_name).
+
+ungrounded_variable(rule_id, var_id, var_name) :-
+  rule_clause(rule_id, _, rule_clause_id),
+  constraint(rule_clause_id, op, _, var_id),
+  inequality_op(op),
+  variable(var_id, var_name),
+  var_name != "_",
+  !grounded_var(rule_id, var_name).
+
+inequality_op("!=").
+inequality_op("<").
+inequality_op("<=").
+inequality_op(">").
+inequality_op(">=").
 
 wildcard(node_id) :-
   variable(node_id, "_").
@@ -179,13 +204,16 @@ wildcard_in_fact(atom_id, atom_arg_id, pos) :-
   atom_arg(atom_id, pos, atom_arg_id),
   wildcard(atom_arg_id).
 
-wildcard_in_assignment(assign_node_id, lhs_node_id) :-
-  assign(assign_node_id, lhs_node_id, _),
+wildcard_in_constraint(constraint_node_id, lhs_node_id) :-
+  constraint(constraint_node_id, _, lhs_node_id, _),
   wildcard(lhs_node_id).
 
-wildcard_in_assignment(assign_node_id, rhs_node_id) :-
-  assign(assign_node_id, _, rhs_node_id),
+wildcard_in_constraint(constraint_node_id, rhs_node_id) :-
+  constraint(constraint_node_id, _, _, rhs_node_id),
   wildcard(rhs_node_id).
+
+assign(node_id, lhs_node_id, rhs_node_id) :-
+  constraint(node_id, "=", lhs_node_id, rhs_node_id).
 
 // All variables with the same name in a rule are aliases of each other.
 alias(rule_id, var_id1, var_id2) :-
@@ -248,7 +276,22 @@ rule_head_var(rule_id, var_id, var_name) :-
   variable(var_id, var_name).
 
 // Helper relation for getting all grounded variables in body of a rule.
-rule_clause_var(rule_id, var_id, var_name) :-
+grounded_var(rule_id, var_name) :-
   rule_clause(rule_id, _, rule_clause_id),
   atom_arg(rule_clause_id, _, var_id),
   variable(var_id, var_name).
+
+// Assignment grounds one var, if the other is already grounded.
+grounded_var(rule_id, rhs_var_name) :-
+  rule_clause(rule_id, _, rule_clause_id),
+  assign(rule_clause_id, lhs_node_id, rhs_node_id),
+  variable(lhs_node_id, lhs_var_name),
+  variable(rhs_node_id, rhs_var_name),
+  grounded_var(rule_id, lhs_var_name).
+
+grounded_var(rule_id, rhs_var_name) :-
+  rule_clause(rule_id, _, rule_clause_id),
+  assign(rule_clause_id, lhs_node_id, rhs_node_id),
+  variable(lhs_node_id, lhs_var_name),
+  variable(rhs_node_id, rhs_var_name),
+  grounded_var(rule_id, rhs_var_name).

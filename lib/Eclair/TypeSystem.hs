@@ -146,12 +146,18 @@ checkDecl ast = case ast of
     traverse_ checkDecl clauses
     processUnresolvedHoles
 
-  Assign nodeId lhs rhs -> addCtx $ do
-    lhsTy <- inferExpr lhs
-    rhsTy <- inferExpr rhs
-    -- NOTE: Because inferred types of vars can contain unification variables,
-    -- we need to try and unify them.
-    unifyType nodeId lhsTy rhsTy
+  Constraint nodeId op lhs rhs -> addCtx $ do
+    if isEqualityOp op
+      then do
+        lhsTy <- inferExpr lhs
+        rhsTy <- inferExpr rhs
+        -- NOTE: Because inferred types of vars can contain unification variables,
+        -- we need to try and unify them.
+        unifyType nodeId lhsTy rhsTy
+      else do
+        -- Comparison => both sides need to be numbers
+        checkExpr lhs U32
+        checkExpr rhs U32
   _ ->
     panic "Unexpected case in 'checkDecl'"
   where

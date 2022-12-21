@@ -8,6 +8,8 @@ module Eclair.AST.IR
   , Decl
   , Literal(..)
   , Type(..)
+  , ConstraintOp(..)
+  , isEqualityOp
   , NodeId(..)
   , getNodeId
   , UsageMode(..)
@@ -16,6 +18,7 @@ module Eclair.AST.IR
 
 import Prettyprinter
 import Eclair.Id
+import Eclair.Operator
 import Eclair.Literal
 import Eclair.Pretty
 import qualified Language.Souffle.Marshal as S
@@ -50,7 +53,7 @@ data AST
   = Lit NodeId Literal
   | Var NodeId Id
   | Hole NodeId
-  | Assign NodeId AST AST
+  | Constraint NodeId ConstraintOp AST AST
   | Atom NodeId Id [Value]
   | Rule NodeId Id [Value] [Clause]
   | DeclareType NodeId Id [Type] Attributes
@@ -73,7 +76,7 @@ getNodeId = \case
   DeclareType nodeId _ _ _ -> nodeId
   Rule nodeId _ _ _ -> nodeId
   Atom nodeId _ _ -> nodeId
-  Assign nodeId _ _ -> nodeId
+  Constraint nodeId _ _ _ -> nodeId
   Lit nodeId _ -> nodeId
   Var nodeId _ -> nodeId
   Hole nodeId -> nodeId
@@ -96,8 +99,8 @@ instance Pretty AST where
           pure $ pretty v
         Hole _ ->
           pure "?"
-        Assign _ lhs rhs ->
-          pure $ pretty lhs <+> "=" <+> pretty rhs
+        Constraint _ op lhs rhs ->
+          pure $ pretty lhs <+> pretty op <+> pretty rhs
         Atom _ name values -> do
           end <- ask <&> \case
             TopLevel -> "."

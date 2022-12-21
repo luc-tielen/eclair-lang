@@ -40,7 +40,7 @@ library
       Eclair.AST.Transforms.DeadCodeElimination
       Eclair.AST.Transforms.RemoveWildcards
       Eclair.AST.Transforms.ReplaceStrings
-      Eclair.AST.Transforms.ShiftAssignments
+      Eclair.AST.Transforms.ShiftConstraints
       Eclair.AST.Transforms.UniqueVars
       Eclair.Comonads
       Eclair.EIR.Codegen
@@ -61,6 +61,7 @@ library
       Eclair.LLVM.Table
       Eclair.LLVM.Template
       Eclair.LLVM.Vector
+      Eclair.Operator
       Eclair.Parser
       Eclair.Pretty
       Eclair.RA.Codegen
