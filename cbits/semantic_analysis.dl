@@ -18,11 +18,12 @@
 
 // Internal rules
 .decl assign(node_id: unsigned, lhs_node_id: unsigned, rhs_node_id: unsigned) inline
+.decl inequality_op(op: symbol)
 .decl has_output_relation(node_id: unsigned)
 .decl literal_contradiction(lit_id1: unsigned, lit_id2: unsigned)
 .decl wildcard(node_id: unsigned) inline
 .decl rule_head_var(rule_id: unsigned, var_id: unsigned, var_name: symbol)
-.decl rule_clause_var(rule_id: unsigned, var_id: unsigned, var_name: symbol)
+.decl rule_clause_var(rule_id: unsigned, var_name: symbol)
 .decl alias(rule_id: unsigned, id1: unsigned, id2: unsigned)
 .decl points_to(rule_id: unsigned, id1: unsigned, id2: unsigned)
 .decl depends_on(r1: symbol, r2: symbol)
@@ -162,11 +163,32 @@ variable_in_fact(atom_arg_id, var_name) :-
   variable(atom_arg_id, var_name),
   var_name != "_".
 
-// Rules: no variables allowed in rule head if not used in rule body
+// Rules: no variables allowed in rule head if not used in a rule clause
 ungrounded_variable(rule_id, var_id, var_name) :-
   rule_head_var(rule_id, var_id, var_name),
   var_name != "_",
-  !rule_clause_var(rule_id, _, var_name).  // Only compare by variable name!
+  !rule_clause_var(rule_id, var_name).  // Only compare by variable name!
+
+// Variables used in a constraint (comparison or inequality) need to be grounded.
+ungrounded_variable(rule_id, var_id, var_name) :-
+  rule_clause(rule_id, _, rule_clause_id),
+  constraint(rule_clause_id, op, var_id, _),
+  inequality_op(op),
+  variable(var_id, var_name),
+  !rule_clause_var(rule_id, var_name).
+
+ungrounded_variable(rule_id, var_id, var_name) :-
+  rule_clause(rule_id, _, rule_clause_id),
+  constraint(rule_clause_id, op, _, var_id),
+  inequality_op(op),
+  variable(var_id, var_name),
+  !rule_clause_var(rule_id, var_name).
+
+inequality_op("!=").
+inequality_op("<").
+inequality_op("<=").
+inequality_op(">").
+inequality_op(">=").
 
 wildcard(node_id) :-
   variable(node_id, "_").
@@ -252,7 +274,7 @@ rule_head_var(rule_id, var_id, var_name) :-
   variable(var_id, var_name).
 
 // Helper relation for getting all grounded variables in body of a rule.
-rule_clause_var(rule_id, var_id, var_name) :-
+rule_clause_var(rule_id, var_name) :-
   rule_clause(rule_id, _, rule_clause_id),
   atom_arg(rule_clause_id, _, var_id),
   variable(var_id, var_name).

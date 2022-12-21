@@ -207,11 +207,11 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
       lookupPrimOp op >>= \case
         Left fn ->
           call fn =<< traverse snd args'
-        Right instr -> case args' of
+        Right compareInstr -> case args' of
           [(a, lhs), (b, rhs)] -> do
             valueA <- loadIfNeeded lhs a
             valueB <- loadIfNeeded rhs b
-            instr valueA valueB
+            compareInstr valueA valueB
           _ ->
             panic "Unexpected amount of arguments in 'invokePrimOp'!"
 

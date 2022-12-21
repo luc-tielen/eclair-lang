@@ -147,7 +147,7 @@ instance Pretty Op where
     RelationOp r _idx fn ->
       pretty r <> "." <> pretty fn
     ComparisonOp op ->
-      -- Since `=` is already used for assignment here, we use `==` for comparison.
+      -- Since `=` is already used for assignment in EIR, we use `==` for comparison.
       if op == Equals then "==" else pretty op
 
 instance Pretty EIR where
