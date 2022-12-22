@@ -17,10 +17,10 @@ module Eclair.AST.IR
   ) where
 
 import Prettyprinter
-import Eclair.Id
-import Eclair.Operator
-import Eclair.Literal
-import Eclair.Pretty
+import Eclair.Common.Id
+import Eclair.Common.Operator
+import Eclair.Common.Literal
+import Eclair.Common.Pretty
 import qualified Language.Souffle.Marshal as S
 
 newtype NodeId

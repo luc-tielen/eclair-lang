@@ -5,7 +5,7 @@ module Eclair.AST.Transforms.ReplaceStrings
 
 import qualified Data.Map as Map
 import Eclair.AST.IR
-import Eclair.Id
+import Eclair.Common.Id
 import Eclair.Transform
 
 

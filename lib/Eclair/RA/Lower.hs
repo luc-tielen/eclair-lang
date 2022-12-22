@@ -8,8 +8,8 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import Eclair.Id
-import Eclair.Literal
+import Eclair.Common.Id
+import Eclair.Common.Literal
 import Eclair.Comonads hiding (Quad)
 import Eclair.TypeSystem
 import Eclair.AST.Transforms.ReplaceStrings (StringMap)

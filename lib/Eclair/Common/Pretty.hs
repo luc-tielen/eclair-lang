@@ -1,5 +1,5 @@
-module Eclair.Pretty
-  ( module Eclair.Pretty
+module Eclair.Common.Pretty
+  ( module Eclair.Common.Pretty
   , module Prettyprinter
   , module Prettyprinter.Render.Text
   ) where

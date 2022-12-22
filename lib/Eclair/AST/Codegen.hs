@@ -24,7 +24,7 @@ import Data.Maybe (fromJust)
 import qualified Data.Map as M
 import qualified Eclair.RA.IR as RA
 import qualified Eclair.AST.IR as AST
-import Eclair.Id
+import Eclair.Common.Id
 
 
 type Relation = RA.Relation

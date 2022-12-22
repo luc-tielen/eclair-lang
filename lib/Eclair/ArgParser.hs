@@ -7,35 +7,9 @@ module Eclair.ArgParser
   , Target(..)
   ) where
 
+import Eclair.Common.Config
 import Options.Applicative
 import qualified Data.List.Extra as L
-
-
-data EmitKind
-  = EmitSimplifiedAST
-  | EmitRA
-  | EmitEIR
-  | EmitLLVM
-  -- TODO: object file, WASM, ...
-  deriving (Eq, Show)
-
--- TODO: optimization levels (-Ox), include dirs (-I), logging level (-q, -v), timing, ...
-data CompileConfig
-  = CompileConfig
-  { mainFile :: FilePath
-  , emitKind :: EmitKind
-  , cpuTarget :: Maybe Target  -- Nothing = compile to host architecture
-  } deriving (Eq, Show)
-
-data Target
-  = Wasm32
-  deriving (Eq, Show)
-
-data Config
-  = Compile CompileConfig
-  | LSP
-  deriving (Eq, Show)
-
 
 parseArgs :: [String] -> IO Config
 parseArgs = handleParseResult . execParserPure parserPrefs parserInfo

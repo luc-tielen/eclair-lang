@@ -10,7 +10,7 @@ import LLVM.Codegen
 import Control.Monad.Morph
 import Foreign.ForeignPtr
 import Foreign.Ptr
-import Eclair.ArgParser (Target)
+import Eclair.Common.Config (Target)
 
 -- This is a helper module for carrying around specific information
 -- when compiling to a specific LLVM platform.

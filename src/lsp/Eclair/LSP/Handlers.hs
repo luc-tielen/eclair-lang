@@ -24,8 +24,8 @@ import qualified Language.LSP.Server as LSP
 import qualified Language.LSP.Types as LSP.Types
 import Eclair
 import Eclair.Error
-import Eclair.Pretty
 import Eclair.Parser
+import Eclair.Common.Pretty
 import Eclair.TypeSystem (resolvedTypes)
 import Eclair.LSP.Monad
 import Eclair.LSP.Diagnostics

@@ -1,9 +1,9 @@
-module Eclair.Operator
+module Eclair.Common.Operator
   ( ConstraintOp(..)
   , isEqualityOp
   ) where
 
-import Eclair.Pretty
+import Eclair.Common.Pretty
 
 data ConstraintOp
   = Equals          -- =

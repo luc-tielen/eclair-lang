@@ -5,7 +5,7 @@ module Eclair.AST.Transforms.UniqueVars
 import qualified Data.Map as Map
 import Eclair.Transform
 import Eclair.AST.IR
-import Eclair.Id
+import Eclair.Common.Id
 
 
 transform :: Transform AST AST

@@ -17,7 +17,7 @@ import Data.List (partition)
 import Eclair.AST.Analysis
 import Eclair.TypeSystem
 import Eclair.Parser
-import Eclair.Id
+import Eclair.Common.Id
 import Prettyprinter
 import Prettyprinter.Render.Terminal
 import Error.Diagnose hiding (stderr)

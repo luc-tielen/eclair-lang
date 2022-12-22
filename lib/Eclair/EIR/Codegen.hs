@@ -25,7 +25,7 @@ import qualified Eclair.LLVM.Symbol as Symbol
 import qualified Eclair.LLVM.SymbolTable as SymbolTable
 import qualified Eclair.EIR.IR as EIR
 import Eclair.RA.IndexSelection
-import Eclair.Id
+import Eclair.Common.Id
 
 
 type Relation = EIR.Relation
