@@ -52,8 +52,8 @@ import qualified Data.Map as M
 import qualified Data.Set as S
 import Eclair.RA.IndexSelection
 import Eclair.TypeSystem
-import Eclair.Id
-import Eclair.Literal
+import Eclair.Common.Id
+import Eclair.Common.Literal
 import qualified Eclair.EIR.IR as EIR
 import qualified Eclair.RA.IR as RA
 import qualified Eclair.LLVM.Metadata as M

@@ -4,7 +4,7 @@ import qualified Data.Graph as G
 import qualified Data.Map as M
 import Eclair.AST.Codegen
 import Eclair.AST.IR hiding (Clause)
-import Eclair.Id
+import Eclair.Common.Id
 import qualified Eclair.RA.IR as RA
 
 type RA = RA.RA

@@ -24,7 +24,7 @@ import qualified Language.Souffle.Interpreted as S
 import qualified Language.Souffle.Analysis as S
 import qualified Eclair.AST.IR as IR
 import qualified Data.Map as Map
-import Eclair.Id
+import Eclair.Common.Id
 
 
 type NodeId = IR.NodeId

@@ -12,10 +12,10 @@ module Eclair.EIR.IR
   , Visibility(..)
   ) where
 
-import Eclair.Id
-import Eclair.Operator
-import Eclair.Literal
-import Eclair.Pretty
+import Eclair.Common.Id
+import Eclair.Common.Operator
+import Eclair.Common.Literal
+import Eclair.Common.Pretty
 import Eclair.RA.IndexSelection (Index)
 import Eclair.LLVM.Metadata
 

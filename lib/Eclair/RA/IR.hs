@@ -11,9 +11,9 @@ module Eclair.RA.IR
   , ConstraintOp(..)
   ) where
 
-import Eclair.Id
-import Eclair.Pretty
-import Eclair.Operator
+import Eclair.Common.Id
+import Eclair.Common.Pretty
+import Eclair.Common.Operator
 
 
 type Relation = Id

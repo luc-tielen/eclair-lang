@@ -1,4 +1,4 @@
-module Eclair.Literal
+module Eclair.Common.Literal
   ( Literal(..)
   ) where
 import Prettyprinter (Pretty (pretty))

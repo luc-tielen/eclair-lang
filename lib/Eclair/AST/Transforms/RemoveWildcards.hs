@@ -2,7 +2,7 @@ module Eclair.AST.Transforms.RemoveWildcards
   ( transform
   ) where
 
-import Eclair.Id
+import Eclair.Common.Id
 import Eclair.AST.IR
 import Eclair.Transform
 

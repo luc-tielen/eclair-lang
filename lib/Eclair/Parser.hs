@@ -17,7 +17,7 @@ module Eclair.Parser
 import Data.Maybe (fromJust)
 import Data.Char
 import Eclair.AST.IR
-import Eclair.Id
+import Eclair.Common.Id
 import qualified Data.Text as T
 import qualified Data.Vector as V
 import qualified Data.Map as M

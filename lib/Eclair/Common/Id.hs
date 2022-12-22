@@ -1,4 +1,4 @@
-module Eclair.Id
+module Eclair.Common.Id
   ( Id(..)
   , prependToId
   , appendToId

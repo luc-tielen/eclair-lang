@@ -29,11 +29,11 @@ import qualified LLVM.C.API as LibLLVM
 import Eclair.LLVM.Metadata
 import Eclair.LLVM.Hash
 import Eclair.RA.IndexSelection
-import Eclair.ArgParser
+import Eclair.Common.Config
 import Eclair.Comonads
 import Eclair.AST.IR
 import Eclair.AST.Transforms.ReplaceStrings (StringMap)
-import Eclair.Id
+import Eclair.Common.Id
 
 
 type EIR = EIR.EIR

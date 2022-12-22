@@ -8,7 +8,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Test.Hspec
 import System.FilePath
-import Eclair.Id
+import Eclair.Common.Id
 import Eclair.Parser
 import Eclair.AST.Lower
 import Eclair.RA.IndexSelection

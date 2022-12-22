@@ -42,13 +42,16 @@ library
       Eclair.AST.Transforms.ReplaceStrings
       Eclair.AST.Transforms.ShiftConstraints
       Eclair.AST.Transforms.UniqueVars
+      Eclair.Common.Config
+      Eclair.Common.Id
+      Eclair.Common.Literal
+      Eclair.Common.Operator
+      Eclair.Common.Pretty
       Eclair.Comonads
       Eclair.EIR.Codegen
       Eclair.EIR.IR
       Eclair.EIR.Lower
       Eclair.Error
-      Eclair.Id
-      Eclair.Literal
       Eclair.LLVM.BTree
       Eclair.LLVM.Codegen
       Eclair.LLVM.Config
@@ -61,9 +64,7 @@ library
       Eclair.LLVM.Table
       Eclair.LLVM.Template
       Eclair.LLVM.Vector
-      Eclair.Operator
       Eclair.Parser
-      Eclair.Pretty
       Eclair.RA.Codegen
       Eclair.RA.IndexSelection
       Eclair.RA.IR

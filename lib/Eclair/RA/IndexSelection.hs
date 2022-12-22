@@ -16,9 +16,9 @@ module Eclair.RA.IndexSelection
 -- http://www.vldb.org/pvldb/vol12/p141-subotic.pdf
 
 import Data.Maybe (fromJust)
-import Eclair.Id
+import Eclair.Common.Id
+import Eclair.Common.Pretty
 import Eclair.RA.IR
-import Eclair.Pretty
 import Eclair.Comonads
 import Eclair.TypeSystem (TypedefInfo)
 import Algebra.Graph.Bipartite.AdjacencyMap

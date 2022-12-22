@@ -19,10 +19,10 @@ import Eclair.AST.Lower
 import Eclair.RA.Lower
 import Eclair.EIR.Lower
 import Eclair.Parser
-import Eclair.Pretty
+import Eclair.Common.Pretty
 import Eclair.Error
-import Eclair.Id
-import Eclair.ArgParser (Target(..))
+import Eclair.Common.Id
+import Eclair.Common.Config (Target(..))
 import Eclair.AST.IR
 import Eclair.AST.Transforms
 import qualified Eclair.RA.IR as RA
