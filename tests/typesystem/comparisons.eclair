@@ -1,0 +1,144 @@
+// NOTE: happy path already tested in lowering tests.
+
+// RUN: mkdir -p %t && sed s@TEST_DIR@%t@g %s > %t/input.test
+// RUN: split-file %t/input.test %t
+
+// RUN: %eclair compile %t/program.eclair 2> %t/actual.out
+// RUN: diff -w %t/expected.out %t/actual.out
+
+//--- program.eclair
+@def fact1(u32, u32) input.
+@def fact2(u32).
+
+fact2(x) :-
+  fact1(x, _),
+  x != "abc",
+  "abc" != x.
+
+fact2(x) :-
+  fact1(x, _),
+  x < "abc",
+  "abc" < x.
+
+fact2(x) :-
+  fact1(x, _),
+  x <= "abc",
+  x >= "abc",
+  x > "abc".
+
+//--- expected.out
+[error]: No output relations found
+     ╭──▶ TEST_DIR/program.eclair@1:1-1:2
+     │
+   1 │ @def fact1(u32, u32) input.
+     • ┬
+     • ╰╸ This module does not produce any results
+     •
+     │ Hint: Add an 'output' qualifier to one of the relations defined in this module.
+─────╯
+
+[error]: Type unification failure
+     ╭──▶ TEST_DIR/program.eclair@6:3-6:13
+     │
+   4 │ ╭┤ fact2(x) :-
+   5 │ │    fact1(x, _),
+   6 │ │    x != "abc",
+     • │    ┬─────────
+     • │    ├╸ 2) While checking the type of this..
+     • │    ╰╸ 3) While unifying these types..
+   7 │ ├┤   "abc" != x.
+     • │
+     • ╰╸ 1) While checking the type of this..
+─────╯
+
+[error]: Type unification failure
+     ╭──▶ TEST_DIR/program.eclair@7:3-7:13
+     │
+   4 │ ╭┤ fact2(x) :-
+   5 │ │    fact1(x, _),
+   6 │ │    x != "abc",
+   7 │ ├┤   "abc" != x.
+     • │    ┬─────────
+     • │    ├╸ 2) While checking the type of this..
+     • │    ╰╸ 3) While unifying these types..
+     • │
+     • ╰╸ 1) While checking the type of this..
+─────╯
+
+[error]: Type mismatch
+     ╭──▶ TEST_DIR/program.eclair@11:7-11:12
+     │
+   9 │ ╭┤ fact2(x) :-
+  10 │ │    fact1(x, _),
+  11 │ │    x < "abc",
+     • │    ┬────────
+     • │    ╰────╸ 2) While checking the type of this..
+     • │        ├╸ 3) While checking the type of this..
+     • │        ╰╸ 4) Expected this to be of type 'u32', but it actually has type 'string'.
+  12 │ ├┤   "abc" < x.
+     • │
+     • ╰╸ 1) While checking the type of this..
+─────╯
+
+[error]: Type mismatch
+     ╭──▶ TEST_DIR/program.eclair@12:3-12:8
+     │
+   9 │ ╭┤ fact2(x) :-
+  10 │ │    fact1(x, _),
+  11 │ │    x < "abc",
+  12 │ ├┤   "abc" < x.
+     • │    ┬────────
+     • │    ├╸ 2) While checking the type of this..
+     • │    ├╸ 3) While checking the type of this..
+     • │    ╰╸ 4) Expected this to be of type 'u32', but it actually has type 'string'.
+     • │
+     • ╰╸ 1) While checking the type of this..
+─────╯
+
+[error]: Type mismatch
+     ╭──▶ TEST_DIR/program.eclair@16:8-16:13
+     │
+  14 │ ╭┤ fact2(x) :-
+  15 │ │    fact1(x, _),
+  16 │ │    x <= "abc",
+     • │    ┬─────────
+     • │    ╰─────╸ 2) While checking the type of this..
+     • │         ├╸ 3) While checking the type of this..
+     • │         ╰╸ 4) Expected this to be of type 'u32', but it actually has type 'string'.
+  17 │ │    x >= "abc",
+  18 │ ├┤   x > "abc".
+     • │
+     • ╰╸ 1) While checking the type of this..
+─────╯
+
+[error]: Type mismatch
+     ╭──▶ TEST_DIR/program.eclair@17:8-17:13
+     │
+  14 │ ╭┤ fact2(x) :-
+  15 │ │    fact1(x, _),
+  16 │ │    x <= "abc",
+  17 │ │    x >= "abc",
+     • │    ┬─────────
+     • │    ╰─────╸ 2) While checking the type of this..
+     • │         ├╸ 3) While checking the type of this..
+     • │         ╰╸ 4) Expected this to be of type 'u32', but it actually has type 'string'.
+  18 │ ├┤   x > "abc".
+     • │
+     • ╰╸ 1) While checking the type of this..
+─────╯
+
+[error]: Type mismatch
+     ╭──▶ TEST_DIR/program.eclair@18:7-18:12
+     │
+  14 │ ╭┤ fact2(x) :-
+  15 │ │    fact1(x, _),
+  16 │ │    x <= "abc",
+  17 │ │    x >= "abc",
+  18 │ ├┤   x > "abc".
+     • │    ┬────────
+     • │    ╰────╸ 2) While checking the type of this..
+     • │        ├╸ 3) While checking the type of this..
+     • │        ╰╸ 4) Expected this to be of type 'u32', but it actually has type 'string'.
+     • │
+     • ╰╸ 1) While checking the type of this..
+─────╯
