@@ -49,7 +49,7 @@ documentHighlightHandler =
         (ast, spanMap,) <$> liftEither (maybeToRight [] mNodeId)
       case parseResult of
         Left _errs ->
-          throwE (Error, "Failed to get highlight information!")
+          throwE (Info, "Failed to get highlight information!")
         Right (ast, spanMap, nodeId) -> do
           fileContent <- readUri uri_
           let refs = findReferences ast nodeId
@@ -116,9 +116,9 @@ hoverHandler =
                 in startPos <= pos && pos <= endPos
         case mIssue of
           Nothing ->
-            throwE (Error, "File contains errors!")
+            throwE (Info, "File contains errors!")
           Just issue ->
-            throwE (Error, renderIssueMessage file fileContent issue)
+            throwE (Info, renderIssueMessage file fileContent issue)
 
       Right (_, spanMap, typeInfo) -> do
         let maybeResult = do
