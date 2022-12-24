@@ -1,9 +1,17 @@
 module Eclair.Common.Operator
-  ( ConstraintOp(..)
+  ( ArithmeticOp(..)
+  , ConstraintOp(..)
   , isEqualityOp
   ) where
 
 import Eclair.Common.Pretty
+
+data ArithmeticOp
+  = Plus
+  | Minus
+  | Multiply
+  | Divide  -- NOTE: integer division
+  deriving (Eq, Show)
 
 data ConstraintOp
   = Equals          -- =
@@ -19,6 +27,13 @@ isEqualityOp = \case
   Equals -> True
   NotEquals -> True
   _ -> False
+
+instance Pretty ArithmeticOp where
+  pretty = \case
+    Plus -> "+"
+    Minus -> "-"
+    Multiply -> "*"
+    Divide -> "/"
 
 instance Pretty ConstraintOp where
   pretty = \case

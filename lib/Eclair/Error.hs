@@ -247,14 +247,23 @@ wildcardInRuleHeadToReport e@(WildcardInRuleHead srcLocRule _ _pos) =
    in Err Nothing title markers hints
 
 wildcardInConstraintToReport :: WildcardInConstraint Position -> Report Text
-wildcardInConstraintToReport e@(WildcardInConstraint srcLocAssign _) =
+wildcardInConstraintToReport e@(WildcardInConstraint srcLocConstraint _) =
   let title = "Found wildcard in constraint"
       markers = [ (mainErrorPosition e, This "Wildcard found.")
-                , (srcLocAssign, Where "Only constants and variables are allowed in a constraint.")
+                , (srcLocConstraint, Where "Only constants and variables are allowed in a constraint.")
                 ]
       hints = [ Hint "This statement can be removed since it has no effect."
               , Hint "Replace the wildcard with a variable."
               ]
+   in Err Nothing title markers hints
+
+wildcardInBinOpToReport :: WildcardInBinOp Position -> Report Text
+wildcardInBinOpToReport e@(WildcardInBinOp srcLocBinOp _) =
+  let title = "Found wildcard in constraint"
+      markers = [ (mainErrorPosition e, This "Wildcard found.")
+                , (srcLocBinOp, Where "Only constants and variables are allowed in a binary operation.")
+                ]
+      hints = [Hint "Replace the wildcard with a variable or literal."]
    in Err Nothing title markers hints
 
 
@@ -278,12 +287,13 @@ noOutputRelationsToReport e@(NoOutputRelation _) =
 -- NOTE: pattern match is done this way to keep track of additional errors that need to be reported
 {-# ANN semanticErrorsToReportsWithLocations ("HLint: ignore Use record patterns" :: String) #-}
 semanticErrorsToReportsWithLocations :: SemanticErrors Position -> [(Report Text, Location)]
-semanticErrorsToReportsWithLocations e@(SemanticErrors _ _ _ _ _ _ _) =
+semanticErrorsToReportsWithLocations e@(SemanticErrors _ _ _ _ _ _ _ _) =
   concat [ ungroundedVarReports
          , variableInFactReports
          , wildcardInFactReports
          , wildcardInRuleHeadReports
-         , wildcardInAssignmentReports
+         , wildcardInConstraintReports
+         , wildcardInBinOpReports
          , deadInternalRelationReports
          , noOutputReports
          ]
@@ -299,7 +309,8 @@ semanticErrorsToReportsWithLocations e@(SemanticErrors _ _ _ _ _ _ _) =
     variableInFactReports = getReportsWithLocationsFor variablesInFacts variableInFactToReport
     wildcardInFactReports = getReportsWithLocationsFor wildcardsInFacts wildcardInFactToReport
     wildcardInRuleHeadReports = getReportsWithLocationsFor wildcardsInRuleHeads wildcardInRuleHeadToReport
-    wildcardInAssignmentReports = getReportsWithLocationsFor wildcardsInAssignments wildcardInConstraintToReport
+    wildcardInConstraintReports = getReportsWithLocationsFor wildcardsInConstraints wildcardInConstraintToReport
+    wildcardInBinOpReports = getReportsWithLocationsFor wildcardsInBinOps wildcardInBinOpToReport
     deadInternalRelationReports = getReportsWithLocationsFor deadInternalRelations deadInternalRelationToReport
     noOutputReports = getReportsWithLocationsFor noOutputRelations noOutputRelationsToReport
 
@@ -338,6 +349,8 @@ instance HasMainErrorPosition (DeadInternalRelation Position) where
   mainErrorPosition (DeadInternalRelation pos _) = pos
 instance HasMainErrorPosition (WildcardInConstraint Position) where
   mainErrorPosition (WildcardInConstraint _ pos) = pos
+instance HasMainErrorPosition (WildcardInBinOp Position) where
+  mainErrorPosition (WildcardInBinOp _ pos) = pos
 instance HasMainErrorPosition (UngroundedVar Position) where
   mainErrorPosition (UngroundedVar _ varPos _) = varPos
 instance HasMainErrorPosition (VariableInFact Position) where

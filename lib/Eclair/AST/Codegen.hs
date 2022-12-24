@@ -105,7 +105,10 @@ if' op lhs rhs body = do
   cond <- RA.CompareOp op <$> resolveTerm lhs <*> resolveTerm rhs
   RA.If cond <$> body
 
-data Term = VarTerm Id | LitTerm Word32
+data Term
+  = VarTerm Id
+  | LitTerm Word32
+  | BinOpTerm AST.ArithmeticOp Term Term
   deriving (Eq)
 
 toTerm :: AST.AST -> Term
@@ -118,6 +121,8 @@ toTerm = \case
         panic "Unexpected string literal in 'toTerm' when lowering to RA"
   AST.Var _ x ->
     VarTerm x
+  AST.BinOp _ op lhs rhs ->
+    BinOpTerm op (toTerm lhs) (toTerm rhs)
   -- TODO fix, no catch-all
   _ ->
     panic "Unknown pattern in 'toTerm'"
@@ -128,14 +133,14 @@ data ConstraintExpr
 data Clause
   = AtomClause Id [Term]
   | ConstrainClause ConstraintExpr
-  | BinOp AST.ConstraintOp Term Term
+  | BinaryConstraint AST.ConstraintOp Term Term
 
 toClause :: AST.AST -> Clause
 toClause = \case
   AST.Atom _ name values ->
     AtomClause name (map toTerm values)
   AST.Constraint _ op lhs rhs ->
-    BinOp op (toTerm lhs) (toTerm rhs)
+    BinaryConstraint op (toTerm lhs) (toTerm rhs)
   _ ->
     panic "toClause: unsupported case"
 
@@ -151,11 +156,14 @@ addConstraints r row ts cs = foldl' addConstraint cs ts
       VarTerm v ->
         let c = Constraint r row col v
         in Constraints (c:cList) (M.insertWith (<>) v [c] cMap)
-      LitTerm _ -> cs'
+      LitTerm {} -> cs'
+      BinOpTerm {} -> cs'
 
 resolveTerm :: Term -> CodegenM RA
 resolveTerm = \case
   LitTerm x -> pure $ RA.Lit x
+  BinOpTerm op lhs rhs ->
+    RA.PrimOp op <$> resolveTerm lhs <*> resolveTerm rhs
   VarTerm v -> do
     cs <- asks snd
     let (Constraint name _ col _) = fromJust $ findBestMatchingConstraint cs v
@@ -166,19 +174,24 @@ resolveClause r col t = do
   row <- asks fst
   let alias = relationToAlias r row
       lhs = RA.ColumnIndex alias col
-  case t of
-    LitTerm x -> pure $ Just $ RA.CompareOp RA.Equals lhs (RA.Lit x)
-    VarTerm v -> asks (lookupVar v . snd) >>= \case
+      resolved = case t of
+        -- For variables we look up the matching constraint.
+        VarTerm v -> resolveVarTerm v
+        -- Other terms just need to be resolved.
+        _ -> Just <$> resolveTerm t
+  RA.CompareOp RA.Equals lhs <<$>> resolved
+  where
+    lookupVar v (Constraints _ cMap) = M.lookup v cMap
+    descendingClauseRow (Constraint _ row _ _) = Down row
+    differentRelation (Constraint r' _ _ _) = r /= r'
+    resolveVarTerm v = asks (lookupVar v . snd) >>= \case
       Nothing -> pure Nothing
       Just cs -> do
         let relevantCs = sortOn descendingClauseRow $ filter differentRelation cs
         case relevantCs of
           [] -> pure Nothing
           ((Constraint r' _ col' _):_) ->
-            pure $ Just $ RA.CompareOp RA.Equals lhs (RA.ColumnIndex r' col')
-  where lookupVar v (Constraints _ cMap) = M.lookup v cMap
-        descendingClauseRow (Constraint _ row _ _) = Down row
-        differentRelation (Constraint r' _ _ _) = r /= r'
+            pure $ Just $ RA.ColumnIndex r' col'
 
 resolveExtraClauses :: CodegenM [RA]
 resolveExtraClauses = do

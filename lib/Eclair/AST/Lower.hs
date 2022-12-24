@@ -127,7 +127,7 @@ nestedSearchAndProject relation intoRelation terms clauses =
         case constraint of
           NotElem r values ->
             noElemOf r values inner
-      BinOp op lhs rhs -> do
+      BinaryConstraint op lhs rhs -> do
         if' op lhs rhs inner
 
 isRecursive :: Relation -> [Clause] -> Bool

@@ -9,6 +9,7 @@ module Eclair.RA.IR
   , Action
   , ColumnIndex
   , ConstraintOp(..)
+  , ArithmeticOp(..)
   ) where
 
 import Eclair.Common.Id
@@ -37,6 +38,7 @@ data RA
   | Lit Word32
   | ColumnIndex Relation ColumnIndex
   | CompareOp ConstraintOp RA RA
+  | PrimOp ArithmeticOp RA RA
   | NotElem Relation [RA]
   | If RA RA  -- NOTE: args are condition and body
   deriving (Eq, Show)
@@ -77,6 +79,7 @@ instance Pretty RA where
     Lit x -> pretty x
     ColumnIndex r idx -> pretty r <> brackets (pretty idx)
     CompareOp op lhs rhs -> pretty lhs <+> pretty op <+> pretty rhs
+    PrimOp op lhs rhs -> pretty lhs <+> pretty op <+> pretty rhs
     NotElem r terms -> prettyValues terms <+> "∉" <+> pretty r
     where
       prettyValues terms = parens (withCommas $ map pretty terms)

@@ -48,4 +48,20 @@ literals_in_rule(789) :-
   string( "abc"),
   mix(456, "def").
 
+@def constraints(u32).
+constraints(x) :-
+  u32(x),
+  x < 100,
+  x <= 100,
+  100 > x,
+  100 >= x,
+  100 != x.
+
+@def arithmetic(u32).
+arithmetic(x) :-
+  u32(x),
+  x = 1 + 2 * (7 / 4),
+  1 + 2 - 0 < x.
+arithmetic(123 + 456 * 789).
+
 // TODO: failure cases, more thorough testing in general

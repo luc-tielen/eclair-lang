@@ -199,6 +199,10 @@ checkExpr ast expectedTy = do
     Hole {} -> do
       holeTy <- emitHoleFoundError nodeId
       unifyType nodeId holeTy expectedTy
+    BinOp _ _ lhs rhs -> do
+      -- Arithmetic expressions always need to be numbers.
+      checkExpr lhs U32
+      checkExpr rhs U32
     e -> do
       -- Basically an unexpected / unhandled case => try inferring as a last resort.
       actualTy <- inferExpr e
@@ -229,6 +233,11 @@ inferExpr ast = do
           pure ty
     Hole {} ->
       emitHoleFoundError nodeId
+    BinOp _ _ lhs rhs -> do
+      -- Arithmetic expressions always need to be numbers.
+      checkExpr lhs U32
+      checkExpr rhs U32
+      pure U32
     _ ->
       panic "Unexpected case in 'inferExpr'"
 

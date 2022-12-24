@@ -1,0 +1,104 @@
+// RUN: mkdir -p %t && sed s@TEST_DIR@%t@g %s > %t/input.test
+// RUN: split-file %t/input.test %t
+
+//--- program1.eclair
+// RUN: %eclair compile --emit ra %t/program1.eclair | FileCheck %t/program1.eclair
+// CHECK: project
+
+@def number(u32) input.
+@def arithmetic(u32) output.
+
+arithmetic(123 + 456).
+arithmetic(123 - 456).
+arithmetic(123 * 456).
+arithmetic(123 / 456).
+arithmetic(123 * 456 + 789).
+
+arithmetic(x) :-
+  number(x),
+  x = 123 + (456 * 789).
+
+//--- program2.eclair
+// RUN: %eclair compile --emit ra %t/program2.eclair 2> %t/program2.out
+// RUN: diff -w %t/expected.out %t/program2.out
+
+@def number(u32) input.
+@def arithmetic(u32) output.
+
+arithmetic("abc" + 456).
+arithmetic(123 - "abc").
+
+arithmetic(x) :-
+  number(x),
+  x = "abc" + (456 * "def"),
+  "abc" = 1 + 2.
+
+//--- expected.out
+[error]: Type mismatch
+     ╭──▶ TEST_DIR/program2.eclair@7:12-7:17
+     │
+   7 │ arithmetic("abc" + 456).
+     • ┬───────────────────────
+     • ╰───────────╸ 1) While checking the type of this..
+     •            ├╸ 2) While checking the type of this..
+     •            ├╸ 3) While checking the type of this..
+     •            ╰╸ 4) Expected this to be of type 'u32', but it actually has type 'string'.
+─────╯
+
+[error]: Type mismatch
+     ╭──▶ TEST_DIR/program2.eclair@8:18-8:23
+     │
+   8 │ arithmetic(123 - "abc").
+     • ┬───────────────────────
+     • ╰─────────────────╸ 1) While checking the type of this..
+     •            ╰──────╸ 2) While checking the type of this..
+     •                  ├╸ 3) While checking the type of this..
+     •                  ╰╸ 4) Expected this to be of type 'u32', but it actually has type 'string'.
+─────╯
+
+[error]: Type mismatch
+     ╭──▶ TEST_DIR/program2.eclair@12:7-12:12
+     │
+  10 │ ╭┤ arithmetic(x) :-
+  11 │ │    number(x),
+  12 │ │    x = "abc" + (456 * "def"),
+     • │    ┬────────────────────────
+     • │    ╰────╸ 2) While checking the type of this..
+     • │        ├╸ 3) While inferring the type of this..
+     • │        ├╸ 4) While checking the type of this..
+     • │        ╰╸ 5) Expected this to be of type 'u32', but it actually has type 'string'.
+  13 │ ├┤   "abc" = 1 + 2.
+     • │
+     • ╰╸ 1) While checking the type of this..
+─────╯
+
+[error]: Type mismatch
+     ╭──▶ TEST_DIR/program2.eclair@12:22-12:27
+     │
+  10 │ ╭┤ arithmetic(x) :-
+  11 │ │    number(x),
+  12 │ │    x = "abc" + (456 * "def"),
+     • │    ┬────────────────────────
+     • │    ╰───────────────────╸ 2) While checking the type of this..
+     • │        ╰───────────────╸ 3) While inferring the type of this..
+     • │                 ╰──────╸ 4) While checking the type of this..
+     • │                       ├╸ 5) While checking the type of this..
+     • │                       ╰╸ 6) Expected this to be of type 'u32', but it actually has type 'string'.
+  13 │ ├┤   "abc" = 1 + 2.
+     • │
+     • ╰╸ 1) While checking the type of this..
+─────╯
+
+[error]: Type unification failure
+     ╭──▶ TEST_DIR/program2.eclair@13:3-13:16
+     │
+  10 │ ╭┤ arithmetic(x) :-
+  11 │ │    number(x),
+  12 │ │    x = "abc" + (456 * "def"),
+  13 │ ├┤   "abc" = 1 + 2.
+     • │    ┬────────────
+     • │    ├╸ 2) While checking the type of this..
+     • │    ╰╸ 3) While unifying these types..
+     • │
+     • ╰╸ 1) While checking the type of this..
+─────╯

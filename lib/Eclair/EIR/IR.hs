@@ -6,6 +6,7 @@ module Eclair.EIR.IR
   , Relation
   , Op(..)
   , ConstraintOp(..)
+  , ArithmeticOp(..)
   , Type(..)
   , Function(..)
   , LabelId(..)
@@ -57,11 +58,12 @@ instance IsString LabelId where
   fromString = LabelId . fromString
 
 data Op
-  = RelationOp Relation Index Function  -- a primop related to operations on relations
+  = RelationOp Relation Index Function  -- a primop for operations on relations
   | SymbolTableInit
   | SymbolTableDestroy
   | SymbolTableInsert
   | ComparisonOp ConstraintOp
+  | ArithOp ArithmeticOp
   deriving (Eq, Show)
 
 data Visibility
@@ -149,6 +151,8 @@ instance Pretty Op where
     ComparisonOp op ->
       -- Since `=` is already used for assignment in EIR, we use `==` for comparison.
       if op == Equals then "==" else pretty op
+    ArithOp op ->
+      pretty op
 
 instance Pretty EIR where
   pretty = \case
@@ -175,7 +179,7 @@ instance Pretty EIR where
     Var v -> pretty v
     Assign var value ->
       pretty var <+> "=" <+> pretty value
-    PrimOp op@ComparisonOp {} [arg1, arg2] ->
+    PrimOp op [arg1, arg2] | isInfixPrimOp op ->
       pretty arg1 <+> pretty op <+> pretty arg2
     PrimOp op args ->
       pretty op <> parens (withCommas $ map pretty args)
@@ -205,3 +209,9 @@ instance Pretty EIR where
     Return value ->
       "return" <+> pretty value
     Lit x -> pretty x
+
+isInfixPrimOp :: Op -> Bool
+isInfixPrimOp = \case
+  ComparisonOp {} -> True
+  ArithOp {} -> True
+  _ -> False

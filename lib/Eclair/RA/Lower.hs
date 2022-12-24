@@ -154,6 +154,13 @@ generateProgramInstructions = gcata (distribute extractEqualities) $ \case
     block [withEndLabel end $ loop actions, label end]
   RA.IfF (extract -> condition) (extract -> action) -> do
     if' condition action
+  RA.PrimOpF op (extract -> lhs) (extract -> rhs) -> do
+    let toArithmetic = case op of
+          RA.Plus -> plus
+          RA.Minus -> minus
+          RA.Multiply -> multiply
+          RA.Divide -> divide
+    toArithmetic lhs rhs
   RA.CompareOpF op (extract -> lhs) (extract -> rhs) -> do
     let toComparison = case op of
           RA.Equals -> equals

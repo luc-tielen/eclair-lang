@@ -43,6 +43,10 @@ module Eclair.RA.Codegen
   , lessOrEqual
   , greaterThan
   , greaterOrEqual
+  , plus
+  , minus
+  , multiply
+  , divide
   , lit
   ) where
 
@@ -238,6 +242,23 @@ and' lhs rhs = do
     , assign rhsResult rhs
     , EIR.And <$> lhsResult <*> rhsResult
     ]
+
+mkArithOp :: EIR.ArithmeticOp -> CodegenM EIR -> CodegenM EIR -> CodegenM EIR
+mkArithOp op lhs rhs =
+  let args = sequence [lhs, rhs]
+   in EIR.PrimOp (EIR.ArithOp op) <$> args
+
+plus :: CodegenM EIR -> CodegenM EIR -> CodegenM EIR
+plus = mkArithOp EIR.Plus
+
+minus :: CodegenM EIR -> CodegenM EIR -> CodegenM EIR
+minus = mkArithOp EIR.Minus
+
+multiply :: CodegenM EIR -> CodegenM EIR -> CodegenM EIR
+multiply = mkArithOp EIR.Multiply
+
+divide :: CodegenM EIR -> CodegenM EIR -> CodegenM EIR
+divide = mkArithOp EIR.Divide
 
 mkConstrainOp :: EIR.ConstraintOp -> CodegenM EIR -> CodegenM EIR -> CodegenM EIR
 mkConstrainOp op lhs rhs =

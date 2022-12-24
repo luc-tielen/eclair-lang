@@ -12,6 +12,7 @@ module Eclair.AST.Analysis
   , WildcardInFact(..)
   , WildcardInRuleHead(..)
   , WildcardInConstraint(..)
+  , WildcardInBinOp(..)
   , DeadCode(..)
   , DeadInternalRelation(..)
   , NoOutputRelation(..)
@@ -59,10 +60,26 @@ newtype Hole
   deriving S.Fact via S.FactOptions Hole "hole" 'S.Input
 
 data Constraint
-  = Constraint { constraintId :: NodeId, op :: Text, lhsId :: NodeId, rhsId :: NodeId }
+  = Constraint
+  { constraintId :: NodeId
+  , constraintOperator :: Text
+  , constraintLhsId :: NodeId
+  , constraintRhsId :: NodeId
+  }
   deriving stock Generic
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions Constraint "constraint" 'S.Input
+
+data BinOp
+  = BinOp
+  { binOpId :: NodeId
+  , op :: Text
+  , binOpLhsId :: NodeId
+  , binOpRhsId :: NodeId
+  }
+  deriving stock Generic
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions BinOp "binop" 'S.Input
 
 data Atom
   = Atom NodeId Id
@@ -186,12 +203,21 @@ data WildcardInRuleHead loc
 
 data WildcardInConstraint loc
   = WildcardInConstraint
-  { wildcardAssignLoc :: loc
-  , wildcardLoc :: loc
+  { wildcardConstraintLoc :: loc
+  , wildcardConstraintPos :: loc
   }
   deriving stock (Generic, Eq, Show, Functor)
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions (WildcardInConstraint loc) "wildcard_in_constraint" 'S.Output
+
+data WildcardInBinOp loc
+  = WildcardInBinOp
+  { wildcardBinOpLoc :: loc
+  , wildcardBinOpPos :: loc
+  }
+  deriving stock (Generic, Eq, Show, Functor)
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions (WildcardInBinOp loc) "wildcard_in_binop" 'S.Output
 
 newtype DeadCode
   = DeadCode { unDeadCode :: NodeId }
@@ -220,6 +246,7 @@ data SemanticAnalysis
        , Var
        , Hole
        , Constraint
+       , BinOp
        , Atom
        , AtomArg
        , Rule
@@ -238,6 +265,7 @@ data SemanticAnalysis
        , WildcardInRuleHead NodeId
        , WildcardInFact NodeId
        , WildcardInConstraint NodeId
+       , WildcardInBinOp NodeId
        , DeadCode
        , NoOutputRelation NodeId
        , DeadInternalRelation NodeId
@@ -278,7 +306,8 @@ data SemanticErrors loc
   , ungroundedVars :: Container (UngroundedVar loc)
   , wildcardsInFacts :: Container (WildcardInFact loc)
   , wildcardsInRuleHeads :: Container (WildcardInRuleHead loc)
-  , wildcardsInAssignments :: Container (WildcardInConstraint loc)
+  , wildcardsInConstraints :: Container (WildcardInConstraint loc)
+  , wildcardsInBinOps :: Container (WildcardInBinOp loc)
   , deadInternalRelations :: Container (DeadInternalRelation loc)
   , noOutputRelations :: Container (NoOutputRelation loc)
   }
@@ -290,7 +319,7 @@ hasSemanticErrors result =
   isNotNull ungroundedVars ||
   isNotNull wildcardsInFacts ||
   isNotNull wildcardsInRuleHeads ||
-  isNotNull wildcardsInAssignments ||
+  isNotNull wildcardsInConstraints ||
   isNotNull deadInternalRelations ||
   isNotNull noOutputRelations
   where
@@ -318,6 +347,15 @@ analysis prog = S.mkAnalysis addFacts run getFacts
           S.addFact prog $ RuleVariable ruleId nodeId
       IR.HoleF nodeId ->
         S.addFact prog $ Hole nodeId
+      IR.BinOpF nodeId arithOp (lhsId', lhsAction) (rhsId', rhsAction) -> do
+        let textualOp = case arithOp of
+              IR.Plus -> "+"
+              IR.Minus -> "-"
+              IR.Multiply -> "*"
+              IR.Divide -> "/"
+        S.addFact prog $ BinOp nodeId textualOp lhsId' rhsId'
+        lhsAction
+        rhsAction
       IR.ConstraintF nodeId constraintOp (lhsId', lhsAction) (rhsId', rhsAction) -> do
         let textualOp = case constraintOp of
               IR.Equals -> "="
@@ -377,6 +415,7 @@ analysis prog = S.mkAnalysis addFacts run getFacts
                              <*> S.getFacts prog
                              <*> S.getFacts prog
                              <*> S.getFacts prog
+                             <*> S.getFacts prog
       pure $ Result info errs
 
     getNodeId :: IR.ASTF NodeId -> NodeId
@@ -384,6 +423,7 @@ analysis prog = S.mkAnalysis addFacts run getFacts
       IR.LitF nodeId _ -> nodeId
       IR.VarF nodeId _ -> nodeId
       IR.HoleF nodeId -> nodeId
+      IR.BinOpF nodeId _ _ _ -> nodeId
       IR.ConstraintF nodeId _ _ _ -> nodeId
       IR.AtomF nodeId _ _ -> nodeId
       IR.RuleF nodeId _ _ _ -> nodeId

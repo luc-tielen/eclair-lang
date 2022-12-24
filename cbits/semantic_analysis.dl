@@ -3,6 +3,7 @@
 .decl lit_string(node_id: unsigned, value: symbol)
 .decl variable(node_id: unsigned, var_name: symbol)
 .decl constraint(node_id: unsigned, op: symbol, lhs_node_id: unsigned, rhs_node_id: unsigned)
+.decl binop(node_id: unsigned, op: symbol, lhs_node_id: unsigned, rhs_node_id: unsigned)
 .decl atom(node_id: unsigned, name: symbol)
 .decl atom_arg(atom_id: unsigned, atom_arg_pos: unsigned, atom_arg_id: unsigned)
 .decl rule(rule_id: unsigned, name: symbol)
@@ -39,6 +40,7 @@
 .decl wildcard_in_fact(fact_node_id: unsigned,  fact_arg_id: unsigned, pos: unsigned)
 .decl wildcard_in_rule_head(rule_node_id: unsigned, rule_arg_id: unsigned, pos: unsigned)
 .decl wildcard_in_constraint(constraint_node_id: unsigned, wildcard_node_id: unsigned)
+.decl wildcard_in_binop(binop_node_id: unsigned, wildcard_node_id: unsigned)
 .decl rule_with_contradiction(rule_id: unsigned)
 .decl dead_code(node_id: unsigned)
 .decl no_output_relation(node_id: unsigned)
@@ -48,6 +50,7 @@
 .input lit_string
 .input variable
 .input constraint
+.input binop
 .input atom
 .input atom_arg
 .input rule
@@ -67,6 +70,7 @@
 .output ungrounded_variable
 .output wildcard_in_rule_head
 .output wildcard_in_constraint
+.output wildcard_in_binop
 .output dead_code
 .output no_output_relation
 .output dead_internal_relation
@@ -186,6 +190,21 @@ ungrounded_variable(rule_id, var_id, var_name) :-
   var_name != "_",
   !grounded_var(rule_id, var_name).
 
+// Variables used in a binop need to be grounded.
+ungrounded_variable(rule_id, var_id, var_name) :-
+  rule_clause(rule_id, _, rule_clause_id),
+  binop(rule_clause_id, _, _, var_id),
+  variable(var_id, var_name),
+  var_name != "_",
+  !grounded_var(rule_id, var_name).
+
+ungrounded_variable(rule_id, var_id, var_name) :-
+  rule_clause(rule_id, _, rule_clause_id),
+  binop(rule_clause_id, _, var_id, _),
+  variable(var_id, var_name),
+  var_name != "_",
+  !grounded_var(rule_id, var_name).
+
 inequality_op("!=").
 inequality_op("<").
 inequality_op("<=").
@@ -210,6 +229,14 @@ wildcard_in_constraint(constraint_node_id, lhs_node_id) :-
 
 wildcard_in_constraint(constraint_node_id, rhs_node_id) :-
   constraint(constraint_node_id, _, _, rhs_node_id),
+  wildcard(rhs_node_id).
+
+wildcard_in_binop(binop_node_id, lhs_node_id) :-
+  binop(binop_node_id, _, lhs_node_id, _),
+  wildcard(lhs_node_id).
+
+wildcard_in_binop(binop_node_id, rhs_node_id) :-
+  binop(binop_node_id, _, _, rhs_node_id),
   wildcard(rhs_node_id).
 
 assign(node_id, lhs_node_id, rhs_node_id) :-

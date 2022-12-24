@@ -27,6 +27,7 @@ import qualified Text.Megaparsec as P
 import qualified Text.Megaparsec.Internal as P
 import qualified Text.Megaparsec.Char as P
 import qualified Text.Megaparsec.Char.Lexer as L
+import qualified Control.Monad.Combinators.Expr as L
 
 data CustomParseErr
   = TooManyInputOptions
@@ -210,7 +211,7 @@ data FactOrRule = FactType | RuleType
 factOrRuleParser :: Parser AST
 factOrRuleParser = withNodeId $ \nodeId -> do
   name <- lexeme identifier
-  args <- lexeme $ betweenParens $ valueParser `P.sepBy1` comma
+  args <- lexeme $ betweenParens $ exprParser `P.sepBy1` comma
   declType <- lexeme (RuleType <$ P.chunk ":-") <|> (FactType <$ P.chunk ".")
   case declType of
     RuleType -> do
@@ -232,21 +233,38 @@ atomParser = do
   P.notFollowedBy $ lexeme identifier *> constraintOpParser
   withNodeId $ \nodeId -> do
     name <- lexeme identifier
-    args <- lexeme $ betweenParens $ valueParser `P.sepBy1` comma
+    args <- lexeme $ betweenParens $ exprParser `P.sepBy1` comma
     pure $ Atom nodeId name args
 
 constraintParser :: Parser AST
 constraintParser = withNodeId $ \nodeId -> do
-  lhs <- lexeme valueParser
+  lhs <- lexeme exprParser
   op <- constraintOpParser
-  rhs <- lexeme valueParser
+  rhs <- lexeme exprParser
   pure $ Constraint nodeId op lhs rhs
 
-valueParser :: Parser AST
-valueParser = lexeme $ withNodeId $ \nodeId ->
-  Hole nodeId <$ P.char '?' <|>
-  Var nodeId <$> (identifier <|> wildcard) <|>
-  Lit nodeId <$> literal
+exprParser :: Parser AST
+exprParser =
+  lexeme $ withNodeId (L.makeExprParser termParser . precedenceTable)
+  where
+    precedenceTable nodeId =
+      [ [ binOp nodeId Multiply '*'
+        , binOp nodeId Divide '/'
+        ]
+      , [ binOp nodeId Plus '+'
+        , binOp nodeId Minus '-'
+        ]
+      ]
+    binOp nodeId op c =
+      L.InfixL (BinOp nodeId op <$ lexeme (P.char c))
+
+    termParser =
+      lexeme $ betweenParens exprParser <|> value
+      where
+        value = withNodeId $ \nodeId ->
+          Hole nodeId <$ P.char '?' <|>
+          Var nodeId <$> (identifier <|> wildcard) <|>
+          Lit nodeId <$> literal
 
 constraintOpParser :: Parser ConstraintOp
 constraintOpParser = P.label "equality or comparison operator" $ lexeme $ do

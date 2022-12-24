@@ -8,6 +8,7 @@ module Eclair.AST.IR
   , Decl
   , Literal(..)
   , Type(..)
+  , ArithmeticOp(..)
   , ConstraintOp(..)
   , isEqualityOp
   , NodeId(..)
@@ -53,6 +54,7 @@ data AST
   = Lit NodeId Literal
   | Var NodeId Id
   | Hole NodeId
+  | BinOp NodeId ArithmeticOp AST AST
   | Constraint NodeId ConstraintOp AST AST
   | Atom NodeId Id [Value]
   | Rule NodeId Id [Value] [Clause]
@@ -76,6 +78,7 @@ getNodeId = \case
   DeclareType nodeId _ _ _ -> nodeId
   Rule nodeId _ _ _ -> nodeId
   Atom nodeId _ _ -> nodeId
+  BinOp nodeId _ _ _ -> nodeId
   Constraint nodeId _ _ _ -> nodeId
   Lit nodeId _ -> nodeId
   Var nodeId _ -> nodeId
@@ -99,6 +102,8 @@ instance Pretty AST where
           pure $ pretty v
         Hole _ ->
           pure "?"
+        BinOp _ op lhs rhs ->
+          pure $ pretty lhs <+> pretty op <+> pretty rhs
         Constraint _ op lhs rhs ->
           pure $ pretty lhs <+> pretty op <+> pretty rhs
         Atom _ name values -> do
