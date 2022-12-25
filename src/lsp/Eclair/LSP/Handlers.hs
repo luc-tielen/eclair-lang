@@ -68,15 +68,21 @@ documentHighlightHandler =
 -- TODO implement for concepts besides variables
 findReferences :: AST -> NodeId -> [NodeId]
 findReferences ast nodeId =
-  map fst $ zygo getVarId getRefs ast
+  fst <$> zygo getVarId getRefs ast
   where
     getVarId = \case
+      PWildcardF {} ->
+        -- Wildcard matches with nothing.
+        mempty
       VarF varNodeId var | nodeId == varNodeId ->
         First (Just var)
       astf ->
         fold astf
 
     getRefs = \case
+      ModuleF _ decls ->
+        foldMap snd $ filter (isJust . getFirst . fst) decls
+
       RuleF _ _ args clauses -> do
         let subtrees = args <> clauses
          in case getFirst $ foldMap fst subtrees of
