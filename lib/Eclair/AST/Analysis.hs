@@ -7,7 +7,6 @@ module Eclair.AST.Analysis
   , SemanticErrors(..)
   , hasSemanticErrors
   , runAnalysis
-  , VariableInFact(..)
   , UngroundedVar(..)
   , WildcardInFact(..)
   , WildcardInRuleHead(..)
@@ -165,12 +164,6 @@ data PointsToVar
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions PointsToVar "points_to_var" 'S.Output
 
-data VariableInFact loc
-  = VariableInFact loc Id
-  deriving stock (Generic, Eq, Show, Functor)
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions (VariableInFact loc) "variable_in_fact" 'S.Output
-
 data UngroundedVar loc
   = UngroundedVar
   { ungroundedRuleLoc :: loc
@@ -260,7 +253,6 @@ data SemanticAnalysis
        , ModuleDecl
        , ScopedValue
        , PointsToVar
-       , VariableInFact NodeId
        , UngroundedVar NodeId
        , WildcardInRuleHead NodeId
        , WildcardInFact NodeId
@@ -302,8 +294,7 @@ data Result
 
 data SemanticErrors loc
   = SemanticErrors
-  { variablesInFacts :: Container (VariableInFact loc)
-  , ungroundedVars :: Container (UngroundedVar loc)
+  { ungroundedVars :: Container (UngroundedVar loc)
   , wildcardsInFacts :: Container (WildcardInFact loc)
   , wildcardsInRuleHeads :: Container (WildcardInRuleHead loc)
   , wildcardsInConstraints :: Container (WildcardInConstraint loc)
@@ -315,7 +306,6 @@ data SemanticErrors loc
 
 hasSemanticErrors :: Result -> Bool
 hasSemanticErrors result =
-  isNotNull variablesInFacts ||
   isNotNull ungroundedVars ||
   isNotNull wildcardsInFacts ||
   isNotNull wildcardsInRuleHeads ||
@@ -418,7 +408,6 @@ analysis prog = S.mkAnalysis addFacts run getFacts
       info <- SemanticInfo <$> (mkPointsToAnalysis <$> S.getFacts prog)
                            <*> S.getFacts prog
       errs <- SemanticErrors <$> S.getFacts prog
-                             <*> S.getFacts prog
                              <*> S.getFacts prog
                              <*> S.getFacts prog
                              <*> S.getFacts prog

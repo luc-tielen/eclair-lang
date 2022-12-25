@@ -211,21 +211,14 @@ typeErrorToReport e = case e of
       WhileUnifying srcLoc ->
         (srcLoc, mkMarker $ show i <> ") While unifying these types..")
 
-variableInFactToReport :: VariableInFact Position -> Report Text
-variableInFactToReport e =
-  let title = "Variable in top level fact"
-      markers = [(mainErrorPosition e, This "Only constants are allowed in facts.")]
-      hints = [Hint "You can solve this by replacing the variable with a constant."]
-   in Err Nothing title markers hints
-
 ungroundedVarToReport :: UngroundedVar Position -> Report Text
 ungroundedVarToReport e@(UngroundedVar srcLocRule _ var) =
   let title = "Ungrounded variable"
       srcLocVar = mainErrorPosition e
-      markers = [ (srcLocVar, This $ "The variable '" <> unId var <> "' is ungrounded, meaning it is not directly bound as an argument to a relation.")
-                , (srcLocRule, Where $ "This rule contains no clauses that refer to '" <> unId var <> "'.")
+      markers = [ (srcLocVar, This $ "The variable '" <> unId var <> "' is ungrounded, meaning it is not directly bound as an argument to a clause.")
+                , (srcLocRule, Where $ "This contains no clauses that refer to '" <> unId var <> "'.")
                 ]
-      hints = [Hint $ "Use the variable '" <> unId var <> "' as an argument in another clause in the same rule."]
+      hints = [Hint $ "Use the variable '" <> unId var <> "' as an argument in another clause."]
    in Err Nothing title markers hints
 
 wildcardInFactToReport :: WildcardInFact Position -> Report Text
@@ -286,9 +279,8 @@ noOutputRelationsToReport e@(NoOutputRelation _) =
 -- NOTE: pattern match is done this way to keep track of additional errors that need to be reported
 {-# ANN semanticErrorsToReportsWithLocations ("HLint: ignore Use record patterns" :: String) #-}
 semanticErrorsToReportsWithLocations :: SemanticErrors Position -> [(Report Text, Location)]
-semanticErrorsToReportsWithLocations e@(SemanticErrors _ _ _ _ _ _ _ _) =
+semanticErrorsToReportsWithLocations e@(SemanticErrors _ _ _ _ _ _ _) =
   concat [ ungroundedVarReports
-         , variableInFactReports
          , wildcardInFactReports
          , wildcardInRuleHeadReports
          , wildcardInConstraintReports
@@ -305,7 +297,6 @@ semanticErrorsToReportsWithLocations e@(SemanticErrors _ _ _ _ _ _ _ _) =
     getReportsWithLocationsFor f g =
       map (g &&& positionToLocation . mainErrorPosition) (f e)
     ungroundedVarReports = getReportsWithLocationsFor ungroundedVars ungroundedVarToReport
-    variableInFactReports = getReportsWithLocationsFor variablesInFacts variableInFactToReport
     wildcardInFactReports = getReportsWithLocationsFor wildcardsInFacts wildcardInFactToReport
     wildcardInRuleHeadReports = getReportsWithLocationsFor wildcardsInRuleHeads wildcardInRuleHeadToReport
     wildcardInConstraintReports = getReportsWithLocationsFor wildcardsInConstraints wildcardInConstraintToReport
@@ -352,8 +343,6 @@ instance HasMainErrorPosition (WildcardInBinOp Position) where
   mainErrorPosition (WildcardInBinOp _ pos) = pos
 instance HasMainErrorPosition (UngroundedVar Position) where
   mainErrorPosition (UngroundedVar _ varPos _) = varPos
-instance HasMainErrorPosition (VariableInFact Position) where
-  mainErrorPosition (VariableInFact pos _) = pos
 instance HasMainErrorPosition (WildcardInRuleHead Position) where
   mainErrorPosition (WildcardInRuleHead _ ruleArgPos _) = ruleArgPos
 instance HasMainErrorPosition (WildcardInFact Position) where

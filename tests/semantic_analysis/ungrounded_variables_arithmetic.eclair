@@ -26,10 +26,10 @@ a(abc) :-
      │
    4 │ b(123 + a).
      • ┬───────┬──
-     • │       ╰╸ The variable 'a' is ungrounded, meaning it is not directly bound as an argument to a relation.
-     • ╰╸ This rule contains no clauses that refer to 'a'.
+     • │       ╰╸ The variable 'a' is ungrounded, meaning it is not directly bound as an argument to a clause.
+     • ╰╸ This contains no clauses that refer to 'a'.
      •
-     │ Hint: Use the variable 'a' as an argument in another clause in the same rule.
+     │ Hint: Use the variable 'a' as an argument in another clause.
 ─────╯
 
 [error]: Ungrounded variable
@@ -40,9 +40,9 @@ a(abc) :-
   13 │ │    // Should detect cycle correctly.
   14 │ ├┤   def = abc + def.
      • │                ┬──
-     • │                ╰╸ The variable 'def' is ungrounded, meaning it is not directly bound as an argument to a relation.
+     • │                ╰╸ The variable 'def' is ungrounded, meaning it is not directly bound as an argument to a clause.
      • │
-     • ╰╸ This rule contains no clauses that refer to 'def'.
+     • ╰╸ This contains no clauses that refer to 'def'.
      •
-     │ Hint: Use the variable 'def' as an argument in another clause in the same rule.
+     │ Hint: Use the variable 'def' as an argument in another clause.
 ─────╯

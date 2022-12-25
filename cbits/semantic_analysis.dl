@@ -36,7 +36,6 @@
 
 // Output facts / rules
 .decl points_to_var(rule_id: unsigned, var_id1: unsigned, var_id2: unsigned, var_name: symbol)
-.decl variable_in_fact(node_id: unsigned, var_name: symbol)
 .decl ungrounded_variable(rule_id: unsigned, var_id: unsigned, var_name: symbol)
 .decl wildcard_in_fact(fact_node_id: unsigned,  fact_arg_id: unsigned, pos: unsigned)
 .decl wildcard_in_rule_head(rule_node_id: unsigned, rule_arg_id: unsigned, pos: unsigned)
@@ -66,7 +65,6 @@
 .input scoped_value
 
 .output points_to_var
-.output variable_in_fact
 .output wildcard_in_fact
 .output ungrounded_variable
 .output wildcard_in_rule_head
@@ -162,10 +160,11 @@ no_output_relation(node_id) :-
   !has_output_relation(node_id).
 
 // Top level facts: no variables allowed
-variable_in_fact(atom_arg_id, var_name) :-
+ungrounded_variable(atom_id, var_id, var_name) :-
   module_declaration(_, atom_id),
-  atom_arg(atom_id, _, atom_arg_id),
-  variable(atom_arg_id, var_name),
+  atom(atom_id, _),
+  scoped_value(atom_id, var_id),
+  variable(var_id, var_name),
   var_name != "_".
 
 // Rules: no variables allowed in rule head if not used in a rule clause
