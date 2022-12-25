@@ -15,9 +15,10 @@
 .decl declare_type(node_id: unsigned, name: symbol)
 .decl module(node_id: unsigned)
 .decl module_declaration(module_id: unsigned, declaration_id: unsigned)
-.decl rule_variable(rule_id: unsigned, variable_id: unsigned)
+.decl scoped_value(scope_id: unsigned, value_id: unsigned)
 
 // Internal rules
+.decl grounded_node(rule_node_id: unsigned, node_id: unsigned)
 .decl assign(node_id: unsigned, lhs_node_id: unsigned, rhs_node_id: unsigned) inline
 .decl inequality_op(op: symbol)
 .decl has_output_relation(node_id: unsigned)
@@ -62,7 +63,7 @@
 .input declare_type
 .input module
 .input module_declaration
-.input rule_variable
+.input scoped_value
 
 .output points_to_var
 .output variable_in_fact
@@ -192,17 +193,15 @@ ungrounded_variable(rule_id, var_id, var_name) :-
 
 // Variables used in a binop need to be grounded.
 ungrounded_variable(rule_id, var_id, var_name) :-
-  rule_clause(rule_id, _, rule_clause_id),
-  binop(rule_clause_id, _, _, var_id),
+  binop(_, _, var_id, _),
   variable(var_id, var_name),
-  var_name != "_",
+  scoped_value(rule_id, var_id),
   !grounded_var(rule_id, var_name).
 
 ungrounded_variable(rule_id, var_id, var_name) :-
-  rule_clause(rule_id, _, rule_clause_id),
-  binop(rule_clause_id, _, var_id, _),
+  binop(_, _, _, var_id),
   variable(var_id, var_name),
-  var_name != "_",
+  scoped_value(rule_id, var_id),
   !grounded_var(rule_id, var_name).
 
 inequality_op("!=").
@@ -244,8 +243,8 @@ assign(node_id, lhs_node_id, rhs_node_id) :-
 
 // All variables with the same name in a rule are aliases of each other.
 alias(rule_id, var_id1, var_id2) :-
-  rule_variable(rule_id, var_id1),
-  rule_variable(rule_id, var_id2),
+  scoped_value(rule_id, var_id1),
+  scoped_value(rule_id, var_id2),
   variable(var_id1, var_name),
   variable(var_id2, var_name).
 
@@ -304,21 +303,47 @@ rule_head_var(rule_id, var_id, var_name) :-
 
 // Helper relation for getting all grounded variables in body of a rule.
 grounded_var(rule_id, var_name) :-
-  rule_clause(rule_id, _, rule_clause_id),
-  atom_arg(rule_clause_id, _, var_id),
+  grounded_node(rule_id, var_id),
   variable(var_id, var_name).
 
-// Assignment grounds one var, if the other is already grounded.
-grounded_var(rule_id, rhs_var_name) :-
+// Variables are grounded if they are used in an atom.
+grounded_node(rule_id, var_id) :-
   rule_clause(rule_id, _, rule_clause_id),
-  assign(rule_clause_id, lhs_node_id, rhs_node_id),
-  variable(lhs_node_id, lhs_var_name),
-  variable(rhs_node_id, rhs_var_name),
-  grounded_var(rule_id, lhs_var_name).
+  atom_arg(rule_clause_id, _, var_id),
+  variable(var_id, _).
 
-grounded_var(rule_id, rhs_var_name) :-
+// All variables with same name are grounded at the same time
+grounded_node(rule_id, var_id2) :-
+  scoped_value(rule_id, var_id1),
+  variable(var_id1, var_name),
+  grounded_node(rule_id, var_id1),
+  scoped_value(rule_id, var_id2),
+  variable(var_id2, var_name).
+
+// Literals are always grounded.
+grounded_node(rule_id, node_id) :-
+  scoped_value(rule_id, node_id),
+  lit_number(node_id, _).
+
+grounded_node(rule_id, node_id) :-
+  scoped_value(rule_id, node_id),
+  lit_string(node_id, _).
+
+// A binop is grounded if both sides are grounded.
+grounded_node(rule_id, node_id) :-
+  grounded_node(rule_id, lhs_node_id),
+  grounded_node(rule_id, rhs_node_id),
+  binop(node_id, _, lhs_node_id, rhs_node_id).
+
+// Assignment grounds one var, if the other side is already grounded.
+grounded_node(rule_id, rhs_node_id) :-
   rule_clause(rule_id, _, rule_clause_id),
   assign(rule_clause_id, lhs_node_id, rhs_node_id),
-  variable(lhs_node_id, lhs_var_name),
-  variable(rhs_node_id, rhs_var_name),
-  grounded_var(rule_id, rhs_var_name).
+  grounded_node(rule_id, lhs_node_id),
+  variable(rhs_node_id, _).
+
+grounded_node(rule_id, lhs_node_id) :-
+  rule_clause(rule_id, _, rule_clause_id),
+  assign(rule_clause_id, lhs_node_id, rhs_node_id),
+  grounded_node(rule_id, rhs_node_id),
+  variable(lhs_node_id, _).

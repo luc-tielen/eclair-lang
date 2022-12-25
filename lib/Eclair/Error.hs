@@ -259,13 +259,12 @@ wildcardInConstraintToReport e@(WildcardInConstraint srcLocConstraint _) =
 
 wildcardInBinOpToReport :: WildcardInBinOp Position -> Report Text
 wildcardInBinOpToReport e@(WildcardInBinOp srcLocBinOp _) =
-  let title = "Found wildcard in constraint"
+  let title = "Found wildcard in binary operation"
       markers = [ (mainErrorPosition e, This "Wildcard found.")
                 , (srcLocBinOp, Where "Only constants and variables are allowed in a binary operation.")
                 ]
       hints = [Hint "Replace the wildcard with a variable or literal."]
    in Err Nothing title markers hints
-
 
 deadInternalRelationToReport :: DeadInternalRelation Position -> Report Text
 deadInternalRelationToReport e@(DeadInternalRelation _ r) =

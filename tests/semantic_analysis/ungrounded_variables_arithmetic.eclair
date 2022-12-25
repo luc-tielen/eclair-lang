@@ -1,0 +1,48 @@
+// RUN: mkdir -p %t && sed s@TEST_DIR@%t@g %s > %t/input.test
+// RUN: split-file %t/input.test %t
+
+// RUN: %eclair compile %t/program1.eclair 2> %t/actual1.out
+// RUN: diff -w %t/expected1.out %t/actual1.out
+
+//--- program1.eclair
+@def a(u32) output.
+@def b(u32) output.
+
+b(123 + a).
+
+a(abc) :-
+  def = 123,
+  abc = 123 + def,
+  b(abc).
+
+a(abc) :-
+  abc = 123,
+  // Should detect cycle correctly.
+  def = abc + def.
+
+//--- expected1.out
+[error]: Ungrounded variable
+     ╭──▶ TEST_DIR/program1.eclair@4:9-4:10
+     │
+   4 │ b(123 + a).
+     • ┬───────┬──
+     • │       ╰╸ The variable 'a' is ungrounded, meaning it is not directly bound as an argument to a relation.
+     • ╰╸ This rule contains no clauses that refer to 'a'.
+     •
+     │ Hint: Use the variable 'a' as an argument in another clause in the same rule.
+─────╯
+
+[error]: Ungrounded variable
+     ╭──▶ TEST_DIR/program1.eclair@14:15-14:18
+     │
+  11 │ ╭┤ a(abc) :-
+  12 │ │    abc = 123,
+  13 │ │    // Should detect cycle correctly.
+  14 │ ├┤   def = abc + def.
+     • │                ┬──
+     • │                ╰╸ The variable 'def' is ungrounded, meaning it is not directly bound as an argument to a relation.
+     • │
+     • ╰╸ This rule contains no clauses that refer to 'def'.
+     •
+     │ Hint: Use the variable 'def' as an argument in another clause in the same rule.
+─────╯

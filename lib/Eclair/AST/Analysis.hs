@@ -148,11 +148,11 @@ data ModuleDecl
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions ModuleDecl "module_declaration" 'S.Input
 
-data RuleVariable
-  = RuleVariable { rvRuleId :: NodeId, rvVarId :: NodeId }
+data ScopedValue
+  = ScopedValue { svScopeId :: NodeId, svNodeId :: NodeId }
   deriving stock Generic
   deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions RuleVariable "rule_variable" 'S.Input
+  deriving S.Fact via S.FactOptions ScopedValue "scoped_value" 'S.Input
 
 data PointsToVar
   = PointsToVar
@@ -258,7 +258,7 @@ data SemanticAnalysis
        , InternalRelation
        , Module
        , ModuleDecl
-       , RuleVariable
+       , ScopedValue
        , PointsToVar
        , VariableInFact NodeId
        , UngroundedVar NodeId
@@ -320,6 +320,7 @@ hasSemanticErrors result =
   isNotNull wildcardsInFacts ||
   isNotNull wildcardsInRuleHeads ||
   isNotNull wildcardsInConstraints ||
+  isNotNull wildcardsInBinOps ||
   isNotNull deadInternalRelations ||
   isNotNull noOutputRelations
   where
@@ -332,7 +333,10 @@ analysis prog = S.mkAnalysis addFacts run getFacts
   where
     addFacts :: IR.AST -> S.SouffleM ()
     addFacts ast = usingReaderT Nothing $ flip (zygo getNodeId) ast $ \case
-      IR.LitF nodeId lit ->
+      IR.LitF nodeId lit -> do
+        mScopeId <- ask
+        forM_ mScopeId $ \scopeId ->
+          S.addFact prog $ ScopedValue scopeId nodeId
         case lit of
           IR.LNumber x ->
             S.addFact prog $ LitNumber nodeId x
@@ -344,7 +348,7 @@ analysis prog = S.mkAnalysis addFacts run getFacts
         S.addFact prog $ Var nodeId var
         maybeRuleId <- ask
         for_ maybeRuleId $ \ruleId ->
-          S.addFact prog $ RuleVariable ruleId nodeId
+          S.addFact prog $ ScopedValue ruleId nodeId
       IR.HoleF nodeId ->
         S.addFact prog $ Hole nodeId
       IR.BinOpF nodeId arithOp (lhsId', lhsAction) (rhsId', rhsAction) -> do
@@ -370,7 +374,12 @@ analysis prog = S.mkAnalysis addFacts run getFacts
       IR.AtomF nodeId atom (unzip -> (argNodeIds, actions)) -> do
         S.addFact prog $ Atom nodeId atom
         S.addFacts prog $ mapWithPos (AtomArg nodeId) argNodeIds
-        sequence_ actions
+        mScopeId <- ask
+        let maybeAddScope =
+              if isJust mScopeId
+                then id
+                else local (const $ Just nodeId)
+        maybeAddScope $ sequence_ actions
       IR.RuleF nodeId rule ruleArgs ruleClauses -> do
         let (argNodeIds, argActions) = unzip ruleArgs
             (clauseNodeIds, clauseActions) = unzip ruleClauses
