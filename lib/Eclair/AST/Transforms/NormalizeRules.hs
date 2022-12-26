@@ -16,20 +16,21 @@ import Eclair.Common.Id
 
 transform :: Transform AST AST
 transform =
-  Transform $ zygo normalize rewrite
+  Transform $ zygo normalizeArithmetic rewriteArithmetic
+          >=> zygo normalizeEqualVars rewriteVars
   where
-    rewrite :: ASTF (StateT TransformState TransformM AST, TransformM AST) -> TransformM AST
-    rewrite = \case
+    rewriteVars = \case
       RuleF nodeId name values clauses -> do
         vals <- traverse snd values
-        (clauses', concatMap extraClauses -> extras) <- unzip <$> traverse (usingStateT mempty . fst) clauses
+        let beginState = NormalizeVarState mempty mempty
+        (clauses', extras) <- unzip <$> traverse (usingStateT beginState . fst) clauses
         let (constraints, rest) = partition isConstraint clauses'
-        pure $ Rule nodeId name vals $ rest <> constraints <> extras
+            extras' = concatMap extraClauses extras
+        pure $ Rule nodeId name vals $ rest <> constraints <> extras'
       astf ->
         embed <$> traverse snd astf
 
-    normalize :: RewriteRuleT (StateT TransformState) AST
-    normalize = \case
+    normalizeEqualVars = \case
       AtomF nodeId name values ->
         Atom nodeId name <$> sequence values
       VarF nodeId v -> do
@@ -48,17 +49,6 @@ transform =
                              , varMap = Map.insert v (x + 1) (varMap s)
                              }
             pure var'
-      BinOpF nodeId op lhs rhs -> do
-        binOp <- BinOp nodeId op <$> lhs <*> rhs
-        nodeId' <- lift freshNodeId
-        count <- gets nextVar
-        let v = Id $ "@binop_" <> show count
-            var = Var nodeId' v
-            eq = Constraint nodeId' Equals var binOp
-        modify $ \s -> s { extraClauses = eq : extraClauses s
-                         , nextVar = nextVar s + 1
-                         }
-        pure var
       astf ->
         embed <$> sequence astf
 
@@ -67,20 +57,40 @@ transform =
       Constraint {} -> True
       _ -> False
 
+    normalizeArithmetic = \case
+      BinOpF nodeId op lhs rhs -> do
+        count <- gets nextVar
+        modify $ \s -> s { nextVar = nextVar s + 1 }
+        binOp <- BinOp nodeId op <$> lhs <*> rhs
+        nodeId' <- lift freshNodeId
+        let v = Id $ "@binop_" <> show count
+            var = Var nodeId' v
+            eq = Constraint nodeId' Equals var binOp
+        modify $ \s -> s { extraArithClauses = eq : extraArithClauses s }
+        pure var
+      astf ->
+        embed <$> sequence astf
 
-data TransformState
-  = TransformState
+    rewriteArithmetic = \case
+      RuleF nodeId name values clauses -> do
+        let beginState = NormalizeArithmeticState 0 mempty
+        ((values', clauses'), endState) <- usingStateT beginState $ do
+            vals <- traverse fst values
+            cs <- traverse fst clauses
+            pure (vals, cs)
+        let clauses'' = clauses' <> extraArithClauses endState
+        pure $ Rule nodeId name values' clauses''
+      astf ->
+        embed <$> traverse snd astf
+
+data NormalizeVarState
+  = NormalizeVarState
   { varMap :: Map Id Int
   , extraClauses :: [Clause]
-  , nextVar :: Int
   }
 
-instance Semigroup TransformState where
-  (TransformState vm1 eqs1 nextVar1) <> (TransformState vm2 eqs2 nextVar2) =
-    TransformState
-      (Map.unionWith (+) vm1 vm2)
-      (eqs1 <> eqs2)
-      (nextVar1 + nextVar2)
-
-instance Monoid TransformState where
-  mempty = TransformState mempty mempty 0
+data NormalizeArithmeticState
+  = NormalizeArithmeticState
+  { nextVar :: Int
+  , extraArithClauses :: [Clause]
+  }
