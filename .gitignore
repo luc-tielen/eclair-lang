@@ -15,3 +15,5 @@ cabal.project.local*
 /*.js
 
 result
+eclair.prof
+eclair.svg
