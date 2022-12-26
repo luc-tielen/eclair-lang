@@ -43,7 +43,7 @@ handleErrorsCLI e = do
       ParseErr file' err' -> do
         case err' of
           FileNotFound {} ->
-            pure $ "File not found: " <> pretty file'
+            pure $ "File not found: " <> pretty file' <> ".\n"
           ParsingError parseError -> do
             content <- decodeUtf8 <$> readFileBS file'
             let reports = map fst $ errReportsWithLocationsFromBundle "Failed to parse file" parseError
