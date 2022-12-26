@@ -6,12 +6,12 @@ module Eclair.AST.Transforms
 import Eclair.AST.IR
 import Eclair.AST.Analysis
 import Eclair.Transform
+import qualified Eclair.AST.Transforms.ConstantFolding as ConstantFolding
 import qualified Eclair.AST.Transforms.CopyPropagation as CopyPropagation
 import qualified Eclair.AST.Transforms.DeadCodeElimination as DCE
 import qualified Eclair.AST.Transforms.RemoveWildcards as RmWildcards
 import qualified Eclair.AST.Transforms.ReplaceStrings as ReplaceStrings
-import qualified Eclair.AST.Transforms.ShiftConstraints as ShiftConstraints
-import qualified Eclair.AST.Transforms.UniqueVars as UniqueVars
+import qualified Eclair.AST.Transforms.NormalizeRules as NormalizeRules
 
 
 -- Transforms can be grouped into 3 parts:
@@ -24,12 +24,14 @@ import qualified Eclair.AST.Transforms.UniqueVars as UniqueVars
 simplify :: NodeId -> SemanticInfo -> AST -> (AST, ReplaceStrings.StringMap)
 simplify nodeId analysis = runTransform nodeId
   -- Transforms before optimizations:
-  $   RmWildcards.transform
-  -- Optimizations:
+    $ ConstantFolding.transform
+  >>> RmWildcards.transform
+
+  -- Optimizations that run until fixpoint is reached:
   >>> CopyPropagation.transform (pointsToAnalysis analysis)
+  >>> ConstantFolding.transform
   >>> DCE.transform (deadCodeIds analysis)
 
   -- Transforms after optimizations:
-  >>> UniqueVars.transform
-  >>> ShiftConstraints.transform
+  >>> NormalizeRules.transform
   >>> ReplaceStrings.transform

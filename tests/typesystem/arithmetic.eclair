@@ -9,7 +9,7 @@
 @def arithmetic(u32) output.
 
 arithmetic(123 + 456).
-arithmetic(123 - 456).
+arithmetic(456 - 123).
 arithmetic(123 * 456).
 arithmetic(123 / 456).
 arithmetic(123 * 456 + 789).

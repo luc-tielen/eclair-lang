@@ -36,12 +36,12 @@ library
       Eclair.AST.IR
       Eclair.AST.Lower
       Eclair.AST.Transforms
+      Eclair.AST.Transforms.ConstantFolding
       Eclair.AST.Transforms.CopyPropagation
       Eclair.AST.Transforms.DeadCodeElimination
+      Eclair.AST.Transforms.NormalizeRules
       Eclair.AST.Transforms.RemoveWildcards
       Eclair.AST.Transforms.ReplaceStrings
-      Eclair.AST.Transforms.ShiftConstraints
-      Eclair.AST.Transforms.UniqueVars
       Eclair.Common.Config
       Eclair.Common.Id
       Eclair.Common.Literal
