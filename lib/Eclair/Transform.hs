@@ -9,7 +9,7 @@ module Eclair.Transform
   , RewriteRuleT
   ) where
 
-import Eclair.AST.IR (NodeId(..))
+import Eclair.Common.Location (NodeId(..))
 
 
 -- A helper monad that provides a fresh supply of unused node IDs.
