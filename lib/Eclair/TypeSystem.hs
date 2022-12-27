@@ -18,6 +18,7 @@ import Data.DList.DNonEmpty (DNonEmpty)
 import Control.Monad.Extra
 import Eclair.AST.IR
 import Eclair.Common.Id
+import Eclair.Common.Location (NodeId)
 
 -- NOTE: This module contains a lot of partial functions due to the fact
 -- that the rest of the compiler relies heavily on recursion-schemes.
