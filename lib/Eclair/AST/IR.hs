@@ -10,7 +10,6 @@ module Eclair.AST.IR
   , Type(..)
   , ConstraintOp(..)
   , isEqualityOp
-  , NodeId(..)
   , getNodeId
   , UsageMode(..)
   , Attributes
@@ -21,13 +20,7 @@ import Eclair.Common.Id
 import Eclair.Common.Operator
 import Eclair.Common.Literal
 import Eclair.Common.Pretty
-import qualified Language.Souffle.Marshal as S
-
-newtype NodeId
-  = NodeId
-  { unNodeId :: Word32
-  } deriving (Eq, Ord, Show, Generic)
-  deriving S.Marshal
+import Eclair.Common.Location
 
 type Value = AST
 type Clause = AST

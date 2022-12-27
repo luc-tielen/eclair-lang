@@ -15,7 +15,7 @@ module Eclair.AST.Analysis
   , DeadCode(..)
   , DeadInternalRelation(..)
   , NoOutputRelation(..)
-  , IR.NodeId(..)
+  , NodeId(..)
   , Container
   , computeUsageMapping
   ) where
@@ -25,9 +25,8 @@ import qualified Language.Souffle.Analysis as S
 import qualified Eclair.AST.IR as IR
 import qualified Data.Map as Map
 import Eclair.Common.Id
+import Eclair.Common.Location (NodeId(..))
 
-
-type NodeId = IR.NodeId
 
 type Position = Word32
 

@@ -22,6 +22,7 @@ import Eclair.Parser
 import Eclair.Common.Pretty
 import Eclair.Error
 import Eclair.Common.Id
+import Eclair.Common.Location
 import Eclair.Common.Config (Target(..))
 import Eclair.AST.IR
 import Eclair.AST.Transforms

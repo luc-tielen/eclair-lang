@@ -45,6 +45,7 @@ library
       Eclair.Common.Config
       Eclair.Common.Id
       Eclair.Common.Literal
+      Eclair.Common.Location
       Eclair.Common.Operator
       Eclair.Common.Pretty
       Eclair.Comonads
