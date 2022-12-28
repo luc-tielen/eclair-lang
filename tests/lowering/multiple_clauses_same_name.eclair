@@ -29,7 +29,7 @@ chain(x, y, z) :-
 //--- expected_ra.out
 project (1, 2) into link
 search link as link0 do
-  search link as link1 where (link1[0] = link0[1]) do
+  search link as link1 where (link0[1] = link1[0]) do
     project (link0[0], link0[1], link1[1]) into chain
 //--- expected_eir.out
 declare_type Program

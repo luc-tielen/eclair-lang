@@ -87,7 +87,7 @@ searchesForProgram typedefInfo ra =
   where
     addFact fact = modify (fact:)
     constraintsForRA = \case
-      SearchF r a (foldMap tSnd -> eqs) (tThd -> action) -> do
+      SearchF _ r a (foldMap tSnd -> eqs) (tThd -> action) -> do
         -- 1. Only direct constraints in the search matter, since that is what
         --    is used to select the index with, afterwards we are already
         --    looping over the value!
@@ -98,16 +98,16 @@ searchesForProgram typedefInfo ra =
         unless (null relevantCols) $ do
           addFact $ SearchOn r signature
         action
-      NotElemF r cols -> do
+      NotElemF _ r cols -> do
         let cs = columnsFor cols
             signature = SearchSignature $ Set.fromList cs
         addFact $ SearchOn r signature
-      MergeF from' _ -> do
+      MergeF _ from' _ -> do
         -- Always add a full search signature for the from relation, so we don't lose any data.
         let columns = columnsFor . fromJust $ Map.lookup (stripIdPrefixes from') typedefInfo
             signature = SearchSignature $ Set.fromList columns
         addFact $ SearchOn from' signature
-      SwapF r1 r2  ->
+      SwapF _ r1 r2  ->
         addFact $ Related r1 r2
       raf ->
         traverse_ tThd raf
@@ -144,15 +144,15 @@ data NormalizedEquality
 
 extractEqualities :: RAF (RA, [NormalizedEquality]) -> [NormalizedEquality]
 extractEqualities = \case
-  CompareOpF Equals (lhs, _) (rhs, _) -> do
+  CompareOpF _ Equals (lhs, _) (rhs, _) -> do
     case (lhs, rhs) of
-      (ColumnIndex lA lCol, ColumnIndex rA rCol) ->
+      (ColumnIndex _ lA lCol, ColumnIndex _ rA rCol) ->
         [ Equality lA lCol (AliasVal rA rCol)
         , Equality rA rCol (AliasVal lA lCol)
         ]
-      (ColumnIndex lA lCol, Lit r) ->
+      (ColumnIndex _ lA lCol, Lit _ r) ->
         [Equality lA lCol (Constant r)]
-      (Lit l, ColumnIndex rA rCol) ->
+      (Lit _ l, ColumnIndex _ rA rCol) ->
         [Equality rA rCol (Constant l)]
       _ ->
         mempty

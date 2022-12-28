@@ -1,13 +1,9 @@
-{-# LANGUAGE TupleSections, DerivingVia #-}
+{-# LANGUAGE DerivingVia #-}
 
 module Eclair.AST.Codegen
   ( CodegenM
   , runCodegen
-  , Term(..)
   , toTerm
-  , ConstraintExpr(..)
-  , Clause(..)
-  , toClause
   , project
   , search
   , loop
@@ -20,190 +16,187 @@ module Eclair.AST.Codegen
   , if'
   ) where
 
-import Data.Maybe (fromJust)
-import qualified Data.Map as M
+import Data.DList (DList)
+import qualified Data.DList as DList
 import qualified Eclair.RA.IR as RA
 import qualified Eclair.AST.IR as AST
+import Eclair.Common.Location
+import Eclair.Common.Literal
+import Eclair.Common.Operator
 import Eclair.Common.Id
 
 
-type Relation = RA.Relation
+type AST = AST.AST
 type RA = RA.RA
+type Relation = RA.Relation
+type Alias = RA.Alias
+type Variable = Id
 
 type Column = Int
 
 newtype Row = Row { unRow :: Int }
   deriving (Eq, Ord)
 
-type Variable = Id
-
-data Constraint = Constraint Relation Row Column Variable
-  deriving (Eq)
-
-data Constraints
-  = Constraints [Constraint] (Map Id [Constraint])
-
-type ExtraConstraints = [ConstraintExpr]
+data LowerState
+  = LowerState
+  { nextNodeId :: Word32  -- NOTE: Unrelated to NodeIDs used in AST!
+  -- Constraints that can be resolved directly, but need to be emitted later.
+  , directConstraints :: CodegenM RA -> CodegenM RA
+  -- We keep track of which alias + column maps to which variables for later
+  -- generation of constraints.
+  , varMapping :: DList (Alias, Column, Variable)
+  }
 
 newtype CodegenM a
-  = CodeGenM (RWS (Row, Constraints) () ExtraConstraints a)
-  deriving ( Functor, Applicative, Monad
-           , MonadReader (Row, Constraints)
-           , MonadState ExtraConstraints
-           )
-  via (RWS (Row, Constraints) () ExtraConstraints)
+  = CodegenM (RWS Row () LowerState a)
+  deriving (Functor, Applicative, Monad, MonadReader Row, MonadState LowerState)
+  via RWS Row () LowerState
 
 runCodegen :: CodegenM a -> a
-runCodegen (CodeGenM m) =
-  let cs = Constraints mempty mempty
-   in fst $ evalRWS m (Row 0, cs) []
+runCodegen (CodegenM m) =
+  -- NOTE: NodeId starts at 1, since module is manually created, and has NodeId 0
+  let beginState = LowerState 1 id mempty
+   in fst $ evalRWS m (Row 0) beginState
 
-project :: Relation -> [Term] -> CodegenM RA
-project r ts =
-  RA.Project r <$> traverse resolveTerm ts
+freshNodeId :: CodegenM NodeId
+freshNodeId = do
+  next <- gets nextNodeId
+  modify $ \s -> s { nextNodeId = next + 1 }
+  pure $ NodeId next
 
-search :: Relation -> [Term] -> CodegenM RA -> CodegenM RA
-search r ts inner = do
-  row <- asks fst
-  clauses <- traverse (uncurry (resolveClause r)) $ zip [0..] ts
-  (action, extraClauses) <- local updateState $ do
-    action <- inner
-    (action,) <$> resolveExtraClauses
-  let allClauses = catMaybes clauses ++ extraClauses
-  pure $ RA.Search r (relationToAlias r row) allClauses action
+project :: Relation -> [CodegenM RA] -> CodegenM RA
+project r terms = do
+  nodeId <- freshNodeId
+  (addDirectConstraints, mapping) <- gets (directConstraints &&& varMapping)
+  let grouped =
+        mapping
+        & toList
+        & sortOn varNameOf
+        & groupBy ((==) `on` varNameOf)
+      eqs = map toIndirectConstraint grouped
+      addIndirectConstraints = foldl' (.) id eqs
+
+  addDirectConstraints $ addIndirectConstraints $
+    RA.Project nodeId r <$> sequence terms
   where
-    updateState (row, cs) =
-      let alias = relationToAlias r row
-       in (incrRow row, addConstraints alias row (zip [0..] ts) cs)
-    incrRow = Row . (+1) . unRow
+    varNameOf (_, _, v) = v
+
+    resolveAliasValue (a, col, _) = do
+      nodeId <- freshNodeId
+      pure $ RA.ColumnIndex nodeId a col
+
+    toIndirectConstraint bindingGroup m = case bindingGroup of
+      initial :| rest -> do
+        aliasValue <- resolveAliasValue initial
+        aliasValues <- traverse resolveAliasValue rest
+        let constraints = map (if' Equals aliasValue) aliasValues
+            wrapConstraints = foldl' (.) id constraints
+        wrapConstraints m
+
+search :: Relation -> [AST] -> CodegenM RA -> CodegenM RA
+search r terms inner = do
+  -- Potentially reset var mapping when we reach the first search,
+  -- this makes it possible to easily support multiple project statements.
+  maybeResetSearchState
+
+  nodeId <- freshNodeId
+  a <- relationToAlias r
+  zipWithM_ (\col t -> emitSearchTerm t a col) [0..] terms
+  action <- local nextRow inner
+  pure $ RA.Search nodeId r a [] action
+  where
+    nextRow = Row . (+1) . unRow
+    maybeResetSearchState = do
+      Row row <- ask
+      when (row == 0) $ do
+        modify $ \s -> s { varMapping = mempty }
+
+    emitSearchTerm :: AST -> Alias -> Column -> CodegenM ()
+    emitSearchTerm ast a col = do
+      -- Based on what the term resolved to, we might need to create additional
+      -- constraints. Literals can directly be converted to a constraint, variables
+      -- are solved at the end (in the project statement).
+      case ast of
+        AST.Lit {} ->
+          addDirectConstraint ast a col
+        AST.BinOp {} ->
+          addDirectConstraint ast a col
+        AST.Var _ v ->
+          -- We append new constraints at the end.
+          -- This will cause indices to always trigger as soon as possible,
+          -- which narrows down the search space and speeds up the query.
+          modify $ \s -> s { varMapping = DList.snoc (varMapping s) (a, col, v) }
+        _ ->
+          pass
+
+    addDirectConstraint ast a col = do
+      ra <- toTerm ast
+      nodeId <- freshNodeId
+      let aliasValue = RA.ColumnIndex nodeId a col
+          constraint = if' Equals aliasValue ra
+      modify $ \s -> s { directConstraints = directConstraints s . constraint }
 
 loop :: [CodegenM RA] -> CodegenM RA
-loop ms = RA.Loop <$> sequence ms
+loop ms = do
+  nodeId <- freshNodeId
+  RA.Loop nodeId <$> sequence ms
 
 parallel :: [CodegenM RA] -> CodegenM RA
-parallel ms = RA.Par <$> sequence ms
+parallel ms = do
+  nodeId <- freshNodeId
+  RA.Par nodeId <$> sequence ms
 
 merge :: Relation -> Relation -> CodegenM RA
-merge from' to' = pure $ RA.Merge from' to'
+merge from' to' = do
+  nodeId <- freshNodeId
+  pure $ RA.Merge nodeId from' to'
 
 swap :: Relation -> Relation -> CodegenM RA
-swap r1 r2 = pure $ RA.Swap r1 r2
+swap r1 r2 = do
+  nodeId <- freshNodeId
+  pure $ RA.Swap nodeId r1 r2
 
 purge :: Relation -> CodegenM RA
-purge r = pure $ RA.Purge r
+purge r = do
+  nodeId <- freshNodeId
+  pure $ RA.Purge nodeId r
 
 exit :: [Relation] -> CodegenM RA
-exit rs = pure $ RA.Exit rs
+exit rs = do
+  nodeId <- freshNodeId
+  pure $ RA.Exit nodeId rs
 
-noElemOf :: Relation -> [Term] -> CodegenM a -> CodegenM a
+noElemOf :: Relation -> [CodegenM RA] -> CodegenM RA -> CodegenM RA
 noElemOf r ts m = do
-  modify (NotElem r ts:)
-  m
+  notElemNodeId <- freshNodeId
+  ifNodeId <- freshNodeId
+  cond <- RA.NotElem notElemNodeId r <$> sequence ts
+  RA.If ifNodeId cond <$> m
 
-if' :: AST.ConstraintOp -> Term -> Term -> CodegenM RA -> CodegenM RA
+if' :: ConstraintOp -> RA -> RA -> CodegenM RA -> CodegenM RA
 if' op lhs rhs body = do
-  cond <- RA.CompareOp op <$> resolveTerm lhs <*> resolveTerm rhs
-  RA.If cond <$> body
+  cmpNodeId <- freshNodeId
+  ifNodeId <- freshNodeId
+  let cond = RA.CompareOp cmpNodeId op lhs rhs
+  RA.If ifNodeId cond <$> body
 
-data Term
-  = VarTerm Id
-  | LitTerm Word32
-  | BinOpTerm AST.ArithmeticOp Term Term
-  deriving (Eq)
+toTerm :: AST -> CodegenM RA
+toTerm ast = do
+  nodeId <- freshNodeId
+  case ast of
+    AST.Lit _ (LNumber lit) ->
+      pure $ RA.Lit nodeId lit
+    AST.Var _ v -> do
+      gets (find (\(_, _, v') -> v == v') . varMapping) >>= \case
+        Just (alias, col, _) -> do
+          pure $ RA.ColumnIndex nodeId alias col
+        Nothing ->
+          panic "Found ungrounded variable in 'toTerm'!"
+    AST.BinOp _ op lhs rhs ->
+      RA.PrimOp nodeId op <$> toTerm lhs <*> toTerm rhs
+    _ ->
+      panic "Unexpected case in 'toTerm'!"
 
-toTerm :: AST.AST -> Term
-toTerm = \case
-  AST.Lit _ lit ->
-    case lit of
-      AST.LNumber x ->
-        LitTerm x
-      AST.LString _ ->
-        panic "Unexpected string literal in 'toTerm' when lowering to RA"
-  AST.Var _ x ->
-    VarTerm x
-  AST.BinOp _ op lhs rhs ->
-    BinOpTerm op (toTerm lhs) (toTerm rhs)
-  -- TODO fix, no catch-all
-  _ ->
-    panic "Unknown pattern in 'toTerm'"
-
-data ConstraintExpr
-  = NotElem Id [Term]
-
-data Clause
-  = AtomClause Id [Term]
-  | ConstrainClause ConstraintExpr
-  | BinaryConstraint AST.ConstraintOp Term Term
-
-toClause :: AST.AST -> Clause
-toClause = \case
-  AST.Atom _ name values ->
-    AtomClause name (map toTerm values)
-  AST.Constraint _ op lhs rhs ->
-    BinaryConstraint op (toTerm lhs) (toTerm rhs)
-  _ ->
-    panic "toClause: unsupported case"
-
-relationToAlias :: Relation -> Row -> RA.Alias
-relationToAlias r row =
-  appendToId r (show $ unRow row)
-
-addConstraints :: Relation -> Row -> [(Column, Term)] -> Constraints -> Constraints
-addConstraints r row ts cs = foldl' addConstraint cs ts
-  where
-    addConstraint :: Constraints -> (Column, Term) -> Constraints
-    addConstraint cs'@(Constraints cList cMap) (col, t) = case t of
-      VarTerm v ->
-        let c = Constraint r row col v
-        in Constraints (c:cList) (M.insertWith (<>) v [c] cMap)
-      LitTerm {} -> cs'
-      BinOpTerm {} -> cs'
-
-resolveTerm :: Term -> CodegenM RA
-resolveTerm = \case
-  LitTerm x -> pure $ RA.Lit x
-  BinOpTerm op lhs rhs ->
-    RA.PrimOp op <$> resolveTerm lhs <*> resolveTerm rhs
-  VarTerm v -> do
-    cs <- asks snd
-    let (Constraint name _ col _) = fromJust $ findBestMatchingConstraint cs v
-     in pure $ RA.ColumnIndex name col
-
-resolveClause :: Relation -> Column -> Term -> CodegenM (Maybe RA)
-resolveClause r col t = do
-  row <- asks fst
-  let alias = relationToAlias r row
-      lhs = RA.ColumnIndex alias col
-      resolved = case t of
-        -- For variables we look up the matching constraint.
-        VarTerm v -> resolveVarTerm v
-        -- Other terms just need to be resolved.
-        _ -> Just <$> resolveTerm t
-  RA.CompareOp RA.Equals lhs <<$>> resolved
-  where
-    lookupVar v (Constraints _ cMap) = M.lookup v cMap
-    descendingClauseRow (Constraint _ row _ _) = Down row
-    differentRelation (Constraint r' _ _ _) = r /= r'
-    resolveVarTerm v = asks (lookupVar v . snd) >>= \case
-      Nothing -> pure Nothing
-      Just cs -> do
-        let relevantCs = sortOn descendingClauseRow $ filter differentRelation cs
-        case relevantCs of
-          [] -> pure Nothing
-          ((Constraint r' _ col' _):_) ->
-            pure $ Just $ RA.ColumnIndex r' col'
-
-resolveExtraClauses :: CodegenM [RA]
-resolveExtraClauses = do
-  extraClauses <- get
-  modify (const [])
-  traverse toRA extraClauses
-  where
-    toRA = \case
-      NotElem r ts ->
-        RA.NotElem r <$> traverse resolveTerm ts
-
-findBestMatchingConstraint :: Constraints -> Id -> Maybe Constraint
-findBestMatchingConstraint (Constraints _ cs) var =
-  viaNonEmpty head . sortOn ascendingClauseRow =<< M.lookup var cs
-  where ascendingClauseRow (Constraint _ row _ _) = row
+relationToAlias :: Relation -> CodegenM Alias
+relationToAlias r =
+  asks (appendToId r . show . unRow)

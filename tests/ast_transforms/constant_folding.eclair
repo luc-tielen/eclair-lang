@@ -54,18 +54,12 @@ arithmetic(x) :-
 arithmetic(x) :-
   number(x),
   number(y),
-  x = @binop_0,
-  x = @binop_1,
-  x = @binop_2,
-  @binop_2 = y + @y_0,
-  @binop_1 = 1 + y,
-  @binop_0 = y + 1,
-  y = @y_0.
+  x = y + 1,
+  x = 1 + y,
+  x = y + y.
 
 arithmetic2(x, y) :-
   number(x),
   number(y),
-  x = @binop_0,
-  y = @binop_1,
-  @binop_1 = x + 1,
-  @binop_0 = 1 + y.
+  x = 1 + y,
+  y = x + 1.

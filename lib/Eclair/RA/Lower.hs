@@ -80,9 +80,9 @@ compileRun ra = do
 
 generateProgramInstructions :: RA -> CodegenM EIR
 generateProgramInstructions = gcata (distribute extractEqualities) $ \case
-  RA.ModuleF (map extract -> actions) -> block actions
-  RA.ParF (map extract -> actions) -> parallel actions
-  RA.SearchF r alias clauses (extract -> action) -> do
+  RA.ModuleF _ (map extract -> actions) -> block actions
+  RA.ParF _ (map extract -> actions) -> parallel actions
+  RA.SearchF _ r alias clauses (extract -> action) -> do
     let eqsInSearch = foldMap tSnd clauses
         eqs = concatMap normalizedEqToConstraints eqsInSearch
     idx <- idxFromConstraints r alias eqs
@@ -112,7 +112,7 @@ generateProgramInstructions = gcata (distribute extractEqualities) $ \case
                       if' query action
             ]
       ]
-  RA.ProjectF r (map extract -> unresolvedValues) -> do
+  RA.ProjectF _ r (map extract -> unresolvedValues) -> do
     values <- sequence unresolvedValues
     let values' = map pure values
     indices <- indexesForRelation r
@@ -127,11 +127,11 @@ generateProgramInstructions = gcata (distribute extractEqualities) $ \case
           -- NOTE: The insert function is different for each r + idx combination though!
           call r idx EIR.Insert [lookupRelationByIndex r idx, var']
     block $ allocValue : assignStmts <> insertStmts
-  RA.PurgeF r ->
+  RA.PurgeF _ r ->
     block =<< relationUnaryFn r EIR.Purge
-  RA.SwapF r1 r2 ->
+  RA.SwapF _ r1 r2 ->
     block =<< relationBinFn r1 r2 EIR.Swap
-  RA.MergeF r1 r2 -> do
+  RA.MergeF _ r1 r2 -> do
     -- NOTE: r1 = from/src, r2 = to/dst
     -- TODO: which idx? just select first matching? or idx on all columns?
     idxR1 <- fromJust . viaNonEmpty head <$> indexesForRelation r1
@@ -149,19 +149,19 @@ generateProgramInstructions = gcata (distribute extractEqualities) $ \case
         , call r1 idxR1 EIR.IterEnd [relation1Ptr, endIter]
         , call r2 idxR2 (EIR.InsertRange r1 idxR1) [relation2Ptr, beginIter, endIter]
         ]
-  RA.LoopF (map extract -> actions) -> do
+  RA.LoopF _ (map extract -> actions) -> do
     end <- labelId "loop.end"
     block [withEndLabel end $ loop actions, label end]
-  RA.IfF (extract -> condition) (extract -> action) -> do
+  RA.IfF _ (extract -> condition) (extract -> action) -> do
     if' condition action
-  RA.PrimOpF op (extract -> lhs) (extract -> rhs) -> do
+  RA.PrimOpF _ op (extract -> lhs) (extract -> rhs) -> do
     let toArithmetic = case op of
           RA.Plus -> plus
           RA.Minus -> minus
           RA.Multiply -> multiply
           RA.Divide -> divide
     toArithmetic lhs rhs
-  RA.CompareOpF op (extract -> lhs) (extract -> rhs) -> do
+  RA.CompareOpF _ op (extract -> lhs) (extract -> rhs) -> do
     let toComparison = case op of
           RA.Equals -> equals
           RA.NotEquals -> notEquals
@@ -170,7 +170,7 @@ generateProgramInstructions = gcata (distribute extractEqualities) $ \case
           RA.GreaterThan -> greaterThan
           RA.GreaterOrEqual -> greaterOrEqual
     toComparison lhs rhs
-  RA.ExitF rs -> do
+  RA.ExitF _ rs -> do
     end <- endLabel <$> getLowerState
     foldl' f (jump end) =<< traverse getFirstFieldOffset rs
     where
@@ -180,8 +180,8 @@ generateProgramInstructions = gcata (distribute extractEqualities) $ \case
             relationPtr = fieldAccess programPtr field
             isEmpty = call r idx EIR.IsEmpty [relationPtr]
         if' isEmpty inner
-  RA.LitF x -> lit x
-  RA.NotElemF r (map extract -> columnValues) -> do
+  RA.LitF _ x -> lit x
+  RA.NotElemF _ r (map extract -> columnValues) -> do
     value <- var "value"
     let idx = mkFindIndex columnValues
         relationPtr = lookupRelationByIndex r idx
@@ -192,7 +192,7 @@ generateProgramInstructions = gcata (distribute extractEqualities) $ \case
         <> [ assign containsVar $ call r idx EIR.Contains [relationPtr, value]
             , not' containsVar
             ]
-  RA.ColumnIndexF a' col -> ask >>= \case
+  RA.ColumnIndexF _ a' col -> ask >>= \case
     Search a value _ ->
       if a == a'
         then getColumn value col

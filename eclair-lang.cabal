@@ -70,6 +70,8 @@ library
       Eclair.RA.IndexSelection
       Eclair.RA.IR
       Eclair.RA.Lower
+      Eclair.RA.Transforms
+      Eclair.RA.Transforms.HoistConstraints
       Eclair.Transform
       Eclair.TypeSystem
       Prelude
