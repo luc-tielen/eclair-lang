@@ -5,6 +5,9 @@
 //--- program.eclair
 @def fact1(u32, u32) input.
 @def fact2(u32) output.
+@def fact3(u32) input.
+@def fact4(u32, u32) output.
+@def fact5(u32) output.
 
 fact2(x) :-
   x = y,
@@ -31,27 +34,53 @@ fact2(x) :-
   z = x,
   fact1(x, z).
 
+fact4(y, z) :-
+  fact3(x),
+  y = x + 3,
+  y = x - 1,
+  y = z + y,
+  z = y + x.
+
+fact5(y) :-
+  fact3(x),
+  y = x + 3.
+
 //--- expected.out
 @def fact1(u32, u32) input.
 
 @def fact2(u32) output.
 
-fact2(z) :-
-  fact1(z, @z_0),
-  z = @z_0.
+@def fact3(u32) input.
 
-fact2(z) :-
-  fact1(z, @z_0),
-  z = @z_0.
+@def fact4(u32, u32) output.
 
-fact2(z) :-
-  fact1(z, @z_0),
-  z = @z_0.
+@def fact5(u32) output.
 
-fact2(z) :-
-  fact1(z, @z_0),
-  z = @z_0.
+fact2(x) :-
+  fact1(x, z),
+  x = z.
 
-fact2(z) :-
-  fact1(z, @z_0),
-  z = @z_0.
+fact2(x) :-
+  fact1(x, z),
+  x = z.
+
+fact2(x) :-
+  fact1(x, z),
+  z = x,
+  x = z.
+
+fact2(x) :-
+  fact1(x, z),
+  z = x.
+
+fact2(x) :-
+  fact1(x, z),
+  z = x.
+
+fact4((x - 1), ((x - 1) + x)) :-
+  fact3(x),
+  (x - 1) = (x + 3),
+  (x - 1) = (((x - 1) + x) + (x - 1)).
+
+fact5((x + 3)) :-
+  fact3(x).

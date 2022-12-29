@@ -43,7 +43,7 @@ search fact1 as fact10 do
 search fact1 as fact10 where (123 = fact10[1]) do
   project (fact10[1], fact10[0]) into fact2
 search fact1 as fact10 do
-  if fact10[0] = fact10[1] do
+  if fact10[1] = fact10[0] do
     search fact1 as fact11 where (fact11[0] = 123 and fact10[0] = fact11[1]) do
       project (fact10[0], 1) into fact2
 //--- expected_eir.out
@@ -163,7 +163,7 @@ export fn eclair_program_run(*Program) -> Void
       goto range_query.end_2
     }
     current_2 = fact1.iter_current(begin_iter_2)
-    condition_8 = (current_2.0 == current_2.1)
+    condition_8 = (current_2.1 == current_2.0)
     if (condition_8)
     {
       value_8 = fact1.stack_allocate Value
@@ -334,9 +334,9 @@ if_7:
   br label %range_query.end_2
 end_if_7:
   %current_2_0 = call ccc [2 x i32]* @btree_iterator_current_0(%btree_iterator_t_0* %begin_iter_2_0)
-  %condition_8_0 = getelementptr [2 x i32], [2 x i32]* %current_2_0, i32 0, i32 0
+  %condition_8_0 = getelementptr [2 x i32], [2 x i32]* %current_2_0, i32 0, i32 1
   %condition_8_1 = load i32, i32* %condition_8_0
-  %condition_8_2 = getelementptr [2 x i32], [2 x i32]* %current_2_0, i32 0, i32 1
+  %condition_8_2 = getelementptr [2 x i32], [2 x i32]* %current_2_0, i32 0, i32 0
   %condition_8_3 = load i32, i32* %condition_8_2
   %condition_8_4 = icmp eq i32 %condition_8_1, %condition_8_3
   br i1 %condition_8_4, label %if_8, label %end_if_9

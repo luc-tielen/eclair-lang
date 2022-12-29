@@ -1,5 +1,8 @@
-module Eclair.AST.Lower ( compileToRA ) where
+module Eclair.AST.Lower
+  ( compileToRA
+  ) where
 
+import Prelude hiding (swap, project)
 import qualified Data.Graph as G
 import qualified Data.Map as M
 import Eclair.AST.Codegen

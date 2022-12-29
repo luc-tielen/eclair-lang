@@ -152,16 +152,15 @@ data ScopedValue
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions ScopedValue "scoped_value" 'S.Input
 
-data PointsToVar
-  = PointsToVar
+data PointsTo
+  = PointsTo
   { ptRuleId :: NodeId
-  , ptVar1Id :: NodeId
-  , ptVar2Id :: NodeId
-  , ptVar2Name :: Id
+  , ptLhs1Id :: NodeId
+  , ptLhs2Id :: NodeId
   }
   deriving stock (Generic, Eq, Show)
   deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions PointsToVar "points_to_var" 'S.Output
+  deriving S.Fact via S.FactOptions PointsTo "points_to" 'S.Output
 
 data UngroundedVar loc
   = UngroundedVar
@@ -251,7 +250,7 @@ data SemanticAnalysis
        , Module
        , ModuleDecl
        , ScopedValue
-       , PointsToVar
+       , PointsTo
        , UngroundedVar NodeId
        , WildcardInRuleHead NodeId
        , WildcardInFact NodeId
@@ -265,18 +264,25 @@ data SemanticAnalysis
 -- TODO: change to Vector when finished for performance
 type Container = []
 
--- Points-to analysis of variables.
--- For now only takes variables mapping to other variables into account.
+-- Points-to analysis result (mapping of rule NodeID -> points to entries).
 newtype PointsToAnalysis
-  = PointsToAnalysis (Map NodeId IR.AST)
+  = PointsToAnalysis (Map NodeId [(NodeId, NodeId)])
   deriving (Eq, Show)
 
-mkPointsToAnalysis :: Container PointsToVar -> PointsToAnalysis
-mkPointsToAnalysis =
-  PointsToAnalysis . Map.fromList . toList . map toEntry
+mkPointsToAnalysis :: Container PointsTo -> PointsToAnalysis
+mkPointsToAnalysis results =
+  results
+  & map toEntry
+  & sortOn (fst &&& fst . snd)
+  & groupBy ((==) `on` fst)
+  & map toRuleEntry
+  & Map.fromList
+  & PointsToAnalysis
   where
-    toEntry (PointsToVar _ var1Id var2Id var2Name) =
-      (var1Id, IR.Var var2Id var2Name)
+    toEntry (PointsTo ruleId lhsId rhsId) =
+      (ruleId, (lhsId, rhsId))
+    toRuleEntry ((ruleId, eq) :| eqs) =
+      (ruleId, eq : map snd eqs)
 
 data SemanticInfo
   = SemanticInfo

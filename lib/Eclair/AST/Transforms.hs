@@ -7,7 +7,7 @@ import Eclair.AST.IR
 import Eclair.AST.Analysis
 import Eclair.Transform
 import qualified Eclair.AST.Transforms.ConstantFolding as ConstantFolding
-import qualified Eclair.AST.Transforms.CopyPropagation as CopyPropagation
+import qualified Eclair.AST.Transforms.RemoveAliases as RemoveAliases
 import qualified Eclair.AST.Transforms.DeadCodeElimination as DCE
 import qualified Eclair.AST.Transforms.RemoveWildcards as RmWildcards
 import qualified Eclair.AST.Transforms.ReplaceStrings as ReplaceStrings
@@ -28,7 +28,7 @@ simplify nodeId analysis = runTransform nodeId
   >>> RmWildcards.transform
 
   -- Optimizations that run until fixpoint is reached:
-  >>> CopyPropagation.transform (pointsToAnalysis analysis)
+  >>> RemoveAliases.transform
   >>> ConstantFolding.transform
   >>> DCE.transform (deadCodeIds analysis)
 

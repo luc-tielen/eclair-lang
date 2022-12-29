@@ -25,7 +25,6 @@
 .decl literal_contradiction(lit_id1: unsigned, lit_id2: unsigned)
 .decl wildcard(node_id: unsigned) inline
 .decl rule_head_var(rule_id: unsigned, var_id: unsigned, var_name: symbol)
-.decl grounded_var(rule_id: unsigned, var_name: symbol)
 .decl alias(rule_id: unsigned, id1: unsigned, id2: unsigned)
 .decl points_to(rule_id: unsigned, id1: unsigned, id2: unsigned)
 .decl depends_on(r1: symbol, r2: symbol)
@@ -35,7 +34,7 @@
 .decl live_rule(relation: symbol)
 
 // Output facts / rules
-.decl points_to_var(rule_id: unsigned, var_id1: unsigned, var_id2: unsigned, var_name: symbol)
+.decl grounded_variable(rule_id: unsigned, var_name: symbol)
 .decl ungrounded_variable(rule_id: unsigned, var_id: unsigned, var_name: symbol)
 .decl wildcard_in_fact(fact_node_id: unsigned,  fact_arg_id: unsigned, pos: unsigned)
 .decl wildcard_in_rule_head(rule_node_id: unsigned, rule_arg_id: unsigned, pos: unsigned)
@@ -64,12 +63,12 @@
 .input module_declaration
 .input scoped_value
 
-.output points_to_var
 .output wildcard_in_fact
 .output ungrounded_variable
 .output wildcard_in_rule_head
 .output wildcard_in_constraint
 .output wildcard_in_binop
+.output points_to
 .output dead_code
 .output no_output_relation
 .output dead_internal_relation
@@ -171,7 +170,7 @@ ungrounded_variable(atom_id, var_id, var_name) :-
 ungrounded_variable(rule_id, var_id, var_name) :-
   rule_head_var(rule_id, var_id, var_name),
   var_name != "_",
-  !grounded_var(rule_id, var_name).  // Only compare by variable name!
+  !grounded_variable(rule_id, var_name).  // Only compare by variable name!
 
 // Variables used in a constraint (comparison or inequality) need to be grounded.
 ungrounded_variable(rule_id, var_id, var_name) :-
@@ -180,7 +179,7 @@ ungrounded_variable(rule_id, var_id, var_name) :-
   inequality_op(op),
   variable(var_id, var_name),
   var_name != "_",
-  !grounded_var(rule_id, var_name).
+  !grounded_variable(rule_id, var_name).
 
 ungrounded_variable(rule_id, var_id, var_name) :-
   rule_clause(rule_id, _, rule_clause_id),
@@ -188,20 +187,20 @@ ungrounded_variable(rule_id, var_id, var_name) :-
   inequality_op(op),
   variable(var_id, var_name),
   var_name != "_",
-  !grounded_var(rule_id, var_name).
+  !grounded_variable(rule_id, var_name).
 
 // Variables used in a binop need to be grounded.
 ungrounded_variable(rule_id, var_id, var_name) :-
   binop(_, _, var_id, _),
   variable(var_id, var_name),
   scoped_value(rule_id, var_id),
-  !grounded_var(rule_id, var_name).
+  !grounded_variable(rule_id, var_name).
 
 ungrounded_variable(rule_id, var_id, var_name) :-
   binop(_, _, _, var_id),
   variable(var_id, var_name),
   scoped_value(rule_id, var_id),
-  !grounded_var(rule_id, var_name).
+  !grounded_variable(rule_id, var_name).
 
 inequality_op("!=").
 inequality_op("<").
@@ -266,11 +265,6 @@ points_to(rule_id, id1, id4) :-
   variable(id3, var_name),
   alias(rule_id, id3, id4).
 
-// NOTE: right now only takes variables into account, not literals (enhancement for later).
-points_to_var(rule_id, id1, id2, var_name) :-
-  points_to(rule_id, id1, id2),
-  variable(id2, var_name).
-
 // If we find two variables that point to different literal values,
 // then there is a contradiction.
 rule_with_contradiction(rule_id) :-
@@ -301,7 +295,7 @@ rule_head_var(rule_id, var_id, var_name) :-
   variable(var_id, var_name).
 
 // Helper relation for getting all grounded variables in body of a rule.
-grounded_var(rule_id, var_name) :-
+grounded_variable(rule_id, var_name) :-
   grounded_node(rule_id, var_id),
   variable(var_id, var_name).
 

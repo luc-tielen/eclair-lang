@@ -13,7 +13,7 @@ import Eclair.Comonads
 -- 1. It replaces equal variables in one atom with unique variables,
 --    producing extra assign constraints along the way;
 -- 2. It shifts all constraints to the end;
--- 3. It shifts all arithmetic used in clauses to the end.
+-- 3. It shifts all (grounded) arithmetic used in clauses to the end.
 
 transform :: Transform AST AST
 transform =

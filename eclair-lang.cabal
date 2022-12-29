@@ -37,9 +37,9 @@ library
       Eclair.AST.Lower
       Eclair.AST.Transforms
       Eclair.AST.Transforms.ConstantFolding
-      Eclair.AST.Transforms.CopyPropagation
       Eclair.AST.Transforms.DeadCodeElimination
       Eclair.AST.Transforms.NormalizeRules
+      Eclair.AST.Transforms.RemoveAliases
       Eclair.AST.Transforms.RemoveWildcards
       Eclair.AST.Transforms.ReplaceStrings
       Eclair.Common.Config

@@ -16,6 +16,7 @@ module Eclair.AST.Codegen
   , if'
   ) where
 
+import Prelude hiding (swap, project)
 import Data.DList (DList)
 import qualified Data.DList as DList
 import qualified Eclair.RA.IR as RA

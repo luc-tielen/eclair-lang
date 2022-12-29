@@ -73,8 +73,8 @@ transform =
       ProjectF nodeId r vals -> do
         -- NOTE: remaining conditions are not removed here, to support multiple projections in the future.
         remaining <- asks (map (\(nodeId', _, cond) -> (nodeId', cond)) . remainingConstraints)
-        project <- Project nodeId r <$> traverse qFourth vals
-        pure $ foldr (\(nodeId', cond) inner -> If nodeId' cond inner) project remaining
+        projectStmt <- Project nodeId r <$> traverse qFourth vals
+        pure $ foldr (\(nodeId', cond) inner -> If nodeId' cond inner) projectStmt remaining
 
       IfF _ _ inner ->
         -- NOTE: constraints are already in the state and handled in
