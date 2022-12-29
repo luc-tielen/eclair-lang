@@ -7,7 +7,6 @@ module Eclair.RA.IndexSelection
   , runIndexSelection
   , columnsForRelation
   , NormalizedEquality(..)
-  , Val(..)
   , normalizedEqToConstraints
   , extractEqualities
   ) where
@@ -93,7 +92,7 @@ searchesForProgram typedefInfo ra =
         --    looping over the value!
         -- 2. Only equality constraints matter, not "NoElem" constraints!
         let cs = concatMap normalizedEqToConstraints eqs
-        let relevantCols = mapMaybe (columnsForRelation a) cs
+            relevantCols = mapMaybe (columnsForRelation a) cs
             signature = SearchSignature $ Set.fromList relevantCols
         unless (null relevantCols) $ do
           addFact $ SearchOn r signature
@@ -132,39 +131,36 @@ getFullSearchesForRelations typedefInfo =
     unsafeLookup r = fromJust $ Map.lookup r typedefInfo
     toSearchSignature = SearchSignature . Set.fromList . columnsFor
 
--- TODO better name
-data Val
-  = AliasVal Alias Column
-  | Constant Word32
-  deriving Show
-
 data NormalizedEquality
-  = Equality Alias Column Val
+  = NormalizedEquality Alias Column RA
   deriving Show
 
 extractEqualities :: RAF (RA, [NormalizedEquality]) -> [NormalizedEquality]
 extractEqualities = \case
-  CompareOpF _ Equals (lhs, _) (rhs, _) -> do
-    case (lhs, rhs) of
-      (ColumnIndex _ lA lCol, ColumnIndex _ rA rCol) ->
-        [ Equality lA lCol (AliasVal rA rCol)
-        , Equality rA rCol (AliasVal lA lCol)
-        ]
-      (ColumnIndex _ lA lCol, Lit _ r) ->
-        [Equality lA lCol (Constant r)]
-      (Lit _ l, ColumnIndex _ rA rCol) ->
-        [Equality rA rCol (Constant l)]
-      _ ->
-        mempty
+  CompareOpF _ Equals (lhs, _) (rhs, _) ->
+    toEqualities lhs rhs
   raf ->
     foldMap snd raf
+  where
+    toEqualities lhs rhs = case (lhs, rhs) of
+      (ColumnIndex _ lA lCol, ColumnIndex _ rA rCol) ->
+        [ NormalizedEquality lA lCol rhs
+        , NormalizedEquality rA rCol lhs
+        ]
+      (ColumnIndex _ lA lCol, _) ->
+        [NormalizedEquality lA lCol rhs]
+      (_, ColumnIndex {}) ->
+        toEqualities rhs lhs
+      _ ->
+        mempty
 
 normalizedEqToConstraints :: NormalizedEquality -> [(Relation, Column)]
 normalizedEqToConstraints = \case
-  Equality a1 c1 (AliasVal a2 c2) ->
-    [(a1, c1), (a2, c2)]
-  Equality a1 c1 _ ->
-    [(a1, c1)]
+  NormalizedEquality a1 c1 ra -> case ra of
+    ColumnIndex _ a2 c2 ->
+      [(a1, c1), (a2, c2)]
+    _ ->
+      [(a1, c1)]
 
 columnsForRelation :: Relation -> (Relation, Column) -> Maybe Column
 columnsForRelation r (r', col)

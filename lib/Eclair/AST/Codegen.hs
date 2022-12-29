@@ -191,7 +191,7 @@ toTerm ast = do
         Just (alias, col, _) -> do
           pure $ RA.ColumnIndex nodeId alias col
         Nothing ->
-          panic "Found ungrounded variable in 'toTerm'!"
+          panic $ "Found ungrounded variable '" <> unId v <> "' in 'toTerm'!"
     AST.BinOp _ op lhs rhs ->
       RA.PrimOp nodeId op <$> toTerm lhs <*> toTerm rhs
     _ ->

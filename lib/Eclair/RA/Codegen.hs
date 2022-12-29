@@ -43,6 +43,7 @@ module Eclair.RA.Codegen
   , lessOrEqual
   , greaterThan
   , greaterOrEqual
+  , mkArithOp
   , plus
   , minus
   , multiply
@@ -354,10 +355,11 @@ idxFromConstraints r a constraints = do
       r' = stripIdPrefixes r
   if null constraints
     then do
-      -- NOTE: no constraints so we pick the first index
-      -- TODO check if this is the best choice?
-      let indices = fromJust $ M.lookup r' indexMap
-      pure $ S.elemAt 0 indices
+      -- NOTE: no constraints so we pick the longest index
+      let mIndex = do
+            indices <- M.lookup r' indexMap
+            viaNonEmpty head $ sortOn (negate . length . unIndex) $ toList indices
+      pure $ fromJust mIndex
     else do
       let columns = mapMaybe (columnsForRelation a) constraints
           signature = SearchSignature $ S.fromList columns

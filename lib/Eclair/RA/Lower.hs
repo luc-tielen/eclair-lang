@@ -254,12 +254,16 @@ initValue r idx a bound eqs = do
       assignStmts = map (\(i, val) -> assign (fieldAccess value i) val) valuesWithCols
   pure (block $ allocValue : assignStmts, value)
   where
-    isConstrained col = any (\(Equality a' col' _) -> a == a' && col == col') eqs
+    isConstrained col =
+      any (\(NormalizedEquality a' col' _) -> a == a' && col == col' ) eqs
     constrain col =
-      let (Equality _ _ val) = fromJust $ find (\(Equality a' col' _) -> a == a' && col == col') eqs
-       in case val of
-            Constant x -> lit x
-            AliasVal a' col' -> fieldAccess (lookupAlias a') col'
+      let NormalizedEquality _ _ ra = fromJust $ find (\(NormalizedEquality a' col' _) -> a == a' && col == col') eqs
+       in lowerConstrainValue ra
+    lowerConstrainValue = \case
+      RA.Lit _ x -> lit x
+      RA.ColumnIndex _ a' col' -> fieldAccess (lookupAlias a') col'
+      RA.PrimOp _ op lhs rhs -> mkArithOp op (lowerConstrainValue lhs) (lowerConstrainValue rhs)
+      _ -> panic "Unsupported initial value while lowering to RA"
     dontCare = lit $ case bound of
       LowerBound -> 0
       UpperBound -> 0xffffffff
