@@ -93,19 +93,19 @@ export fn eclair_program_run(*Program) -> Void
       goto range_query.end
     }
     current = fact1.iter_current(begin_iter)
-    condition_1 = 123 < current.1
+    condition_1 = (123 < current.1)
     if (condition_1)
     {
-      condition_2 = 123 <= current.1
+      condition_2 = (123 <= current.1)
       if (condition_2)
       {
-        condition_3 = 123 > current.1
+        condition_3 = (123 > current.1)
         if (condition_3)
         {
-          condition_4 = 123 >= current.1
+          condition_4 = (123 >= current.1)
           if (condition_4)
           {
-            condition_5 = 123 != current.1
+            condition_5 = (123 != current.1)
             if (condition_5)
             {
               value_2 = fact2.stack_allocate Value
@@ -163,7 +163,7 @@ export fn eclair_program_run(*Program) -> Void
       goto range_query.end_2
     }
     current_2 = fact1.iter_current(begin_iter_2)
-    condition_8 = current_2.0 == current_2.1
+    condition_8 = (current_2.0 == current_2.1)
     if (condition_8)
     {
       value_8 = fact1.stack_allocate Value

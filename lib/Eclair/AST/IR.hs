@@ -96,7 +96,7 @@ instance Pretty AST where
         Hole _ ->
           pure "?"
         BinOp _ op lhs rhs ->
-          pure $ pretty lhs <+> pretty op <+> pretty rhs
+          pure $ parens $ pretty lhs <+> pretty op <+> pretty rhs
         Constraint _ op lhs rhs ->
           pure $ pretty lhs <+> pretty op <+> pretty rhs
         Atom _ name values -> do

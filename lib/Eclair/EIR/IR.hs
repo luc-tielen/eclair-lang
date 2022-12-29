@@ -180,7 +180,7 @@ instance Pretty EIR where
     Assign var value ->
       pretty var <+> "=" <+> pretty value
     PrimOp op [arg1, arg2] | isInfixPrimOp op ->
-      pretty arg1 <+> pretty op <+> pretty arg2
+      parens $ pretty arg1 <+> pretty op <+> pretty arg2
     PrimOp op args ->
       pretty op <> parens (withCommas $ map pretty args)
     HeapAllocateProgram ->

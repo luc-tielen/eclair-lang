@@ -81,7 +81,7 @@ instance Pretty RA where
     Lit _ x -> pretty x
     ColumnIndex _ r idx -> pretty r <> brackets (pretty idx)
     CompareOp _ op lhs rhs -> pretty lhs <+> pretty op <+> pretty rhs
-    PrimOp _ op lhs rhs -> pretty lhs <+> pretty op <+> pretty rhs
+    PrimOp _ op lhs rhs -> parens $ pretty lhs <+> pretty op <+> pretty rhs
     NotElem _ r terms -> prettyValues terms <+> "∉" <+> pretty r
     where
       prettyValues terms = parens (withCommas $ map pretty terms)

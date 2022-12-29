@@ -36,15 +36,15 @@ fact2((8 - x) / x) :-
 
 //--- expected_ra.out
 search fact1 as fact10 do
-  project (8 - fact10[0] / fact10[0]) into fact2
+  project (((8 - fact10[0]) / fact10[0])) into fact2
 search fact1 as fact10 do
-  search fact1 as fact11 where (fact11[0] = fact10[0] + 4) do
-    search fact1 as fact12 where (fact12[0] = fact10[0] + 4) do
+  search fact1 as fact11 where (fact11[0] = (fact10[0] + 4)) do
+    search fact1 as fact12 where (fact12[0] = (fact10[0] + 4)) do
       project (fact10[0]) into fact2
 search fact1 as fact10 do
-  project (fact10[0] + 1 + 2 * fact10[0]) into fact2
+  project (((fact10[0] + 1) + (2 * fact10[0]))) into fact2
 search fact1 as fact10 do
-  project (fact10[0] + 3) into fact2
+  project ((fact10[0] + 3)) into fact2
 //--- expected_eir.out
 export fn eclair_program_run(*Program) -> Void
 {
@@ -65,7 +65,7 @@ export fn eclair_program_run(*Program) -> Void
     }
     current = fact1.iter_current(begin_iter)
     value_2 = fact2.stack_allocate Value
-    value_2.0 = 8 - current.0 / current.0
+    value_2.0 = ((8 - current.0) / current.0)
     fact2.insert(FN_ARG[0].2, value_2)
     fact1.iter_next(begin_iter)
   }
@@ -87,9 +87,9 @@ export fn eclair_program_run(*Program) -> Void
     }
     current_1 = fact1.iter_current(begin_iter_1)
     value_5 = fact1.stack_allocate Value
-    value_5.0 = current_1.0 + 4
+    value_5.0 = (current_1.0 + 4)
     value_6 = fact1.stack_allocate Value
-    value_6.0 = current_1.0 + 4
+    value_6.0 = (current_1.0 + 4)
     begin_iter_2 = fact1.stack_allocate Iter
     end_iter_2 = fact1.stack_allocate Iter
     fact1.iter_lower_bound(FN_ARG[0].1, value_5, begin_iter_2)
@@ -103,9 +103,9 @@ export fn eclair_program_run(*Program) -> Void
       }
       current_2 = fact1.iter_current(begin_iter_2)
       value_7 = fact1.stack_allocate Value
-      value_7.0 = current_1.0 + 4
+      value_7.0 = (current_1.0 + 4)
       value_8 = fact1.stack_allocate Value
-      value_8.0 = current_1.0 + 4
+      value_8.0 = (current_1.0 + 4)
       begin_iter_3 = fact1.stack_allocate Iter
       end_iter_3 = fact1.stack_allocate Iter
       fact1.iter_lower_bound(FN_ARG[0].1, value_7, begin_iter_3)
@@ -147,7 +147,7 @@ export fn eclair_program_run(*Program) -> Void
     }
     current_4 = fact1.iter_current(begin_iter_4)
     value_12 = fact2.stack_allocate Value
-    value_12.0 = current_4.0 + 1 + 2 * current_4.0
+    value_12.0 = ((current_4.0 + 1) + (2 * current_4.0))
     fact2.insert(FN_ARG[0].2, value_12)
     fact1.iter_next(begin_iter_4)
   }
@@ -169,7 +169,7 @@ export fn eclair_program_run(*Program) -> Void
     }
     current_5 = fact1.iter_current(begin_iter_5)
     value_15 = fact2.stack_allocate Value
-    value_15.0 = current_5.0 + 3
+    value_15.0 = (current_5.0 + 3)
     fact2.insert(FN_ARG[0].2, value_15)
     fact1.iter_next(begin_iter_5)
   }
