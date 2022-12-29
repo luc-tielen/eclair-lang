@@ -15,6 +15,8 @@ The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-has
   - Hover
   - Diagnostics
 - Improved dead code elimination
+- Optimization passes:
+  - HoistConstraints (faster searches by narrowing search-space as early as possible)
 
 ### Changed
 

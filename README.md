@@ -113,10 +113,12 @@ If you run the resulting program, this should print the reachable node pairs
 - [x] LSP support
 - [x] Allow setting options on relations for performance finetuning
 - [x] Comparison operators, != operator
-- [ ] Support arithmetic operators
+- [x] Support arithmetic operators
 - [ ] Generic, extensible primops
 - [ ] Release 0.2.0
-- [ ] Support negation
+- [ ] Support logical negation
+- [ ] Signed integer type (i32)
+- [ ] Unary negation
 - [ ] Optimizations on the AST / RA / LLVM level
 - [ ] Support other underlying data structures than btree
 - [ ] Syntactic sugar (disjunctions in rule bodies, multiple rule heads, ...)
