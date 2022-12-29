@@ -12,6 +12,7 @@ import Eclair.Common.Id
 import Eclair.Parser
 import Eclair.AST.Lower
 import Eclair.RA.IndexSelection
+import Eclair.RA.Transforms
 import qualified Eclair.TypeSystem as TS
 import qualified Data.Text as T
 import NeatInterpolation
@@ -24,7 +25,7 @@ idxSel path text' = do
    in case TS.typeCheck ast of
         Left _ -> panic $ "Failed to typecheck " <> toText file <> "!"
         Right typeInfo -> do
-          let ra = compileToRA ast
+          let ra = simplify $ compileToRA ast
               (indexMap, _) = runIndexSelection (TS.infoTypedefs typeInfo) ra
            in indexMap
 
