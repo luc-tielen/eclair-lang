@@ -237,3 +237,63 @@ a(x) :-
      │ Hint: This statement can be removed since it has no effect.
      │ Hint: Replace the wildcard with a variable.
 ─────╯
+//--- program6.eclair
+
+// RUN: %eclair compile %t/program6.eclair 2> %t/wildcard_in_binop_actual.out
+// RUN: diff -w %t/wildcard_in_binop_expected.out %t/wildcard_in_binop_actual.out
+
+@def a(u32) output.
+@def b(u32) output.
+
+b(123 + _).
+b(_ + 123).
+
+a(x) :-
+  b(x),
+  x = 123 + _,
+  x = _ + 123.
+
+//--- wildcard_in_binop_expected.out
+[error]: Found wildcard in binary operation
+     ╭──▶ TEST_DIR/program6.eclair@8:9-8:10
+     │
+   8 │ b(123 + _).
+     •   ┬─────┬
+     •   │     ╰╸ Wildcard found.
+     •   ╰╸ Only constants and variables are allowed in a binary operation.
+     •
+     │ Hint: Replace the wildcard with a variable or literal.
+─────╯
+
+[error]: Found wildcard in binary operation
+     ╭──▶ TEST_DIR/program6.eclair@9:3-9:4
+     │
+   9 │ b(_ + 123).
+     •   ┬──────
+     •   ├╸ Wildcard found.
+     •   ╰╸ Only constants and variables are allowed in a binary operation.
+     •
+     │ Hint: Replace the wildcard with a variable or literal.
+─────╯
+
+[error]: Found wildcard in binary operation
+     ╭──▶ TEST_DIR/program6.eclair@13:13-13:14
+     │
+  13 │   x = 123 + _,
+     •       ┬─────┬
+     •       │     ╰╸ Wildcard found.
+     •       ╰╸ Only constants and variables are allowed in a binary operation.
+     •
+     │ Hint: Replace the wildcard with a variable or literal.
+─────╯
+
+[error]: Found wildcard in binary operation
+     ╭──▶ TEST_DIR/program6.eclair@14:7-14:8
+     │
+  14 │   x = _ + 123.
+     •       ┬──────
+     •       ├╸ Wildcard found.
+     •       ╰╸ Only constants and variables are allowed in a binary operation.
+     •
+     │ Hint: Replace the wildcard with a variable or literal.
+─────╯

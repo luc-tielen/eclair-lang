@@ -25,5 +25,5 @@ transform analysis =
       getNodeId ast `elem` deadCodeNodeIds
 
     isRedundantAssign = \case
-      Constraint _ Equals (Var _ v1) (Var _ v2) | v1 == v2 -> True
+      Constraint _ Equals lhs rhs -> lhs == rhs
       _ -> False

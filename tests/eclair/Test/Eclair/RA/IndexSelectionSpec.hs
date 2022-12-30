@@ -12,6 +12,7 @@ import Eclair.Common.Id
 import Eclair.Parser
 import Eclair.AST.Lower
 import Eclair.RA.IndexSelection
+import Eclair.RA.Transforms
 import qualified Eclair.TypeSystem as TS
 import qualified Data.Text as T
 import NeatInterpolation
@@ -24,7 +25,7 @@ idxSel path text' = do
    in case TS.typeCheck ast of
         Left _ -> panic $ "Failed to typecheck " <> toText file <> "!"
         Right typeInfo -> do
-          let ra = compileToRA ast
+          let ra = simplify $ compileToRA ast
               (indexMap, _) = runIndexSelection (TS.infoTypedefs typeInfo) ra
            in indexMap
 
@@ -308,3 +309,22 @@ spec = describe "Index selection" $ parallel $ do
                   , ("reachable", [[0,1]])
                   , ("edge", [[0,1]])
                   ]
+
+  it "creates indexes for a rule with arithmetic" $ do
+    idxSel "multiple_clauses_same_name" [text|
+      @def first(u32).
+      @def second(u32, u32).
+      @def third(u32, u32).
+
+      first(1).
+      second(2, 3).
+
+      third(x + 1, y) :-
+        first(y),
+        second(x, y + 1).
+      |] `shouldBe`
+      toSelection [ ("first",  [[0]])
+                  , ("second", [[1,0]])
+                  , ("third",  [[0,1]])
+                  ]
+

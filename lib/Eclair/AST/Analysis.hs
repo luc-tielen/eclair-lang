@@ -7,11 +7,11 @@ module Eclair.AST.Analysis
   , SemanticErrors(..)
   , hasSemanticErrors
   , runAnalysis
-  , VariableInFact(..)
   , UngroundedVar(..)
   , WildcardInFact(..)
   , WildcardInRuleHead(..)
   , WildcardInConstraint(..)
+  , WildcardInBinOp(..)
   , DeadCode(..)
   , DeadInternalRelation(..)
   , NoOutputRelation(..)
@@ -58,10 +58,26 @@ newtype Hole
   deriving S.Fact via S.FactOptions Hole "hole" 'S.Input
 
 data Constraint
-  = Constraint { constraintId :: NodeId, op :: Text, lhsId :: NodeId, rhsId :: NodeId }
+  = Constraint
+  { constraintId :: NodeId
+  , constraintOperator :: Text
+  , constraintLhsId :: NodeId
+  , constraintRhsId :: NodeId
+  }
   deriving stock Generic
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions Constraint "constraint" 'S.Input
+
+data BinOp
+  = BinOp
+  { binOpId :: NodeId
+  , op :: Text
+  , binOpLhsId :: NodeId
+  , binOpRhsId :: NodeId
+  }
+  deriving stock Generic
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions BinOp "binop" 'S.Input
 
 data Atom
   = Atom NodeId Id
@@ -130,28 +146,21 @@ data ModuleDecl
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions ModuleDecl "module_declaration" 'S.Input
 
-data RuleVariable
-  = RuleVariable { rvRuleId :: NodeId, rvVarId :: NodeId }
+data ScopedValue
+  = ScopedValue { svScopeId :: NodeId, svNodeId :: NodeId }
   deriving stock Generic
   deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions RuleVariable "rule_variable" 'S.Input
+  deriving S.Fact via S.FactOptions ScopedValue "scoped_value" 'S.Input
 
-data PointsToVar
-  = PointsToVar
+data PointsTo
+  = PointsTo
   { ptRuleId :: NodeId
-  , ptVar1Id :: NodeId
-  , ptVar2Id :: NodeId
-  , ptVar2Name :: Id
+  , ptLhs1Id :: NodeId
+  , ptLhs2Id :: NodeId
   }
   deriving stock (Generic, Eq, Show)
   deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions PointsToVar "points_to_var" 'S.Output
-
-data VariableInFact loc
-  = VariableInFact loc Id
-  deriving stock (Generic, Eq, Show, Functor)
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions (VariableInFact loc) "variable_in_fact" 'S.Output
+  deriving S.Fact via S.FactOptions PointsTo "points_to" 'S.Output
 
 data UngroundedVar loc
   = UngroundedVar
@@ -185,12 +194,21 @@ data WildcardInRuleHead loc
 
 data WildcardInConstraint loc
   = WildcardInConstraint
-  { wildcardAssignLoc :: loc
-  , wildcardLoc :: loc
+  { wildcardConstraintLoc :: loc
+  , wildcardConstraintPos :: loc
   }
   deriving stock (Generic, Eq, Show, Functor)
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions (WildcardInConstraint loc) "wildcard_in_constraint" 'S.Output
+
+data WildcardInBinOp loc
+  = WildcardInBinOp
+  { wildcardBinOpLoc :: loc
+  , wildcardBinOpPos :: loc
+  }
+  deriving stock (Generic, Eq, Show, Functor)
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions (WildcardInBinOp loc) "wildcard_in_binop" 'S.Output
 
 newtype DeadCode
   = DeadCode { unDeadCode :: NodeId }
@@ -219,6 +237,7 @@ data SemanticAnalysis
        , Var
        , Hole
        , Constraint
+       , BinOp
        , Atom
        , AtomArg
        , Rule
@@ -230,13 +249,13 @@ data SemanticAnalysis
        , InternalRelation
        , Module
        , ModuleDecl
-       , RuleVariable
-       , PointsToVar
-       , VariableInFact NodeId
+       , ScopedValue
+       , PointsTo
        , UngroundedVar NodeId
        , WildcardInRuleHead NodeId
        , WildcardInFact NodeId
        , WildcardInConstraint NodeId
+       , WildcardInBinOp NodeId
        , DeadCode
        , NoOutputRelation NodeId
        , DeadInternalRelation NodeId
@@ -245,18 +264,25 @@ data SemanticAnalysis
 -- TODO: change to Vector when finished for performance
 type Container = []
 
--- Points-to analysis of variables.
--- For now only takes variables mapping to other variables into account.
+-- Points-to analysis result (mapping of rule NodeID -> points to entries).
 newtype PointsToAnalysis
-  = PointsToAnalysis (Map NodeId IR.AST)
+  = PointsToAnalysis (Map NodeId [(NodeId, NodeId)])
   deriving (Eq, Show)
 
-mkPointsToAnalysis :: Container PointsToVar -> PointsToAnalysis
-mkPointsToAnalysis =
-  PointsToAnalysis . Map.fromList . toList . map toEntry
+mkPointsToAnalysis :: Container PointsTo -> PointsToAnalysis
+mkPointsToAnalysis results =
+  results
+  & map toEntry
+  & sortOn (fst &&& fst . snd)
+  & groupBy ((==) `on` fst)
+  & map toRuleEntry
+  & Map.fromList
+  & PointsToAnalysis
   where
-    toEntry (PointsToVar _ var1Id var2Id var2Name) =
-      (var1Id, IR.Var var2Id var2Name)
+    toEntry (PointsTo ruleId lhsId rhsId) =
+      (ruleId, (lhsId, rhsId))
+    toRuleEntry ((ruleId, eq) :| eqs) =
+      (ruleId, eq : map snd eqs)
 
 data SemanticInfo
   = SemanticInfo
@@ -273,11 +299,11 @@ data Result
 
 data SemanticErrors loc
   = SemanticErrors
-  { variablesInFacts :: Container (VariableInFact loc)
-  , ungroundedVars :: Container (UngroundedVar loc)
+  { ungroundedVars :: Container (UngroundedVar loc)
   , wildcardsInFacts :: Container (WildcardInFact loc)
   , wildcardsInRuleHeads :: Container (WildcardInRuleHead loc)
-  , wildcardsInAssignments :: Container (WildcardInConstraint loc)
+  , wildcardsInConstraints :: Container (WildcardInConstraint loc)
+  , wildcardsInBinOps :: Container (WildcardInBinOp loc)
   , deadInternalRelations :: Container (DeadInternalRelation loc)
   , noOutputRelations :: Container (NoOutputRelation loc)
   }
@@ -285,11 +311,11 @@ data SemanticErrors loc
 
 hasSemanticErrors :: Result -> Bool
 hasSemanticErrors result =
-  isNotNull variablesInFacts ||
   isNotNull ungroundedVars ||
   isNotNull wildcardsInFacts ||
   isNotNull wildcardsInRuleHeads ||
-  isNotNull wildcardsInAssignments ||
+  isNotNull wildcardsInConstraints ||
+  isNotNull wildcardsInBinOps ||
   isNotNull deadInternalRelations ||
   isNotNull noOutputRelations
   where
@@ -302,7 +328,10 @@ analysis prog = S.mkAnalysis addFacts run getFacts
   where
     addFacts :: IR.AST -> S.SouffleM ()
     addFacts ast = usingReaderT Nothing $ flip (zygo getNodeId) ast $ \case
-      IR.LitF nodeId lit ->
+      IR.LitF nodeId lit -> do
+        mScopeId <- ask
+        forM_ mScopeId $ \scopeId ->
+          S.addFact prog $ ScopedValue scopeId nodeId
         case lit of
           IR.LNumber x ->
             S.addFact prog $ LitNumber nodeId x
@@ -314,9 +343,18 @@ analysis prog = S.mkAnalysis addFacts run getFacts
         S.addFact prog $ Var nodeId var
         maybeRuleId <- ask
         for_ maybeRuleId $ \ruleId ->
-          S.addFact prog $ RuleVariable ruleId nodeId
+          S.addFact prog $ ScopedValue ruleId nodeId
       IR.HoleF nodeId ->
         S.addFact prog $ Hole nodeId
+      IR.BinOpF nodeId arithOp (lhsId', lhsAction) (rhsId', rhsAction) -> do
+        let textualOp = case arithOp of
+              IR.Plus -> "+"
+              IR.Minus -> "-"
+              IR.Multiply -> "*"
+              IR.Divide -> "/"
+        S.addFact prog $ BinOp nodeId textualOp lhsId' rhsId'
+        lhsAction
+        rhsAction
       IR.ConstraintF nodeId constraintOp (lhsId', lhsAction) (rhsId', rhsAction) -> do
         let textualOp = case constraintOp of
               IR.Equals -> "="
@@ -331,7 +369,12 @@ analysis prog = S.mkAnalysis addFacts run getFacts
       IR.AtomF nodeId atom (unzip -> (argNodeIds, actions)) -> do
         S.addFact prog $ Atom nodeId atom
         S.addFacts prog $ mapWithPos (AtomArg nodeId) argNodeIds
-        sequence_ actions
+        mScopeId <- ask
+        let maybeAddScope =
+              if isJust mScopeId
+                then id
+                else local (const $ Just nodeId)
+        maybeAddScope $ sequence_ actions
       IR.RuleF nodeId rule ruleArgs ruleClauses -> do
         let (argNodeIds, argActions) = unzip ruleArgs
             (clauseNodeIds, clauseActions) = unzip ruleClauses
@@ -383,6 +426,7 @@ analysis prog = S.mkAnalysis addFacts run getFacts
       IR.LitF nodeId _ -> nodeId
       IR.VarF nodeId _ -> nodeId
       IR.HoleF nodeId -> nodeId
+      IR.BinOpF nodeId _ _ _ -> nodeId
       IR.ConstraintF nodeId _ _ _ -> nodeId
       IR.AtomF nodeId _ _ -> nodeId
       IR.RuleF nodeId _ _ _ -> nodeId

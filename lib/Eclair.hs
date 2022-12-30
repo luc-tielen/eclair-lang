@@ -25,8 +25,10 @@ import Eclair.Common.Id
 import Eclair.Common.Location
 import Eclair.Common.Config (Target(..))
 import Eclair.AST.IR
-import Eclair.AST.Transforms
+import Eclair.AST.Transforms (StringMap)
+import qualified Eclair.AST.Transforms as AST
 import qualified Eclair.RA.IR as RA
+import qualified Eclair.RA.Transforms as RA
 import qualified Eclair.EIR.IR as EIR
 import qualified Eclair.TypeSystem as TS
 import qualified Eclair.AST.Analysis as SA
@@ -147,7 +149,7 @@ rules abortOnError params (Rock.Writer query) = case query of
     -- We abort if this is not the case.
     abortOnError
     (ast, nodeId, _) <- Rock.fetch (Parse path)
-    pure $ simplify nodeId analysis ast
+    pure $ AST.simplify nodeId analysis ast
   EmitSimplifiedAST path -> noError $ do
     (ast, _) <- Rock.fetch (TransformAST path)
     liftIO $ putTextLn $ printDoc ast
@@ -159,7 +161,8 @@ rules abortOnError params (Rock.Writer query) = case query of
     pure $ SA.computeUsageMapping ast
   CompileRA path -> noError $ do
     ast <- fst <$> Rock.fetch (TransformAST path)
-    pure $ compileToRA ast
+    -- TODO refactor emitting of AST / RA / EIR together with optimizations. Separate -O flag?
+    pure $ RA.simplify $ compileToRA ast
   EmitRA path -> noError $ do
     ra <- Rock.fetch (CompileRA path)
     liftIO $ putTextLn $ printDoc ra

@@ -40,16 +40,16 @@ rule(x, y) :-
    8 │ ╭┤ rule(x, y) :-
    9 │ │    x < z,
      • │        ┬
-     • │        ╰╸ The variable 'z' is ungrounded, meaning it is not directly bound as an argument to a relation.
+     • │        ╰╸ The variable 'z' is ungrounded, meaning it is not directly bound as an argument to a clause.
   10 │ │    z <= y,
   11 │ │    x > z,
   12 │ │    z >= y,
   13 │ │    x != z,
   14 │ ├┤   fact(x, y).
      • │
-     • ╰╸ This rule contains no clauses that refer to 'z'.
+     • ╰╸ This contains no clauses that refer to 'z'.
      •
-     │ Hint: Use the variable 'z' as an argument in another clause in the same rule.
+     │ Hint: Use the variable 'z' as an argument in another clause.
 ─────╯
 
 [error]: Ungrounded variable
@@ -59,15 +59,15 @@ rule(x, y) :-
    9 │ │    x < z,
   10 │ │    z <= y,
      • │    ┬
-     • │    ╰╸ The variable 'z' is ungrounded, meaning it is not directly bound as an argument to a relation.
+     • │    ╰╸ The variable 'z' is ungrounded, meaning it is not directly bound as an argument to a clause.
   11 │ │    x > z,
   12 │ │    z >= y,
   13 │ │    x != z,
   14 │ ├┤   fact(x, y).
      • │
-     • ╰╸ This rule contains no clauses that refer to 'z'.
+     • ╰╸ This contains no clauses that refer to 'z'.
      •
-     │ Hint: Use the variable 'z' as an argument in another clause in the same rule.
+     │ Hint: Use the variable 'z' as an argument in another clause.
 ─────╯
 
 [error]: Ungrounded variable
@@ -78,14 +78,14 @@ rule(x, y) :-
   10 │ │    z <= y,
   11 │ │    x > z,
      • │        ┬
-     • │        ╰╸ The variable 'z' is ungrounded, meaning it is not directly bound as an argument to a relation.
+     • │        ╰╸ The variable 'z' is ungrounded, meaning it is not directly bound as an argument to a clause.
   12 │ │    z >= y,
   13 │ │    x != z,
   14 │ ├┤   fact(x, y).
      • │
-     • ╰╸ This rule contains no clauses that refer to 'z'.
+     • ╰╸ This contains no clauses that refer to 'z'.
      •
-     │ Hint: Use the variable 'z' as an argument in another clause in the same rule.
+     │ Hint: Use the variable 'z' as an argument in another clause.
 ─────╯
 
 [error]: Ungrounded variable
@@ -97,13 +97,13 @@ rule(x, y) :-
   11 │ │    x > z,
   12 │ │    z >= y,
      • │    ┬
-     • │    ╰╸ The variable 'z' is ungrounded, meaning it is not directly bound as an argument to a relation.
+     • │    ╰╸ The variable 'z' is ungrounded, meaning it is not directly bound as an argument to a clause.
   13 │ │    x != z,
   14 │ ├┤   fact(x, y).
      • │
-     • ╰╸ This rule contains no clauses that refer to 'z'.
+     • ╰╸ This contains no clauses that refer to 'z'.
      •
-     │ Hint: Use the variable 'z' as an argument in another clause in the same rule.
+     │ Hint: Use the variable 'z' as an argument in another clause.
 ─────╯
 
 [error]: Ungrounded variable
@@ -116,12 +116,12 @@ rule(x, y) :-
   12 │ │    z >= y,
   13 │ │    x != z,
      • │         ┬
-     • │         ╰╸ The variable 'z' is ungrounded, meaning it is not directly bound as an argument to a relation.
+     • │         ╰╸ The variable 'z' is ungrounded, meaning it is not directly bound as an argument to a clause.
   14 │ ├┤   fact(x, y).
      • │
-     • ╰╸ This rule contains no clauses that refer to 'z'.
+     • ╰╸ This contains no clauses that refer to 'z'.
      •
-     │ Hint: Use the variable 'z' as an argument in another clause in the same rule.
+     │ Hint: Use the variable 'z' as an argument in another clause.
 ─────╯
 //--- program3.eclair
 
@@ -136,5 +136,11 @@ rule(x, y) :-
   y = a,
   a < z,
   fact(x, y).
+
+rule(x, y) :-
+  x = z,
+  y = a,
+  a < z,
+  fact(z, y).
 
 //--- program3_expected.out

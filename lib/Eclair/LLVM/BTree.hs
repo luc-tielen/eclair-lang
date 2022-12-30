@@ -8,7 +8,7 @@ module Eclair.LLVM.BTree
   , codegen
   ) where
 
-import Prelude hiding (void)
+import Prelude hiding (void, swap)
 import Control.Monad.Morph
 import qualified Data.Map as Map
 import Eclair.LLVM.Codegen

@@ -34,8 +34,9 @@ merge path delta_path
 loop do
   purge new_path
   search edge as edge0 do
-    search delta_path as delta_path1 where (delta_path1[0] = edge0[1] and (edge0[0], delta_path1[1]) ∉ path) do
-      project (edge0[0], delta_path1[1]) into new_path
+    search delta_path as delta_path1 where (edge0[1] = delta_path1[0]) do
+      if (edge0[0], delta_path1[1]) ∉ path do
+        project (edge0[0], delta_path1[1]) into new_path
   exit if counttuples(new_path) = 0
   merge new_path path
   swap new_path delta_path

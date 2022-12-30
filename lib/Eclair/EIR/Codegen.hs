@@ -110,11 +110,19 @@ lookupPrimOp = \case
       EIR.Equals -> eq
       EIR.NotEquals -> ne
       -- NOTE: this will result in issues for signed integers in the future, but ignoring that for now..
-      -- We can pass along the args then?
+      -- We can pass along the type then?
       EIR.LessThan -> ult
       EIR.LessOrEqual -> ule
       EIR.GreaterThan -> ugt
       EIR.GreaterOrEqual -> uge
+  EIR.ArithOp op ->
+    -- NOTE: this will result in issues for signed integers in the future, but ignoring that for now..
+    -- We can pass along the type then?
+    pure $ Right $ case op of
+      EIR.Plus -> add
+      EIR.Minus -> sub
+      EIR.Multiply -> mul
+      EIR.Divide -> udiv
   where
     toSymbolTableOp llvmOp = Left <$> do
       symbolTable <- gets symbolTableFns

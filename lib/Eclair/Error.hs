@@ -44,7 +44,7 @@ handleErrorsCLI e = do
       ParseErr file' err' -> do
         case err' of
           FileNotFound {} ->
-            pure $ "File not found: " <> pretty file'
+            pure $ "File not found: " <> pretty file' <> ".\n"
           ParsingError parseError -> do
             content <- decodeUtf8 <$> readFileBS file'
             let reports = map fst $ errReportsWithLocationsFromBundle "Failed to parse file" parseError
@@ -212,21 +212,14 @@ typeErrorToReport e = case e of
       WhileUnifying srcLoc ->
         (srcLoc, mkMarker $ show i <> ") While unifying these types..")
 
-variableInFactToReport :: VariableInFact Position -> Report Text
-variableInFactToReport e =
-  let title = "Variable in top level fact"
-      markers = [(mainErrorPosition e, This "Only constants are allowed in facts.")]
-      hints = [Hint "You can solve this by replacing the variable with a constant."]
-   in Err Nothing title markers hints
-
 ungroundedVarToReport :: UngroundedVar Position -> Report Text
 ungroundedVarToReport e@(UngroundedVar srcLocRule _ var) =
   let title = "Ungrounded variable"
       srcLocVar = mainErrorPosition e
-      markers = [ (srcLocVar, This $ "The variable '" <> unId var <> "' is ungrounded, meaning it is not directly bound as an argument to a relation.")
-                , (srcLocRule, Where $ "This rule contains no clauses that refer to '" <> unId var <> "'.")
+      markers = [ (srcLocVar, This $ "The variable '" <> unId var <> "' is ungrounded, meaning it is not directly bound as an argument to a clause.")
+                , (srcLocRule, Where $ "This contains no clauses that refer to '" <> unId var <> "'.")
                 ]
-      hints = [Hint $ "Use the variable '" <> unId var <> "' as an argument in another clause in the same rule."]
+      hints = [Hint $ "Use the variable '" <> unId var <> "' as an argument in another clause."]
    in Err Nothing title markers hints
 
 wildcardInFactToReport :: WildcardInFact Position -> Report Text
@@ -248,16 +241,24 @@ wildcardInRuleHeadToReport e@(WildcardInRuleHead srcLocRule _ _pos) =
    in Err Nothing title markers hints
 
 wildcardInConstraintToReport :: WildcardInConstraint Position -> Report Text
-wildcardInConstraintToReport e@(WildcardInConstraint srcLocAssign _) =
+wildcardInConstraintToReport e@(WildcardInConstraint srcLocConstraint _) =
   let title = "Found wildcard in constraint"
       markers = [ (mainErrorPosition e, This "Wildcard found.")
-                , (srcLocAssign, Where "Only constants and variables are allowed in a constraint.")
+                , (srcLocConstraint, Where "Only constants and variables are allowed in a constraint.")
                 ]
       hints = [ Hint "This statement can be removed since it has no effect."
               , Hint "Replace the wildcard with a variable."
               ]
    in Err Nothing title markers hints
 
+wildcardInBinOpToReport :: WildcardInBinOp Position -> Report Text
+wildcardInBinOpToReport e@(WildcardInBinOp srcLocBinOp _) =
+  let title = "Found wildcard in binary operation"
+      markers = [ (mainErrorPosition e, This "Wildcard found.")
+                , (srcLocBinOp, Where "Only constants and variables are allowed in a binary operation.")
+                ]
+      hints = [Hint "Replace the wildcard with a variable or literal."]
+   in Err Nothing title markers hints
 
 deadInternalRelationToReport :: DeadInternalRelation Position -> Report Text
 deadInternalRelationToReport e@(DeadInternalRelation _ r) =
@@ -281,10 +282,10 @@ noOutputRelationsToReport e@(NoOutputRelation _) =
 semanticErrorsToReportsWithLocations :: SemanticErrors Position -> [(Report Text, Location)]
 semanticErrorsToReportsWithLocations e@(SemanticErrors _ _ _ _ _ _ _) =
   concat [ ungroundedVarReports
-         , variableInFactReports
          , wildcardInFactReports
          , wildcardInRuleHeadReports
-         , wildcardInAssignmentReports
+         , wildcardInConstraintReports
+         , wildcardInBinOpReports
          , deadInternalRelationReports
          , noOutputReports
          ]
@@ -297,10 +298,10 @@ semanticErrorsToReportsWithLocations e@(SemanticErrors _ _ _ _ _ _ _) =
     getReportsWithLocationsFor f g =
       map (g &&& positionToLocation . mainErrorPosition) (f e)
     ungroundedVarReports = getReportsWithLocationsFor ungroundedVars ungroundedVarToReport
-    variableInFactReports = getReportsWithLocationsFor variablesInFacts variableInFactToReport
     wildcardInFactReports = getReportsWithLocationsFor wildcardsInFacts wildcardInFactToReport
     wildcardInRuleHeadReports = getReportsWithLocationsFor wildcardsInRuleHeads wildcardInRuleHeadToReport
-    wildcardInAssignmentReports = getReportsWithLocationsFor wildcardsInAssignments wildcardInConstraintToReport
+    wildcardInConstraintReports = getReportsWithLocationsFor wildcardsInConstraints wildcardInConstraintToReport
+    wildcardInBinOpReports = getReportsWithLocationsFor wildcardsInBinOps wildcardInBinOpToReport
     deadInternalRelationReports = getReportsWithLocationsFor deadInternalRelations deadInternalRelationToReport
     noOutputReports = getReportsWithLocationsFor noOutputRelations noOutputRelationsToReport
 
@@ -339,10 +340,10 @@ instance HasMainErrorPosition (DeadInternalRelation Position) where
   mainErrorPosition (DeadInternalRelation pos _) = pos
 instance HasMainErrorPosition (WildcardInConstraint Position) where
   mainErrorPosition (WildcardInConstraint _ pos) = pos
+instance HasMainErrorPosition (WildcardInBinOp Position) where
+  mainErrorPosition (WildcardInBinOp _ pos) = pos
 instance HasMainErrorPosition (UngroundedVar Position) where
   mainErrorPosition (UngroundedVar _ varPos _) = varPos
-instance HasMainErrorPosition (VariableInFact Position) where
-  mainErrorPosition (VariableInFact pos _) = pos
 instance HasMainErrorPosition (WildcardInRuleHead Position) where
   mainErrorPosition (WildcardInRuleHead _ ruleArgPos _) = ruleArgPos
 instance HasMainErrorPosition (WildcardInFact Position) where

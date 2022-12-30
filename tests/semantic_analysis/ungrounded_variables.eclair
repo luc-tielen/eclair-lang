@@ -5,7 +5,7 @@
 // RUN: split-file %t/input.test %t
 
 // RUN: %eclair compile %t/program.eclair 2> %t/top_level_facts_actual.out
-// RUN: diff -w %t/top_level_facts_expected.out %t/top_level_facts_actual.out
+// RUN: diff  %t/top_level_facts_expected.out %t/top_level_facts_actual.out
 
 //--- program.eclair
 @def edge(u32, u32) output.
@@ -13,46 +13,73 @@
 edge(a, 1).
 edge(2, b).
 edge(c, d).
+edge(e + 1, 1 + f).
 
 //--- top_level_facts_expected.out
-[error]: Variable in top level fact
+[error]: Ungrounded variable
      ╭──▶ TEST_DIR/program.eclair@3:6-3:7
      │
    3 │ edge(a, 1).
-     •      ┬
-     •      ╰╸ Only constants are allowed in facts.
+     • ┬────┬─────
+     • │    ╰╸ The variable 'a' is ungrounded, meaning it is not directly bound as an argument to a clause.
+     • ╰╸ This contains no clauses that refer to 'a'.
      •
-     │ Hint: You can solve this by replacing the variable with a constant.
+     │ Hint: Use the variable 'a' as an argument in another clause.
 ─────╯
 
-[error]: Variable in top level fact
+[error]: Ungrounded variable
      ╭──▶ TEST_DIR/program.eclair@4:9-4:10
      │
    4 │ edge(2, b).
-     •         ┬
-     •         ╰╸ Only constants are allowed in facts.
+     • ┬───────┬──
+     • │       ╰╸ The variable 'b' is ungrounded, meaning it is not directly bound as an argument to a clause.
+     • ╰╸ This contains no clauses that refer to 'b'.
      •
-     │ Hint: You can solve this by replacing the variable with a constant.
+     │ Hint: Use the variable 'b' as an argument in another clause.
 ─────╯
 
-[error]: Variable in top level fact
+[error]: Ungrounded variable
      ╭──▶ TEST_DIR/program.eclair@5:6-5:7
      │
    5 │ edge(c, d).
-     •      ┬
-     •      ╰╸ Only constants are allowed in facts.
+     • ┬────┬─────
+     • │    ╰╸ The variable 'c' is ungrounded, meaning it is not directly bound as an argument to a clause.
+     • ╰╸ This contains no clauses that refer to 'c'.
      •
-     │ Hint: You can solve this by replacing the variable with a constant.
+     │ Hint: Use the variable 'c' as an argument in another clause.
 ─────╯
 
-[error]: Variable in top level fact
+[error]: Ungrounded variable
      ╭──▶ TEST_DIR/program.eclair@5:9-5:10
      │
    5 │ edge(c, d).
-     •         ┬
-     •         ╰╸ Only constants are allowed in facts.
+     • ┬───────┬──
+     • │       ╰╸ The variable 'd' is ungrounded, meaning it is not directly bound as an argument to a clause.
+     • ╰╸ This contains no clauses that refer to 'd'.
      •
-     │ Hint: You can solve this by replacing the variable with a constant.
+     │ Hint: Use the variable 'd' as an argument in another clause.
+─────╯
+
+[error]: Ungrounded variable
+     ╭──▶ TEST_DIR/program.eclair@6:6-6:7
+     │
+   6 │ edge(e + 1, 1 + f).
+     • ┬────┬─────────────
+     • │    ╰╸ The variable 'e' is ungrounded, meaning it is not directly bound as an argument to a clause.
+     • ╰╸ This contains no clauses that refer to 'e'.
+     •
+     │ Hint: Use the variable 'e' as an argument in another clause.
+─────╯
+
+[error]: Ungrounded variable
+     ╭──▶ TEST_DIR/program.eclair@6:17-6:18
+     │
+   6 │ edge(e + 1, 1 + f).
+     • ┬───────────────┬──
+     • │               ╰╸ The variable 'f' is ungrounded, meaning it is not directly bound as an argument to a clause.
+     • ╰╸ This contains no clauses that refer to 'f'.
+     •
+     │ Hint: Use the variable 'f' as an argument in another clause.
 ─────╯
 //--- program2.eclair
 
@@ -74,12 +101,12 @@ reachable(a, b) :-
      │
    8 │ ╭┤ reachable(x, z) :-
      • │               ┬
-     • │               ╰╸ The variable 'z' is ungrounded, meaning it is not directly bound as an argument to a relation.
+     • │               ╰╸ The variable 'z' is ungrounded, meaning it is not directly bound as an argument to a clause.
    9 │ ├┤   edge(x, y).
      • │
-     • ╰╸ This rule contains no clauses that refer to 'z'.
+     • ╰╸ This contains no clauses that refer to 'z'.
      •
-     │ Hint: Use the variable 'z' as an argument in another clause in the same rule.
+     │ Hint: Use the variable 'z' as an argument in another clause.
 ─────╯
 
 [error]: Ungrounded variable
@@ -87,12 +114,12 @@ reachable(a, b) :-
      │
   11 │ ╭┤ reachable(a, b) :-
      • │            ┬
-     • │            ╰╸ The variable 'a' is ungrounded, meaning it is not directly bound as an argument to a relation.
+     • │            ╰╸ The variable 'a' is ungrounded, meaning it is not directly bound as an argument to a clause.
   12 │ ├┤   edge(x, y).
      • │
-     • ╰╸ This rule contains no clauses that refer to 'a'.
+     • ╰╸ This contains no clauses that refer to 'a'.
      •
-     │ Hint: Use the variable 'a' as an argument in another clause in the same rule.
+     │ Hint: Use the variable 'a' as an argument in another clause.
 ─────╯
 
 [error]: Ungrounded variable
@@ -100,12 +127,12 @@ reachable(a, b) :-
      │
   11 │ ╭┤ reachable(a, b) :-
      • │               ┬
-     • │               ╰╸ The variable 'b' is ungrounded, meaning it is not directly bound as an argument to a relation.
+     • │               ╰╸ The variable 'b' is ungrounded, meaning it is not directly bound as an argument to a clause.
   12 │ ├┤   edge(x, y).
      • │
-     • ╰╸ This rule contains no clauses that refer to 'b'.
+     • ╰╸ This contains no clauses that refer to 'b'.
      •
-     │ Hint: Use the variable 'b' as an argument in another clause in the same rule.
+     │ Hint: Use the variable 'b' as an argument in another clause.
 ─────╯
 //--- program3.eclair
 

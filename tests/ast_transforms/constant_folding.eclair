@@ -1,0 +1,65 @@
+// RUN: split-file %s %t
+// RUN: %eclair compile --emit ast-simplified %t/program.eclair > %t/actual.out
+// RUN: diff %t/expected.out %t/actual.out
+
+//--- program.eclair
+@def number(u32) input.
+@def arithmetic(u32) output.
+@def arithmetic2(u32, u32) output.
+
+arithmetic(123 + 456).
+arithmetic(456 - 123).
+arithmetic(123 * 456).
+arithmetic(123 / 456).
+arithmetic(123 * 456 + 789).
+
+arithmetic(x) :-
+  number(x),
+  x = 123 + (456 * 789).
+
+arithmetic(x) :-
+  number(x),
+  number(y),
+  x = y + 1,
+  x = 1 + y,
+  x = y + y.
+
+arithmetic2(x, y) :-
+  number(x),
+  number(y),
+  x = 1 + y,
+  y = x + 1.
+
+//--- expected.out
+@def number(u32) input.
+
+@def arithmetic(u32) output.
+
+@def arithmetic2(u32, u32) output.
+
+arithmetic(579).
+
+arithmetic(333).
+
+arithmetic(56088).
+
+arithmetic(0).
+
+arithmetic(56877).
+
+arithmetic(x) :-
+  number(x),
+  x = 359907.
+
+arithmetic(x) :-
+  number(x),
+  number(y),
+  x = (y + 1),
+  x = (1 + y),
+  x = (y + y).
+
+arithmetic2(x, y) :-
+  number(x),
+  number(y),
+  x = (1 + y),
+  y = (x + 1).

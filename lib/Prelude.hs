@@ -18,7 +18,7 @@ module Prelude
   ) where
 
 import Relude hiding ( Type, Constraint, Op
-                     , swap, and, id, (.), map, first
+                     , and, id, (.), map, first
                      )
 import Control.Arrow hiding (second, loop, (<+>))
 import Control.Comonad
@@ -26,7 +26,7 @@ import Control.Category
 import Control.Monad.Writer.Strict hiding (pass)
 import Control.Monad.RWS.Strict hiding (pass)
 import Control.Monad.Except
-import Data.Functor.Foldable hiding (fold, unfold, refold, hoist, project)
+import Data.Functor.Foldable hiding (fold, unfold, refold, hoist)
 import Data.Functor.Foldable.TH
 import GHC.TypeLits (KnownSymbol, Symbol, symbolVal)
 import GHC.Generics (Rep, K1(..), U1(..), M1(..), (:*:)(..), from, to)

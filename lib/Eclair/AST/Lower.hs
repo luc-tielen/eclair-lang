@@ -1,28 +1,32 @@
-module Eclair.AST.Lower ( compileToRA ) where
+module Eclair.AST.Lower
+  ( compileToRA
+  ) where
 
+import Prelude hiding (swap, project)
 import qualified Data.Graph as G
 import qualified Data.Map as M
 import Eclair.AST.Codegen
 import Eclair.AST.IR hiding (Clause)
 import Eclair.Common.Id
+import Eclair.Common.Location (NodeId(..))
 import qualified Eclair.RA.IR as RA
+
 
 type RA = RA.RA
 type Relation = RA.Relation
 
 compileToRA :: AST -> RA
-compileToRA ast = RA.Module $ concatMap processDecls sortedDecls where
+compileToRA ast = RA.Module (NodeId 0) $ concatMap processDecls sortedDecls where
   sortedDecls = scc ast
 
   processDecls :: [AST] -> [RA]
   processDecls = \case
     [Atom _ name values] -> runCodegen $
-      let literals = getLiterals values
-       in one <$> project name (LitTerm <$> literals)
+      let literals = map toTerm values
+       in one <$> project name literals
     [Rule _ name args clauses] ->
       let terms = map toTerm args
-          clauses' = map toClause clauses
-      in runCodegen $ processSingleRule name terms clauses'
+      in runCodegen $ processSingleRule name terms clauses
     rules ->  -- case for multiple mutually recursive rules
       runCodegen $ processMultipleRules rules
 
@@ -32,7 +36,7 @@ compileToRA ast = RA.Module $ concatMap processDecls sortedDecls where
       where
         relevantDecls = filter isRuleOrAtom decls
         sortedDecls' = G.stronglyConnComp $ zipWith (\i d -> (d, i, refersTo d)) [0..] relevantDecls
-        declLineMapping = M.fromListWith (++) $ zipWith (\i d -> (nameFor d, [i])) [0..] relevantDecls
+        declLineMapping = M.fromListWith (<>) $ zipWith (\i d -> (nameFor d, [i])) [0..] relevantDecls
         isRuleOrAtom = \case
           Atom {} -> True
           Rule {} -> True
@@ -50,21 +54,10 @@ compileToRA ast = RA.Module $ concatMap processDecls sortedDecls where
     _ -> unreachable         -- Because rejected by parser
     where unreachable = panic "Unreachable code in 'scc'"
 
-getLiterals :: [AST] -> [Word32]
-getLiterals = mapMaybe $ \case
-  Lit _ lit ->
-    case lit of
-      LNumber x ->
-        Just x
-      LString _ ->
-        panic "Unexpected string literal in 'getLiterals'"
-  _ ->
-    Nothing
-
 -- NOTE: These rules can all be evaluated in parallel inside the fixpoint loop
 processMultipleRules :: [AST] -> CodegenM [RA]
 processMultipleRules rules = sequence stmts where
-  stmts = mergeStmts ++ [loop (purgeStmts ++ ruleStmts ++ [exitStmt] ++ endLoopStmts)]
+  stmts = mergeStmts <> [loop (purgeStmts <> ruleStmts <> [exitStmt] <> endLoopStmts)]
   mergeStmts = map (\r -> merge r (deltaRelationOf r)) relations
   purgeStmts = map (purge . newRelationOf) relations
   ruleStmts = [parallel $ map f rulesInfo]
@@ -77,10 +70,10 @@ processMultipleRules rules = sequence stmts where
   rulesInfo = mapMaybe extractRuleData rules
   relations = map (\(r, _, _) -> r) rulesInfo
   -- TODO: better func name
-  f (r, map toTerm -> ts, map toClause -> clauses) =
+  f (r, map toTerm -> ts, clauses) =
     recursiveRuleToStmt r ts clauses
 
-processSingleRule :: Relation -> [Term] -> [Clause] -> CodegenM [RA]
+processSingleRule :: Relation -> [CodegenM RA] -> [AST] -> CodegenM [RA]
 processSingleRule relation terms clauses
   | isRecursive relation clauses =
     let deltaRelation = deltaRelationOf relation
@@ -98,44 +91,43 @@ processSingleRule relation terms clauses
       in sequence stmts
   | otherwise = one <$> ruleToStmt relation terms clauses
 
-ruleToStmt :: Relation -> [Term] -> [Clause] -> CodegenM RA
+ruleToStmt :: Relation -> [CodegenM RA] -> [AST] -> CodegenM RA
 ruleToStmt relation terms clauses
   | isRecursive relation clauses =
     recursiveRuleToStmt relation terms clauses
-  | otherwise = nestedSearchAndProject relation relation terms clauses
+  | otherwise = nestedSearchAndProject relation relation terms clauses id
 
-recursiveRuleToStmt :: Relation -> [Term] -> [Clause] -> CodegenM RA
+recursiveRuleToStmt :: Relation -> [CodegenM RA] -> [AST] -> CodegenM RA
 recursiveRuleToStmt relation terms clauses =
   let newRelation = newRelationOf relation
-      extraClauses = [ConstrainClause (NotElem relation terms)]
-      allClauses = clauses ++ extraClauses
-    in nestedSearchAndProject relation newRelation terms allClauses
+      extraClause = noElemOf relation terms
+    in nestedSearchAndProject relation newRelation terms clauses extraClause
 
-nestedSearchAndProject :: Relation -> Relation -> [Term] -> [Clause] -> CodegenM RA
-nestedSearchAndProject relation intoRelation terms clauses =
-  flip (foldr (processRuleClause relation)) clauses $
+nestedSearchAndProject :: Relation -> Relation -> [CodegenM RA] -> [AST] -> (CodegenM RA -> CodegenM RA) -> CodegenM RA
+nestedSearchAndProject relation intoRelation terms clauses extraClause =
+  flip (foldr (processRuleClause relation)) clauses $ extraClause $
     project intoRelation terms
   where
     processRuleClause ruleName clause inner = case clause of
-      AtomClause clauseName args ->
+      Atom _ clauseName args ->
         let relation' =
               if clauseName `startsWithId` ruleName
                 then prependToId deltaPrefix clauseName
                 else clauseName
         in search relation' args inner
-      ConstrainClause constraint ->
-        case constraint of
-          NotElem r values ->
-            noElemOf r values inner
-      BinOp op lhs rhs -> do
-        if' op lhs rhs inner
+      Constraint _ op lhs rhs -> do
+        lhsTerm <- toTerm lhs
+        rhsTerm <- toTerm rhs
+        if' op lhsTerm rhsTerm inner
+      _ ->
+        panic "Unexpected rule clause in 'nestedSearchAndProject'!"
 
-isRecursive :: Relation -> [Clause] -> Bool
+isRecursive :: Relation -> [AST] -> Bool
 isRecursive ruleName clauses =
-  let atomClauses = flip mapMaybe clauses $ \case
-        AtomClause name _ -> Just name
+  let atomNames = flip mapMaybe clauses $ \case
+        Atom _ name _ -> Just name
         _ -> Nothing
-   in ruleName `elem` atomClauses
+   in ruleName `elem` atomNames
 
 extractRuleData :: AST -> Maybe (Relation, [AST], [AST])
 extractRuleData = \case

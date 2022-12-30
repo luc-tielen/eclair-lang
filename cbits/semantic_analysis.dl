@@ -3,6 +3,7 @@
 .decl lit_string(node_id: unsigned, value: symbol)
 .decl variable(node_id: unsigned, var_name: symbol)
 .decl constraint(node_id: unsigned, op: symbol, lhs_node_id: unsigned, rhs_node_id: unsigned)
+.decl binop(node_id: unsigned, op: symbol, lhs_node_id: unsigned, rhs_node_id: unsigned)
 .decl atom(node_id: unsigned, name: symbol)
 .decl atom_arg(atom_id: unsigned, atom_arg_pos: unsigned, atom_arg_id: unsigned)
 .decl rule(rule_id: unsigned, name: symbol)
@@ -14,16 +15,16 @@
 .decl declare_type(node_id: unsigned, name: symbol)
 .decl module(node_id: unsigned)
 .decl module_declaration(module_id: unsigned, declaration_id: unsigned)
-.decl rule_variable(rule_id: unsigned, variable_id: unsigned)
+.decl scoped_value(scope_id: unsigned, value_id: unsigned)
 
 // Internal rules
+.decl grounded_node(rule_node_id: unsigned, node_id: unsigned)
 .decl assign(node_id: unsigned, lhs_node_id: unsigned, rhs_node_id: unsigned) inline
 .decl inequality_op(op: symbol)
 .decl has_output_relation(node_id: unsigned)
 .decl literal_contradiction(lit_id1: unsigned, lit_id2: unsigned)
 .decl wildcard(node_id: unsigned) inline
 .decl rule_head_var(rule_id: unsigned, var_id: unsigned, var_name: symbol)
-.decl grounded_var(rule_id: unsigned, var_name: symbol)
 .decl alias(rule_id: unsigned, id1: unsigned, id2: unsigned)
 .decl points_to(rule_id: unsigned, id1: unsigned, id2: unsigned)
 .decl depends_on(r1: symbol, r2: symbol)
@@ -33,12 +34,12 @@
 .decl live_rule(relation: symbol)
 
 // Output facts / rules
-.decl points_to_var(rule_id: unsigned, var_id1: unsigned, var_id2: unsigned, var_name: symbol)
-.decl variable_in_fact(node_id: unsigned, var_name: symbol)
+.decl grounded_variable(rule_id: unsigned, var_name: symbol)
 .decl ungrounded_variable(rule_id: unsigned, var_id: unsigned, var_name: symbol)
 .decl wildcard_in_fact(fact_node_id: unsigned,  fact_arg_id: unsigned, pos: unsigned)
 .decl wildcard_in_rule_head(rule_node_id: unsigned, rule_arg_id: unsigned, pos: unsigned)
 .decl wildcard_in_constraint(constraint_node_id: unsigned, wildcard_node_id: unsigned)
+.decl wildcard_in_binop(binop_node_id: unsigned, wildcard_node_id: unsigned)
 .decl rule_with_contradiction(rule_id: unsigned)
 .decl dead_code(node_id: unsigned)
 .decl no_output_relation(node_id: unsigned)
@@ -48,6 +49,7 @@
 .input lit_string
 .input variable
 .input constraint
+.input binop
 .input atom
 .input atom_arg
 .input rule
@@ -59,14 +61,14 @@
 .input declare_type
 .input module
 .input module_declaration
-.input rule_variable
+.input scoped_value
 
-.output points_to_var
-.output variable_in_fact
 .output wildcard_in_fact
 .output ungrounded_variable
 .output wildcard_in_rule_head
 .output wildcard_in_constraint
+.output wildcard_in_binop
+.output points_to
 .output dead_code
 .output no_output_relation
 .output dead_internal_relation
@@ -157,17 +159,18 @@ no_output_relation(node_id) :-
   !has_output_relation(node_id).
 
 // Top level facts: no variables allowed
-variable_in_fact(atom_arg_id, var_name) :-
+ungrounded_variable(atom_id, var_id, var_name) :-
   module_declaration(_, atom_id),
-  atom_arg(atom_id, _, atom_arg_id),
-  variable(atom_arg_id, var_name),
+  atom(atom_id, _),
+  scoped_value(atom_id, var_id),
+  variable(var_id, var_name),
   var_name != "_".
 
 // Rules: no variables allowed in rule head if not used in a rule clause
 ungrounded_variable(rule_id, var_id, var_name) :-
   rule_head_var(rule_id, var_id, var_name),
   var_name != "_",
-  !grounded_var(rule_id, var_name).  // Only compare by variable name!
+  !grounded_variable(rule_id, var_name).  // Only compare by variable name!
 
 // Variables used in a constraint (comparison or inequality) need to be grounded.
 ungrounded_variable(rule_id, var_id, var_name) :-
@@ -176,7 +179,7 @@ ungrounded_variable(rule_id, var_id, var_name) :-
   inequality_op(op),
   variable(var_id, var_name),
   var_name != "_",
-  !grounded_var(rule_id, var_name).
+  !grounded_variable(rule_id, var_name).
 
 ungrounded_variable(rule_id, var_id, var_name) :-
   rule_clause(rule_id, _, rule_clause_id),
@@ -184,7 +187,20 @@ ungrounded_variable(rule_id, var_id, var_name) :-
   inequality_op(op),
   variable(var_id, var_name),
   var_name != "_",
-  !grounded_var(rule_id, var_name).
+  !grounded_variable(rule_id, var_name).
+
+// Variables used in a binop need to be grounded.
+ungrounded_variable(rule_id, var_id, var_name) :-
+  binop(_, _, var_id, _),
+  variable(var_id, var_name),
+  scoped_value(rule_id, var_id),
+  !grounded_variable(rule_id, var_name).
+
+ungrounded_variable(rule_id, var_id, var_name) :-
+  binop(_, _, _, var_id),
+  variable(var_id, var_name),
+  scoped_value(rule_id, var_id),
+  !grounded_variable(rule_id, var_name).
 
 inequality_op("!=").
 inequality_op("<").
@@ -212,13 +228,21 @@ wildcard_in_constraint(constraint_node_id, rhs_node_id) :-
   constraint(constraint_node_id, _, _, rhs_node_id),
   wildcard(rhs_node_id).
 
+wildcard_in_binop(binop_node_id, lhs_node_id) :-
+  binop(binop_node_id, _, lhs_node_id, _),
+  wildcard(lhs_node_id).
+
+wildcard_in_binop(binop_node_id, rhs_node_id) :-
+  binop(binop_node_id, _, _, rhs_node_id),
+  wildcard(rhs_node_id).
+
 assign(node_id, lhs_node_id, rhs_node_id) :-
   constraint(node_id, "=", lhs_node_id, rhs_node_id).
 
 // All variables with the same name in a rule are aliases of each other.
 alias(rule_id, var_id1, var_id2) :-
-  rule_variable(rule_id, var_id1),
-  rule_variable(rule_id, var_id2),
+  scoped_value(rule_id, var_id1),
+  scoped_value(rule_id, var_id2),
   variable(var_id1, var_name),
   variable(var_id2, var_name).
 
@@ -240,11 +264,6 @@ points_to(rule_id, id1, id4) :-
   variable(id2, var_name),
   variable(id3, var_name),
   alias(rule_id, id3, id4).
-
-// NOTE: right now only takes variables into account, not literals (enhancement for later).
-points_to_var(rule_id, id1, id2, var_name) :-
-  points_to(rule_id, id1, id2),
-  variable(id2, var_name).
 
 // If we find two variables that point to different literal values,
 // then there is a contradiction.
@@ -276,22 +295,48 @@ rule_head_var(rule_id, var_id, var_name) :-
   variable(var_id, var_name).
 
 // Helper relation for getting all grounded variables in body of a rule.
-grounded_var(rule_id, var_name) :-
-  rule_clause(rule_id, _, rule_clause_id),
-  atom_arg(rule_clause_id, _, var_id),
+grounded_variable(rule_id, var_name) :-
+  grounded_node(rule_id, var_id),
   variable(var_id, var_name).
 
-// Assignment grounds one var, if the other is already grounded.
-grounded_var(rule_id, rhs_var_name) :-
+// Variables are grounded if they are used in an atom.
+grounded_node(rule_id, var_id) :-
   rule_clause(rule_id, _, rule_clause_id),
-  assign(rule_clause_id, lhs_node_id, rhs_node_id),
-  variable(lhs_node_id, lhs_var_name),
-  variable(rhs_node_id, rhs_var_name),
-  grounded_var(rule_id, lhs_var_name).
+  atom_arg(rule_clause_id, _, var_id),
+  variable(var_id, _).
 
-grounded_var(rule_id, rhs_var_name) :-
+// All variables with same name are grounded at the same time
+grounded_node(rule_id, var_id2) :-
+  scoped_value(rule_id, var_id1),
+  variable(var_id1, var_name),
+  grounded_node(rule_id, var_id1),
+  scoped_value(rule_id, var_id2),
+  variable(var_id2, var_name).
+
+// Literals are always grounded.
+grounded_node(rule_id, node_id) :-
+  scoped_value(rule_id, node_id),
+  lit_number(node_id, _).
+
+grounded_node(rule_id, node_id) :-
+  scoped_value(rule_id, node_id),
+  lit_string(node_id, _).
+
+// A binop is grounded if both sides are grounded.
+grounded_node(rule_id, node_id) :-
+  grounded_node(rule_id, lhs_node_id),
+  grounded_node(rule_id, rhs_node_id),
+  binop(node_id, _, lhs_node_id, rhs_node_id).
+
+// Assignment grounds one var, if the other side is already grounded.
+grounded_node(rule_id, rhs_node_id) :-
   rule_clause(rule_id, _, rule_clause_id),
   assign(rule_clause_id, lhs_node_id, rhs_node_id),
-  variable(lhs_node_id, lhs_var_name),
-  variable(rhs_node_id, rhs_var_name),
-  grounded_var(rule_id, rhs_var_name).
+  grounded_node(rule_id, lhs_node_id),
+  variable(rhs_node_id, _).
+
+grounded_node(rule_id, lhs_node_id) :-
+  rule_clause(rule_id, _, rule_clause_id),
+  assign(rule_clause_id, lhs_node_id, rhs_node_id),
+  grounded_node(rule_id, rhs_node_id),
+  variable(lhs_node_id, _).

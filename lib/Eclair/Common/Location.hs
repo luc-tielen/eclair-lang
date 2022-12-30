@@ -49,7 +49,10 @@ lookupNodeId :: SpanMap -> Int -> Maybe NodeId
 lookupNodeId (SpanMap _ m) offset =
   m & M.toList
     & filter (containsOffset . snd)
-    & sortWith (spanSize . snd)
+    -- Just sorting by span size is not enough, sometimes we have two spans
+    -- with identical widths (e.g. with parentheses). The last one will always
+    -- be the node ID that belongs to the smallest (most specific) node.
+    & sortWith (spanSize . snd &&& negate . fst)
     & viaNonEmpty head
     & map (NodeId . fst)
   where
