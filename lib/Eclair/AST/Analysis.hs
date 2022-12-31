@@ -2,7 +2,6 @@
 
 module Eclair.AST.Analysis
   ( Result(..)
-  , PointsToAnalysis(..)
   , SemanticInfo(..)
   , SemanticErrors(..)
   , hasSemanticErrors
@@ -152,16 +151,6 @@ data ScopedValue
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions ScopedValue "scoped_value" 'S.Input
 
-data PointsTo
-  = PointsTo
-  { ptRuleId :: NodeId
-  , ptLhs1Id :: NodeId
-  , ptLhs2Id :: NodeId
-  }
-  deriving stock (Generic, Eq, Show)
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions PointsTo "points_to" 'S.Output
-
 data UngroundedVar loc
   = UngroundedVar
   { ungroundedRuleLoc :: loc
@@ -250,7 +239,6 @@ data SemanticAnalysis
        , Module
        , ModuleDecl
        , ScopedValue
-       , PointsTo
        , UngroundedVar NodeId
        , WildcardInRuleHead NodeId
        , WildcardInFact NodeId
@@ -264,30 +252,9 @@ data SemanticAnalysis
 -- TODO: change to Vector when finished for performance
 type Container = []
 
--- Points-to analysis result (mapping of rule NodeID -> points to entries).
-newtype PointsToAnalysis
-  = PointsToAnalysis (Map NodeId [(NodeId, NodeId)])
-  deriving (Eq, Show)
-
-mkPointsToAnalysis :: Container PointsTo -> PointsToAnalysis
-mkPointsToAnalysis results =
-  results
-  & map toEntry
-  & sortOn (fst &&& fst . snd)
-  & groupBy ((==) `on` fst)
-  & map toRuleEntry
-  & Map.fromList
-  & PointsToAnalysis
-  where
-    toEntry (PointsTo ruleId lhsId rhsId) =
-      (ruleId, (lhsId, rhsId))
-    toRuleEntry ((ruleId, eq) :| eqs) =
-      (ruleId, eq : map snd eqs)
-
-data SemanticInfo
+newtype SemanticInfo
   = SemanticInfo
-  { pointsToAnalysis :: PointsToAnalysis
-  , deadCodeIds :: Container DeadCode
+  { deadCodeIds :: Container DeadCode
   } deriving (Eq, Show)
 
 data Result
@@ -410,8 +377,7 @@ analysis prog = S.mkAnalysis addFacts run getFacts
 
     getFacts :: S.SouffleM Result
     getFacts = do
-      info <- SemanticInfo <$> (mkPointsToAnalysis <$> S.getFacts prog)
-                           <*> S.getFacts prog
+      info <- SemanticInfo <$> S.getFacts prog
       errs <- SemanticErrors <$> S.getFacts prog
                              <*> S.getFacts prog
                              <*> S.getFacts prog

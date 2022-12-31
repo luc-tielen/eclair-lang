@@ -68,7 +68,6 @@
 .output wildcard_in_rule_head
 .output wildcard_in_constraint
 .output wildcard_in_binop
-.output points_to
 .output dead_code
 .output no_output_relation
 .output dead_internal_relation
