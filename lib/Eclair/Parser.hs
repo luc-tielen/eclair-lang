@@ -198,10 +198,10 @@ ruleClauseParser = do
       P.choice $ concatMap (map $ P.char . snd) arithmeticOps
 
 atomParser :: Parser AST
-atomParser = do
+atomParser = lexeme $ do
   withNodeId $ \nodeId -> do
     name <- lexeme identifier
-    args <- lexeme $ betweenParens $ exprParser `P.sepBy1` comma
+    args <- betweenParens $ exprParser `P.sepBy1` comma
     pure $ Atom nodeId name args
 
 constraintParser :: Parser AST

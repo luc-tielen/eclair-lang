@@ -129,19 +129,30 @@ errorToIssues readTextFile = \case
 
 typeErrorToReport :: TypeError Position -> Report Text
 typeErrorToReport e = case e of
-  UnknownAtom _ factName ->
+  UnknownConstraint _ factName ->
     let title = "Missing type definition"
         markers = [(mainErrorPosition e, This $ "Could not find a type definition for '" <> unId factName <> "'.")]
-        hints = [Hint $ "You can solve this by adding a type definition for '" <> unId factName <> "'."]
+        hints =
+          [ Hint $ "Add a type definition for '" <> unId factName <> "'."
+          , Hint $ "Add an extern definition for '" <> unId factName <> "'."
+          ]
+    in Err Nothing title markers hints
+
+  UnknownFunction _ factName ->
+    let title = "Missing type definition"
+        markers = [(mainErrorPosition e, This $ "Could not find a type definition for '" <> unId factName <> "'.")]
+        hints =
+          [ Hint $ "Add an extern definition for '" <> unId factName <> "'." ]
     in Err Nothing title markers hints
 
   ArgCountMismatch factName (expectedSrcLoc, expectedCount) (actualSrcLoc, actualCount) ->
     let title = "Found an unexpected amount of arguments for fact '" <> unId factName <> "'"
         markers = [ (actualSrcLoc, This $ show actualCount <> pluralize actualCount " argument is" " arguments are" <> " provided here.")
-                  , (expectedSrcLoc, Where $ "'" <> unId factName <> "' is defined with " <> show expectedCount <>
-                    pluralize expectedCount " argument." " arguments.")
+                  , (expectedSrcLoc, Where $ "'" <> unId factName <> "' is defined with " <> show expectedCount <> " " <>
+                    pluralize expectedCount "argument" "arguments" <> ".")
                   ]
-        hints = [Hint $ "You can solve this by passing exactly " <> show expectedCount <> " arguments to '" <> unId factName <> "'."]
+        hints = [Hint $ "You can solve this by passing exactly " <> show expectedCount <> " "
+          <> pluralize expectedCount "argument" "arguments" <> " to '" <> unId factName <> "'."]
     in Err Nothing title markers hints
 
   TypeMismatch _ actualTy expectedTy ctx ->
@@ -183,7 +194,6 @@ typeErrorToReport e = case e of
         renderBinding var ty =
           unId var <> " :: " <> renderType ty
 
-  -- TODO improve these errors
   UnexpectedFunctionType _ defPos ->
     let title = "Invalid use of function"
         markers =
@@ -427,7 +437,8 @@ instance HasMainErrorPosition (ExternUsedAsRule Position) where
   mainErrorPosition (ExternUsedAsRule pos _ _) = pos
 instance HasMainErrorPosition (TypeError Position) where
   mainErrorPosition = \case
-    UnknownAtom pos _ -> pos
+    UnknownConstraint pos _ -> pos
+    UnknownFunction pos _ -> pos
     ArgCountMismatch _ _ (pos, _) -> pos
     TypeMismatch pos _ _ _ -> pos
     UnificationFailure _ _ ctx -> getContextLocation (last ctx)

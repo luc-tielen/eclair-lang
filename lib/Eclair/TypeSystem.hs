@@ -59,7 +59,8 @@ data Context loc
 
 -- NOTE: for now, no actual types are checked since everything is a u32.
 data TypeError loc
-  = UnknownAtom loc Id
+  = UnknownConstraint loc Id
+  | UnknownFunction loc Id
   | ArgCountMismatch Id (loc, Int) (loc, Int)
   | TypeMismatch loc Type Type (NonEmpty (Context loc))  -- 1st type is actual, 2nd is expected
   | UnificationFailure Type Type (NonEmpty (Context loc))
@@ -155,25 +156,25 @@ checkDecl ast = case ast of
     -- TODO find better way to update context only for non-top level atoms
     let updateCtx = if isTopLevel ctx then id else addCtx
     updateCtx $ lookupRelationType name >>= \case
-      Nothing ->
-        emitError $ UnknownAtom nodeId name
       Just (nodeId', ConstraintType types) -> do
         checkArgCount name (nodeId', types) (nodeId, args)
         zipWithM_ checkExpr args types
       Just (nodeId', FunctionType {}) -> do
         emitError $ UnexpectedFunctionType nodeId nodeId'
+      Nothing ->
+        emitError $ UnknownConstraint nodeId name
 
     processUnresolvedHoles
 
   Rule nodeId name args clauses -> do
     lookupRelationType name >>= \case
-      Nothing ->
-        emitError $ UnknownAtom nodeId name
       Just (nodeId', ConstraintType types) -> do
         checkArgCount name (nodeId', types) (nodeId, args)
         zipWithM_ checkExpr args types
       Just (nodeId', FunctionType {}) -> do
         emitError $ UnexpectedFunctionType nodeId nodeId'
+      Nothing ->
+        emitError $ UnknownConstraint nodeId name
 
     traverse_ checkDecl clauses
     processUnresolvedHoles
@@ -246,7 +247,7 @@ checkExpr ast expectedTy = do
         Just (nodeId', ConstraintType {}) -> do
           emitError $ UnexpectedConstraintType nodeId nodeId'
         Nothing ->
-          emitError $ UnknownAtom nodeId name
+          emitError $ UnknownFunction nodeId name
     e -> do
       -- Basically an unexpected / unhandled case => try inferring as a last resort.
       actualTy <- inferExpr e
@@ -293,7 +294,7 @@ inferExpr ast = do
           -- We generate a fresh type which will always unify, but typechecking will fail anyway
           freshType
         Nothing -> do
-          emitError $ UnknownAtom nodeId name
+          emitError $ UnknownFunction nodeId name
           -- We generate a fresh type which will always unify, but typechecking will fail anyway
           freshType
     _ ->
