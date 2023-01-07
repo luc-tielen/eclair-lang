@@ -190,11 +190,15 @@ comma = lexeme $ P.char ','
 
 ruleClauseParser :: Parser AST
 ruleClauseParser = do
-  atomParser <|> constraintParser
+  P.try (atomParser <* P.notFollowedBy opParser) <|> constraintParser
+  where
+    opParser =
+      void constraintOpParser <|> void arithmeticOpParser
+    arithmeticOpParser =
+      P.choice $ concatMap (map $ P.char . snd) arithmeticOps
 
 atomParser :: Parser AST
 atomParser = do
-  P.notFollowedBy $ lexeme identifier *> constraintOpParser
   withNodeId $ \nodeId -> do
     name <- lexeme identifier
     args <- lexeme $ betweenParens $ exprParser `P.sepBy1` comma
@@ -212,13 +216,7 @@ exprParser =
   lexeme $ withNodeId (L.makeExprParser termParser . precedenceTable)
   where
     precedenceTable nodeId =
-      [ [ binOp nodeId Multiply '*'
-        , binOp nodeId Divide '/'
-        ]
-      , [ binOp nodeId Plus '+'
-        , binOp nodeId Minus '-'
-        ]
-      ]
+      map (map (uncurry (binOp nodeId))) arithmeticOps
     binOp nodeId op c =
       L.InfixL (BinOp nodeId op <$ lexeme (P.char c))
 
@@ -230,6 +228,12 @@ exprParser =
           P.try (varParser nodeId) <|>
           atomParser <|>
           Lit nodeId <$> literal
+
+arithmeticOps :: [[(ArithmeticOp, Char)]]
+arithmeticOps =
+  [ [(Multiply, '*'), (Divide, '/')]
+  , [(Plus, '+'), (Minus, '-')]
+  ]
 
 varParser :: NodeId -> Parser AST
 varParser nodeId = do
