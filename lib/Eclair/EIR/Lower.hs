@@ -92,7 +92,7 @@ compileToLLVM target stringMapping usageMapping externDefs eir = do
       M.mapKeys Id stringMapping
 
     processExtern symbolTableTy (Extern fnName argCount extKind) = do
-      let argTys = symbolTableTy : replicate argCount i32
+      let argTys = ptr symbolTableTy : replicate argCount i32
           retTy = if extKind == ExternConstraint then i1 else i32  -- i1, or i8 for bool?
       fn <- extern (Name $ unId fnName) argTys retTy
       pure (fnName, fn)

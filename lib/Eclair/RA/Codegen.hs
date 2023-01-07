@@ -251,8 +251,11 @@ mkArithOp op lhs rhs =
    in EIR.PrimOp (EIR.ArithOp op) <$> args
 
 mkExternOp :: Id -> [CodegenM EIR] -> CodegenM EIR
-mkExternOp name args =
-  EIR.PrimOp (EIR.ExternOp name) <$> sequence args
+mkExternOp name args = do
+  let program = EIR.FunctionArg 0
+      symbolTable = EIR.FieldAccess program 0
+  args' <- sequence args
+  pure $ EIR.PrimOp (EIR.ExternOp name) $ symbolTable : args'
 
 plus :: CodegenM EIR -> CodegenM EIR -> CodegenM EIR
 plus = mkArithOp EIR.Plus
