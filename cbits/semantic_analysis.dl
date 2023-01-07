@@ -22,7 +22,6 @@
 .decl relation_atom(node_id: unsigned, name: symbol)
 .decl extern_atom(node_id: unsigned, name: symbol)
 .decl grounded_node(rule_node_id: unsigned, node_id: unsigned)
-.decl has_ungrounded_args(rule_id: unsigned, atom_id: unsigned)
 .decl assign(node_id: unsigned, lhs_node_id: unsigned, rhs_node_id: unsigned) inline
 .decl inequality_op(op: symbol)
 .decl has_output_relation(node_id: unsigned)
@@ -295,7 +294,8 @@ wildcard_in_fact(atom_id, atom_arg_id, pos) :-
   wildcard(atom_arg_id).
 
 wildcard_in_extern(atom_id, atom_arg_id, pos) :-
-  rule_clause(_, _, atom_id),
+  rule(rule_id, _),
+  scoped_value(rule_id, atom_id),
   extern_atom(atom_id, _),
   atom_arg(atom_id, pos, atom_arg_id),
   wildcard(atom_arg_id).

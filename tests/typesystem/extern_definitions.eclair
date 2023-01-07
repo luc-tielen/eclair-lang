@@ -42,7 +42,7 @@ test_externs2(func4(123, 123) + 123).
 // Type errors in constraints
 test_externs2(x) :-
   edge2(x, 123),
-  constraint2(x).
+  constraint2(x),
   constraint2("abc", "def").
 
 // Using in wrong context

@@ -146,7 +146,7 @@ typeErrorToReport e = case e of
     in Err Nothing title markers hints
 
   ArgCountMismatch factName (expectedSrcLoc, expectedCount) (actualSrcLoc, actualCount) ->
-    let title = "Found an unexpected amount of arguments for fact '" <> unId factName <> "'"
+    let title = "Found an unexpected amount of arguments for '" <> unId factName <> "'"
         markers = [ (actualSrcLoc, This $ show actualCount <> pluralize actualCount " argument is" " arguments are" <> " provided here.")
                   , (expectedSrcLoc, Where $ "'" <> unId factName <> "' is defined with " <> show expectedCount <> " " <>
                     pluralize expectedCount "argument" "arguments" <> ".")
@@ -241,10 +241,10 @@ ungroundedVarToReport :: UngroundedVar Position -> Report Text
 ungroundedVarToReport e@(UngroundedVar srcLocRule _ var) =
   let title = "Ungrounded variable"
       srcLocVar = mainErrorPosition e
-      markers = [ (srcLocVar, This $ "The variable '" <> unId var <> "' is ungrounded, meaning it is not directly bound as an argument to a clause.")
+      markers = [ (srcLocVar, This $ "The variable '" <> unId var <> "' is ungrounded, meaning it is not directly bound as an argument to a relation.")
                 , (srcLocRule, Where $ "This contains no clauses that refer to '" <> unId var <> "'.")
                 ]
-      hints = [Hint $ "Use the variable '" <> unId var <> "' as an argument in another clause."]
+      hints = [Hint $ "Use the variable '" <> unId var <> "' as an argument in a relation."]
    in Err Nothing title markers hints
 
 wildcardInFactToReport :: WildcardInFact Position -> Report Text
