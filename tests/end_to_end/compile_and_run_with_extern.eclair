@@ -1,25 +1,26 @@
-// This checks if eclair can be correctly compiled and linked with C code.
-
 // RUN: split-file %s %t
+
 // RUN: %eclair compile %t/program.eclair > %t/program.ll
 // RUN: %clang -o %t/program -O0 %t/main.c %t/program.ll
 // RUN: %t/program | FileCheck %s
 
-// CHECK: (1, 2)
-// CHECK-NEXT: (1, 3)
-// CHECK-NEXT: (2, 3)
+// No output, since it never matches
+// CHECK:      func triggered with: 456
+// CHECK:      func triggered with: 123
+// CHECK-NEXT: COUNT: 1
+// CHECK-NEXT: RESULT: 123
 
 //--- program.eclair
-
 @def edge(u32, u32) input.
-@def reachable(u32, u32) output.
+@def test_externs(u32) output.
 
-reachable(x, y) :-
-  edge(x, y).
+@extern func(u32) u32.
 
-reachable(x, y) :-
-  edge(x, z),
-  reachable(z, y).
+test_externs(func(123)).
+
+test_externs(x) :-
+  edge(x, y),
+  x = func(456).
 
 //--- main.c
 #include <stdio.h>
@@ -27,8 +28,8 @@ reachable(x, y) :-
 #include <stdbool.h>
 #include <stdint.h>
 
-
 struct program;
+struct symbol_table;
 
 extern struct program* eclair_program_init();
 extern void eclair_program_destroy(struct program*);
@@ -37,6 +38,11 @@ extern void eclair_add_facts(struct program*, uint32_t fact_type, uint32_t* data
 extern void eclair_add_fact(struct program*, uint32_t fact_type, uint32_t* data);
 extern uint32_t* eclair_get_facts(struct program*, uint32_t fact_type);
 extern void eclair_free_buffer(uint32_t* data);
+
+uint32_t func(struct symbol_table*, uint32_t value) {
+    printf("func triggered with: %d\n", value);
+    return value;
+}
 
 int main(int argc, char** argv)
 {
@@ -51,11 +57,10 @@ int main(int argc, char** argv)
 
     eclair_program_run(prog);
 
-    // NOTE: normally you call btree_size here to figure out the size
+    uint32_t fact_count = eclair_fact_count(prog, 1);
     uint32_t* data_out = eclair_get_facts(prog, 1);
-    printf("REACHABLE: (%d, %d)\n", data_out[0], data_out[1]);  // (1,2)
-    printf("REACHABLE: (%d, %d)\n", data_out[2], data_out[3]);  // (2,3)
-    printf("REACHABLE: (%d, %d)\n", data_out[4], data_out[5]);  // (1,3)
+    printf("COUNT: %d\n", fact_count);
+    printf("RESULT: %d\n", data_out[0]);
 
     eclair_free_buffer(data_out);
 
