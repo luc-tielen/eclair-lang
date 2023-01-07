@@ -23,6 +23,7 @@ import Eclair.Common.Pretty
 import Eclair.Error
 import Eclair.Common.Id
 import Eclair.Common.Location
+import Eclair.Common.Extern
 import Eclair.Common.Config (Target(..))
 import Eclair.AST.IR
 import Eclair.AST.Transforms (StringMap)
@@ -59,6 +60,7 @@ data Query a where
   EmitLLVM :: FilePath -> Query ()
   StringMapping :: FilePath -> Query (Map Text Word32)
   UsageMapping :: FilePath -> Query (Map Id UsageMode)
+  ExternDefinitions :: FilePath -> Query [Extern]
 
 deriving instance Eq (Query a)
 
@@ -78,6 +80,7 @@ queryFilePath = \case
   EmitLLVM path            -> path
   StringMapping path       -> path
   UsageMapping path        -> path
+  ExternDefinitions path   -> path
 
 queryEnum :: Query a -> Int
 queryEnum = \case
@@ -95,6 +98,7 @@ queryEnum = \case
   EmitLLVM {}            -> 11
   StringMapping {}       -> 12
   UsageMapping {}        -> 13
+  ExternDefinitions {}   -> 14
 
 deriveGEq ''Query
 
@@ -149,7 +153,8 @@ rules abortOnError params (Rock.Writer query) = case query of
     -- We abort if this is not the case.
     abortOnError
     (ast, nodeId, _) <- Rock.fetch (Parse path)
-    pure $ AST.simplify nodeId analysis ast
+    externDefs <- Rock.fetch (ExternDefinitions path)
+    pure $ AST.simplify nodeId externDefs analysis ast
   EmitSimplifiedAST path -> noError $ do
     (ast, _) <- Rock.fetch (TransformAST path)
     liftIO $ putTextLn $ printDoc ast
@@ -159,10 +164,14 @@ rules abortOnError params (Rock.Writer query) = case query of
   UsageMapping path -> noError $ do
     (ast, _, _) <- Rock.fetch (Parse path)
     pure $ SA.computeUsageMapping ast
+  ExternDefinitions path -> noError $ do
+    (ast, _, _) <- Rock.fetch (Parse path)
+    pure $ getExternDefs ast
   CompileRA path -> noError $ do
     ast <- fst <$> Rock.fetch (TransformAST path)
+    externDefs <- Rock.fetch (ExternDefinitions path)
     -- TODO refactor emitting of AST / RA / EIR together with optimizations. Separate -O flag?
-    pure $ RA.simplify $ compileToRA ast
+    pure $ RA.simplify $ compileToRA externDefs ast
   EmitRA path -> noError $ do
     ra <- Rock.fetch (CompileRA path)
     liftIO $ putTextLn $ printDoc ra
@@ -178,7 +187,8 @@ rules abortOnError params (Rock.Writer query) = case query of
     eir <- Rock.fetch (CompileEIR path)
     stringMapping <- Rock.fetch (StringMapping path)
     usageMapping <- Rock.fetch (UsageMapping path)
-    liftIO $ compileToLLVM (paramsConfig params) stringMapping usageMapping eir
+    externDefs <- Rock.fetch (ExternDefinitions path)
+    liftIO $ compileToLLVM (paramsConfig params) stringMapping usageMapping externDefs eir
   EmitLLVM path -> noError $ do
     llvmModule <- Rock.fetch (CompileLLVM path)
     liftIO $ putTextLn $ ppllvm llvmModule

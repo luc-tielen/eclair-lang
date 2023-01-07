@@ -144,16 +144,6 @@ typeErrorToReport e = case e of
         hints = [Hint $ "You can solve this by passing exactly " <> show expectedCount <> " arguments to '" <> unId factName <> "'."]
     in Err Nothing title markers hints
 
-  DuplicateTypeDeclaration factName decls ->
-    Err Nothing title (mainMarker:markers) hints
-    where
-      title = "Multiple type declarations for fact '" <> unId factName <> "'"
-      mainMarker =
-        (mainErrorPosition e, This $ "'" <> unId factName <> "' is originally defined here.")
-      markers = tail decls & toList & map (\(srcLoc, _tys) ->
-        (srcLoc, Where $ "'" <> unId factName <> "' is re-defined here."))
-      hints = [Hint $ "You can solve this by removing the duplicate definitions for '" <> unId factName <> "'."]
-
   TypeMismatch _ actualTy expectedTy ctx ->
     Err Nothing title markers hints
       where
@@ -192,6 +182,31 @@ typeErrorToReport e = case e of
             else [Hint "Other variables include:"] <> map (Hint . snd) others
         renderBinding var ty =
           unId var <> " :: " <> renderType ty
+
+  -- TODO improve these errors
+  UnexpectedFunctionType _ defPos ->
+    let title = "Invalid use of function"
+        markers =
+          [ (mainErrorPosition e, This "Expected a constraint here.")
+          , (defPos, Where "Previously defined as a function here.")
+          ]
+        hints =
+          [ Hint "Maybe you meant to declare this an external constraint instead?"
+          , Hint "Remove the invalid function."
+          ]
+    in Err Nothing title markers hints
+
+  UnexpectedConstraintType _ defPos ->
+    let title = "Invalid use of constraint"
+        markers =
+          [ (mainErrorPosition e, This "Expected a function.")
+          , (defPos, Where "Previously defined as a constraint here.")
+          ]
+        hints =
+          [ Hint "Maybe you meant to declare this as a function instead?"
+          , Hint "Remove the invalid constraint."
+          ]
+    in Err Nothing title markers hints
   where
     renderType ty =
       let userFacingType = case ty of
@@ -230,6 +245,16 @@ wildcardInFactToReport e@(WildcardInFact srcLocFact _ _pos) =
                 ]
       hints = [Hint "Replace the wildcard with a constant."]
    in Err Nothing title markers hints
+
+wildcardInExternToReport :: WildcardInExtern Position -> Report Text
+wildcardInExternToReport e@(WildcardInExtern atomLoc _ _) =
+  Err Nothing title markers hints
+  where
+    title = "Wildcard in externally defined atom"
+    markers = [ (mainErrorPosition e, This "Wildcard found.")
+              , (atomLoc, Where "An external atom only supports constants or grounded variables.")
+              ]
+    hints = [Hint "Replace the wildcard with a constant or grounded variable."]
 
 wildcardInRuleHeadToReport :: WildcardInRuleHead Position -> Report Text
 wildcardInRuleHeadToReport e@(WildcardInRuleHead srcLocRule _ _pos) =
@@ -277,17 +302,57 @@ noOutputRelationsToReport e@(NoOutputRelation _) =
       hints = [ Hint "Add an 'output' qualifier to one of the relations defined in this module." ]
   in Err Nothing title markers hints
 
+conflictingDefinitionsToReport :: ConflictingDefinitionGroup Position -> Report Text
+conflictingDefinitionsToReport e@(ConflictingDefinitionGroup name locs) =
+  Err Nothing title (mainMarker:markers) hints
+  where
+    title = "Multiple definitions for '" <> unId name <> "'"
+    mainMarker =
+      (mainErrorPosition e, This $ "'" <> unId name <> "' is originally defined here.")
+    markers = tail locs & toList & map (, Where $ "'" <> unId name <> "' is re-defined here.")
+    hints = [Hint $ "You can solve this by removing the duplicate definitions for '" <> unId name <> "'."]
+
+externUsedAsFactToReport :: ExternUsedAsFact Position -> Report Text
+externUsedAsFactToReport e@(ExternUsedAsFact _ externLoc name) =
+  Err Nothing title markers hints
+  where
+    title = "Extern definition used as top level fact"
+    markers =
+      [ (mainErrorPosition e, This $ "'" <> unId name <> "' is used as a fact here, which is not allowed for extern definitions.")
+      , (externLoc, Where $ "'" <> unId name <> "' previously defined here as external.")
+      ]
+    hints = [ Hint $ "Convert '" <> unId name <> "' to a relation."
+            , Hint "Remove the top level fact."
+            ]
+
+externUsedAsRuleToReport :: ExternUsedAsRule Position -> Report Text
+externUsedAsRuleToReport e@(ExternUsedAsRule _ externLoc name) =
+  Err Nothing title markers hints
+  where
+    title = "Extern definition used in rule head"
+    markers =
+      [ (mainErrorPosition e, This $ "'" <> unId name <> "' is used as a rule head here, which is not allowed for extern definitions.")
+      , (externLoc, Where $ "'" <> unId name <> "' previously defined here as external.")
+      ]
+    hints = [ Hint $ "Convert '" <> unId name <> "' to a relation."
+            , Hint "Remove the rule."
+            ]
+
 -- NOTE: pattern match is done this way to keep track of additional errors that need to be reported
 {-# ANN semanticErrorsToReportsWithLocations ("HLint: ignore Use record patterns" :: String) #-}
 semanticErrorsToReportsWithLocations :: SemanticErrors Position -> [(Report Text, Location)]
-semanticErrorsToReportsWithLocations e@(SemanticErrors _ _ _ _ _ _ _) =
+semanticErrorsToReportsWithLocations e@(SemanticErrors _ _ _ _ _ _ _ _ _ _ _) =
   concat [ ungroundedVarReports
          , wildcardInFactReports
          , wildcardInRuleHeadReports
          , wildcardInConstraintReports
          , wildcardInBinOpReports
+         , wildcardInExternReports
          , deadInternalRelationReports
          , noOutputReports
+         , conflictingDefinitionReports
+         , externUsedAsFactReports
+         , externUsedAsRuleReports
          ]
   where
     getReportsWithLocationsFor
@@ -302,8 +367,12 @@ semanticErrorsToReportsWithLocations e@(SemanticErrors _ _ _ _ _ _ _) =
     wildcardInRuleHeadReports = getReportsWithLocationsFor wildcardsInRuleHeads wildcardInRuleHeadToReport
     wildcardInConstraintReports = getReportsWithLocationsFor wildcardsInConstraints wildcardInConstraintToReport
     wildcardInBinOpReports = getReportsWithLocationsFor wildcardsInBinOps wildcardInBinOpToReport
+    wildcardInExternReports = getReportsWithLocationsFor wildcardsInExternAtoms wildcardInExternToReport
     deadInternalRelationReports = getReportsWithLocationsFor deadInternalRelations deadInternalRelationToReport
     noOutputReports = getReportsWithLocationsFor noOutputRelations noOutputRelationsToReport
+    conflictingDefinitionReports = getReportsWithLocationsFor conflictingDefinitions conflictingDefinitionsToReport
+    externUsedAsFactReports = getReportsWithLocationsFor externsUsedAsFact externUsedAsFactToReport
+    externUsedAsRuleReports = getReportsWithLocationsFor externsUsedAsRule externUsedAsRuleToReport
 
 pluralize :: Int -> Text -> Text -> Text
 pluralize count singular plural' =
@@ -342,20 +411,29 @@ instance HasMainErrorPosition (WildcardInConstraint Position) where
   mainErrorPosition (WildcardInConstraint _ pos) = pos
 instance HasMainErrorPosition (WildcardInBinOp Position) where
   mainErrorPosition (WildcardInBinOp _ pos) = pos
+instance HasMainErrorPosition (WildcardInFact Position) where
+  mainErrorPosition (WildcardInFact _ factArgPos _) = factArgPos
+instance HasMainErrorPosition (WildcardInExtern Position) where
+  mainErrorPosition (WildcardInExtern _ externArgPos _) = externArgPos
 instance HasMainErrorPosition (UngroundedVar Position) where
   mainErrorPosition (UngroundedVar _ varPos _) = varPos
 instance HasMainErrorPosition (WildcardInRuleHead Position) where
   mainErrorPosition (WildcardInRuleHead _ ruleArgPos _) = ruleArgPos
-instance HasMainErrorPosition (WildcardInFact Position) where
-  mainErrorPosition (WildcardInFact _ factArgPos _) = factArgPos
+instance HasMainErrorPosition (ConflictingDefinitionGroup Position) where
+  mainErrorPosition (ConflictingDefinitionGroup _ positions) = head positions
+instance HasMainErrorPosition (ExternUsedAsFact Position) where
+  mainErrorPosition (ExternUsedAsFact pos _ _) = pos
+instance HasMainErrorPosition (ExternUsedAsRule Position) where
+  mainErrorPosition (ExternUsedAsRule pos _ _) = pos
 instance HasMainErrorPosition (TypeError Position) where
   mainErrorPosition = \case
     UnknownAtom pos _ -> pos
     ArgCountMismatch _ _ (pos, _) -> pos
-    DuplicateTypeDeclaration _ decls -> fst $ head decls
     TypeMismatch pos _ _ _ -> pos
     UnificationFailure _ _ ctx -> getContextLocation (last ctx)
     HoleFound pos _ _ _ -> pos
+    UnexpectedFunctionType pos _ -> pos
+    UnexpectedConstraintType pos _ -> pos
 
 -- Helper function to transform a Megaparsec error bundle into multiple reports
 -- Extracted from the Diagnose library, and simplified for usage in Eclair.

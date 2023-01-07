@@ -43,6 +43,7 @@ module Eclair.RA.Codegen
   , lessOrEqual
   , greaterThan
   , greaterOrEqual
+  , mkExternOp
   , mkArithOp
   , plus
   , minus
@@ -248,6 +249,10 @@ mkArithOp :: EIR.ArithmeticOp -> CodegenM EIR -> CodegenM EIR -> CodegenM EIR
 mkArithOp op lhs rhs =
   let args = sequence [lhs, rhs]
    in EIR.PrimOp (EIR.ArithOp op) <$> args
+
+mkExternOp :: Id -> [CodegenM EIR] -> CodegenM EIR
+mkExternOp name args =
+  EIR.PrimOp (EIR.ExternOp name) <$> sequence args
 
 plus :: CodegenM EIR -> CodegenM EIR -> CodegenM EIR
 plus = mkArithOp EIR.Plus

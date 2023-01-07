@@ -64,6 +64,7 @@ data Op
   | SymbolTableInsert
   | ComparisonOp ConstraintOp
   | ArithOp ArithmeticOp
+  | ExternOp Id
   deriving (Eq, Show)
 
 data Visibility
@@ -152,6 +153,8 @@ instance Pretty Op where
       -- Since `=` is already used for assignment in EIR, we use `==` for comparison.
       if op == Equals then "==" else pretty op
     ArithOp op ->
+      pretty op
+    ExternOp op ->
       pretty op
 
 instance Pretty EIR where

@@ -6,11 +6,12 @@ import qualified Data.Map as M
 import Eclair.Transform
 import Eclair.AST.IR
 import Eclair.Comonads
+import Eclair.Common.Extern
 
 -- This transform reduces the amount of helper variables used in assignments.
 
-transform :: Transform AST AST
-transform =
+transform :: [Extern] -> Transform AST AST
+transform externs =
   Transform $ usingReaderT Nothing . gcata (distribute directlyGroundedVars equatedVars) rewrite
   where
     distribute :: Corecursive t
@@ -24,9 +25,11 @@ transform =
           base_t_c = map qFourth m
        in Quad (embed base_t_t) (f base_t_ta) (g base_t_tb) base_t_c
 
-    -- Finds all vars directly inside an atom.
+    externNames = map (\(Extern name _ _) -> name) externs
+
+    -- Finds all vars directly inside a (not externally defined) atom.
     directlyGroundedVars = \case
-      AtomF _ _ args ->
+      AtomF _ name args | name `notElem` externNames ->
         flip mapMaybe args $ \case
           (Var _ v, _) -> Just v
           _ -> Nothing

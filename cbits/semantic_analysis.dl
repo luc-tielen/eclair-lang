@@ -12,13 +12,17 @@
 .decl input_relation(relation_name: symbol)
 .decl output_relation(relation_name: symbol)
 .decl internal_relation(relation_name: symbol)
+.decl extern_definition(node_id: unsigned, extern_name: symbol)
 .decl declare_type(node_id: unsigned, name: symbol)
 .decl module(node_id: unsigned)
 .decl module_declaration(module_id: unsigned, declaration_id: unsigned)
 .decl scoped_value(scope_id: unsigned, value_id: unsigned)
 
 // Internal rules
+.decl relation_atom(node_id: unsigned, name: symbol)
+.decl extern_atom(node_id: unsigned, name: symbol)
 .decl grounded_node(rule_node_id: unsigned, node_id: unsigned)
+.decl has_ungrounded_args(rule_id: unsigned, atom_id: unsigned)
 .decl assign(node_id: unsigned, lhs_node_id: unsigned, rhs_node_id: unsigned) inline
 .decl inequality_op(op: symbol)
 .decl has_output_relation(node_id: unsigned)
@@ -36,7 +40,9 @@
 // Output facts / rules
 .decl grounded_variable(rule_id: unsigned, var_name: symbol)
 .decl ungrounded_variable(rule_id: unsigned, var_id: unsigned, var_name: symbol)
-.decl wildcard_in_fact(fact_node_id: unsigned,  fact_arg_id: unsigned, pos: unsigned)
+.decl ungrounded_external_atom(rule_id: unsigned, atom_id: unsigned, atom_name: symbol)
+.decl wildcard_in_fact(fact_node_id: unsigned, fact_arg_id: unsigned, pos: unsigned)
+.decl wildcard_in_extern(atom_node_id: unsigned, atom_arg_id: unsigned, pos: unsigned)
 .decl wildcard_in_rule_head(rule_node_id: unsigned, rule_arg_id: unsigned, pos: unsigned)
 .decl wildcard_in_constraint(constraint_node_id: unsigned, wildcard_node_id: unsigned)
 .decl wildcard_in_binop(binop_node_id: unsigned, wildcard_node_id: unsigned)
@@ -44,6 +50,9 @@
 .decl dead_code(node_id: unsigned)
 .decl no_output_relation(node_id: unsigned)
 .decl dead_internal_relation(node_id: unsigned, relation_name: symbol)
+.decl conflicting_definitions(node_id1: unsigned, node_id2: unsigned, name: symbol)
+.decl extern_used_as_fact(node_id: unsigned, extern_node_id: unsigned, name: symbol)
+.decl extern_used_as_rule(node_id: unsigned, extern_node_id: unsigned, name: symbol)
 
 .input lit_number
 .input lit_string
@@ -58,19 +67,36 @@
 .input input_relation
 .input output_relation
 .input internal_relation
+.input extern_definition
 .input declare_type
 .input module
 .input module_declaration
 .input scoped_value
 
 .output wildcard_in_fact
+.output wildcard_in_extern
 .output ungrounded_variable
+.output ungrounded_external_atom
 .output wildcard_in_rule_head
 .output wildcard_in_constraint
 .output wildcard_in_binop
 .output dead_code
 .output no_output_relation
 .output dead_internal_relation
+.output conflicting_definitions
+.output extern_used_as_fact
+.output extern_used_as_rule
+
+// An atom that is not defined externally. This is an important distinction
+// since external atoms cannot ground variables!
+relation_atom(node_id, name) :-
+  declare_type(_, name),
+  atom(node_id, name).
+
+// An atom that is defined externally.
+extern_atom(node_id, name) :-
+  extern_definition(_, name),
+  atom(node_id, name).
 
 // r1 depends on r2 if rule r1 refers to r2 in the body
 depends_on(r1, r2) :-
@@ -119,6 +145,11 @@ dead_code(node_id) :-
 // Type definitions also need to be marked as dead.
 dead_code(node_id) :-
   declare_type(node_id, r),
+  !live_rule(r).
+
+// Extern definitions also need to be marked as dead.
+dead_code(node_id) :-
+  extern_definition(node_id, r),
   !live_rule(r).
 
 // Atoms too.
@@ -193,13 +224,57 @@ ungrounded_variable(rule_id, var_id, var_name) :-
   binop(_, _, var_id, _),
   variable(var_id, var_name),
   scoped_value(rule_id, var_id),
-  !grounded_variable(rule_id, var_name).
+  !grounded_node(rule_id, var_id).
 
 ungrounded_variable(rule_id, var_id, var_name) :-
   binop(_, _, _, var_id),
   variable(var_id, var_name),
   scoped_value(rule_id, var_id),
-  !grounded_variable(rule_id, var_name).
+  !grounded_node(rule_id, var_id).
+
+// External atoms used in a fact need to be grounded.
+ungrounded_external_atom(fact_id, atom_id, atom_name) :-
+  module_declaration(_, fact_id),
+  atom_arg(fact_id, _, atom_id),
+  extern_atom(atom_id, atom_name),
+  !grounded_node(fact_id, atom_id).
+
+// External atoms used in a rule head need to be grounded.
+ungrounded_external_atom(rule_id, atom_id, atom_name) :-
+  rule_arg(rule_id, _, atom_id),
+  atom(atom_id, atom_name),
+  scoped_value(rule_id, atom_id),
+  !grounded_node(rule_id, atom_id).
+
+// External atoms used in a comparison or inequality need to be grounded.
+ungrounded_external_atom(rule_id, atom_id, atom_name) :-
+  rule_clause(rule_id, _, rule_clause_id),
+  constraint(rule_clause_id, op, _, atom_id),
+  inequality_op(op),
+  atom(atom_id, atom_name),
+  scoped_value(rule_id, atom_id),
+  !grounded_node(rule_id, atom_id).
+
+ungrounded_external_atom(rule_id, atom_id, atom_name) :-
+  rule_clause(rule_id, _, rule_clause_id),
+  constraint(rule_clause_id, op, atom_id, _),
+  inequality_op(op),
+  atom(atom_id, atom_name),
+  scoped_value(rule_id, atom_id),
+  !grounded_node(rule_id, atom_id).
+
+// External atoms used in a binop need to be grounded.
+ungrounded_external_atom(rule_id, atom_id, atom_name) :-
+  binop(_, _, _, atom_id),
+  atom(atom_id, atom_name),
+  scoped_value(rule_id, atom_id),
+  !grounded_node(rule_id, atom_id).
+
+ungrounded_external_atom(rule_id, atom_id, atom_name) :-
+  binop(_, _, atom_id, _),
+  atom(atom_id, atom_name),
+  scoped_value(rule_id, atom_id),
+  !grounded_node(rule_id, atom_id).
 
 inequality_op("!=").
 inequality_op("<").
@@ -216,6 +291,12 @@ wildcard_in_rule_head(rule_id, rule_arg_id, pos) :-
 
 wildcard_in_fact(atom_id, atom_arg_id, pos) :-
   module_declaration(_, atom_id),
+  atom_arg(atom_id, pos, atom_arg_id),
+  wildcard(atom_arg_id).
+
+wildcard_in_extern(atom_id, atom_arg_id, pos) :-
+  rule_clause(_, _, atom_id),
+  extern_atom(atom_id, _),
   atom_arg(atom_id, pos, atom_arg_id),
   wildcard(atom_arg_id).
 
@@ -298,9 +379,10 @@ grounded_variable(rule_id, var_name) :-
   grounded_node(rule_id, var_id),
   variable(var_id, var_name).
 
-// Variables are grounded if they are used in an atom.
+// Variables are grounded if they are used in an atom (defined using '@def').
 grounded_node(rule_id, var_id) :-
   rule_clause(rule_id, _, rule_clause_id),
+  relation_atom(rule_clause_id, _),
   atom_arg(rule_clause_id, _, var_id),
   variable(var_id, _).
 
@@ -339,3 +421,32 @@ grounded_node(rule_id, lhs_node_id) :-
   assign(rule_clause_id, lhs_node_id, rhs_node_id),
   grounded_node(rule_id, rhs_node_id),
   variable(lhs_node_id, _).
+
+conflicting_definitions(node_id, node_id2, name) :-
+  declare_type(node_id, name),
+  declare_type(node_id2, name),
+  node_id < node_id2.
+
+conflicting_definitions(node_id, node_id2, name) :-
+  extern_definition(node_id, name),
+  extern_definition(node_id2, name),
+  node_id < node_id2.
+
+conflicting_definitions(node_id, node_id2, name) :-
+  declare_type(node_id, name),
+  extern_definition(node_id2, name),
+  node_id < node_id2.
+
+conflicting_definitions(node_id, node_id2, name) :-
+  extern_definition(node_id, name),
+  declare_type(node_id2, name),
+  node_id < node_id2.
+
+extern_used_as_fact(node_id, extern_node_id, name) :-
+  extern_definition(extern_node_id, name),
+  module_declaration(_, node_id),
+  atom(node_id, name).
+
+extern_used_as_rule(node_id, extern_node_id, name) :-
+  extern_definition(extern_node_id, name),
+  rule(node_id, name).

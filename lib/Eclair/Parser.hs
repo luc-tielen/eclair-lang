@@ -123,15 +123,19 @@ declParser :: Parser AST
 declParser = do
   c <- P.lookAhead P.anySingle
   case c of
-    '@' ->
-      withNodeId typedefParser
+    '@' -> do
+      withNodeId $ \nodeId ->
+        typedefParser nodeId <|> externParser nodeId
     _ -> factOrRuleParser
 
-typeParser :: Parser Type
-typeParser = lexeme $ u32 <|> str
-  where
-    u32 = U32 <$ P.chunk "u32"
-    str = Str <$ P.chunk "string"
+externParser :: NodeId -> Parser AST
+externParser nodeId = do
+  void $ lexeme $ P.chunk "@extern"
+  name <- lexeme identifier
+  tys <- lexeme $ betweenParens $ typeParser `P.sepBy1` lexeme comma
+  mRetTy <- optional typeParser
+  void $ P.char '.'
+  pure $ ExternDefinition nodeId name tys mRetTy
 
 typedefParser :: NodeId -> Parser AST
 typedefParser nodeId = do
@@ -159,6 +163,12 @@ typedefParser nodeId = do
 
     attrParser = lexeme $
       Left <$> P.chunk "input" <|> Right <$> P.chunk "output"
+
+typeParser :: Parser Type
+typeParser = lexeme $ u32 <|> str
+  where
+    u32 = U32 <$ P.chunk "u32"
+    str = Str <$ P.chunk "string"
 
 data FactOrRule = FactType | RuleType
 
@@ -217,8 +227,15 @@ exprParser =
       where
         value = withNodeId $ \nodeId ->
           Hole nodeId <$ P.char '?' <|>
-          Var nodeId <$> (identifier <|> wildcard) <|>
+          P.try (varParser nodeId) <|>
+          atomParser <|>
           Lit nodeId <$> literal
+
+varParser :: NodeId -> Parser AST
+varParser nodeId = do
+  v <- lexeme $ Var nodeId <$> (identifier <|> wildcard)
+  P.notFollowedBy $ P.char '('
+  pure v
 
 constraintOpParser :: Parser ConstraintOp
 constraintOpParser = P.label "equality or comparison operator" $ lexeme $ do

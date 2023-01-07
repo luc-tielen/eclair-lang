@@ -54,8 +54,8 @@ type IndexMap = Map Relation (Set Index)
 type IndexSelector = Relation -> SearchSignature -> Index
 
 runIndexSelection :: TypedefInfo -> RA -> (IndexMap, IndexSelector)
-runIndexSelection typedefInfo ra =
-  let searchMap = searchesForProgram typedefInfo ra
+runIndexSelection defInfo ra =
+  let searchMap = searchesForProgram defInfo ra
       indexSelection :: IndexSelection
       indexSelection = Map.foldrWithKey (\r searchSet acc ->
         let graph = buildGraph searchSet
@@ -78,9 +78,9 @@ data SearchFact
 -- All relations (including delta_XXX, new_XXX) need atleast one index for full order search
 -- Swap operation requires indices of r1 and r2 to be related.
 searchesForProgram :: TypedefInfo -> RA -> SearchMap
-searchesForProgram typedefInfo ra =
+searchesForProgram defInfo ra =
   let raSearchFacts = execState (gcata (dsitribute extractEqualities) constraintsForRA ra) mempty
-      relationFullSearches = getFullSearchesForRelations typedefInfo
+      relationFullSearches = getFullSearchesForRelations defInfo
       facts = raSearchFacts <> relationFullSearches
    in solve facts
   where
@@ -103,7 +103,7 @@ searchesForProgram typedefInfo ra =
         addFact $ SearchOn r signature
       MergeF _ from' _ -> do
         -- Always add a full search signature for the from relation, so we don't lose any data.
-        let columns = columnsFor . fromJust $ Map.lookup (stripIdPrefixes from') typedefInfo
+        let columns = columnsFor . fromJust $ Map.lookup (stripIdPrefixes from') defInfo
             signature = SearchSignature $ Set.fromList columns
         addFact $ SearchOn from' signature
       SwapF _ r1 r2  ->
@@ -123,12 +123,12 @@ searchesForProgram typedefInfo ra =
 
 -- For every relation we add atleast 1 one index with all columns.
 getFullSearchesForRelations :: TypedefInfo -> [SearchFact]
-getFullSearchesForRelations typedefInfo =
+getFullSearchesForRelations defInfo =
   [ SearchOn r . toSearchSignature $ unsafeLookup r
-  | r <- Map.keys typedefInfo
+  | r <- Map.keys defInfo
   ]
   where
-    unsafeLookup r = fromJust $ Map.lookup r typedefInfo
+    unsafeLookup r = fromJust $ Map.lookup r defInfo
     toSearchSignature = SearchSignature . Set.fromList . columnsFor
 
 data NormalizedEquality

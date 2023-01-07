@@ -10,6 +10,7 @@ module Eclair.RA.IR
   , ColumnIndex
   , ConstraintOp(..)
   , ArithmeticOp(..)
+  , Op(..)
   ) where
 
 import Eclair.Common.Id
@@ -23,6 +24,11 @@ type Alias = Id
 type Clause = RA
 type Action = RA
 type ColumnIndex = Int
+
+data Op
+  = BuiltinOp ArithmeticOp
+  | ExternOp Id
+  deriving (Eq, Show)
 
 -- NOTE: removed Insert, couldn't find a use?
 data RA
@@ -40,7 +46,7 @@ data RA
   | Lit NodeId Word32
   | ColumnIndex NodeId Relation ColumnIndex
   | CompareOp NodeId ConstraintOp RA RA
-  | PrimOp NodeId ArithmeticOp RA RA
+  | PrimOp NodeId Op [RA]
   | NotElem NodeId Relation [RA]
   | If NodeId RA RA  -- NOTE: args are condition and body
   deriving (Eq, Show)
@@ -53,6 +59,11 @@ prettyBlock = indentBlock . vsep . map pretty
 
 indentBlock :: Doc ann -> Doc ann
 indentBlock block = nest indentation (hardline <> block)
+
+instance Pretty Op where
+  pretty = \case
+    BuiltinOp op -> pretty op
+    ExternOp opName -> pretty opName
 
 instance Pretty RA where
   pretty = \case
@@ -81,7 +92,12 @@ instance Pretty RA where
     Lit _ x -> pretty x
     ColumnIndex _ r idx -> pretty r <> brackets (pretty idx)
     CompareOp _ op lhs rhs -> pretty lhs <+> pretty op <+> pretty rhs
-    PrimOp _ op lhs rhs -> parens $ pretty lhs <+> pretty op <+> pretty rhs
+    PrimOp _ op args ->
+      case (op, args) of
+        (BuiltinOp{}, [lhs, rhs]) ->
+          parens $ pretty lhs <+> pretty op <+> pretty rhs
+        _ ->
+          pretty op <> parens (withCommas $ map pretty args)
     NotElem _ r terms -> prettyValues terms <+> "∉" <+> pretty r
     where
       prettyValues terms = parens (withCommas $ map pretty terms)

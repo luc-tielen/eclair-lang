@@ -154,13 +154,19 @@ generateProgramInstructions = gcata (distribute extractEqualities) $ \case
     block [withEndLabel end $ loop actions, label end]
   RA.IfF _ (extract -> condition) (extract -> action) -> do
     if' condition action
-  RA.PrimOpF _ op (extract -> lhs) (extract -> rhs) -> do
-    let toArithmetic = case op of
-          RA.Plus -> plus
-          RA.Minus -> minus
-          RA.Multiply -> multiply
-          RA.Divide -> divide
-    toArithmetic lhs rhs
+  RA.PrimOpF _ (RA.BuiltinOp op) (map extract -> args) ->
+    case args of
+      [lhs, rhs] -> do
+        let toArithmetic = case op of
+              RA.Plus -> plus
+              RA.Minus -> minus
+              RA.Multiply -> multiply
+              RA.Divide -> divide
+        toArithmetic lhs rhs
+      _ ->
+        panic "Unexpected case in 'generateProgramInstructions' while lowering RA!"
+  RA.PrimOpF _ (RA.ExternOp opName) (map extract -> args) -> do
+    mkExternOp opName args
   RA.CompareOpF _ op (extract -> lhs) (extract -> rhs) -> do
     let toComparison = case op of
           RA.Equals -> equals
@@ -260,9 +266,14 @@ initValue r idx a bound eqs = do
       let NormalizedEquality _ _ ra = fromJust $ find (\(NormalizedEquality a' col' _) -> a == a' && col == col') eqs
        in lowerConstrainValue ra
     lowerConstrainValue = \case
-      RA.Lit _ x -> lit x
-      RA.ColumnIndex _ a' col' -> fieldAccess (lookupAlias a') col'
-      RA.PrimOp _ op lhs rhs -> mkArithOp op (lowerConstrainValue lhs) (lowerConstrainValue rhs)
+      RA.Lit _ x ->
+        lit x
+      RA.ColumnIndex _ a' col' ->
+        fieldAccess (lookupAlias a') col'
+      RA.PrimOp _ (RA.BuiltinOp op) [lhs, rhs] ->
+        mkArithOp op (lowerConstrainValue lhs) (lowerConstrainValue rhs)
+      RA.PrimOp _ (RA.ExternOp opName) args ->
+        mkExternOp opName $ map lowerConstrainValue args
       _ -> panic "Unsupported initial value while lowering to RA"
     dontCare = lit $ case bound of
       LowerBound -> 0

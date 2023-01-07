@@ -34,14 +34,15 @@ import Eclair.Comonads
 import Eclair.AST.IR
 import Eclair.AST.Transforms.ReplaceStrings (StringMap)
 import Eclair.Common.Id
+import Eclair.Common.Extern
 
 
 type EIR = EIR.EIR
 type EIRF = EIR.EIRF
 type Relation = EIR.Relation
 
-compileToLLVM :: Maybe Target -> StringMap -> Map Id UsageMode -> EIR -> IO Module
-compileToLLVM target stringMapping usageMapping eir = do
+compileToLLVM :: Maybe Target -> StringMap -> Map Id UsageMode -> [Extern] -> EIR -> IO Module
+compileToLLVM target stringMapping usageMapping externDefs eir = do
   ctx <- LibLLVM.mkContext
   llvmMod <- LibLLVM.mkModule ctx "eclair"
   if target == Just Wasm32
@@ -71,8 +72,10 @@ compileToLLVM target stringMapping usageMapping eir = do
         -- TODO: add hash based on filepath of the file we're compiling?
         programTy <- typedef "program" Off (symbolTableTy : map typeObj fnss)
         programSize <- withLLVMTypeInfo ctx $ llvmSizeOf ctx td programTy
-        let lowerState = LowerState programTy programSize symbolTable symbol fnsMap' mempty 0 exts
         lift $ do
+          externs <- traverse (processExtern symbolTableTy) externDefs
+          let externMap = M.fromList externs
+              lowerState = LowerState programTy programSize symbolTable symbol fnsMap' mempty 0 exts externMap
           traverse_ (processDecl lowerState) decls
           usingReaderT (relationMapping, metas, lowerState) $ do
             addFactsFn <- generateAddFactsFn usageMapping
@@ -87,6 +90,12 @@ compileToLLVM target stringMapping usageMapping eir = do
 
     relationMapping =
       M.mapKeys Id stringMapping
+
+    processExtern symbolTableTy (Extern fnName argCount extKind) = do
+      let argTys = symbolTableTy : replicate argCount i32
+          retTy = if extKind == ExternConstraint then i1 else i32  -- i1, or i8 for bool?
+      fn <- extern (Name $ unId fnName) argTys retTy
+      pure (fnName, fn)
 
     processDecl lowerState = \case
       EIR.Function visibility name tys retTy body -> do
@@ -155,6 +164,7 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
         pure symbolPtr
       _ ->
         panic "Unhandled pattern match case in 'instrToOperand' while lowering EIR to LLVM!"
+
     instrToUnit :: MonadFix m => (EIRF (Triple EIR (CodegenT m Operand) (CodegenT m ())) -> CodegenT m ())
     instrToUnit = \case
       EIR.BlockF stmts -> do
@@ -562,7 +572,7 @@ getSymbolTablePtr program =
 
 type InOutState = (Map Relation Word32, [(Relation, Metadata)], LowerState)
 
-type CodegenInOutT = ReaderT  InOutState
+type CodegenInOutT = ReaderT InOutState
 
 switchOnFactType :: MonadFix m
                  => Set Relation
