@@ -25,7 +25,7 @@ idxSel path text' = do
    in case TS.typeCheck ast of
         Left _ -> panic $ "Failed to typecheck " <> toText file <> "!"
         Right typeInfo -> do
-          let ra = simplify $ compileToRA ast
+          let ra = simplify $ compileToRA [] ast
               (indexMap, _) = runIndexSelection (TS.infoTypedefs typeInfo) ra
            in indexMap
 
