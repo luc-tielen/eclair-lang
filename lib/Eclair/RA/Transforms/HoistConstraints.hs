@@ -59,16 +59,26 @@ transform =
 
         withUpdatedEnv $ do
           HoistState aliases constraints <- ask
+          -- partition all the things!
           let (covered, rest) = partition (coversAllAliases aliases) constraints
               (indexable, nonIndexable) = partition supportsIndex covered
+              (relationChecks, nonRelationChecks) = partition dependsOnARelation nonIndexable
               cs' = map qFirst cs <> map (\(_, _, c) -> c) indexable
+              addNonRelationConstraints =
+                nonRelationChecks
+                & map (\(nodeId', _, cond) -> If nodeId' cond)
+                & foldl' (.) id
               addNonIndexableConstraints =
-                nonIndexable
+                relationChecks
                 & map (\(nodeId', _, cond) -> If nodeId' cond)
                 & foldl' (.) id
 
+          let transformSearch =
+                addNonRelationConstraints
+                . Search nodeId r a cs'
+                . addNonIndexableConstraints
           local (\s -> s { remainingConstraints = rest }) $ do
-            Search nodeId r a cs' . addNonIndexableConstraints <$> qFourth inner
+            transformSearch <$> qFourth inner
 
       ProjectF nodeId r vals -> do
         -- NOTE: remaining conditions are not removed here, to support multiple projections in the future.
@@ -105,3 +115,9 @@ transform =
 
     -- TODO add pass for RA so <= and >= can be used in an index
     isIndexableOp = (== Equals)
+
+    dependsOnARelation (_, _, ra) =
+      let dependencies = flip cata ra $ \case
+            ColumnIndexF _ a _ -> [a]
+            raf -> fold raf
+       in not $ null dependencies
