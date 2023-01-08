@@ -90,11 +90,18 @@ transform =
     supportsIndex = \case
       (_, _, ra) -> isIndexable ra
 
-    -- TODO add pass for RA so <= and >= can be used in an index
     isIndexable = \case
       CompareOp _ op (ColumnIndex _ a1 _) (ColumnIndex _ a2 _) ->
-        op == Equals && a1 /= a2
-      CompareOp _ op _ _ ->
-        op == Equals
+        isIndexableOp op && a1 /= a2
+      -- Only other relations or constants are allowed to appear in a value.
+      -- Other relations besides the current alias are "constant" due to the
+      -- way the algorithm works.
+      CompareOp _ op (ColumnIndex _ a1 _) value ->
+        isIndexableOp op && a1 `notElem` cata collectAliases value
+      CompareOp _ op value (ColumnIndex _ a1 _) ->
+        isIndexableOp op && a1 `notElem` cata collectAliases value
       _ ->
         False
+
+    -- TODO add pass for RA so <= and >= can be used in an index
+    isIndexableOp = (== Equals)
