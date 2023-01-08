@@ -48,6 +48,20 @@ edge(2, 3).
      •            ╰╸ expecting ":-" or '.'
 ─────╯
 
+[error]: Ungrounded variable
+     ╭──▶ /home/luc/personal/eclair/tests/parser/Output/error_recovery.eclair.tmp/program.eclair@10:6-10:7
+     │
+  10 │ ╭┤ path(x, y) :-
+     • │       ┬
+     • │       ╰╸ The variable 'x' is ungrounded, meaning it is not directly bound as an argument to a relation.
+  11 │ │    edge(x, z),
+  12 │ ├┤   path(z, y).
+     • │
+     • ╰╸ This contains no clauses that refer to 'x'.
+     •
+     │ Hint: Use the variable 'x' as an argument in a relation.
+─────╯
+
 [error]: Missing type definition
      ╭──▶ TEST_DIR/program.eclair@5:1-5:12
      │
@@ -55,7 +69,8 @@ edge(2, 3).
      • ┬──────────
      • ╰╸ Could not find a type definition for 'edge'.
      •
-     │ Hint: You can solve this by adding a type definition for 'edge'.
+     │ Hint: Add a type definition for 'edge'.
+     │ Hint: Add an extern definition for 'edge'.
 ─────╯
 
 [error]: Missing type definition
@@ -65,7 +80,8 @@ edge(2, 3).
      •   ┬─────────
      •   ╰╸ Could not find a type definition for 'edge'.
      •
-     │ Hint: You can solve this by adding a type definition for 'edge'.
+     │ Hint: Add a type definition for 'edge'.
+     │ Hint: Add an extern definition for 'edge'.
 ─────╯
 
 [error]: Missing type definition
@@ -75,5 +91,6 @@ edge(2, 3).
      • ┬──────────
      • ╰╸ Could not find a type definition for 'edge'.
      •
-     │ Hint: You can solve this by adding a type definition for 'edge'.
+     │ Hint: Add a type definition for 'edge'.
+     │ Hint: Add an extern definition for 'edge'.
 ─────╯

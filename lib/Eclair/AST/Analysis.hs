@@ -24,6 +24,7 @@ module Eclair.AST.Analysis
   ) where
 
 import qualified Data.List.NonEmpty as NE
+import Data.List.Extra (nubOrdOn)
 import qualified Language.Souffle.Interpreted as S
 import qualified Language.Souffle.Analysis as S
 import qualified Eclair.AST.IR as IR
@@ -493,6 +494,7 @@ groupConflicts conflicts =
         locs = NE.cons (cdFirstLoc firstConflict) (map cdSecondLoc cg)
      in ConflictingDefinitionGroup declName locs
   )
+  & nubOrdOn cdgName
   where
     sameConflict = cdName &&& cdFirstLoc
 

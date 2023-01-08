@@ -225,7 +225,7 @@ exprParser =
       where
         value = withNodeId $ \nodeId ->
           Hole nodeId <$ P.char '?' <|>
-          P.try (varParser nodeId) <|>
+          P.try varParser <|>
           atomParser <|>
           Lit nodeId <$> literal
 
@@ -235,9 +235,9 @@ arithmeticOps =
   , [(Plus, '+'), (Minus, '-')]
   ]
 
-varParser :: NodeId -> Parser AST
-varParser nodeId = do
-  v <- lexeme $ Var nodeId <$> (identifier <|> wildcard)
+varParser :: Parser AST
+varParser = lexeme $ withNodeId $ \nodeId -> do
+  v <- Var nodeId <$> (identifier <|> wildcard)
   P.notFollowedBy $ P.char '('
   pure v
 

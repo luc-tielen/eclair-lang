@@ -70,7 +70,7 @@ test_externs2(x) :-
      •                     ╰╸ 4) Expected this to be of type 'u32', but it actually has type 'string'.
 ─────╯
 
-[error]: Found an unexpected amount of arguments for fact 'func3'
+[error]: Found an unexpected amount of arguments for 'func3'
      ╭──▶ TEST_DIR/program2.eclair@13:15-13:30
      │
    5 │ @extern func3(u32) u32.
@@ -81,7 +81,7 @@ test_externs2(x) :-
      •               ┬──────────────
      •               ╰╸ 2 arguments are provided here.
      •
-     │ Hint: You can solve this by passing exactly 1 arguments to 'func3'.
+     │ Hint: You can solve this by passing exactly 1 argument to 'func3'.
 ─────╯
 
 [error]: Type mismatch
@@ -110,26 +110,42 @@ test_externs2(x) :-
      │
   18 │ ╭┤ test_externs2(x) :-
   19 │ │    edge2(x, 123),
-  20 │ ├┤   constraint2(x).
+  20 │ │    constraint2(x),
      • │                ┬
      • │                ├╸ 2) While checking the type of this..
      • │                ╰╸ 3) Expected this to be of type 'string', but it actually has type 'u32'.
+  21 │ ├┤   constraint2("abc", "def").
      • │
      • ╰╸ 1) While checking the type of this..
 ─────╯
 
-[error]: Found an unexpected amount of arguments for fact 'constraint2'
-     ╭──▶ TEST_DIR/program2.eclair@21:3-21:29
+[error]: Found an unexpected amount of arguments for 'constraint2'
+     ╭──▶ TEST_DIR/program2.eclair@21:3-21:28
      │
    4 │ @extern constraint2(string).
      • ┬───────────────────────────
      • ╰╸ 'constraint2' is defined with 1 argument.
      •
   21 │   constraint2("abc", "def").
-     •   ┬─────────────────────────
+     •   ┬────────────────────────
      •   ╰╸ 2 arguments are provided here.
      •
-     │ Hint: You can solve this by passing exactly 1 arguments to 'constraint2'.
+     │ Hint: You can solve this by passing exactly 1 argument to 'constraint2'.
+─────╯
+
+[error]: Invalid use of constraint
+     ╭──▶ TEST_DIR/program2.eclair@24:15-24:33
+     │
+   4 │ @extern constraint2(string).
+     • ┬───────────────────────────
+     • ╰╸ Previously defined as a constraint here.
+     •
+  24 │ test_externs2(constraint2("abc")).
+     •               ┬─────────────────
+     •               ╰╸ Expected a function.
+     •
+     │ Hint: Maybe you meant to declare this as a function instead?
+     │ Hint: Remove the invalid constraint.
 ─────╯
 
 [error]: Invalid use of constraint

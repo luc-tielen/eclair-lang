@@ -46,13 +46,13 @@ test_externs(x) :-
      │
   35 │ ╭┤ test_externs(x) :-
      • │               ┬
-     • │               ╰╸ The variable 'x' is ungrounded, meaning it is not directly bound as an argument to a clause.
+     • │               ╰╸ The variable 'x' is ungrounded, meaning it is not directly bound as an argument to a relation.
   36 │ │    constraint2(x),
   37 │ ├┤   x = func4(x, x).
      • │
      • ╰╸ This contains no clauses that refer to 'x'.
      •
-     │ Hint: Use the variable 'x' as an argument in another clause.
+     │ Hint: Use the variable 'x' as an argument in a relation.
 ─────╯
 
 [error]: Wildcard in externally defined atom

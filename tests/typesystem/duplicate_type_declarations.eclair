@@ -12,7 +12,7 @@
 @def path(u32, u32) output.
 
 //--- expected.out
-[error]: Multiple type declarations for fact 'edge'
+[error]: Multiple definitions for 'edge'
      ╭──▶ TEST_DIR/program.eclair@1:1-1:28
      │
    1 │ @def edge(u32, u32) output.
@@ -29,7 +29,7 @@
      │ Hint: You can solve this by removing the duplicate definitions for 'edge'.
 ─────╯
 
-[error]: Multiple type declarations for fact 'path'
+[error]: Multiple definitions for 'path'
      ╭──▶ TEST_DIR/program.eclair@3:1-3:28
      │
    3 │ @def path(u32, u32) output.

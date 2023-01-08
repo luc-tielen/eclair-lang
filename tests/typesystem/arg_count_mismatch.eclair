@@ -43,7 +43,7 @@ a(x, y) :-
   c(y, 456).
 
 //--- expected.out
-[error]: Found an unexpected amount of arguments for fact 'edge'
+[error]: Found an unexpected amount of arguments for 'edge'
      ╭──▶ TEST_DIR/program.eclair@3:1-3:12
      │
    1 │ @def edge(u32, u32, u32) output.
@@ -57,7 +57,7 @@ a(x, y) :-
      │ Hint: You can solve this by passing exactly 3 arguments to 'edge'.
 ─────╯
 
-[error]: Found an unexpected amount of arguments for fact 'path'
+[error]: Found an unexpected amount of arguments for 'path'
      ╭──▶ TEST_DIR/program.eclair@4:1-4:12
      │
    2 │ @def path(u32) output.
@@ -68,10 +68,10 @@ a(x, y) :-
      • ┬──────────
      • ╰╸ 2 arguments are provided here.
      •
-     │ Hint: You can solve this by passing exactly 1 arguments to 'path'.
+     │ Hint: You can solve this by passing exactly 1 argument to 'path'.
 ─────╯
 
-[error]: Found an unexpected amount of arguments for fact 'fact2'
+[error]: Found an unexpected amount of arguments for 'fact2'
      ╭──▶ TEST_DIR/program.eclair@9:1-10:15
      │
    7 │    @def fact2(u32, u32, u32) output.
@@ -86,7 +86,7 @@ a(x, y) :-
      │ Hint: You can solve this by passing exactly 3 arguments to 'fact2'.
 ─────╯
 
-[error]: Found an unexpected amount of arguments for fact 'fact4'
+[error]: Found an unexpected amount of arguments for 'fact4'
      ╭──▶ TEST_DIR/program.eclair@15:1-16:15
      │
   13 │    @def fact4(u32) output.
@@ -98,10 +98,10 @@ a(x, y) :-
      • │
      • ╰╸ 2 arguments are provided here.
      •
-     │ Hint: You can solve this by passing exactly 1 arguments to 'fact4'.
+     │ Hint: You can solve this by passing exactly 1 argument to 'fact4'.
 ─────╯
 
-[error]: Found an unexpected amount of arguments for fact 'fact5'
+[error]: Found an unexpected amount of arguments for 'fact5'
      ╭──▶ TEST_DIR/program.eclair@22:3-22:14
      │
   18 │ @def fact5(u32, u32, u32) input.
@@ -115,7 +115,7 @@ a(x, y) :-
      │ Hint: You can solve this by passing exactly 3 arguments to 'fact5'.
 ─────╯
 
-[error]: Found an unexpected amount of arguments for fact 'fact7'
+[error]: Found an unexpected amount of arguments for 'fact7'
      ╭──▶ TEST_DIR/program.eclair@28:3-28:19
      │
   24 │ @def fact7(u32, u32) input.
@@ -129,7 +129,7 @@ a(x, y) :-
      │ Hint: You can solve this by passing exactly 2 arguments to 'fact7'.
 ─────╯
 
-[error]: Found an unexpected amount of arguments for fact 'b'
+[error]: Found an unexpected amount of arguments for 'b'
      ╭──▶ TEST_DIR/program.eclair@35:3-35:12
      │
   31 │ @def b(u32) input.
@@ -140,10 +140,10 @@ a(x, y) :-
      •   ┬────────
      •   ╰╸ 2 arguments are provided here.
      •
-     │ Hint: You can solve this by passing exactly 1 arguments to 'b'.
+     │ Hint: You can solve this by passing exactly 1 argument to 'b'.
 ─────╯
 
-[error]: Found an unexpected amount of arguments for fact 'c'
+[error]: Found an unexpected amount of arguments for 'c'
      ╭──▶ TEST_DIR/program.eclair@36:3-36:12
      │
   32 │ @def c(u32) input.
@@ -154,5 +154,5 @@ a(x, y) :-
      •   ┬────────
      •   ╰╸ 2 arguments are provided here.
      •
-     │ Hint: You can solve this by passing exactly 1 arguments to 'c'.
+     │ Hint: You can solve this by passing exactly 1 argument to 'c'.
 ─────╯
