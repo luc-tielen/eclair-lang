@@ -38,22 +38,22 @@ search b as b0 do
 //--- expected_eclair_program_run.out
 export fn eclair_program_run(*Program) -> Void
 {
-  value = c.stack_allocate Value
-  value.0 = 0
-  value.1 = 0
-  value.2 = 42
-  value.3 = 0
-  value.4 = 0
-  value_1 = c.stack_allocate Value
-  value_1.0 = 4294967295
-  value_1.1 = 4294967295
-  value_1.2 = 42
-  value_1.3 = 4294967295
-  value_1.4 = 4294967295
+  lower_bound_value = c.stack_allocate Value
+  lower_bound_value.0 = 0
+  lower_bound_value.1 = 0
+  lower_bound_value.2 = 42
+  lower_bound_value.3 = 0
+  lower_bound_value.4 = 0
+  upper_bound_value = c.stack_allocate Value
+  upper_bound_value.0 = 4294967295
+  upper_bound_value.1 = 4294967295
+  upper_bound_value.2 = 42
+  upper_bound_value.3 = 4294967295
+  upper_bound_value.4 = 4294967295
   begin_iter = c.stack_allocate Iter
   end_iter = c.stack_allocate Iter
-  c.iter_lower_bound(FN_ARG[0].3, value, begin_iter)
-  c.iter_upper_bound(FN_ARG[0].3, value_1, end_iter)
+  c.iter_lower_bound(FN_ARG[0].3, lower_bound_value, begin_iter)
+  c.iter_upper_bound(FN_ARG[0].3, upper_bound_value, end_iter)
   loop
   {
     condition = c.iter_is_equal(begin_iter, end_iter)
@@ -68,14 +68,14 @@ export fn eclair_program_run(*Program) -> Void
       condition_2 = (current.0 == current.1)
       if (condition_2)
       {
-        value_2 = other.stack_allocate Value
-        value_2.0 = current.0
-        value_3 = other.stack_allocate Value
-        value_3.0 = current.0
+        lower_bound_value_1 = other.stack_allocate Value
+        lower_bound_value_1.0 = current.0
+        upper_bound_value_1 = other.stack_allocate Value
+        upper_bound_value_1.0 = current.0
         begin_iter_1 = other.stack_allocate Iter
         end_iter_1 = other.stack_allocate Iter
-        other.iter_lower_bound(FN_ARG[0].4, value_2, begin_iter_1)
-        other.iter_upper_bound(FN_ARG[0].4, value_3, end_iter_1)
+        other.iter_lower_bound(FN_ARG[0].4, lower_bound_value_1, begin_iter_1)
+        other.iter_upper_bound(FN_ARG[0].4, upper_bound_value_1, end_iter_1)
         loop
         {
           condition_3 = other.iter_is_equal(begin_iter_1, end_iter_1)
@@ -84,9 +84,9 @@ export fn eclair_program_run(*Program) -> Void
             goto range_query.end_1
           }
           current_1 = other.iter_current(begin_iter_1)
-          value_4 = a.stack_allocate Value
-          value_4.0 = current.0
-          a.insert(FN_ARG[0].1, value_4)
+          value = a.stack_allocate Value
+          value.0 = current.0
+          a.insert(FN_ARG[0].1, value)
           other.iter_next(begin_iter_1)
         }
         range_query.end_1:
@@ -95,16 +95,16 @@ export fn eclair_program_run(*Program) -> Void
     c.iter_next(begin_iter)
   }
   range_query.end:
-  value_5 = b.stack_allocate Value
-  value_5.0 = 0
-  value_5.1 = 0
-  value_6 = b.stack_allocate Value
-  value_6.0 = 4294967295
-  value_6.1 = 4294967295
+  lower_bound_value_2 = b.stack_allocate Value
+  lower_bound_value_2.0 = 0
+  lower_bound_value_2.1 = 0
+  upper_bound_value_2 = b.stack_allocate Value
+  upper_bound_value_2.0 = 4294967295
+  upper_bound_value_2.1 = 4294967295
   begin_iter_2 = b.stack_allocate Iter
   end_iter_2 = b.stack_allocate Iter
-  b.iter_lower_bound(FN_ARG[0].2, value_5, begin_iter_2)
-  b.iter_upper_bound(FN_ARG[0].2, value_6, end_iter_2)
+  b.iter_lower_bound(FN_ARG[0].2, lower_bound_value_2, begin_iter_2)
+  b.iter_upper_bound(FN_ARG[0].2, upper_bound_value_2, end_iter_2)
   loop
   {
     condition_4 = b.iter_is_equal(begin_iter_2, end_iter_2)
@@ -116,14 +116,14 @@ export fn eclair_program_run(*Program) -> Void
     condition_5 = (current_2.0 == current_2.1)
     if (condition_5)
     {
-      value_7 = other.stack_allocate Value
-      value_7.0 = current_2.0
-      value_8 = other.stack_allocate Value
-      value_8.0 = current_2.0
+      lower_bound_value_3 = other.stack_allocate Value
+      lower_bound_value_3.0 = current_2.0
+      upper_bound_value_3 = other.stack_allocate Value
+      upper_bound_value_3.0 = current_2.0
       begin_iter_3 = other.stack_allocate Iter
       end_iter_3 = other.stack_allocate Iter
-      other.iter_lower_bound(FN_ARG[0].4, value_7, begin_iter_3)
-      other.iter_upper_bound(FN_ARG[0].4, value_8, end_iter_3)
+      other.iter_lower_bound(FN_ARG[0].4, lower_bound_value_3, begin_iter_3)
+      other.iter_upper_bound(FN_ARG[0].4, upper_bound_value_3, end_iter_3)
       loop
       {
         condition_6 = other.iter_is_equal(begin_iter_3, end_iter_3)
@@ -132,9 +132,9 @@ export fn eclair_program_run(*Program) -> Void
           goto range_query.end_3
         }
         current_3 = other.iter_current(begin_iter_3)
-        value_9 = a.stack_allocate Value
-        value_9.0 = current_2.0
-        a.insert(FN_ARG[0].1, value_9)
+        value_1 = a.stack_allocate Value
+        value_1.0 = current_2.0
+        a.insert(FN_ARG[0].1, value_1)
         other.iter_next(begin_iter_3)
       }
       range_query.end_3:
@@ -146,34 +146,34 @@ export fn eclair_program_run(*Program) -> Void
 //--- expected_eclair_program_run_llvm.out
 define external ccc void @eclair_program_run(%program* %arg_0) "wasm-export-name"="eclair_program_run" {
 start:
-  %value_0 = alloca [5 x i32], i32 1
-  %0 = getelementptr [5 x i32], [5 x i32]* %value_0, i32 0, i32 0
+  %lower_bound_value_0 = alloca [5 x i32], i32 1
+  %0 = getelementptr [5 x i32], [5 x i32]* %lower_bound_value_0, i32 0, i32 0
   store i32 0, i32* %0
-  %1 = getelementptr [5 x i32], [5 x i32]* %value_0, i32 0, i32 1
+  %1 = getelementptr [5 x i32], [5 x i32]* %lower_bound_value_0, i32 0, i32 1
   store i32 0, i32* %1
-  %2 = getelementptr [5 x i32], [5 x i32]* %value_0, i32 0, i32 2
+  %2 = getelementptr [5 x i32], [5 x i32]* %lower_bound_value_0, i32 0, i32 2
   store i32 42, i32* %2
-  %3 = getelementptr [5 x i32], [5 x i32]* %value_0, i32 0, i32 3
+  %3 = getelementptr [5 x i32], [5 x i32]* %lower_bound_value_0, i32 0, i32 3
   store i32 0, i32* %3
-  %4 = getelementptr [5 x i32], [5 x i32]* %value_0, i32 0, i32 4
+  %4 = getelementptr [5 x i32], [5 x i32]* %lower_bound_value_0, i32 0, i32 4
   store i32 0, i32* %4
-  %value_1_0 = alloca [5 x i32], i32 1
-  %5 = getelementptr [5 x i32], [5 x i32]* %value_1_0, i32 0, i32 0
+  %upper_bound_value_0 = alloca [5 x i32], i32 1
+  %5 = getelementptr [5 x i32], [5 x i32]* %upper_bound_value_0, i32 0, i32 0
   store i32 4294967295, i32* %5
-  %6 = getelementptr [5 x i32], [5 x i32]* %value_1_0, i32 0, i32 1
+  %6 = getelementptr [5 x i32], [5 x i32]* %upper_bound_value_0, i32 0, i32 1
   store i32 4294967295, i32* %6
-  %7 = getelementptr [5 x i32], [5 x i32]* %value_1_0, i32 0, i32 2
+  %7 = getelementptr [5 x i32], [5 x i32]* %upper_bound_value_0, i32 0, i32 2
   store i32 42, i32* %7
-  %8 = getelementptr [5 x i32], [5 x i32]* %value_1_0, i32 0, i32 3
+  %8 = getelementptr [5 x i32], [5 x i32]* %upper_bound_value_0, i32 0, i32 3
   store i32 4294967295, i32* %8
-  %9 = getelementptr [5 x i32], [5 x i32]* %value_1_0, i32 0, i32 4
+  %9 = getelementptr [5 x i32], [5 x i32]* %upper_bound_value_0, i32 0, i32 4
   store i32 4294967295, i32* %9
   %begin_iter_0 = alloca %btree_iterator_t_2, i32 1
   %end_iter_0 = alloca %btree_iterator_t_2, i32 1
   %10 = getelementptr %program, %program* %arg_0, i32 0, i32 3
-  call ccc void @btree_lower_bound_2(%btree_t_2* %10, [5 x i32]* %value_0, %btree_iterator_t_2* %begin_iter_0)
+  call ccc void @btree_lower_bound_2(%btree_t_2* %10, [5 x i32]* %lower_bound_value_0, %btree_iterator_t_2* %begin_iter_0)
   %11 = getelementptr %program, %program* %arg_0, i32 0, i32 3
-  call ccc void @btree_upper_bound_2(%btree_t_2* %11, [5 x i32]* %value_1_0, %btree_iterator_t_2* %end_iter_0)
+  call ccc void @btree_upper_bound_2(%btree_t_2* %11, [5 x i32]* %upper_bound_value_0, %btree_iterator_t_2* %end_iter_0)
   br label %loop_0
 loop_0:
   %condition_0 = call ccc i1 @btree_iterator_is_equal_2(%btree_iterator_t_2* %begin_iter_0, %btree_iterator_t_2* %end_iter_0)
@@ -196,22 +196,22 @@ if_1:
   %condition_2_4 = icmp eq i32 %condition_2_1, %condition_2_3
   br i1 %condition_2_4, label %if_2, label %end_if_2
 if_2:
-  %value_2_0 = alloca [1 x i32], i32 1
-  %12 = getelementptr [1 x i32], [1 x i32]* %value_2_0, i32 0, i32 0
+  %lower_bound_value_1_0 = alloca [1 x i32], i32 1
+  %12 = getelementptr [1 x i32], [1 x i32]* %lower_bound_value_1_0, i32 0, i32 0
   %13 = getelementptr [5 x i32], [5 x i32]* %current_0, i32 0, i32 0
   %14 = load i32, i32* %13
   store i32 %14, i32* %12
-  %value_3_0 = alloca [1 x i32], i32 1
-  %15 = getelementptr [1 x i32], [1 x i32]* %value_3_0, i32 0, i32 0
+  %upper_bound_value_1_0 = alloca [1 x i32], i32 1
+  %15 = getelementptr [1 x i32], [1 x i32]* %upper_bound_value_1_0, i32 0, i32 0
   %16 = getelementptr [5 x i32], [5 x i32]* %current_0, i32 0, i32 0
   %17 = load i32, i32* %16
   store i32 %17, i32* %15
   %begin_iter_1_0 = alloca %btree_iterator_t_0, i32 1
   %end_iter_1_0 = alloca %btree_iterator_t_0, i32 1
   %18 = getelementptr %program, %program* %arg_0, i32 0, i32 4
-  call ccc void @btree_lower_bound_0(%btree_t_0* %18, [1 x i32]* %value_2_0, %btree_iterator_t_0* %begin_iter_1_0)
+  call ccc void @btree_lower_bound_0(%btree_t_0* %18, [1 x i32]* %lower_bound_value_1_0, %btree_iterator_t_0* %begin_iter_1_0)
   %19 = getelementptr %program, %program* %arg_0, i32 0, i32 4
-  call ccc void @btree_upper_bound_0(%btree_t_0* %19, [1 x i32]* %value_3_0, %btree_iterator_t_0* %end_iter_1_0)
+  call ccc void @btree_upper_bound_0(%btree_t_0* %19, [1 x i32]* %upper_bound_value_1_0, %btree_iterator_t_0* %end_iter_1_0)
   br label %loop_1
 loop_1:
   %condition_3_0 = call ccc i1 @btree_iterator_is_equal_0(%btree_iterator_t_0* %begin_iter_1_0, %btree_iterator_t_0* %end_iter_1_0)
@@ -220,13 +220,13 @@ if_3:
   br label %range_query.end_1
 end_if_1:
   %current_1_0 = call ccc [1 x i32]* @btree_iterator_current_0(%btree_iterator_t_0* %begin_iter_1_0)
-  %value_4_0 = alloca [1 x i32], i32 1
-  %20 = getelementptr [1 x i32], [1 x i32]* %value_4_0, i32 0, i32 0
+  %value_0 = alloca [1 x i32], i32 1
+  %20 = getelementptr [1 x i32], [1 x i32]* %value_0, i32 0, i32 0
   %21 = getelementptr [5 x i32], [5 x i32]* %current_0, i32 0, i32 0
   %22 = load i32, i32* %21
   store i32 %22, i32* %20
   %23 = getelementptr %program, %program* %arg_0, i32 0, i32 1
-  %24 = call ccc i1 @btree_insert_value_0(%btree_t_0* %23, [1 x i32]* %value_4_0)
+  %24 = call ccc i1 @btree_insert_value_0(%btree_t_0* %23, [1 x i32]* %value_0)
   call ccc void @btree_iterator_next_0(%btree_iterator_t_0* %begin_iter_1_0)
   br label %loop_1
 range_query.end_1:
@@ -237,22 +237,22 @@ end_if_3:
   call ccc void @btree_iterator_next_2(%btree_iterator_t_2* %begin_iter_0)
   br label %loop_0
 range_query.end:
-  %value_5_0 = alloca [2 x i32], i32 1
-  %25 = getelementptr [2 x i32], [2 x i32]* %value_5_0, i32 0, i32 0
+  %lower_bound_value_2_0 = alloca [2 x i32], i32 1
+  %25 = getelementptr [2 x i32], [2 x i32]* %lower_bound_value_2_0, i32 0, i32 0
   store i32 0, i32* %25
-  %26 = getelementptr [2 x i32], [2 x i32]* %value_5_0, i32 0, i32 1
+  %26 = getelementptr [2 x i32], [2 x i32]* %lower_bound_value_2_0, i32 0, i32 1
   store i32 0, i32* %26
-  %value_6_0 = alloca [2 x i32], i32 1
-  %27 = getelementptr [2 x i32], [2 x i32]* %value_6_0, i32 0, i32 0
+  %upper_bound_value_2_0 = alloca [2 x i32], i32 1
+  %27 = getelementptr [2 x i32], [2 x i32]* %upper_bound_value_2_0, i32 0, i32 0
   store i32 4294967295, i32* %27
-  %28 = getelementptr [2 x i32], [2 x i32]* %value_6_0, i32 0, i32 1
+  %28 = getelementptr [2 x i32], [2 x i32]* %upper_bound_value_2_0, i32 0, i32 1
   store i32 4294967295, i32* %28
   %begin_iter_2_0 = alloca %btree_iterator_t_1, i32 1
   %end_iter_2_0 = alloca %btree_iterator_t_1, i32 1
   %29 = getelementptr %program, %program* %arg_0, i32 0, i32 2
-  call ccc void @btree_lower_bound_1(%btree_t_1* %29, [2 x i32]* %value_5_0, %btree_iterator_t_1* %begin_iter_2_0)
+  call ccc void @btree_lower_bound_1(%btree_t_1* %29, [2 x i32]* %lower_bound_value_2_0, %btree_iterator_t_1* %begin_iter_2_0)
   %30 = getelementptr %program, %program* %arg_0, i32 0, i32 2
-  call ccc void @btree_upper_bound_1(%btree_t_1* %30, [2 x i32]* %value_6_0, %btree_iterator_t_1* %end_iter_2_0)
+  call ccc void @btree_upper_bound_1(%btree_t_1* %30, [2 x i32]* %upper_bound_value_2_0, %btree_iterator_t_1* %end_iter_2_0)
   br label %loop_2
 loop_2:
   %condition_4_0 = call ccc i1 @btree_iterator_is_equal_1(%btree_iterator_t_1* %begin_iter_2_0, %btree_iterator_t_1* %end_iter_2_0)
@@ -268,22 +268,22 @@ end_if_4:
   %condition_5_4 = icmp eq i32 %condition_5_1, %condition_5_3
   br i1 %condition_5_4, label %if_5, label %end_if_6
 if_5:
-  %value_7_0 = alloca [1 x i32], i32 1
-  %31 = getelementptr [1 x i32], [1 x i32]* %value_7_0, i32 0, i32 0
+  %lower_bound_value_3_0 = alloca [1 x i32], i32 1
+  %31 = getelementptr [1 x i32], [1 x i32]* %lower_bound_value_3_0, i32 0, i32 0
   %32 = getelementptr [2 x i32], [2 x i32]* %current_2_0, i32 0, i32 0
   %33 = load i32, i32* %32
   store i32 %33, i32* %31
-  %value_8_0 = alloca [1 x i32], i32 1
-  %34 = getelementptr [1 x i32], [1 x i32]* %value_8_0, i32 0, i32 0
+  %upper_bound_value_3_0 = alloca [1 x i32], i32 1
+  %34 = getelementptr [1 x i32], [1 x i32]* %upper_bound_value_3_0, i32 0, i32 0
   %35 = getelementptr [2 x i32], [2 x i32]* %current_2_0, i32 0, i32 0
   %36 = load i32, i32* %35
   store i32 %36, i32* %34
   %begin_iter_3_0 = alloca %btree_iterator_t_0, i32 1
   %end_iter_3_0 = alloca %btree_iterator_t_0, i32 1
   %37 = getelementptr %program, %program* %arg_0, i32 0, i32 4
-  call ccc void @btree_lower_bound_0(%btree_t_0* %37, [1 x i32]* %value_7_0, %btree_iterator_t_0* %begin_iter_3_0)
+  call ccc void @btree_lower_bound_0(%btree_t_0* %37, [1 x i32]* %lower_bound_value_3_0, %btree_iterator_t_0* %begin_iter_3_0)
   %38 = getelementptr %program, %program* %arg_0, i32 0, i32 4
-  call ccc void @btree_upper_bound_0(%btree_t_0* %38, [1 x i32]* %value_8_0, %btree_iterator_t_0* %end_iter_3_0)
+  call ccc void @btree_upper_bound_0(%btree_t_0* %38, [1 x i32]* %upper_bound_value_3_0, %btree_iterator_t_0* %end_iter_3_0)
   br label %loop_3
 loop_3:
   %condition_6_0 = call ccc i1 @btree_iterator_is_equal_0(%btree_iterator_t_0* %begin_iter_3_0, %btree_iterator_t_0* %end_iter_3_0)
@@ -292,13 +292,13 @@ if_6:
   br label %range_query.end_3
 end_if_5:
   %current_3_0 = call ccc [1 x i32]* @btree_iterator_current_0(%btree_iterator_t_0* %begin_iter_3_0)
-  %value_9_0 = alloca [1 x i32], i32 1
-  %39 = getelementptr [1 x i32], [1 x i32]* %value_9_0, i32 0, i32 0
+  %value_1_0 = alloca [1 x i32], i32 1
+  %39 = getelementptr [1 x i32], [1 x i32]* %value_1_0, i32 0, i32 0
   %40 = getelementptr [2 x i32], [2 x i32]* %current_2_0, i32 0, i32 0
   %41 = load i32, i32* %40
   store i32 %41, i32* %39
   %42 = getelementptr %program, %program* %arg_0, i32 0, i32 1
-  %43 = call ccc i1 @btree_insert_value_0(%btree_t_0* %42, [1 x i32]* %value_9_0)
+  %43 = call ccc i1 @btree_insert_value_0(%btree_t_0* %42, [1 x i32]* %value_1_0)
   call ccc void @btree_iterator_next_0(%btree_iterator_t_0* %begin_iter_3_0)
   br label %loop_3
 range_query.end_3:
