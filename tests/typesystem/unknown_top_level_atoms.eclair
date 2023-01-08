@@ -18,7 +18,8 @@ path(3, 4).
      • ┬──────────
      • ╰╸ Could not find a type definition for 'edge'.
      •
-     │ Hint: You can solve this by adding a type definition for 'edge'.
+     │ Hint: Add a type definition for 'edge'.
+     │ Hint: Add an extern definition for 'edge'.
 ─────╯
 
 [error]: Missing type definition
@@ -28,5 +29,6 @@ path(3, 4).
      • ┬──────────
      • ╰╸ Could not find a type definition for 'path'.
      •
-     │ Hint: You can solve this by adding a type definition for 'path'.
+     │ Hint: Add a type definition for 'path'.
+     │ Hint: Add an extern definition for 'path'.
 ─────╯

@@ -1,0 +1,204 @@
+// RUN: split-file %s %t
+
+// RUN: %eclair compile --emit ra %t/program.eclair > %t/actual_ra.out
+// RUN: diff %t/expected_ra.out %t/actual_ra.out
+
+// RUN: %eclair compile --emit eir %t/program.eclair > %t/actual_eir.out
+// RUN: %extract_snippet %t/actual_eir.out "fn.*eclair_program_run" > %t/actual_eir_snippet.out
+// RUN: diff %t/expected_eir.out %t/actual_eir_snippet.out
+
+// RUN: %eclair compile --emit llvm %t/program.eclair > %t/actual_llvm.out
+// RUN: %extract_snippet %t/actual_llvm.out "define.*@eclair_program_run" > %t/actual_llvm_snippet.out
+// RUN: diff %t/expected_llvm.out %t/actual_llvm_snippet.out
+
+//--- program.eclair
+@def edge(u32, u32) input.
+@def test_externs(u32) output.
+
+@extern constraint(string).
+@extern func(u32) u32.
+@extern func2(u32, u32) string.
+
+test_externs(func(123)).
+
+test_externs(x) :-
+  edge(x, y),
+  constraint("abc"),
+  constraint(func2(123, 456)).
+
+test_externs(x) :-
+  edge(x, y),
+  x = func(123),
+  "abc" = func2(456, 789).
+
+//--- expected_ra.out
+search edge as edge0 where (edge0[0] = func(123) and 2 = func2(456, 789)) do
+  project (edge0[0]) into test_externs
+search edge as edge0 do
+  if constraint(2) != 0 do
+    if constraint(func2(123, 456)) != 0 do
+      project (edge0[0]) into test_externs
+project (func(123)) into test_externs
+//--- expected_eir.out
+export fn eclair_program_run(*Program) -> Void
+{
+  value = edge.stack_allocate Value
+  value.0 = func(FN_ARG[0].0, 123)
+  value.1 = 0
+  value_1 = edge.stack_allocate Value
+  value_1.0 = func(FN_ARG[0].0, 123)
+  value_1.1 = 4294967295
+  begin_iter = edge.stack_allocate Iter
+  end_iter = edge.stack_allocate Iter
+  edge.iter_lower_bound(FN_ARG[0].1, value, begin_iter)
+  edge.iter_upper_bound(FN_ARG[0].1, value_1, end_iter)
+  loop
+  {
+    condition = edge.iter_is_equal(begin_iter, end_iter)
+    if (condition)
+    {
+      goto range_query.end
+    }
+    current = edge.iter_current(begin_iter)
+    value_2 = test_externs.stack_allocate Value
+    value_2.0 = current.0
+    test_externs.insert(FN_ARG[0].2, value_2)
+    edge.iter_next(begin_iter)
+  }
+  range_query.end:
+  value_3 = edge.stack_allocate Value
+  value_3.0 = 0
+  value_3.1 = 0
+  value_4 = edge.stack_allocate Value
+  value_4.0 = 4294967295
+  value_4.1 = 4294967295
+  begin_iter_1 = edge.stack_allocate Iter
+  end_iter_1 = edge.stack_allocate Iter
+  edge.iter_lower_bound(FN_ARG[0].1, value_3, begin_iter_1)
+  edge.iter_upper_bound(FN_ARG[0].1, value_4, end_iter_1)
+  loop
+  {
+    condition_1 = edge.iter_is_equal(begin_iter_1, end_iter_1)
+    if (condition_1)
+    {
+      goto range_query.end_1
+    }
+    current_1 = edge.iter_current(begin_iter_1)
+    condition_2 = (constraint(FN_ARG[0].0, 2) != 0)
+    if (condition_2)
+    {
+      condition_3 = (constraint(FN_ARG[0].0, func2(FN_ARG[0].0, 123, 456)) != 0)
+      if (condition_3)
+      {
+        value_5 = test_externs.stack_allocate Value
+        value_5.0 = current_1.0
+        test_externs.insert(FN_ARG[0].2, value_5)
+      }
+    }
+    edge.iter_next(begin_iter_1)
+  }
+  range_query.end_1:
+  value_6 = test_externs.stack_allocate Value
+  value_6.0 = func(FN_ARG[0].0, 123)
+  test_externs.insert(FN_ARG[0].2, value_6)
+}
+//--- expected_llvm.out
+define external ccc void @eclair_program_run(%program* %arg_0) "wasm-export-name"="eclair_program_run" {
+start:
+  %value_0 = alloca [2 x i32], i32 1
+  %0 = getelementptr [2 x i32], [2 x i32]* %value_0, i32 0, i32 0
+  %1 = getelementptr %program, %program* %arg_0, i32 0, i32 0
+  %2 = call ccc i32 @func(%symbol_table* %1, i32 123)
+  store i32 %2, i32* %0
+  %3 = getelementptr [2 x i32], [2 x i32]* %value_0, i32 0, i32 1
+  store i32 0, i32* %3
+  %value_1_0 = alloca [2 x i32], i32 1
+  %4 = getelementptr [2 x i32], [2 x i32]* %value_1_0, i32 0, i32 0
+  %5 = getelementptr %program, %program* %arg_0, i32 0, i32 0
+  %6 = call ccc i32 @func(%symbol_table* %5, i32 123)
+  store i32 %6, i32* %4
+  %7 = getelementptr [2 x i32], [2 x i32]* %value_1_0, i32 0, i32 1
+  store i32 4294967295, i32* %7
+  %begin_iter_0 = alloca %btree_iterator_t_0, i32 1
+  %end_iter_0 = alloca %btree_iterator_t_0, i32 1
+  %8 = getelementptr %program, %program* %arg_0, i32 0, i32 1
+  call ccc void @btree_lower_bound_0(%btree_t_0* %8, [2 x i32]* %value_0, %btree_iterator_t_0* %begin_iter_0)
+  %9 = getelementptr %program, %program* %arg_0, i32 0, i32 1
+  call ccc void @btree_upper_bound_0(%btree_t_0* %9, [2 x i32]* %value_1_0, %btree_iterator_t_0* %end_iter_0)
+  br label %loop_0
+loop_0:
+  %condition_0 = call ccc i1 @btree_iterator_is_equal_0(%btree_iterator_t_0* %begin_iter_0, %btree_iterator_t_0* %end_iter_0)
+  br i1 %condition_0, label %if_0, label %end_if_0
+if_0:
+  br label %range_query.end
+end_if_0:
+  %current_0 = call ccc [2 x i32]* @btree_iterator_current_0(%btree_iterator_t_0* %begin_iter_0)
+  %value_2_0 = alloca [1 x i32], i32 1
+  %10 = getelementptr [1 x i32], [1 x i32]* %value_2_0, i32 0, i32 0
+  %11 = getelementptr [2 x i32], [2 x i32]* %current_0, i32 0, i32 0
+  %12 = load i32, i32* %11
+  store i32 %12, i32* %10
+  %13 = getelementptr %program, %program* %arg_0, i32 0, i32 2
+  %14 = call ccc i1 @btree_insert_value_1(%btree_t_1* %13, [1 x i32]* %value_2_0)
+  call ccc void @btree_iterator_next_0(%btree_iterator_t_0* %begin_iter_0)
+  br label %loop_0
+range_query.end:
+  %value_3_0 = alloca [2 x i32], i32 1
+  %15 = getelementptr [2 x i32], [2 x i32]* %value_3_0, i32 0, i32 0
+  store i32 0, i32* %15
+  %16 = getelementptr [2 x i32], [2 x i32]* %value_3_0, i32 0, i32 1
+  store i32 0, i32* %16
+  %value_4_0 = alloca [2 x i32], i32 1
+  %17 = getelementptr [2 x i32], [2 x i32]* %value_4_0, i32 0, i32 0
+  store i32 4294967295, i32* %17
+  %18 = getelementptr [2 x i32], [2 x i32]* %value_4_0, i32 0, i32 1
+  store i32 4294967295, i32* %18
+  %begin_iter_1_0 = alloca %btree_iterator_t_0, i32 1
+  %end_iter_1_0 = alloca %btree_iterator_t_0, i32 1
+  %19 = getelementptr %program, %program* %arg_0, i32 0, i32 1
+  call ccc void @btree_lower_bound_0(%btree_t_0* %19, [2 x i32]* %value_3_0, %btree_iterator_t_0* %begin_iter_1_0)
+  %20 = getelementptr %program, %program* %arg_0, i32 0, i32 1
+  call ccc void @btree_upper_bound_0(%btree_t_0* %20, [2 x i32]* %value_4_0, %btree_iterator_t_0* %end_iter_1_0)
+  br label %loop_1
+loop_1:
+  %condition_1_0 = call ccc i1 @btree_iterator_is_equal_0(%btree_iterator_t_0* %begin_iter_1_0, %btree_iterator_t_0* %end_iter_1_0)
+  br i1 %condition_1_0, label %if_1, label %end_if_1
+if_1:
+  br label %range_query.end_1
+end_if_1:
+  %current_1_0 = call ccc [2 x i32]* @btree_iterator_current_0(%btree_iterator_t_0* %begin_iter_1_0)
+  %condition_2_0 = getelementptr %program, %program* %arg_0, i32 0, i32 0
+  %condition_2_1 = call ccc i1 @constraint(%symbol_table* %condition_2_0, i32 2)
+  %condition_2_2 = icmp ne i1 %condition_2_1, 0
+  br i1 %condition_2_2, label %if_2, label %end_if_3
+if_2:
+  %condition_3_0 = getelementptr %program, %program* %arg_0, i32 0, i32 0
+  %condition_3_1 = getelementptr %program, %program* %arg_0, i32 0, i32 0
+  %condition_3_2 = call ccc i32 @func2(%symbol_table* %condition_3_1, i32 123, i32 456)
+  %condition_3_3 = call ccc i1 @constraint(%symbol_table* %condition_3_0, i32 %condition_3_2)
+  %condition_3_4 = icmp ne i1 %condition_3_3, 0
+  br i1 %condition_3_4, label %if_3, label %end_if_2
+if_3:
+  %value_5_0 = alloca [1 x i32], i32 1
+  %21 = getelementptr [1 x i32], [1 x i32]* %value_5_0, i32 0, i32 0
+  %22 = getelementptr [2 x i32], [2 x i32]* %current_1_0, i32 0, i32 0
+  %23 = load i32, i32* %22
+  store i32 %23, i32* %21
+  %24 = getelementptr %program, %program* %arg_0, i32 0, i32 2
+  %25 = call ccc i1 @btree_insert_value_1(%btree_t_1* %24, [1 x i32]* %value_5_0)
+  br label %end_if_2
+end_if_2:
+  br label %end_if_3
+end_if_3:
+  call ccc void @btree_iterator_next_0(%btree_iterator_t_0* %begin_iter_1_0)
+  br label %loop_1
+range_query.end_1:
+  %value_6_0 = alloca [1 x i32], i32 1
+  %26 = getelementptr [1 x i32], [1 x i32]* %value_6_0, i32 0, i32 0
+  %27 = getelementptr %program, %program* %arg_0, i32 0, i32 0
+  %28 = call ccc i32 @func(%symbol_table* %27, i32 123)
+  store i32 %28, i32* %26
+  %29 = getelementptr %program, %program* %arg_0, i32 0, i32 2
+  %30 = call ccc i1 @btree_insert_value_1(%btree_t_1* %29, [1 x i32]* %value_6_0)
+  ret void
+}

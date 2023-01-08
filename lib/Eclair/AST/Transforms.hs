@@ -12,6 +12,7 @@ import qualified Eclair.AST.Transforms.DeadCodeElimination as DCE
 import qualified Eclair.AST.Transforms.RemoveWildcards as RmWildcards
 import qualified Eclair.AST.Transforms.ReplaceStrings as ReplaceStrings
 import qualified Eclair.AST.Transforms.NormalizeRules as NormalizeRules
+import Eclair.Common.Extern
 
 
 -- Transforms can be grouped into 3 parts:
@@ -21,17 +22,18 @@ import qualified Eclair.AST.Transforms.NormalizeRules as NormalizeRules
 -- 3. transforms that need to run a single time, after optimizations
 
 
-simplify :: NodeId -> SemanticInfo -> AST -> (AST, ReplaceStrings.StringMap)
-simplify nodeId analysis = runTransform nodeId
-  -- Transforms before optimizations:
-    $ ConstantFolding.transform
-  >>> RmWildcards.transform
+simplify :: NodeId -> [Extern] -> SemanticInfo -> AST -> (AST, ReplaceStrings.StringMap)
+simplify nodeId externs analysis =
+  runTransform nodeId
+    -- Transforms before optimizations:
+      $ ConstantFolding.transform
+    >>> RmWildcards.transform
 
-  -- Optimizations that run until fixpoint is reached:
-  >>> RemoveAliases.transform
-  >>> ConstantFolding.transform
-  >>> DCE.transform (deadCodeIds analysis)
+    -- Optimizations that run until fixpoint is reached:
+    >>> RemoveAliases.transform externs
+    >>> ConstantFolding.transform
+    >>> DCE.transform (deadCodeIds analysis)
 
-  -- Transforms after optimizations:
-  >>> NormalizeRules.transform
-  >>> ReplaceStrings.transform
+    -- Transforms after optimizations:
+    >>> NormalizeRules.transform
+    >>> ReplaceStrings.transform

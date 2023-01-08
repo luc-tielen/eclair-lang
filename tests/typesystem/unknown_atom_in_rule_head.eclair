@@ -21,5 +21,6 @@ path(x, y) :-
      • │
      • ╰╸ Could not find a type definition for 'path'.
      •
-     │ Hint: You can solve this by adding a type definition for 'path'.
+     │ Hint: Add a type definition for 'path'.
+     │ Hint: Add an extern definition for 'path'.
 ─────╯

@@ -44,10 +44,10 @@ data LowerState
   , varMap :: VarMap
   , globalVarCounter :: Int
   , externals :: Externals
+  , externFns :: Map Id Operand
   }
 
 type CodegenT m = StateT LowerState (IRBuilderT (ModuleBuilderT m))
-
 
 runCodegenM :: Monad m => CodegenT m a -> LowerState -> IRBuilderT (ModuleBuilderT m) a
 runCodegenM = evalStateT
@@ -123,12 +123,14 @@ lookupPrimOp = \case
       EIR.Minus -> sub
       EIR.Multiply -> mul
       EIR.Divide -> udiv
+  EIR.ExternOp opName -> do
+    Left <$> gets (fromJust . M.lookup opName . externFns)
   where
     toSymbolTableOp llvmOp = Left <$> do
       symbolTable <- gets symbolTableFns
       pure $ llvmOp symbolTable
 
-toLLVMType :: (MonadState LowerState m) => Relation -> Index -> EIR.Type -> m Type
+toLLVMType :: MonadState LowerState m => Relation -> Index -> EIR.Type -> m Type
 toLLVMType r idx = go
   where
     go = \case
@@ -144,14 +146,14 @@ toLLVMType r idx = go
         ptr <$> go ty
 
 -- Only called internally, should always be called on a var that exists.
-lookupVar :: Monad m => Text -> CodegenT m Operand
+lookupVar :: MonadState LowerState m => Text -> m Operand
 lookupVar v = gets (fromJust . M.lookup v . varMap)
 
-addVarBinding :: Monad m => Text -> Operand -> CodegenT m ()
+addVarBinding :: MonadState LowerState m => Text -> Operand -> m ()
 addVarBinding var value =
   modify $ \s -> s { varMap = M.insert var value (varMap s) }
 
-newGlobalVarName :: Monad m => Text -> CodegenT m Name
+newGlobalVarName :: MonadState LowerState m => Text -> m Name
 newGlobalVarName name = do
   count <- gets globalVarCounter
   modify $ \s -> s { globalVarCounter = count + 1 }
@@ -160,7 +162,7 @@ newGlobalVarName name = do
 -- NOTE: this is for the case when we are assigning 1 field of a struct/array
 -- to another of the same kind, where the right side needs to be loaded before
 -- storing it to the left side of the equation.
-loadIfNeeded :: Monad m => CodegenT m Operand -> EIR -> CodegenT m Operand
+loadIfNeeded :: (MonadNameSupply m, MonadIRBuilder m) => m Operand -> EIR -> m Operand
 loadIfNeeded operand = \case
   EIR.FieldAccess _ _ -> flip load 0 =<< operand
   _ -> operand

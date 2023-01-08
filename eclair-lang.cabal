@@ -43,6 +43,7 @@ library
       Eclair.AST.Transforms.RemoveWildcards
       Eclair.AST.Transforms.ReplaceStrings
       Eclair.Common.Config
+      Eclair.Common.Extern
       Eclair.Common.Id
       Eclair.Common.Literal
       Eclair.Common.Location

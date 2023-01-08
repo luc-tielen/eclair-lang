@@ -123,15 +123,19 @@ declParser :: Parser AST
 declParser = do
   c <- P.lookAhead P.anySingle
   case c of
-    '@' ->
-      withNodeId typedefParser
+    '@' -> do
+      withNodeId $ \nodeId ->
+        typedefParser nodeId <|> externParser nodeId
     _ -> factOrRuleParser
 
-typeParser :: Parser Type
-typeParser = lexeme $ u32 <|> str
-  where
-    u32 = U32 <$ P.chunk "u32"
-    str = Str <$ P.chunk "string"
+externParser :: NodeId -> Parser AST
+externParser nodeId = do
+  void $ lexeme $ P.chunk "@extern"
+  name <- lexeme identifier
+  tys <- lexeme $ betweenParens $ typeParser `P.sepBy1` lexeme comma
+  mRetTy <- optional typeParser
+  void $ P.char '.'
+  pure $ ExternDefinition nodeId name tys mRetTy
 
 typedefParser :: NodeId -> Parser AST
 typedefParser nodeId = do
@@ -160,6 +164,12 @@ typedefParser nodeId = do
     attrParser = lexeme $
       Left <$> P.chunk "input" <|> Right <$> P.chunk "output"
 
+typeParser :: Parser Type
+typeParser = lexeme $ u32 <|> str
+  where
+    u32 = U32 <$ P.chunk "u32"
+    str = Str <$ P.chunk "string"
+
 data FactOrRule = FactType | RuleType
 
 factOrRuleParser :: Parser AST
@@ -180,14 +190,18 @@ comma = lexeme $ P.char ','
 
 ruleClauseParser :: Parser AST
 ruleClauseParser = do
-  atomParser <|> constraintParser
+  P.try (atomParser <* P.notFollowedBy opParser) <|> constraintParser
+  where
+    opParser =
+      void constraintOpParser <|> void arithmeticOpParser
+    arithmeticOpParser =
+      P.choice $ concatMap (map $ P.char . snd) arithmeticOps
 
 atomParser :: Parser AST
-atomParser = do
-  P.notFollowedBy $ lexeme identifier *> constraintOpParser
+atomParser = lexeme $ do
   withNodeId $ \nodeId -> do
     name <- lexeme identifier
-    args <- lexeme $ betweenParens $ exprParser `P.sepBy1` comma
+    args <- betweenParens $ exprParser `P.sepBy1` comma
     pure $ Atom nodeId name args
 
 constraintParser :: Parser AST
@@ -202,13 +216,7 @@ exprParser =
   lexeme $ withNodeId (L.makeExprParser termParser . precedenceTable)
   where
     precedenceTable nodeId =
-      [ [ binOp nodeId Multiply '*'
-        , binOp nodeId Divide '/'
-        ]
-      , [ binOp nodeId Plus '+'
-        , binOp nodeId Minus '-'
-        ]
-      ]
+      map (map (uncurry (binOp nodeId))) arithmeticOps
     binOp nodeId op c =
       L.InfixL (BinOp nodeId op <$ lexeme (P.char c))
 
@@ -217,8 +225,21 @@ exprParser =
       where
         value = withNodeId $ \nodeId ->
           Hole nodeId <$ P.char '?' <|>
-          Var nodeId <$> (identifier <|> wildcard) <|>
+          P.try varParser <|>
+          atomParser <|>
           Lit nodeId <$> literal
+
+arithmeticOps :: [[(ArithmeticOp, Char)]]
+arithmeticOps =
+  [ [(Multiply, '*'), (Divide, '/')]
+  , [(Plus, '+'), (Minus, '-')]
+  ]
+
+varParser :: Parser AST
+varParser = lexeme $ withNodeId $ \nodeId -> do
+  v <- Var nodeId <$> (identifier <|> wildcard)
+  P.notFollowedBy $ P.char '('
+  pure v
 
 constraintOpParser :: Parser ConstraintOp
 constraintOpParser = P.label "equality or comparison operator" $ lexeme $ do

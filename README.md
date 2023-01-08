@@ -114,7 +114,7 @@ If you run the resulting program, this should print the reachable node pairs
 - [x] Allow setting options on relations for performance finetuning
 - [x] Comparison operators, != operator
 - [x] Support arithmetic operators
-- [ ] Generic, extensible primops
+- [x] Generic, extensible primops
 - [ ] Release 0.2.0
 - [ ] Support logical negation
 - [ ] Signed integer type (i32)

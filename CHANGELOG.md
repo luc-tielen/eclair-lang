@@ -10,6 +10,7 @@ The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-has
 - Typed hole support
 - Comparison operators
 - Arithmetic operators (`+`, `-`, `*`, `/`)
+- Possibility to link in external functions
 - LSP support
   - Document highlight
   - Hover

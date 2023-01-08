@@ -11,14 +11,20 @@ module Eclair.AST.Analysis
   , WildcardInRuleHead(..)
   , WildcardInConstraint(..)
   , WildcardInBinOp(..)
+  , WildcardInExtern(..)
   , DeadCode(..)
   , DeadInternalRelation(..)
   , NoOutputRelation(..)
+  , ConflictingDefinitionGroup(..)
+  , ExternUsedAsFact(..)
+  , ExternUsedAsRule(..)
   , NodeId(..)
   , Container
   , computeUsageMapping
   ) where
 
+import qualified Data.List.NonEmpty as NE
+import Data.List.Extra (nubOrdOn)
 import qualified Language.Souffle.Interpreted as S
 import qualified Language.Souffle.Analysis as S
 import qualified Eclair.AST.IR as IR
@@ -115,6 +121,12 @@ data DeclareType
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions DeclareType "declare_type" 'S.Input
 
+data ExternDefinition
+  = ExternDefinition NodeId Id
+  deriving stock Generic
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions ExternDefinition "extern_definition" 'S.Input
+
 newtype InputRelation
   = InputRelation Id
   deriving stock Generic
@@ -199,6 +211,16 @@ data WildcardInBinOp loc
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions (WildcardInBinOp loc) "wildcard_in_binop" 'S.Output
 
+data WildcardInExtern loc
+  = WildcardInExtern
+  { wildcardExternAtomLoc :: loc
+  , wildcardExternAtomArgLoc :: loc
+  , wildcardExternArgPos :: Position
+  }
+  deriving stock (Generic, Eq, Show, Functor)
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions (WildcardInExtern loc) "wildcard_in_extern" 'S.Output
+
 newtype DeadCode
   = DeadCode { unDeadCode :: NodeId }
   deriving stock (Generic, Eq, Show)
@@ -217,6 +239,42 @@ data DeadInternalRelation loc
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions (DeadInternalRelation loc) "dead_internal_relation" 'S.Output
 
+data ConflictingDefinitions loc
+  = ConflictingDefinitions
+  { cdFirstLoc :: loc
+  , cdSecondLoc :: loc
+  , cdName :: Id
+  }
+  deriving stock (Generic, Eq, Show, Functor)
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions (ConflictingDefinitions loc) "conflicting_definitions" 'S.Output
+
+data ConflictingDefinitionGroup loc
+  = ConflictingDefinitionGroup
+  { cdgName :: Id
+  , cdgLocs :: NonEmpty loc
+  } deriving stock (Eq, Show, Functor)
+
+data ExternUsedAsFact loc
+  = ExternUsedAsFact
+  { externAsFactLoc :: loc
+  , externAsFactExternLoc :: loc
+  , externAsFactName :: Id
+  }
+  deriving stock (Generic, Eq, Show, Functor)
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions (ExternUsedAsFact loc) "extern_used_as_fact" 'S.Output
+
+data ExternUsedAsRule loc
+  = ExternUsedAsRule
+  { externAsRuleLoc :: loc
+  , externAsRuleExternLoc :: loc
+  , externAsRuleName :: Id
+  }
+  deriving stock (Generic, Eq, Show, Functor)
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions (ExternUsedAsRule loc) "extern_used_as_rule" 'S.Output
+
 data SemanticAnalysis
   = SemanticAnalysis
   deriving S.Program
@@ -233,6 +291,7 @@ data SemanticAnalysis
        , RuleArg
        , RuleClause
        , DeclareType
+       , ExternDefinition
        , InputRelation
        , OutputRelation
        , InternalRelation
@@ -244,9 +303,13 @@ data SemanticAnalysis
        , WildcardInFact NodeId
        , WildcardInConstraint NodeId
        , WildcardInBinOp NodeId
+       , WildcardInExtern NodeId
        , DeadCode
        , NoOutputRelation NodeId
        , DeadInternalRelation NodeId
+       , ConflictingDefinitions NodeId
+       , ExternUsedAsFact NodeId
+       , ExternUsedAsRule NodeId
        ]
 
 -- TODO: change to Vector when finished for performance
@@ -271,8 +334,12 @@ data SemanticErrors loc
   , wildcardsInRuleHeads :: Container (WildcardInRuleHead loc)
   , wildcardsInConstraints :: Container (WildcardInConstraint loc)
   , wildcardsInBinOps :: Container (WildcardInBinOp loc)
+  , wildcardsInExternAtoms :: Container (WildcardInExtern loc)
   , deadInternalRelations :: Container (DeadInternalRelation loc)
   , noOutputRelations :: Container (NoOutputRelation loc)
+  , conflictingDefinitions :: Container (ConflictingDefinitionGroup loc)
+  , externsUsedAsFact :: Container (ExternUsedAsFact loc)
+  , externsUsedAsRule :: Container (ExternUsedAsRule loc)
   }
   deriving (Eq, Show, Exception, Functor)
 
@@ -283,8 +350,11 @@ hasSemanticErrors result =
   isNotNull wildcardsInRuleHeads ||
   isNotNull wildcardsInConstraints ||
   isNotNull wildcardsInBinOps ||
+  isNotNull wildcardsInExternAtoms ||
   isNotNull deadInternalRelations ||
-  isNotNull noOutputRelations
+  isNotNull noOutputRelations ||
+  isNotNull conflictingDefinitions ||
+  isNotNull externsUsedAsFact
   where
     errs = semanticErrors result
     isNotNull :: (SemanticErrors NodeId -> [a]) -> Bool
@@ -335,8 +405,12 @@ analysis prog = S.mkAnalysis addFacts run getFacts
         rhsAction
       IR.AtomF nodeId atom (unzip -> (argNodeIds, actions)) -> do
         S.addFact prog $ Atom nodeId atom
-        S.addFacts prog $ mapWithPos (AtomArg nodeId) argNodeIds
         mScopeId <- ask
+        S.addFacts prog $ mapWithPos (AtomArg nodeId) argNodeIds
+
+        forM_ mScopeId $ \scopeId ->
+          S.addFact prog $ ScopedValue scopeId nodeId
+
         let maybeAddScope =
               if isJust mScopeId
                 then id
@@ -351,6 +425,8 @@ analysis prog = S.mkAnalysis addFacts run getFacts
         local (const $ Just nodeId) $ do
           sequence_ argActions
           sequence_ clauseActions
+      IR.ExternDefinitionF nodeId name _ _ -> do
+        S.addFact prog $ ExternDefinition nodeId name
       IR.DeclareTypeF nodeId name _ usageMode -> do
         S.addFact prog $ DeclareType nodeId name
 
@@ -385,6 +461,10 @@ analysis prog = S.mkAnalysis addFacts run getFacts
                              <*> S.getFacts prog
                              <*> S.getFacts prog
                              <*> S.getFacts prog
+                             <*> S.getFacts prog
+                             <*> (groupConflicts <$> S.getFacts prog)
+                             <*> S.getFacts prog
+                             <*> S.getFacts prog
       pure $ Result info errs
 
     getNodeId :: IR.ASTF NodeId -> NodeId
@@ -396,11 +476,27 @@ analysis prog = S.mkAnalysis addFacts run getFacts
       IR.ConstraintF nodeId _ _ _ -> nodeId
       IR.AtomF nodeId _ _ -> nodeId
       IR.RuleF nodeId _ _ _ -> nodeId
+      IR.ExternDefinitionF nodeId _ _ _ -> nodeId
       IR.DeclareTypeF nodeId _ _ _ -> nodeId
       IR.ModuleF nodeId _ -> nodeId
 
     mapWithPos :: (Word32 -> a -> b) -> [a] -> [b]
     mapWithPos g = zipWith g [0..]
+
+groupConflicts :: Container (ConflictingDefinitions NodeId) -> Container (ConflictingDefinitionGroup NodeId)
+groupConflicts conflicts =
+  conflicts
+  & sortWith sameConflict
+  & groupBy ((==) `on` sameConflict)
+  & map (\cg ->
+    let firstConflict = head cg
+        declName = cdName firstConflict
+        locs = NE.cons (cdFirstLoc firstConflict) (map cdSecondLoc cg)
+     in ConflictingDefinitionGroup declName locs
+  )
+  & nubOrdOn cdgName
+  where
+    sameConflict = cdName &&& cdFirstLoc
 
 runAnalysis :: IR.AST -> IO Result
 runAnalysis ast = S.runSouffle SemanticAnalysis $ \case

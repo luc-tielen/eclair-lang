@@ -4,11 +4,12 @@ module Eclair.TypeSystem
   , Context(..)
   , getContextLocation
   , TypeInfo(..)
+  , DefinitionType(..)
   , TypedefInfo
+  , ExternDefInfo
   , typeCheck
   ) where
 
-import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
 import qualified Data.IntMap as IntMap
 import qualified Data.DList as DList
@@ -27,17 +28,24 @@ import Eclair.Common.Location (NodeId)
 --
 -- TODO: Maybe a variant of a mutumorphism might work here?
 
+data DefinitionType
+  = ConstraintType [Type]
+  | FunctionType [Type] Type
+  deriving (Eq, Show)
+
+type ExternDefInfo = Map Id DefinitionType
 
 type TypedefInfo = Map Id [Type]
+
 data TypeInfo
   = TypeInfo
-  { infoTypedefs :: TypedefInfo
+  { infoTypedefs :: TypedefInfo  -- NOTE: only typedefs are needed, no external definitions
   , resolvedTypes :: Map NodeId Type
   } deriving Show
 
 instance Semigroup TypeInfo where
   TypeInfo tdInfo1 resolved1 <> TypeInfo tdInfo2 resolved2 =
-    TypeInfo (tdInfo1 <> tdInfo2) (resolved1 <> resolved2)
+    TypeInfo (tdInfo1 <> tdInfo2)  (resolved1 <> resolved2)
 
 instance Monoid TypeInfo where
   mempty =
@@ -51,24 +59,27 @@ data Context loc
 
 -- NOTE: for now, no actual types are checked since everything is a u32.
 data TypeError loc
-  = UnknownAtom loc Id
+  = UnknownConstraint loc Id
+  | UnknownFunction loc Id
   | ArgCountMismatch Id (loc, Int) (loc, Int)
-  | DuplicateTypeDeclaration Id (NonEmpty (loc, [Type]))
   | TypeMismatch loc Type Type (NonEmpty (Context loc))  -- 1st type is actual, 2nd is expected
   | UnificationFailure Type Type (NonEmpty (Context loc))
   | HoleFound loc (NonEmpty (Context loc)) Type (Map Id Type)
+  -- 1st is error location, 2nd is definition location.
+  | UnexpectedFunctionType loc loc
+  | UnexpectedConstraintType loc loc
   deriving (Eq, Ord, Show, Functor)
 
 -- Only used internally in this module.
 type Ctx = Context NodeId
 type TypeErr = TypeError NodeId
 
-type TypedefMap = Map Id (NodeId, [Type])
+type DefMap = Map Id (NodeId, DefinitionType)
 type UnresolvedHole = Type -> Map Id Type -> TypeErr
 
 data Env
   = Env
-  { typedefs :: TypedefMap
+  { defs :: DefMap
   , tcContext :: DNonEmpty Ctx
   }
 
@@ -99,20 +110,35 @@ newtype TypeCheckM a =
 
 typeCheck :: AST -> Either [TypeErr] TypeInfo
 typeCheck ast
-  | null errors' = pure $ TypeInfo (map snd typedefMap) resolvedTys
-  | otherwise   = throwError errors'
+  | null typeErrors = pure $ TypeInfo (map snd typeDefMap) resolvedTys
+  | otherwise = throwError typeErrors
   where
-    (typeErrors, resolvedTys) = checkDecls typedefMap ast
-    errors' = typeErrors ++ duplicateErrors typedefs'
-    typedefs' = extractTypeDefs ast
-    typedefMap = Map.fromList typedefs'
+    (typeDefMap, externDefMap) = cata (combine extractTypedefs extractExternDefs) ast
+    defMap = map (map ConstraintType) typeDefMap <> externDefMap
+    (typeErrors, resolvedTys) = checkDecls defMap ast
+
+    combine f g = f . map fst &&& g . map snd
+
+    extractTypedefs = \case
+      DeclareTypeF nodeId name tys _ ->
+        one (name, (nodeId, tys))
+      AtomF {} -> mempty
+      RuleF {} -> mempty
+      astf -> fold astf
+
+    extractExternDefs = \case
+      ExternDefinitionF nodeId name tys mRetTy ->
+        one (name, (nodeId, maybe (ConstraintType tys) (FunctionType tys) mRetTy))
+      AtomF {} -> mempty
+      RuleF {} -> mempty
+      astf -> fold astf
 
 -- TODO: try to merge with checkDecl?
-checkDecls :: TypedefMap -> AST -> ([TypeErr], Map NodeId Type)
-checkDecls typedefMap = \case
+checkDecls :: DefMap -> AST -> ([TypeErr], Map NodeId Type)
+checkDecls defMap = \case
   Module _ decls ->
     -- NOTE: By using runM once per decl, each decl is checked with a clean state
-    let results = map (\d -> runM (beginContext d) typedefMap $ checkDecl d) decls
+    let results = map (\d -> runM (beginContext d) defMap $ checkDecl d) decls
      in bimap fold fold $ partitionEithers results
   _ ->
     panic "Unexpected AST node in 'checkDecls'"
@@ -123,26 +149,32 @@ checkDecl :: AST -> TypeCheckM ()
 checkDecl ast = case ast of
   DeclareType {} ->
     pass
+  ExternDefinition {} ->
+    pass
   Atom nodeId name args -> do
     ctx <- getContext
     -- TODO find better way to update context only for non-top level atoms
     let updateCtx = if isTopLevel ctx then id else addCtx
     updateCtx $ lookupRelationType name >>= \case
-      Nothing ->
-        emitError $ UnknownAtom nodeId name
-      Just (nodeId', types) -> do
+      Just (nodeId', ConstraintType types) -> do
         checkArgCount name (nodeId', types) (nodeId, args)
         zipWithM_ checkExpr args types
+      Just (nodeId', FunctionType {}) -> do
+        emitError $ UnexpectedFunctionType nodeId nodeId'
+      Nothing ->
+        emitError $ UnknownConstraint nodeId name
 
     processUnresolvedHoles
 
   Rule nodeId name args clauses -> do
     lookupRelationType name >>= \case
-      Nothing ->
-        emitError $ UnknownAtom nodeId name
-      Just (nodeId', types) -> do
+      Just (nodeId', ConstraintType types) -> do
         checkArgCount name (nodeId', types) (nodeId, args)
         zipWithM_ checkExpr args types
+      Just (nodeId', FunctionType {}) -> do
+        emitError $ UnexpectedFunctionType nodeId nodeId'
+      Nothing ->
+        emitError $ UnknownConstraint nodeId name
 
     traverse_ checkDecl clauses
     processUnresolvedHoles
@@ -166,11 +198,11 @@ checkDecl ast = case ast of
     isTopLevel = (==1) . length
 
 checkArgCount :: Id -> (NodeId, [Type]) -> (NodeId, [AST]) -> TypeCheckM ()
-checkArgCount name (nodeIdTypeDef, types) (nodeId, args) = do
+checkArgCount name (nodeIdTypedef, types) (nodeId, args) = do
   let actualArgCount = length args
       expectedArgCount = length types
   when (actualArgCount /= expectedArgCount) $
-    emitError $ ArgCountMismatch name (nodeIdTypeDef, expectedArgCount) (nodeId, actualArgCount)
+    emitError $ ArgCountMismatch name (nodeIdTypedef, expectedArgCount) (nodeId, actualArgCount)
 
 checkExpr :: AST -> Type -> TypeCheckM ()
 checkExpr ast expectedTy = do
@@ -204,6 +236,18 @@ checkExpr ast expectedTy = do
       -- Arithmetic expressions always need to be numbers.
       checkExpr lhs U32
       checkExpr rhs U32
+    Atom _ name args -> do
+      lookupRelationType name >>= \case
+        Just (nodeId', FunctionType types actualRetTy) -> do
+          checkArgCount name (nodeId', types) (nodeId, args)
+          zipWithM_ checkExpr args types
+          when (actualRetTy /= expectedTy) $ do
+            ctx <- getContext
+            emitError $ TypeMismatch nodeId actualRetTy expectedTy ctx
+        Just (nodeId', ConstraintType {}) -> do
+          emitError $ UnexpectedConstraintType nodeId nodeId'
+        Nothing ->
+          emitError $ UnknownFunction nodeId name
     e -> do
       -- Basically an unexpected / unhandled case => try inferring as a last resort.
       actualTy <- inferExpr e
@@ -239,15 +283,29 @@ inferExpr ast = do
       checkExpr lhs U32
       checkExpr rhs U32
       pure U32
+    Atom _ name args -> do
+      lookupRelationType name >>= \case
+        Just (nodeId', FunctionType types retTy) -> do
+          checkArgCount name (nodeId', types) (nodeId, args)
+          zipWithM_ checkExpr args types
+          pure retTy
+        Just (nodeId', ConstraintType {}) -> do
+          emitError $ UnexpectedConstraintType nodeId nodeId'
+          -- We generate a fresh type which will always unify, but typechecking will fail anyway
+          freshType
+        Nothing -> do
+          emitError $ UnknownFunction nodeId name
+          -- We generate a fresh type which will always unify, but typechecking will fail anyway
+          freshType
     _ ->
       panic "Unexpected case in 'inferExpr'"
 
-runM :: Ctx -> TypedefMap -> TypeCheckM a -> Either [TypeErr] (Map NodeId Type)
-runM ctx typedefMap action =
+runM :: Ctx -> DefMap -> TypeCheckM a -> Either [TypeErr] (Map NodeId Type)
+runM ctx defMap action =
   let (TypeCheckM m) = action *> computeTypeInfoById
       trackState = TrackingState mempty mempty
       tcState = CheckState mempty mempty 0 mempty mempty trackState
-      env = Env typedefMap (pure ctx)
+      env = Env defMap (pure ctx)
       (typeInfoById, endState, _) = runRWS m env tcState
       errs = toList . errors $ endState
    in if null errs then Right typeInfoById else Left errs
@@ -260,9 +318,9 @@ bindVar :: Id -> Type -> TypeCheckM ()
 bindVar var ty =
   modify $ \s -> s { typeEnv = Map.insert var ty (typeEnv s) }
 
-lookupRelationType :: Id -> TypeCheckM (Maybe (NodeId, [Type]))
+lookupRelationType :: Id -> TypeCheckM (Maybe (NodeId, DefinitionType))
 lookupRelationType name =
-  asks (Map.lookup name . typedefs)
+  asks (Map.lookup name . defs)
 
 -- A variable can either be a concrete type, or a unification variable.
 -- In case of unification variable, try looking it up in current substitution.
@@ -381,23 +439,3 @@ trackVariable nodeId var = do
   let ts' = ts { trackedVariables = (var, nodeId) : trackedVariables ts }
   modify $ \s -> s { trackingState = ts' }
 
-duplicateErrors :: [(Id, (NodeId, [Type]))] -> [TypeErr]
-duplicateErrors typeDefs
-  = sort typeDefs
-  & groupBy ((==) `on` fst)
-  & filter (\xs -> length xs /= 1)
-  & map toDuplicateTypeDecl
-  where
-    toDuplicateTypeDecl :: NonEmpty (Id, (NodeId, [Type])) -> TypeErr
-    toDuplicateTypeDecl declInfo =
-      let name = fst $ head declInfo
-          decls = map snd declInfo
-          sortedDecls = NE.sortBy (compare `on` fst) decls
-       in DuplicateTypeDeclaration name sortedDecls
-
-extractTypeDefs :: AST -> [(Id, (NodeId, [Type]))]
-extractTypeDefs = cata $ \case
-  DeclareTypeF nodeId name tys _ -> [(name, (nodeId, tys))]
-  AtomF {} -> mempty
-  RuleF {} -> mempty
-  astf -> foldMap identity astf

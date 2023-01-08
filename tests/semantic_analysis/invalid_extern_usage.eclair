@@ -1,0 +1,262 @@
+// RUN: mkdir -p %t && sed s@TEST_DIR@%t@g %s > %t/input.test
+// RUN: split-file %t/input.test %t
+
+//--- program1.eclair
+// RUN: %eclair compile --emit ra %t/program1.eclair 2> %t/program1.out
+// RUN: diff -w %t/expected1.out %t/program1.out
+
+@def edge(u32, u32) input.
+@def test_externs(u32) output.
+
+@extern constraint1(string).
+@extern func1(u32) u32.
+@extern func2(u32, u32) string.
+
+// Duplicate externs / functions
+@extern constraint1(string).
+@extern func1(string).
+@def func2(u32) output.
+
+// Usage of externs as facts
+constraint1("abc").
+func1(123).
+
+// Usage of externs as rules
+@extern constraint2(u32).
+@extern func3(u32) u32.
+@extern func4(u32, u32) u32.
+
+constraint2(x) :- edge(x, 123).
+func3(x) :- edge(x, 123).
+
+// Invalid wildcards in extern constraints / functions
+test_externs(x) :-
+  edge(x, func3(_)),
+  edge(x, func4(_, _)),
+  constraint2(_).
+
+// Ungrounded variables
+test_externs(x) :-
+  constraint2(x),
+  x = func4(x, x).
+
+//--- expected1.out
+[error]: Ungrounded variable
+     ╭──▶ TEST_DIR/program1.eclair@35:14-35:15
+     │
+  35 │ ╭┤ test_externs(x) :-
+     • │               ┬
+     • │               ╰╸ The variable 'x' is ungrounded, meaning it is not directly bound as an argument to a relation.
+  36 │ │    constraint2(x),
+  37 │ ├┤   x = func4(x, x).
+     • │
+     • ╰╸ This contains no clauses that refer to 'x'.
+     •
+     │ Hint: Use the variable 'x' as an argument in a relation.
+─────╯
+
+[error]: Wildcard in externally defined atom
+     ╭──▶ TEST_DIR/program1.eclair@30:17-30:18
+     │
+  30 │   edge(x, func3(_)),
+     •           ┬─────┬─
+     •           │     ╰╸ Wildcard found.
+     •           ╰╸ An external atom only supports constants or grounded variables.
+     •
+     │ Hint: Replace the wildcard with a constant or grounded variable.
+─────╯
+
+[error]: Wildcard in externally defined atom
+     ╭──▶ TEST_DIR/program1.eclair@31:17-31:18
+     │
+  31 │   edge(x, func4(_, _)),
+     •           ┬─────┬────
+     •           │     ╰╸ Wildcard found.
+     •           ╰╸ An external atom only supports constants or grounded variables.
+     •
+     │ Hint: Replace the wildcard with a constant or grounded variable.
+─────╯
+
+[error]: Wildcard in externally defined atom
+     ╭──▶ TEST_DIR/program1.eclair@31:20-31:21
+     │
+  31 │   edge(x, func4(_, _)),
+     •           ┬────────┬─
+     •           │        ╰╸ Wildcard found.
+     •           ╰╸ An external atom only supports constants or grounded variables.
+     •
+     │ Hint: Replace the wildcard with a constant or grounded variable.
+─────╯
+
+[error]: Wildcard in externally defined atom
+     ╭──▶ TEST_DIR/program1.eclair@32:15-32:16
+     │
+  32 │   constraint2(_).
+     •   ┬───────────┬─
+     •   │           ╰╸ Wildcard found.
+     •   ╰╸ An external atom only supports constants or grounded variables.
+     •
+     │ Hint: Replace the wildcard with a constant or grounded variable.
+─────╯
+
+[error]: Multiple definitions for 'constraint1'
+     ╭──▶ TEST_DIR/program1.eclair@7:1-7:29
+     │
+   7 │ @extern constraint1(string).
+     • ┬───────────────────────────
+     • ╰╸ 'constraint1' is originally defined here.
+     •
+  12 │ @extern constraint1(string).
+     • ┬───────────────────────────
+     • ╰╸ 'constraint1' is re-defined here.
+     •
+     │ Hint: You can solve this by removing the duplicate definitions for 'constraint1'.
+─────╯
+
+[error]: Multiple definitions for 'func1'
+     ╭──▶ TEST_DIR/program1.eclair@8:1-8:24
+     │
+   8 │ @extern func1(u32) u32.
+     • ┬──────────────────────
+     • ╰╸ 'func1' is originally defined here.
+     •
+  13 │ @extern func1(string).
+     • ┬─────────────────────
+     • ╰╸ 'func1' is re-defined here.
+     •
+     │ Hint: You can solve this by removing the duplicate definitions for 'func1'.
+─────╯
+
+[error]: Multiple definitions for 'func2'
+     ╭──▶ TEST_DIR/program1.eclair@9:1-9:32
+     │
+   9 │ @extern func2(u32, u32) string.
+     • ┬──────────────────────────────
+     • ╰╸ 'func2' is originally defined here.
+     •
+  14 │ @def func2(u32) output.
+     • ┬──────────────────────
+     • ╰╸ 'func2' is re-defined here.
+     •
+     │ Hint: You can solve this by removing the duplicate definitions for 'func2'.
+─────╯
+
+[error]: Extern definition used as top level fact
+     ╭──▶ TEST_DIR/program1.eclair@17:1-17:20
+     │
+   7 │ @extern constraint1(string).
+     • ┬───────────────────────────
+     • ╰╸ 'constraint1' previously defined here as external.
+     •
+  17 │ constraint1("abc").
+     • ┬──────────────────
+     • ╰╸ 'constraint1' is used as a fact here, which is not allowed for extern definitions.
+     •
+     │ Hint: Convert 'constraint1' to a relation.
+     │ Hint: Remove the top level fact.
+─────╯
+
+[error]: Extern definition used as top level fact
+     ╭──▶ TEST_DIR/program1.eclair@17:1-17:20
+     │
+  12 │ @extern constraint1(string).
+     • ┬───────────────────────────
+     • ╰╸ 'constraint1' previously defined here as external.
+     •
+  17 │ constraint1("abc").
+     • ┬──────────────────
+     • ╰╸ 'constraint1' is used as a fact here, which is not allowed for extern definitions.
+     •
+     │ Hint: Convert 'constraint1' to a relation.
+     │ Hint: Remove the top level fact.
+─────╯
+
+[error]: Extern definition used as top level fact
+     ╭──▶ TEST_DIR/program1.eclair@18:1-18:12
+     │
+   8 │ @extern func1(u32) u32.
+     • ┬──────────────────────
+     • ╰╸ 'func1' previously defined here as external.
+     •
+  18 │ func1(123).
+     • ┬──────────
+     • ╰╸ 'func1' is used as a fact here, which is not allowed for extern definitions.
+     •
+     │ Hint: Convert 'func1' to a relation.
+     │ Hint: Remove the top level fact.
+─────╯
+
+[error]: Extern definition used as top level fact
+     ╭──▶ TEST_DIR/program1.eclair@18:1-18:12
+     │
+  13 │ @extern func1(string).
+     • ┬─────────────────────
+     • ╰╸ 'func1' previously defined here as external.
+     •
+  18 │ func1(123).
+     • ┬──────────
+     • ╰╸ 'func1' is used as a fact here, which is not allowed for extern definitions.
+     •
+     │ Hint: Convert 'func1' to a relation.
+     │ Hint: Remove the top level fact.
+─────╯
+
+[error]: Extern definition used in rule head
+     ╭──▶ TEST_DIR/program1.eclair@25:1-25:32
+     │
+  21 │ @extern constraint2(u32).
+     • ┬────────────────────────
+     • ╰╸ 'constraint2' previously defined here as external.
+     •
+  25 │ constraint2(x) :- edge(x, 123).
+     • ┬──────────────────────────────
+     • ╰╸ 'constraint2' is used as a rule head here, which is not allowed for extern definitions.
+     •
+     │ Hint: Convert 'constraint2' to a relation.
+     │ Hint: Remove the rule.
+─────╯
+
+[error]: Extern definition used in rule head
+     ╭──▶ TEST_DIR/program1.eclair@26:1-26:26
+     │
+  22 │ @extern func3(u32) u32.
+     • ┬──────────────────────
+     • ╰╸ 'func3' previously defined here as external.
+     •
+  26 │ func3(x) :- edge(x, 123).
+     • ┬────────────────────────
+     • ╰╸ 'func3' is used as a rule head here, which is not allowed for extern definitions.
+     •
+     │ Hint: Convert 'func3' to a relation.
+     │ Hint: Remove the rule.
+─────╯
+
+[error]: Invalid use of function
+     ╭──▶ TEST_DIR/program1.eclair@18:1-18:12
+     │
+   8 │ @extern func1(u32) u32.
+     • ┬──────────────────────
+     • ╰╸ Previously defined as a function here.
+     •
+  18 │ func1(123).
+     • ┬──────────
+     • ╰╸ Expected a constraint here.
+     •
+     │ Hint: Maybe you meant to declare this an external constraint instead?
+     │ Hint: Remove the invalid function.
+─────╯
+
+[error]: Invalid use of function
+     ╭──▶ TEST_DIR/program1.eclair@26:1-26:26
+     │
+  22 │ @extern func3(u32) u32.
+     • ┬──────────────────────
+     • ╰╸ Previously defined as a function here.
+     •
+  26 │ func3(x) :- edge(x, 123).
+     • ┬────────────────────────
+     • ╰╸ Expected a constraint here.
+     •
+     │ Hint: Maybe you meant to declare this an external constraint instead?
+     │ Hint: Remove the invalid function.
+─────╯

@@ -64,4 +64,16 @@ arithmetic(x) :-
   1 + 2 - 0 < x.
 arithmetic(123 + 456 * 789).
 
+@extern constraint(string).
+@extern func(u32) u32.
+@extern func2(u32, u32) string.
+@def test_externs(u32).
+
+test_externs(func(123)).
+test_externs(x) :-
+  edge(x, y),
+  func(y) + 1 = x,
+  x = func(y) + y,
+  func(x) = func(y).
+
 // TODO: failure cases, more thorough testing in general

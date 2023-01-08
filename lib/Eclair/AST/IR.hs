@@ -12,6 +12,7 @@ module Eclair.AST.IR
   , ConstraintOp(..)
   , isEqualityOp
   , getNodeId
+  , getExternDefs
   , UsageMode(..)
   , Attributes
   ) where
@@ -19,6 +20,7 @@ module Eclair.AST.IR
 import Prettyprinter
 import Eclair.Common.Id
 import Eclair.Common.Operator
+import Eclair.Common.Extern
 import Eclair.Common.Literal
 import Eclair.Common.Pretty
 import Eclair.Common.Location
@@ -49,8 +51,10 @@ data AST
   | Hole NodeId
   | BinOp NodeId ArithmeticOp AST AST
   | Constraint NodeId ConstraintOp AST AST
+  -- Can be both a Datalog relation, or a externally defined function / constraint
   | Atom NodeId Id [Value]
   | Rule NodeId Id [Value] [Clause]
+  | ExternDefinition NodeId Id [Type] (Maybe Type)
   | DeclareType NodeId Id [Type] Attributes
   | Module NodeId [Decl]
   deriving (Eq, Show)
@@ -69,6 +73,7 @@ getNodeId :: AST -> NodeId
 getNodeId = \case
   Module nodeId _ -> nodeId
   DeclareType nodeId _ _ _ -> nodeId
+  ExternDefinition nodeId _ _ _ -> nodeId
   Rule nodeId _ _ _ -> nodeId
   Atom nodeId _ _ -> nodeId
   BinOp nodeId _ _ _ -> nodeId
@@ -76,6 +81,14 @@ getNodeId = \case
   Lit nodeId _ -> nodeId
   Var nodeId _ -> nodeId
   Hole nodeId -> nodeId
+
+getExternDefs :: AST -> [Extern]
+getExternDefs = cata $ \case
+  ExternDefinitionF _ name argTys mRetTy ->
+    let extKind = if isJust mRetTy then ExternFunction else ExternConstraint
+     in one $ Extern name (length argTys) extKind
+  astf ->
+    fold astf
 
 instance Pretty Type where
   pretty = \case
@@ -95,10 +108,14 @@ instance Pretty AST where
           pure $ pretty v
         Hole _ ->
           pure "?"
-        BinOp _ op lhs rhs ->
-          pure $ parens $ pretty lhs <+> pretty op <+> pretty rhs
-        Constraint _ op lhs rhs ->
-          pure $ pretty lhs <+> pretty op <+> pretty rhs
+        BinOp _ op lhs rhs -> do
+          lhs' <- pretty' lhs
+          rhs' <- pretty' rhs
+          pure $ parens $ lhs' <+> pretty op <+> rhs'
+        Constraint _ op lhs rhs -> do
+          lhs' <- pretty' lhs
+          rhs' <- pretty' rhs
+          pure $ lhs' <+> pretty op <+> rhs'
         Atom _ name values -> do
           end <- ask <&> \case
             TopLevel -> "."
@@ -106,10 +123,17 @@ instance Pretty AST where
           values' <- traverse pretty' values
           pure $ pretty name <> parens (withCommas values') <> end
         Rule _ name values clauses -> do
+          (values', clauses') <- local (const Nested) $ do
+            (,) <$> traverse pretty' values <*> traverse pretty' clauses
           let separators = replicate (length clauses - 1) "," ++ ["."]
-          clauses' <- local (const Nested) $ traverse pretty' clauses
-          pure $ pretty name <> parens (withCommas $ map pretty values) <+> ":-" <> hardline <>
+          pure $ pretty name <> parens (withCommas values') <+> ":-" <> hardline <>
                 indent 2 (vsep (zipWith (<>) clauses' separators))
+        ExternDefinition _ name argTys mRetTy -> do
+          let prettyRetTy = case mRetTy of
+                Just retTy -> " " <> pretty retTy
+                Nothing    -> mempty
+          pure $ "@extern" <+> pretty name <> parens (withCommas $ map pretty argTys)
+                    <> prettyRetTy <> "."
         DeclareType _ name tys attrs ->
           pure $ "@def"
             <+> pretty name

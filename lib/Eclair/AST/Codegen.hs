@@ -2,6 +2,7 @@
 
 module Eclair.AST.Codegen
   ( CodegenM
+  , Env(..)
   , runCodegen
   , toTerm
   , project
@@ -25,6 +26,7 @@ import Eclair.Common.Location
 import Eclair.Common.Literal
 import Eclair.Common.Operator
 import Eclair.Common.Id
+import Eclair.Common.Extern
 
 
 type AST = AST.AST
@@ -38,6 +40,12 @@ type Column = Int
 newtype Row = Row { unRow :: Int }
   deriving (Eq, Ord)
 
+data Env
+  = Env
+  { envRow :: Row
+  , envExterns :: [Extern]
+  }
+
 data LowerState
   = LowerState
   { nextNodeId :: Word32  -- NOTE: Unrelated to NodeIDs used in AST!
@@ -49,15 +57,15 @@ data LowerState
   }
 
 newtype CodegenM a
-  = CodegenM (RWS Row () LowerState a)
-  deriving (Functor, Applicative, Monad, MonadReader Row, MonadState LowerState)
-  via RWS Row () LowerState
+  = CodegenM (RWS Env () LowerState a)
+  deriving (Functor, Applicative, Monad, MonadReader Env, MonadState LowerState)
+  via RWS Env () LowerState
 
-runCodegen :: CodegenM a -> a
-runCodegen (CodegenM m) =
+runCodegen :: [Extern] -> CodegenM a -> a
+runCodegen externs (CodegenM m) =
   -- NOTE: NodeId starts at 1, since module is manually created, and has NodeId 0
   let beginState = LowerState 1 id mempty
-   in fst $ evalRWS m (Row 0) beginState
+   in fst $ evalRWS m (Env (Row 0) externs) beginState
 
 freshNodeId :: CodegenM NodeId
 freshNodeId = do
@@ -106,9 +114,9 @@ search r terms inner = do
   action <- local nextRow inner
   pure $ RA.Search nodeId r a [] action
   where
-    nextRow = Row . (+1) . unRow
+    nextRow s = s { envRow = Row . (+1) . unRow $ envRow s }
     maybeResetSearchState = do
-      Row row <- ask
+      Row row <- asks envRow
       when (row == 0) $ do
         modify $ \s -> s { varMapping = mempty }
 
@@ -193,11 +201,15 @@ toTerm ast = do
           pure $ RA.ColumnIndex nodeId alias col
         Nothing ->
           panic $ "Found ungrounded variable '" <> unId v <> "' in 'toTerm'!"
-    AST.BinOp _ op lhs rhs ->
-      RA.PrimOp nodeId op <$> toTerm lhs <*> toTerm rhs
+    AST.BinOp _ op lhs rhs -> do
+      lhsTerm <- toTerm lhs
+      rhsTerm <- toTerm rhs
+      pure $ RA.PrimOp nodeId (RA.BuiltinOp op) [lhsTerm, rhsTerm]
+    AST.Atom _ name args -> do
+      RA.PrimOp nodeId (RA.ExternOp name) <$> traverse toTerm args
     _ ->
       panic "Unexpected case in 'toTerm'!"
 
 relationToAlias :: Relation -> CodegenM Alias
 relationToAlias r =
-  asks (appendToId r . show . unRow)
+  asks (appendToId r . show . unRow . envRow)

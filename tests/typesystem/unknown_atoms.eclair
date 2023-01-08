@@ -13,6 +13,32 @@ path(x, y) :-
 @def result(u32) output.
 
 //--- expected.out
+[error]: Ungrounded variable
+     ╭──▶ TEST_DIR/program.eclair@3:6-3:7
+     │
+   3 │ ╭┤ path(x, y) :-
+     • │       ┬
+     • │       ╰╸ The variable 'x' is ungrounded, meaning it is not directly bound as an argument to a relation.
+   4 │ ├┤   edge(x, y).
+     • │
+     • ╰╸ This contains no clauses that refer to 'x'.
+     •
+     │ Hint: Use the variable 'x' as an argument in a relation.
+─────╯
+
+[error]: Ungrounded variable
+     ╭──▶ TEST_DIR/program.eclair@3:9-3:10
+     │
+   3 │ ╭┤ path(x, y) :-
+     • │          ┬
+     • │          ╰╸ The variable 'y' is ungrounded, meaning it is not directly bound as an argument to a relation.
+   4 │ ├┤   edge(x, y).
+     • │
+     • ╰╸ This contains no clauses that refer to 'y'.
+     •
+     │ Hint: Use the variable 'y' as an argument in a relation.
+─────╯
+
 [error]: Missing type definition
      ╭──▶ TEST_DIR/program.eclair@1:1-1:19
      │
@@ -20,7 +46,8 @@ path(x, y) :-
      • ┬─────────────────
      • ╰╸ Could not find a type definition for 'top_level_atom'.
      •
-     │ Hint: You can solve this by adding a type definition for 'top_level_atom'.
+     │ Hint: Add a type definition for 'top_level_atom'.
+     │ Hint: Add an extern definition for 'top_level_atom'.
 ─────╯
 
 [error]: Missing type definition
@@ -31,7 +58,8 @@ path(x, y) :-
      • │
      • ╰╸ Could not find a type definition for 'path'.
      •
-     │ Hint: You can solve this by adding a type definition for 'path'.
+     │ Hint: Add a type definition for 'path'.
+     │ Hint: Add an extern definition for 'path'.
 ─────╯
 
 [error]: Missing type definition
@@ -41,5 +69,6 @@ path(x, y) :-
      •   ┬─────────
      •   ╰╸ Could not find a type definition for 'edge'.
      •
-     │ Hint: You can solve this by adding a type definition for 'edge'.
+     │ Hint: Add a type definition for 'edge'.
+     │ Hint: Add an extern definition for 'edge'.
 ─────╯

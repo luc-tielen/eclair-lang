@@ -1,0 +1,200 @@
+// RUN: mkdir -p %t && sed s@TEST_DIR@%t@g %s > %t/input.test
+// RUN: split-file %t/input.test %t
+
+//--- program1.eclair
+// RUN: %eclair compile --emit ra %t/program1.eclair | FileCheck %t/program1.eclair
+// CHECK: project
+
+@def edge(u32, u32) input.
+@def test_externs(u32) output.
+
+@extern constraint1(string).
+@extern func1(u32) u32.
+@extern func2(u32, u32) string.
+
+test_externs(func1(123)).
+test_externs(x) :-
+  edge(x, y),
+  constraint1("abc"),
+  constraint1(func2(123, 456)),
+  func1(y) + 1 = x,
+  x = func1(y) + y,
+  func1(x) = func1(y),
+  func1(func1(x)) = y.
+
+//--- program2.eclair
+// RUN: %eclair compile --emit ra %t/program2.eclair 2> %t/program2.out
+// RUN: diff -w %t/expected.out %t/program2.out
+
+@extern constraint2(string).
+@extern func3(u32) u32.
+@extern func4(u32, u32) string.
+
+@def edge2(u32, u32) input.
+@def test_externs2(u32) output.
+
+// Type errors in functions
+test_externs2(func3("abc")).
+test_externs2(func3(123, 123)).
+test_externs2(func4(123, 123)).
+test_externs2(func4(123, 123) + 123).
+
+// Type errors in constraints
+test_externs2(x) :-
+  edge2(x, 123),
+  constraint2(x),
+  constraint2("abc", "def").
+
+// Using in wrong context
+test_externs2(constraint2("abc")).
+test_externs2(edge2(123, 456)).
+test_externs2(x) :-
+  edge2(x, 123),
+  func3(x).
+
+// Unknown extern definition
+test_externs2(x) :-
+  edge2(x, 123),
+  unknown_constraint(x),
+  x = unknown_function(123).
+
+//--- expected.out
+[error]: Type mismatch
+     ╭──▶ TEST_DIR/program2.eclair@12:21-12:26
+     │
+  12 │ test_externs2(func3("abc")).
+     • ┬───────────────────────────
+     • ╰────────────────────╸ 1) While checking the type of this..
+     •               ╰──────╸ 2) While checking the type of this..
+     •                     ├╸ 3) While checking the type of this..
+     •                     ╰╸ 4) Expected this to be of type 'u32', but it actually has type 'string'.
+─────╯
+
+[error]: Found an unexpected amount of arguments for 'func3'
+     ╭──▶ TEST_DIR/program2.eclair@13:15-13:30
+     │
+   5 │ @extern func3(u32) u32.
+     • ┬──────────────────────
+     • ╰╸ 'func3' is defined with 1 argument.
+     •
+  13 │ test_externs2(func3(123, 123)).
+     •               ┬──────────────
+     •               ╰╸ 2 arguments are provided here.
+     •
+     │ Hint: You can solve this by passing exactly 1 argument to 'func3'.
+─────╯
+
+[error]: Type mismatch
+     ╭──▶ TEST_DIR/program2.eclair@14:15-14:30
+     │
+  14 │ test_externs2(func4(123, 123)).
+     • ┬──────────────────────────────
+     • ╰──────────────╸ 1) While checking the type of this..
+     •               ├╸ 2) While checking the type of this..
+     •               ╰╸ 3) Expected this to be of type 'u32', but it actually has type 'string'.
+─────╯
+
+[error]: Type mismatch
+     ╭──▶ TEST_DIR/program2.eclair@15:15-15:30
+     │
+  15 │ test_externs2(func4(123, 123) + 123).
+     • ┬────────────────────────────────────
+     • ╰──────────────╸ 1) While checking the type of this..
+     •               ├╸ 2) While checking the type of this..
+     •               ├╸ 3) While checking the type of this..
+     •               ╰╸ 4) Expected this to be of type 'u32', but it actually has type 'string'.
+─────╯
+
+[error]: Type mismatch
+     ╭──▶ TEST_DIR/program2.eclair@20:15-20:16
+     │
+  18 │ ╭┤ test_externs2(x) :-
+  19 │ │    edge2(x, 123),
+  20 │ │    constraint2(x),
+     • │                ┬
+     • │                ├╸ 2) While checking the type of this..
+     • │                ╰╸ 3) Expected this to be of type 'string', but it actually has type 'u32'.
+  21 │ ├┤   constraint2("abc", "def").
+     • │
+     • ╰╸ 1) While checking the type of this..
+─────╯
+
+[error]: Found an unexpected amount of arguments for 'constraint2'
+     ╭──▶ TEST_DIR/program2.eclair@21:3-21:28
+     │
+   4 │ @extern constraint2(string).
+     • ┬───────────────────────────
+     • ╰╸ 'constraint2' is defined with 1 argument.
+     •
+  21 │   constraint2("abc", "def").
+     •   ┬────────────────────────
+     •   ╰╸ 2 arguments are provided here.
+     •
+     │ Hint: You can solve this by passing exactly 1 argument to 'constraint2'.
+─────╯
+
+[error]: Invalid use of constraint
+     ╭──▶ TEST_DIR/program2.eclair@24:15-24:33
+     │
+   4 │ @extern constraint2(string).
+     • ┬───────────────────────────
+     • ╰╸ Previously defined as a constraint here.
+     •
+  24 │ test_externs2(constraint2("abc")).
+     •               ┬─────────────────
+     •               ╰╸ Expected a function.
+     •
+     │ Hint: Maybe you meant to declare this as a function instead?
+     │ Hint: Remove the invalid constraint.
+─────╯
+
+[error]: Invalid use of constraint
+     ╭──▶ TEST_DIR/program2.eclair@25:15-25:30
+     │
+   8 │ @def edge2(u32, u32) input.
+     • ┬──────────────────────────
+     • ╰╸ Previously defined as a constraint here.
+     •
+  25 │ test_externs2(edge2(123, 456)).
+     •               ┬──────────────
+     •               ╰╸ Expected a function.
+     •
+     │ Hint: Maybe you meant to declare this as a function instead?
+     │ Hint: Remove the invalid constraint.
+─────╯
+
+[error]: Invalid use of function
+     ╭──▶ TEST_DIR/program2.eclair@28:3-28:11
+     │
+   5 │ @extern func3(u32) u32.
+     • ┬──────────────────────
+     • ╰╸ Previously defined as a function here.
+     •
+  28 │   func3(x).
+     •   ┬───────
+     •   ╰╸ Expected a constraint here.
+     •
+     │ Hint: Maybe you meant to declare this an external constraint instead?
+     │ Hint: Remove the invalid function.
+─────╯
+
+[error]: Missing type definition
+     ╭──▶ TEST_DIR/program2.eclair@33:3-33:24
+     │
+  33 │   unknown_constraint(x),
+     •   ┬────────────────────
+     •   ╰╸ Could not find a type definition for 'unknown_constraint'.
+     •
+     │ Hint: Add a type definition for 'unknown_constraint'.
+     │ Hint: Add an extern definition for 'unknown_constraint'.
+─────╯
+
+[error]: Missing type definition
+     ╭──▶ TEST_DIR/program2.eclair@34:7-34:28
+     │
+  34 │   x = unknown_function(123).
+     •       ┬────────────────────
+     •       ╰╸ Could not find a type definition for 'unknown_function'.
+     •
+     │ Hint: Add an extern definition for 'unknown_function'.
+─────╯
