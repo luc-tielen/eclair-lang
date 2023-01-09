@@ -92,8 +92,7 @@ generateProgramInstructions = gcata (distribute extractEqualities) $ \case
           _ -> False
         queryClauses = map extract $ filter ((not . isConstrain) . tFst) clauses
         query = List.foldl1' and' queryClauses
-    (initLBValue, lbValue) <- initValue r idx alias LowerBound eqsInSearch
-    (initUBValue, ubValue) <- initValue r idx alias UpperBound eqsInSearch
+    (initLBValue, initUBValue, lbValue, ubValue) <- initValue r idx alias eqsInSearch
     block
       [ initLBValue
       , initUBValue
@@ -242,23 +241,27 @@ rangeQuery r idx relationPtr lbValue ubValue loopAction = do
       loopStmts = [stopIfFinished, loopAction beginIter, advanceIter]
   block [allocBeginIter, allocEndIter, initLB, initUB, loop loopStmts, label endLabel']
 
-data Bound
-  = LowerBound
-  | UpperBound
-
 -- NOTE: only supports unsigned integers for now!
-initValue :: Relation -> Index -> RA.Alias -> Bound -> [NormalizedEquality] -> CodegenM (CodegenM EIR, CodegenM EIR)
-initValue r idx a bound eqs = do
+initValue :: Relation -> Index -> RA.Alias -> [NormalizedEquality]
+          -> CodegenM (CodegenM EIR, CodegenM EIR, CodegenM EIR, CodegenM EIR)
+initValue r idx a eqs = do
   let r' = stripIdPrefixes r
   typeInfo <- fromJust . Map.lookup r' . typeEnv <$> getLowerState
-  value <- var "value"
-  let allocValue = assign value $ stackAlloc r idx EIR.Value
-      columnNrs = take (length typeInfo) [0..]
-      valuesWithCols = [(nr, x) | nr <- columnNrs, let x = if isConstrained nr
+  lbValue <- var "lower_bound_value"
+  ubValue <- var "upper_bound_value"
+  let columnNrs = take (length typeInfo) [0..]
+      lbAllocValue = assign lbValue $ stackAlloc r idx EIR.Value
+      ubAllocValue = assign ubValue $ stackAlloc r idx EIR.Value
+      -- TODO stack allocate all values so they are not computed twice?
+      lbValuesWithCols = [(nr, x) | nr <- columnNrs, let x = if isConstrained nr
                                                               then constrain nr
-                                                              else dontCare]
-      assignStmts = map (\(i, val) -> assign (fieldAccess value i) val) valuesWithCols
-  pure (block $ allocValue : assignStmts, value)
+                                                              else lit 0x00000000]
+      ubValuesWithCols = [(nr, x) | nr <- columnNrs, let x = if isConstrained nr
+                                                              then constrain nr
+                                                              else lit 0xffffffff]
+      lbAssignStmts = map (\(i, val) -> assign (fieldAccess lbValue i) val) lbValuesWithCols
+      ubAssignStmts = map (\(i, val) -> assign (fieldAccess ubValue i) val) ubValuesWithCols
+  pure (block $ lbAllocValue : lbAssignStmts, block $ ubAllocValue : ubAssignStmts, lbValue, ubValue)
   where
     isConstrained col =
       any (\(NormalizedEquality a' col' _) -> a == a' && col == col' ) eqs
@@ -275,9 +278,6 @@ initValue r idx a bound eqs = do
       RA.PrimOp _ (RA.ExternOp opName) args ->
         mkExternOp opName $ map lowerConstrainValue args
       _ -> panic "Unsupported initial value while lowering to RA"
-    dontCare = lit $ case bound of
-      LowerBound -> 0
-      UpperBound -> 0xffffffff
 
 forEachRelation :: CodegenM EIR -> (ContainerInfo -> CodegenM EIR -> CodegenM EIR) -> CodegenM [CodegenM EIR]
 forEachRelation program f = do
