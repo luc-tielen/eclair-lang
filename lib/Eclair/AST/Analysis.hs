@@ -18,6 +18,7 @@ module Eclair.AST.Analysis
   , ConflictingDefinitionGroup(..)
   , ExternUsedAsFact(..)
   , ExternUsedAsRule(..)
+  , CyclicNegation(..)
   , NodeId(..)
   , Container
   , computeUsageMapping
@@ -114,6 +115,15 @@ data RuleClause
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions RuleClause "rule_clause" 'S.Input
 
+data Negation
+  = Negation
+  { negationNodeId :: NodeId
+  , negationInnerNodeId :: NodeId
+  }
+  deriving stock Generic
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions Negation "negation" 'S.Input
+
 -- NOTE: not storing types right now, but might be useful later?
 data DeclareType
   = DeclareType NodeId Id
@@ -169,7 +179,7 @@ data UngroundedVar loc
   , ungroundedVarLoc :: loc
   , ungroundedVarName :: Id
   }
-  deriving stock (Generic, Eq, Show, Functor)
+  deriving stock (Generic, Eq, Functor)
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions (UngroundedVar loc) "ungrounded_variable" 'S.Output
 
@@ -179,7 +189,7 @@ data WildcardInFact loc
   , factArgLoc :: loc
   , wildcardFactPos :: Position
   }
-  deriving stock (Generic, Eq, Show, Functor)
+  deriving stock (Generic, Eq, Functor)
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions (WildcardInFact loc) "wildcard_in_fact" 'S.Output
 
@@ -189,7 +199,7 @@ data WildcardInRuleHead loc
   , wildcardRuleArgLoc :: loc
   , wildcardRuleHeadPos :: Position
   }
-  deriving stock (Generic, Eq, Show, Functor)
+  deriving stock (Generic, Eq, Functor)
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions (WildcardInRuleHead loc) "wildcard_in_rule_head" 'S.Output
 
@@ -198,7 +208,7 @@ data WildcardInConstraint loc
   { wildcardConstraintLoc :: loc
   , wildcardConstraintPos :: loc
   }
-  deriving stock (Generic, Eq, Show, Functor)
+  deriving stock (Generic, Eq, Functor)
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions (WildcardInConstraint loc) "wildcard_in_constraint" 'S.Output
 
@@ -207,7 +217,7 @@ data WildcardInBinOp loc
   { wildcardBinOpLoc :: loc
   , wildcardBinOpPos :: loc
   }
-  deriving stock (Generic, Eq, Show, Functor)
+  deriving stock (Generic, Eq, Functor)
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions (WildcardInBinOp loc) "wildcard_in_binop" 'S.Output
 
@@ -217,25 +227,25 @@ data WildcardInExtern loc
   , wildcardExternAtomArgLoc :: loc
   , wildcardExternArgPos :: Position
   }
-  deriving stock (Generic, Eq, Show, Functor)
+  deriving stock (Generic, Eq, Functor)
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions (WildcardInExtern loc) "wildcard_in_extern" 'S.Output
 
 newtype DeadCode
   = DeadCode { unDeadCode :: NodeId }
-  deriving stock (Generic, Eq, Show)
+  deriving stock (Generic, Eq)
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions DeadCode "dead_code" 'S.Output
 
 newtype NoOutputRelation loc
   = NoOutputRelation loc
-  deriving stock (Generic, Eq, Show, Functor)
+  deriving stock (Generic, Eq, Functor)
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions (NoOutputRelation loc) "no_output_relation" 'S.Output
 
 data DeadInternalRelation loc
   = DeadInternalRelation loc Id
-  deriving stock (Generic, Eq, Show, Functor)
+  deriving stock (Generic, Eq, Functor)
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions (DeadInternalRelation loc) "dead_internal_relation" 'S.Output
 
@@ -245,7 +255,7 @@ data ConflictingDefinitions loc
   , cdSecondLoc :: loc
   , cdName :: Id
   }
-  deriving stock (Generic, Eq, Show, Functor)
+  deriving stock (Generic, Eq, Functor)
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions (ConflictingDefinitions loc) "conflicting_definitions" 'S.Output
 
@@ -253,7 +263,7 @@ data ConflictingDefinitionGroup loc
   = ConflictingDefinitionGroup
   { cdgName :: Id
   , cdgLocs :: NonEmpty loc
-  } deriving stock (Eq, Show, Functor)
+  } deriving stock (Eq, Functor)
 
 data ExternUsedAsFact loc
   = ExternUsedAsFact
@@ -261,7 +271,7 @@ data ExternUsedAsFact loc
   , externAsFactExternLoc :: loc
   , externAsFactName :: Id
   }
-  deriving stock (Generic, Eq, Show, Functor)
+  deriving stock (Generic, Eq, Functor)
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions (ExternUsedAsFact loc) "extern_used_as_fact" 'S.Output
 
@@ -271,9 +281,15 @@ data ExternUsedAsRule loc
   , externAsRuleExternLoc :: loc
   , externAsRuleName :: Id
   }
-  deriving stock (Generic, Eq, Show, Functor)
+  deriving stock (Generic, Eq, Functor)
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions (ExternUsedAsRule loc) "extern_used_as_rule" 'S.Output
+
+newtype CyclicNegation loc
+  = CyclicNegation loc
+  deriving stock (Generic, Eq, Functor)
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions (CyclicNegation loc) "cyclic_negation" 'S.Output
 
 data SemanticAnalysis
   = SemanticAnalysis
@@ -290,6 +306,7 @@ data SemanticAnalysis
        , Rule
        , RuleArg
        , RuleClause
+       , Negation
        , DeclareType
        , ExternDefinition
        , InputRelation
@@ -310,6 +327,7 @@ data SemanticAnalysis
        , ConflictingDefinitions NodeId
        , ExternUsedAsFact NodeId
        , ExternUsedAsRule NodeId
+       , CyclicNegation NodeId
        ]
 
 -- TODO: change to Vector when finished for performance
@@ -318,14 +336,14 @@ type Container = []
 newtype SemanticInfo
   = SemanticInfo
   { deadCodeIds :: Container DeadCode
-  } deriving (Eq, Show)
+  } deriving Eq
 
 data Result
   = Result
   { semanticInfo :: SemanticInfo
   , semanticErrors :: SemanticErrors NodeId
   }
-  deriving (Eq, Show)
+  deriving Eq
 
 data SemanticErrors loc
   = SemanticErrors
@@ -340,8 +358,9 @@ data SemanticErrors loc
   , conflictingDefinitions :: Container (ConflictingDefinitionGroup loc)
   , externsUsedAsFact :: Container (ExternUsedAsFact loc)
   , externsUsedAsRule :: Container (ExternUsedAsRule loc)
+  , cyclicNegations :: Container (CyclicNegation loc)
   }
-  deriving (Eq, Show, Exception, Functor)
+  deriving (Eq, Functor)
 
 hasSemanticErrors :: Result -> Bool
 hasSemanticErrors result =
@@ -354,7 +373,8 @@ hasSemanticErrors result =
   isNotNull deadInternalRelations ||
   isNotNull noOutputRelations ||
   isNotNull conflictingDefinitions ||
-  isNotNull externsUsedAsFact
+  isNotNull externsUsedAsFact ||
+  isNotNull cyclicNegations
   where
     errs = semanticErrors result
     isNotNull :: (SemanticErrors NodeId -> [a]) -> Bool
@@ -367,7 +387,7 @@ analysis prog = S.mkAnalysis addFacts run getFacts
     addFacts ast = usingReaderT Nothing $ flip (zygo getNodeId) ast $ \case
       IR.LitF nodeId lit -> do
         mScopeId <- ask
-        forM_ mScopeId $ \scopeId ->
+        for_ mScopeId $ \scopeId ->
           S.addFact prog $ ScopedValue scopeId nodeId
         case lit of
           IR.LNumber x ->
@@ -378,9 +398,9 @@ analysis prog = S.mkAnalysis addFacts run getFacts
         S.addFact prog $ Var nodeId (Id "_")
       IR.VarF nodeId var -> do
         S.addFact prog $ Var nodeId var
-        maybeRuleId <- ask
-        for_ maybeRuleId $ \ruleId ->
-          S.addFact prog $ ScopedValue ruleId nodeId
+        mScopeId <- ask
+        for_ mScopeId $ \scopeId ->
+          S.addFact prog $ ScopedValue scopeId nodeId
       IR.HoleF nodeId ->
         S.addFact prog $ Hole nodeId
       IR.BinOpF nodeId arithOp (lhsId', lhsAction) (rhsId', rhsAction) -> do
@@ -389,6 +409,9 @@ analysis prog = S.mkAnalysis addFacts run getFacts
               IR.Minus -> "-"
               IR.Multiply -> "*"
               IR.Divide -> "/"
+        mScopeId <- ask
+        for_ mScopeId $ \scopeId ->
+          S.addFact prog $ ScopedValue scopeId nodeId
         S.addFact prog $ BinOp nodeId textualOp lhsId' rhsId'
         lhsAction
         rhsAction
@@ -403,12 +426,15 @@ analysis prog = S.mkAnalysis addFacts run getFacts
         S.addFact prog $ Constraint nodeId textualOp lhsId' rhsId'
         lhsAction
         rhsAction
+      IR.NotF nodeId (innerNodeId, action) -> do
+        S.addFact prog $ Negation nodeId innerNodeId
+        local (const $ Just nodeId) action
       IR.AtomF nodeId atom (unzip -> (argNodeIds, actions)) -> do
         S.addFact prog $ Atom nodeId atom
         mScopeId <- ask
         S.addFacts prog $ mapWithPos (AtomArg nodeId) argNodeIds
 
-        forM_ mScopeId $ \scopeId ->
+        for_ mScopeId $ \scopeId ->
           S.addFact prog $ ScopedValue scopeId nodeId
 
         let maybeAddScope =
@@ -465,6 +491,7 @@ analysis prog = S.mkAnalysis addFacts run getFacts
                              <*> (groupConflicts <$> S.getFacts prog)
                              <*> S.getFacts prog
                              <*> S.getFacts prog
+                             <*> S.getFacts prog
       pure $ Result info errs
 
     getNodeId :: IR.ASTF NodeId -> NodeId
@@ -474,6 +501,7 @@ analysis prog = S.mkAnalysis addFacts run getFacts
       IR.HoleF nodeId -> nodeId
       IR.BinOpF nodeId _ _ _ -> nodeId
       IR.ConstraintF nodeId _ _ _ -> nodeId
+      IR.NotF nodeId _ -> nodeId
       IR.AtomF nodeId _ _ -> nodeId
       IR.RuleF nodeId _ _ _ -> nodeId
       IR.ExternDefinitionF nodeId _ _ _ -> nodeId

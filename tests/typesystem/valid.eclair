@@ -1,5 +1,5 @@
-// RUN: %eclair compile %s | FileCheck %s
-// CHECK: eclair_program_run
+// RUN: %eclair compile %s --emit ra | FileCheck %s
+// CHECK: project
 
 @def fact1(u32, string).
 @def fact2(string, string).
@@ -77,3 +77,11 @@ fact17(x) :-
   x = y,
   y = z,
   fact16(x, z).
+
+@def fact18(u32) input.
+@def fact19(u32) output.
+
+fact19(x) :-
+  fact18(x),
+  !fact18(2),
+  !fact18(x + 1).

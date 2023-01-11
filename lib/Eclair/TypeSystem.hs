@@ -191,6 +191,8 @@ checkDecl ast = case ast of
         -- Comparison => both sides need to be numbers
         checkExpr lhs U32
         checkExpr rhs U32
+  Not _ clause -> addCtx $ do
+    checkDecl clause
   _ ->
     panic "Unexpected case in 'checkDecl'"
   where

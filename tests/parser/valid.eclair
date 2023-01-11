@@ -76,4 +76,11 @@ test_externs(x) :-
   x = func(y) + y,
   func(x) = func(y).
 
+@def test_negation(u32).
+
+test_negation(x) :-
+  edge(x, x),
+  !edge(1, 2),
+  edge(123, x).
+
 // TODO: failure cases, more thorough testing in general

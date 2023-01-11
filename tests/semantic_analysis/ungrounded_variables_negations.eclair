@@ -1,0 +1,32 @@
+// RUN: mkdir -p %t && sed s@TEST_DIR@%t@g %s > %t/input.test
+// RUN: split-file %t/input.test %t
+
+// RUN: %eclair compile %t/program1.eclair 2> %t/actual1.out
+// RUN: diff -w %t/expected1.out %t/actual1.out
+
+//--- program1.eclair
+@def a(u32) output.
+@def b(u32) output.
+
+a(abc) :-
+  abc = 123,
+  !b(abc),
+  !b(def),
+  !b(abc + 123).
+
+//--- expected1.out
+[error]: Ungrounded variable
+     ╭──▶ /home/luc/personal/eclair/tests/semantic_analysis/Output/ungrounded_variables_negations.eclair.tmp/program1.eclair@7:6-7:9
+     │
+   4 │ ╭┤ a(abc) :-
+   5 │ │    abc = 123,
+   6 │ │    !b(abc),
+   7 │ │    !b(def),
+     • │       ┬──
+     • │       ╰╸ The variable 'def' is ungrounded, meaning it is not directly bound as an argument to a relation.
+   8 │ ├┤   !b(abc + 123).
+     • │
+     • ╰╸ This contains no clauses that refer to 'def'.
+     •
+     │ Hint: Use the variable 'def' as an argument in a relation.
+─────╯

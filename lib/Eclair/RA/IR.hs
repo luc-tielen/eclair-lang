@@ -8,7 +8,7 @@ module Eclair.RA.IR
   , Clause
   , Action
   , ColumnIndex
-  , ConstraintOp(..)
+  , LogicalOp(..)
   , ArithmeticOp(..)
   , Op(..)
   ) where
@@ -45,7 +45,7 @@ data RA
   | Module NodeId [RA]
   | Lit NodeId Word32
   | ColumnIndex NodeId Relation ColumnIndex
-  | CompareOp NodeId ConstraintOp RA RA
+  | CompareOp NodeId LogicalOp RA RA
   | PrimOp NodeId Op [RA]
   | NotElem NodeId Relation [RA]
   | If NodeId RA RA  -- NOTE: args are condition and body
