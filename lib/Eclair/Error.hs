@@ -27,7 +27,6 @@ data EclairError
   = ParseErr FilePath ParsingError
   | TypeErr FilePath SpanMap [TypeError NodeId]
   | SemanticErr FilePath SpanMap (SemanticErrors NodeId)
-  deriving (Show, Exception)
 
 -- TODO refactor using an error reporting monad?
 
@@ -348,10 +347,23 @@ externUsedAsRuleToReport e@(ExternUsedAsRule _ externLoc name) =
             , Hint "Remove the rule."
             ]
 
+cyclicNegationToReport :: CyclicNegation Position -> Report Text
+cyclicNegationToReport e =
+  Err Nothing title markers hints
+  where
+    title = "Negation used in recursive set of rules"
+    markers =
+      [ (mainErrorPosition e, This "This negation is used in a set of rules that is recursive, which is not allowed.")
+      ]
+    hints = [ Hint "Restructure the program so the negation does not occur in the set of recursive rules."
+            , Hint "Remove the negation entirely."
+            ]
+
+
 -- NOTE: pattern match is done this way to keep track of additional errors that need to be reported
 {-# ANN semanticErrorsToReportsWithLocations ("HLint: ignore Use record patterns" :: String) #-}
 semanticErrorsToReportsWithLocations :: SemanticErrors Position -> [(Report Text, Location)]
-semanticErrorsToReportsWithLocations e@(SemanticErrors _ _ _ _ _ _ _ _ _ _ _) =
+semanticErrorsToReportsWithLocations e@(SemanticErrors _ _ _ _ _ _ _ _ _ _ _ _) =
   concat [ ungroundedVarReports
          , wildcardInFactReports
          , wildcardInRuleHeadReports
@@ -363,6 +375,7 @@ semanticErrorsToReportsWithLocations e@(SemanticErrors _ _ _ _ _ _ _ _ _ _ _) =
          , conflictingDefinitionReports
          , externUsedAsFactReports
          , externUsedAsRuleReports
+         , cyclicNegationReports
          ]
   where
     getReportsWithLocationsFor
@@ -383,6 +396,7 @@ semanticErrorsToReportsWithLocations e@(SemanticErrors _ _ _ _ _ _ _ _ _ _ _) =
     conflictingDefinitionReports = getReportsWithLocationsFor conflictingDefinitions conflictingDefinitionsToReport
     externUsedAsFactReports = getReportsWithLocationsFor externsUsedAsFact externUsedAsFactToReport
     externUsedAsRuleReports = getReportsWithLocationsFor externsUsedAsRule externUsedAsRuleToReport
+    cyclicNegationReports = getReportsWithLocationsFor cyclicNegations cyclicNegationToReport
 
 pluralize :: Int -> Text -> Text -> Text
 pluralize count singular plural' =
@@ -435,6 +449,8 @@ instance HasMainErrorPosition (ExternUsedAsFact Position) where
   mainErrorPosition (ExternUsedAsFact pos _ _) = pos
 instance HasMainErrorPosition (ExternUsedAsRule Position) where
   mainErrorPosition (ExternUsedAsRule pos _ _) = pos
+instance HasMainErrorPosition (CyclicNegation Position) where
+  mainErrorPosition (CyclicNegation pos) = pos
 instance HasMainErrorPosition (TypeError Position) where
   mainErrorPosition = \case
     UnknownConstraint pos _ -> pos

@@ -193,10 +193,8 @@ generateProgramInstructions = gcata (distribute extractEqualities) $ \case
         allocValue = assign value $ stackAlloc r idx EIR.Value
     containsVar <- var "contains_result"
     let assignActions = zipWith (assign . fieldAccess value) [0..] columnValues
-    block $ allocValue : assignActions
-        <> [ assign containsVar $ call r idx EIR.Contains [relationPtr, value]
-            , not' containsVar
-            ]
+        containsAction = assign containsVar $ call r idx EIR.Contains [relationPtr, value]
+    block $ allocValue : assignActions <> [containsAction, not' containsVar]
   RA.ColumnIndexF _ a' col -> ask >>= \case
     Search a value _ ->
       if a == a'

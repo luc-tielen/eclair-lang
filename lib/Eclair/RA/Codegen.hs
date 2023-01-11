@@ -269,7 +269,7 @@ multiply = mkArithOp EIR.Multiply
 divide :: CodegenM EIR -> CodegenM EIR -> CodegenM EIR
 divide = mkArithOp EIR.Divide
 
-mkConstrainOp :: EIR.ConstraintOp -> CodegenM EIR -> CodegenM EIR -> CodegenM EIR
+mkConstrainOp :: EIR.LogicalOp -> CodegenM EIR -> CodegenM EIR -> CodegenM EIR
 mkConstrainOp op lhs rhs =
   let args = sequence [lhs, rhs]
    in EIR.PrimOp (EIR.ComparisonOp op) <$> args

@@ -1,0 +1,63 @@
+// RUN: mkdir -p %t && sed s@TEST_DIR@%t@g %s > %t/input.test
+// RUN: split-file %t/input.test %t
+
+// RUN: %eclair compile %t/program1.eclair 2> %t/actual1.out
+// RUN: diff -w %t/expected1.out %t/actual1.out
+
+//--- program1.eclair
+@def a(u32) input.
+@def b(u32) output.
+@def c(u32) input.
+@def d(u32) output.
+@def e(u32) input.
+@def f(u32) input.
+@def g(u32) output.
+
+b(x) :-
+  a(x),
+  !b(x).
+
+d(x) :-
+  !c(x),
+  d(x).
+
+g(x) :-
+  f(x).
+
+f(x) :-
+  e(x),
+  !g(x).
+
+//--- expected1.out
+[error]: Negation used in recursive set of rules
+     ╭──▶ TEST_DIR/program1.eclair@11:3-11:8
+     │
+  11 │   !b(x).
+     •   ┬────
+     •   ╰╸ This negation is used in a set of rules that is recursive, which is not allowed.
+     •
+     │ Hint: Restructure the program so the negation does not occur in the set of recursive rules.
+     │ Hint: Remove the negation entirely.
+─────╯
+
+[error]: Negation used in recursive set of rules
+     ╭──▶ TEST_DIR/program1.eclair@14:3-14:8
+     │
+  14 │   !c(x),
+     •   ┬────
+     •   ╰╸ This negation is used in a set of rules that is recursive, which is not allowed.
+     •
+     │ Hint: Restructure the program so the negation does not occur in the set of recursive rules.
+     │ Hint: Remove the negation entirely.
+─────╯
+
+[error]: Negation used in recursive set of rules
+     ╭──▶ TEST_DIR/program1.eclair@22:3-22:8
+     │
+  22 │   !g(x).
+     •   ┬────
+     •   ╰╸ This negation is used in a set of rules that is recursive, which is not allowed.
+     •
+     │ Hint: Restructure the program so the negation does not occur in the set of recursive rules.
+     │ Hint: Remove the negation entirely.
+─────╯

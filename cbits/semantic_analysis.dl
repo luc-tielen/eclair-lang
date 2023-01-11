@@ -9,6 +9,7 @@
 .decl rule(rule_id: unsigned, name: symbol)
 .decl rule_arg(rule_id: unsigned, rule_arg_pos: unsigned, rule_arg_id: unsigned)
 .decl rule_clause(rule_id: unsigned, rule_clause_pos: unsigned, rule_clause_id: unsigned)
+.decl negation(negation_node_id: unsigned, inner_node_id: unsigned)
 .decl input_relation(relation_name: symbol)
 .decl output_relation(relation_name: symbol)
 .decl internal_relation(relation_name: symbol)
@@ -35,6 +36,8 @@
 .decl source(r: symbol)
 .decl has_definitions(relation: symbol)
 .decl live_rule(relation: symbol)
+.decl dependency_cycle(relation: symbol)
+.decl rule_scope(rule_id: unsigned, scope_id: unsigned)
 
 // Output facts / rules
 .decl grounded_variable(rule_id: unsigned, var_name: symbol)
@@ -52,6 +55,7 @@
 .decl conflicting_definitions(node_id1: unsigned, node_id2: unsigned, name: symbol)
 .decl extern_used_as_fact(node_id: unsigned, extern_node_id: unsigned, name: symbol)
 .decl extern_used_as_rule(node_id: unsigned, extern_node_id: unsigned, name: symbol)
+.decl cyclic_negation(negation_id: unsigned)
 
 .input lit_number
 .input lit_string
@@ -63,6 +67,7 @@
 .input rule
 .input rule_arg
 .input rule_clause
+.input negation
 .input input_relation
 .input output_relation
 .input internal_relation
@@ -85,6 +90,7 @@
 .output conflicting_definitions
 .output extern_used_as_fact
 .output extern_used_as_rule
+.output cyclic_negation
 
 // An atom that is not defined externally. This is an important distinction
 // since external atoms cannot ground variables!
@@ -103,12 +109,31 @@ depends_on(r1, r2) :-
   rule_clause(rule_id, _, clause_id),
   atom(clause_id, r2).
 
+// Variant for negated atoms.
+depends_on(r1, r2) :-
+  rule(rule_id, r1),
+  rule_clause(rule_id, _, negation_id),
+  negation(negation_id, atom_id),
+  atom(atom_id, r2).
+
 transitive_depends_on(r1, r2) :-
   depends_on(r1, r2).
 
 transitive_depends_on(r1, r3) :-
   depends_on(r1, r2),
   transitive_depends_on(r2, r3).
+
+// Rules have cyclic dependencies if a rule depends on itself (transitively)
+dependency_cycle(r) :-
+  transitive_depends_on(r, r).
+
+// Negations are not allowed inside a rule that is part of a cyclic dependency,
+// since this is not stratifiable.
+cyclic_negation(negation_id) :-
+  rule(rule_id, name),
+  dependency_cycle(name),
+  rule_clause(rule_id, _, negation_id),
+  negation(negation_id, _).
 
 // An input can always be a source of data.
 source(r) :-
@@ -176,8 +201,6 @@ dead_internal_relation(decl_id, r) :-
   declare_type(decl_id, r),
   !has_definitions(r).
 
-// TODO which one of these are errors, which are ok to be optimized?
-
 has_output_relation(node_id) :-
   module_declaration(node_id, decl_id),
   declare_type(decl_id, r),
@@ -222,13 +245,23 @@ ungrounded_variable(rule_id, var_id, var_name) :-
 ungrounded_variable(rule_id, var_id, var_name) :-
   binop(_, _, var_id, _),
   variable(var_id, var_name),
-  scoped_value(rule_id, var_id),
-  !grounded_node(rule_id, var_id).
+  scoped_value(scope_id, var_id),
+  rule_scope(rule_id, scope_id),
+  !grounded_variable(rule_id, var_name).
 
 ungrounded_variable(rule_id, var_id, var_name) :-
   binop(_, _, _, var_id),
   variable(var_id, var_name),
-  scoped_value(rule_id, var_id),
+  scoped_value(scope_id, var_id),
+  rule_scope(rule_id, scope_id),
+  !grounded_variable(rule_id, var_name).
+
+// Variables used in a negation need to be grounded.
+ungrounded_variable(rule_id, var_id, var_name) :-
+  negation(negation_id, _),
+  rule_clause(rule_id, _, negation_id),
+  scoped_value(negation_id, var_id),
+  variable(var_id, var_name),
   !grounded_node(rule_id, var_id).
 
 // External atoms used in a fact need to be grounded.
@@ -274,6 +307,13 @@ ungrounded_external_atom(rule_id, atom_id, atom_name) :-
   atom(atom_id, atom_name),
   scoped_value(rule_id, atom_id),
   !grounded_node(rule_id, atom_id).
+
+rule_scope(rule_id, rule_id) :-
+  rule(rule_id, _).
+
+rule_scope(rule_id, negation_id) :-
+  rule_clause(rule_id, _, negation_id),
+  negation(negation_id, _).
 
 inequality_op("!=").
 inequality_op("<").
@@ -392,6 +432,16 @@ grounded_node(rule_id, var_id2) :-
   variable(var_id1, var_name),
   grounded_node(rule_id, var_id1),
   scoped_value(rule_id, var_id2),
+  variable(var_id2, var_name).
+
+// Variables are grounded inside a negation if they are grounded in another clause.
+grounded_node(rule_id, var_id2) :-
+  negation(negation_id, _),
+  rule_clause(rule_id, _, negation_id),
+  scoped_value(rule_id, var_id1),
+  variable(var_id1, var_name),
+  grounded_node(rule_id, var_id1),
+  scoped_value(negation_id, var_id2),
   variable(var_id2, var_name).
 
 // Literals are always grounded.

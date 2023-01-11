@@ -190,12 +190,19 @@ comma = lexeme $ P.char ','
 
 ruleClauseParser :: Parser AST
 ruleClauseParser = do
-  P.try (atomParser <* P.notFollowedBy opParser) <|> constraintParser
+  negationParser
+    <|> P.try (atomParser <* P.notFollowedBy opParser)
+    <|> constraintParser
   where
     opParser =
       void constraintOpParser <|> void arithmeticOpParser
     arithmeticOpParser =
       P.choice $ concatMap (map $ P.char . snd) arithmeticOps
+
+negationParser :: Parser AST
+negationParser = withNodeId $ \nodeId -> do
+  void $ lexeme $ P.char '!'
+  Not nodeId <$> atomParser
 
 atomParser :: Parser AST
 atomParser = lexeme $ do
@@ -241,7 +248,7 @@ varParser = lexeme $ withNodeId $ \nodeId -> do
   P.notFollowedBy $ P.char '('
   pure v
 
-constraintOpParser :: Parser ConstraintOp
+constraintOpParser :: Parser LogicalOp
 constraintOpParser = P.label "equality or comparison operator" $ lexeme $ do
   toOp Equals (P.char '=') <|>
     toOp LessOrEqual (P.string "<=") <|>

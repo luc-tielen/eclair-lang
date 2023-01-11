@@ -27,8 +27,8 @@ a(y) :-
 
 //--- expected_ra.out
 search c as c0 where (c0[2] = 42) do
-  if c0[0] = c0[4] do
-    if c0[0] = c0[1] do
+  if c0[0] = c0[1] do
+    if c0[0] = c0[4] do
       search other as other1 where (c0[0] = other1[0]) do
         project (c0[0]) into a
 search b as b0 do
@@ -62,10 +62,10 @@ export fn eclair_program_run(*Program) -> Void
       goto range_query.end
     }
     current = c.iter_current(begin_iter)
-    condition_1 = (current.0 == current.4)
+    condition_1 = (current.0 == current.1)
     if (condition_1)
     {
-      condition_2 = (current.0 == current.1)
+      condition_2 = (current.0 == current.4)
       if (condition_2)
       {
         lower_bound_value_1 = other.stack_allocate Value
@@ -184,14 +184,14 @@ end_if_0:
   %current_0 = call ccc [5 x i32]* @btree_iterator_current_2(%btree_iterator_t_2* %begin_iter_0)
   %condition_1_0 = getelementptr [5 x i32], [5 x i32]* %current_0, i32 0, i32 0
   %condition_1_1 = load i32, i32* %condition_1_0
-  %condition_1_2 = getelementptr [5 x i32], [5 x i32]* %current_0, i32 0, i32 4
+  %condition_1_2 = getelementptr [5 x i32], [5 x i32]* %current_0, i32 0, i32 1
   %condition_1_3 = load i32, i32* %condition_1_2
   %condition_1_4 = icmp eq i32 %condition_1_1, %condition_1_3
   br i1 %condition_1_4, label %if_1, label %end_if_3
 if_1:
   %condition_2_0 = getelementptr [5 x i32], [5 x i32]* %current_0, i32 0, i32 0
   %condition_2_1 = load i32, i32* %condition_2_0
-  %condition_2_2 = getelementptr [5 x i32], [5 x i32]* %current_0, i32 0, i32 1
+  %condition_2_2 = getelementptr [5 x i32], [5 x i32]* %current_0, i32 0, i32 4
   %condition_2_3 = load i32, i32* %condition_2_2
   %condition_2_4 = icmp eq i32 %condition_2_1, %condition_2_3
   br i1 %condition_2_4, label %if_2, label %end_if_2
