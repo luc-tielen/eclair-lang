@@ -131,6 +131,10 @@ nestedSearchAndProject relation intoRelation terms clauses wrapWithExtraClause =
             zero <- toTerm (Lit (NodeId 0) $ LNumber 0)
             if' NotEquals clause' zero inner
           else search relation' args inner
+      Not _ (Atom _ clauseName args) -> do
+        -- No starts with check here, since cyclic negation is not allowed.
+        let terms' = map toTerm args
+        noElemOf clauseName terms' inner
       Constraint _ op lhs rhs -> do
         lhsTerm <- toTerm lhs
         rhsTerm <- toTerm rhs

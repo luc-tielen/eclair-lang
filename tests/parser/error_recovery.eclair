@@ -49,7 +49,7 @@ edge(2, 3).
 ─────╯
 
 [error]: Ungrounded variable
-     ╭──▶ /home/luc/personal/eclair/tests/parser/Output/error_recovery.eclair.tmp/program.eclair@10:6-10:7
+     ╭──▶ TEST_DIR/program.eclair@10:6-10:7
      │
   10 │ ╭┤ path(x, y) :-
      • │       ┬

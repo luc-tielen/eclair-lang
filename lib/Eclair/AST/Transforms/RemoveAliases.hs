@@ -27,12 +27,13 @@ transform externs =
 
     externNames = map (\(Extern name _ _) -> name) externs
 
-    -- Finds all vars directly inside a (not externally defined) atom.
+    -- Finds all vars directly inside a relation atom (not in a negation).
     directlyGroundedVars = \case
       AtomF _ name args | name `notElem` externNames ->
         flip mapMaybe args $ \case
           (Var _ v, _) -> Just v
           _ -> Nothing
+      NotF {} -> mempty
       astf ->
         foldMap snd astf
 

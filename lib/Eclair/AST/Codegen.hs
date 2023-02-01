@@ -182,7 +182,7 @@ noElemOf r ts m = do
   cond <- RA.NotElem notElemNodeId r <$> sequence ts
   RA.If ifNodeId cond <$> m
 
-if' :: ConstraintOp -> RA -> RA -> CodegenM RA -> CodegenM RA
+if' :: LogicalOp -> RA -> RA -> CodegenM RA -> CodegenM RA
 if' op lhs rhs body = do
   cmpNodeId <- freshNodeId
   ifNodeId <- freshNodeId

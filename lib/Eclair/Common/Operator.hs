@@ -1,7 +1,8 @@
 module Eclair.Common.Operator
   ( ArithmeticOp(..)
-  , ConstraintOp(..)
+  , LogicalOp(..)
   , isEqualityOp
+  , invertLogicalOp
   ) where
 
 import Eclair.Common.Pretty
@@ -13,7 +14,7 @@ data ArithmeticOp
   | Divide  -- NOTE: integer division
   deriving (Eq, Show)
 
-data ConstraintOp
+data LogicalOp
   = Equals          -- =
   | NotEquals       -- !=
   | LessThan        -- <
@@ -22,7 +23,16 @@ data ConstraintOp
   | GreaterOrEqual  -- >=
   deriving (Eq, Show)
 
-isEqualityOp :: ConstraintOp -> Bool
+invertLogicalOp :: LogicalOp -> LogicalOp
+invertLogicalOp = \case
+  Equals -> NotEquals
+  NotEquals -> Equals
+  LessThan -> GreaterOrEqual
+  GreaterThan -> LessOrEqual
+  LessOrEqual -> GreaterThan
+  GreaterOrEqual -> LessThan
+
+isEqualityOp :: LogicalOp -> Bool
 isEqualityOp = \case
   Equals -> True
   NotEquals -> True
@@ -35,7 +45,7 @@ instance Pretty ArithmeticOp where
     Multiply -> "*"
     Divide -> "/"
 
-instance Pretty ConstraintOp where
+instance Pretty LogicalOp where
   pretty = \case
     Equals         -> "="
     NotEquals      -> "!="

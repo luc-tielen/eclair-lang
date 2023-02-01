@@ -5,7 +5,7 @@ module Eclair.EIR.IR
   , EIRF(..)
   , Relation
   , Op(..)
-  , ConstraintOp(..)
+  , LogicalOp(..)
   , ArithmeticOp(..)
   , Type(..)
   , Function(..)
@@ -62,7 +62,7 @@ data Op
   | SymbolTableInit
   | SymbolTableDestroy
   | SymbolTableInsert
-  | ComparisonOp ConstraintOp
+  | ComparisonOp LogicalOp
   | ArithOp ArithmeticOp
   | ExternOp Id
   deriving (Eq, Show)

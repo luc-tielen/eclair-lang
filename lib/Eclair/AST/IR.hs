@@ -9,7 +9,7 @@ module Eclair.AST.IR
   , Literal(..)
   , Type(..)
   , ArithmeticOp(..)
-  , ConstraintOp(..)
+  , LogicalOp(..)
   , isEqualityOp
   , getNodeId
   , getExternDefs
@@ -45,15 +45,19 @@ data UsageMode
 -- Later this will also contain (Maybe StorageType), ...
 type Attributes = UsageMode
 
+-- NOTE: There is no explicit "AND" node, conjunctions are inlined into other
+-- nodes (as lists of clauses).
 data AST
+  -- Expressions
   = Lit NodeId Literal
   | Var NodeId Id
   | Hole NodeId
   | BinOp NodeId ArithmeticOp AST AST
-  | Constraint NodeId ConstraintOp AST AST
-  -- Can be both a Datalog relation, or a externally defined function / constraint
-  | Atom NodeId Id [Value]
+  -- Statements
+  | Constraint NodeId LogicalOp AST AST
   | Rule NodeId Id [Value] [Clause]
+  | Not NodeId Clause
+  | Atom NodeId Id [Value]  -- Can be both a Datalog relation, or a externally defined function / constraint
   | ExternDefinition NodeId Id [Type] (Maybe Type)
   | DeclareType NodeId Id [Type] Attributes
   | Module NodeId [Decl]
@@ -75,6 +79,7 @@ getNodeId = \case
   DeclareType nodeId _ _ _ -> nodeId
   ExternDefinition nodeId _ _ _ -> nodeId
   Rule nodeId _ _ _ -> nodeId
+  Not nodeId _ -> nodeId
   Atom nodeId _ _ -> nodeId
   BinOp nodeId _ _ _ -> nodeId
   Constraint nodeId _ _ _ -> nodeId
@@ -116,6 +121,8 @@ instance Pretty AST where
           lhs' <- pretty' lhs
           rhs' <- pretty' rhs
           pure $ lhs' <+> pretty op <+> rhs'
+        Not _ clause ->
+          ("!" <>) <$> pretty' clause
         Atom _ name values -> do
           end <- ask <&> \case
             TopLevel -> "."

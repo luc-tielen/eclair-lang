@@ -7,6 +7,7 @@ The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-has
 
 ### Added
 
+- Logical negation (of a single rule clause)
 - Typed hole support
 - Comparison operators
 - Arithmetic operators (`+`, `-`, `*`, `/`)

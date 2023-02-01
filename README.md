@@ -115,8 +115,8 @@ If you run the resulting program, this should print the reachable node pairs
 - [x] Comparison operators, != operator
 - [x] Support arithmetic operators
 - [x] Generic, extensible primops
+- [x] Support logical negation
 - [ ] Release 0.2.0
-- [ ] Support logical negation
 - [ ] Signed integer type (i32)
 - [ ] Unary negation
 - [ ] Optimizations on the AST / RA / LLVM level
