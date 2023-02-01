@@ -16,7 +16,7 @@ a(abc) :-
 
 //--- expected1.out
 [error]: Ungrounded variable
-     ╭──▶ /home/luc/personal/eclair/tests/semantic_analysis/Output/ungrounded_variables_negations.eclair.tmp/program1.eclair@7:6-7:9
+     ╭──▶ TEST_DIR/program1.eclair@7:6-7:9
      │
    4 │ ╭┤ a(abc) :-
    5 │ │    abc = 123,
