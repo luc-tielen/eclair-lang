@@ -8,6 +8,10 @@
 @def fact(u32).
 @def fact2(u32) output.
 
+@def internal_rule(u32).
+internal_rule(x) :-
+  x = 1.
+
 //--- expected.out
 [error]: Dead internal relation
      ╭──▶ TEST_DIR/program.eclair@1:1-1:16
