@@ -51,9 +51,10 @@ emitKindParser =
   option (maybeReader readEmitKind) (long "emit" <> value EmitLLVM <> help desc)
   where
     readEmitKind opt = case L.lower opt of
-      "ast-simplified" -> Just EmitSimplifiedAST
+      "ast-transformed" -> Just EmitTransformedAST
       "ra" -> Just EmitRA
+      "ra-transformed" -> Just EmitTransformedRA
       "eir" -> Just EmitEIR
       "llvm" -> Just EmitLLVM
       _ -> Nothing
-    desc = "Emit a specific IR. Defaults to emitting LLVM IR. Supported options: 'ast-simplified', 'ra', 'eir', 'llvm'."
+    desc = "Emit a specific IR. Defaults to emitting LLVM IR. Supported options: 'ast-transformed, 'ra', 'ra-transformed', 'eir' and 'llvm'."

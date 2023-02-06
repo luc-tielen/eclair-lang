@@ -6,8 +6,9 @@ module Eclair.Common.Config
   ) where
 
 data EmitKind
-  = EmitSimplifiedAST
+  = EmitTransformedAST
   | EmitRA
+  | EmitTransformedRA
   | EmitEIR
   | EmitLLVM
   -- TODO: object file, WASM, ...

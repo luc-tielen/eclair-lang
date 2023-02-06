@@ -2,7 +2,7 @@
 // RUN: split-file %t/input.test %t
 
 //--- program1.eclair
-// RUN: %eclair compile --emit ra %t/program1.eclair 2> %t/program1.out
+// RUN: %eclair compile --emit ra-transformed %t/program1.eclair 2> %t/program1.out
 // RUN: diff -w %t/expected1.out %t/program1.out
 
 @def edge(u32, u32) input.

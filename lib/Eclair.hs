@@ -5,8 +5,9 @@ module Eclair
   , semanticAnalysis
   , typeCheck
   , emitDiagnostics
-  , emitSimplifiedAST
+  , emitTransformedAST
   , emitRA
+  , emitTransformedRA
   , emitEIR
   , emitLLVM
   , Parameters(..)
@@ -51,9 +52,11 @@ data Query a where
   Typecheck :: FilePath -> Query TS.TypeInfo
   EmitDiagnostics :: FilePath -> Query ()
   TransformAST :: FilePath -> Query (AST, StringMap)
-  EmitSimplifiedAST :: FilePath -> Query ()
+  EmitTransformedAST :: FilePath -> Query ()
   CompileRA :: FilePath -> Query RA
+  TransformRA :: FilePath -> Query RA
   EmitRA :: FilePath -> Query ()
+  EmitTransformedRA :: FilePath -> Query ()
   CompileEIR :: FilePath -> Query EIR
   EmitEIR :: FilePath -> Query ()
   CompileLLVM :: FilePath -> Query Module
@@ -71,9 +74,11 @@ queryFilePath = \case
   Typecheck path           -> path
   EmitDiagnostics path     -> path
   TransformAST path        -> path
-  EmitSimplifiedAST path   -> path
+  EmitTransformedAST path  -> path
   CompileRA path           -> path
+  TransformRA path         -> path
   EmitRA path              -> path
+  EmitTransformedRA path   -> path
   CompileEIR path          -> path
   EmitEIR path             -> path
   CompileLLVM path         -> path
@@ -89,16 +94,18 @@ queryEnum = \case
   Typecheck {}           -> 2
   EmitDiagnostics {}     -> 3
   TransformAST {}        -> 4
-  EmitSimplifiedAST {}   -> 5
+  EmitTransformedAST {}  -> 5
   CompileRA {}           -> 6
-  EmitRA {}              -> 7
-  CompileEIR {}          -> 8
-  EmitEIR {}             -> 9
-  CompileLLVM {}         -> 10
-  EmitLLVM {}            -> 11
-  StringMapping {}       -> 12
-  UsageMapping {}        -> 13
-  ExternDefinitions {}   -> 14
+  TransformRA {}         -> 7
+  EmitRA {}              -> 8
+  EmitTransformedRA {}   -> 9
+  CompileEIR {}          -> 10
+  EmitEIR {}             -> 11
+  CompileLLVM {}         -> 12
+  EmitLLVM {}            -> 13
+  StringMapping {}       -> 14
+  UsageMapping {}        -> 15
+  ExternDefinitions {}   -> 16
 
 deriveGEq ''Query
 
@@ -155,7 +162,7 @@ rules abortOnError params (Rock.Writer query) = case query of
     (ast, nodeId, _) <- Rock.fetch (Parse path)
     externDefs <- Rock.fetch (ExternDefinitions path)
     pure $ AST.simplify nodeId externDefs analysis ast
-  EmitSimplifiedAST path -> noError $ do
+  EmitTransformedAST path -> noError $ do
     (ast, _) <- Rock.fetch (TransformAST path)
     liftIO $ putTextLn $ printDoc ast
   StringMapping path -> noError $ do
@@ -170,14 +177,19 @@ rules abortOnError params (Rock.Writer query) = case query of
   CompileRA path -> noError $ do
     ast <- fst <$> Rock.fetch (TransformAST path)
     externDefs <- Rock.fetch (ExternDefinitions path)
-    -- TODO refactor emitting of AST / RA / EIR together with optimizations. Separate -O flag?
-    pure $ RA.simplify $ compileToRA externDefs ast
+    pure $ compileToRA externDefs ast
+  TransformRA path -> noError $ do
+    ra <- Rock.fetch (CompileRA path)
+    pure $ RA.simplify ra
   EmitRA path -> noError $ do
     ra <- Rock.fetch (CompileRA path)
     liftIO $ putTextLn $ printDoc ra
+  EmitTransformedRA path -> noError $ do
+    ra <- Rock.fetch (TransformRA path)
+    liftIO $ putTextLn $ printDoc ra
   CompileEIR path -> noError $ do
     stringMapping <- Rock.fetch (StringMapping path)
-    ra <- Rock.fetch (CompileRA path)
+    ra <- Rock.fetch (TransformRA path)
     typeInfo <- Rock.fetch (Typecheck path)
     pure $ compileToEIR stringMapping (TS.infoTypedefs typeInfo) ra
   EmitEIR path -> noError $ do
@@ -244,13 +256,17 @@ emitDiagnostics params = do
   where
     f = fromLeft mempty
 
-emitSimplifiedAST :: Parameters -> FilePath -> CompilerM ()
-emitSimplifiedAST params =
-  runQuery params . EmitSimplifiedAST
+emitTransformedAST :: Parameters -> FilePath -> CompilerM ()
+emitTransformedAST params =
+  runQuery params . EmitTransformedAST
 
 emitRA :: Parameters -> FilePath -> CompilerM ()
 emitRA params =
   runQuery params . EmitRA
+
+emitTransformedRA :: Parameters -> FilePath -> CompilerM ()
+emitTransformedRA params =
+  runQuery params . EmitTransformedRA
 
 emitEIR :: Parameters -> FilePath -> CompilerM ()
 emitEIR params =

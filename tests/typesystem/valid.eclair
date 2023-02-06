@@ -1,4 +1,4 @@
-// RUN: %eclair compile %s --emit ra | FileCheck %s
+// RUN: %eclair compile %s --emit ra-transformed | FileCheck %s
 // CHECK: project
 
 @def fact1(u32, string).

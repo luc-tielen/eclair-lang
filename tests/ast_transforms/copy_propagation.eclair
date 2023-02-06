@@ -1,5 +1,5 @@
 // RUN: split-file %s %t
-// RUN: %eclair compile --emit ast-simplified %t/program.eclair > %t/actual.out
+// RUN: %eclair compile --emit ast-transformed %t/program.eclair > %t/actual.out
 // RUN: diff %t/expected.out %t/actual.out
 
 //--- program.eclair

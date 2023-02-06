@@ -1,4 +1,4 @@
-// RUN: %eclair compile --emit ra %s | FileCheck %s
+// RUN: %eclair compile --emit ra-transformed %s | FileCheck %s
 // CHECK: project
 
 // u32
