@@ -1,0 +1,64 @@
+// RUN: split-file %s %t
+
+// RUN: %eclair compile %t/program.eclair > %t/program.ll
+// RUN: %clang -O0 -o %t/program %t/main.c %t/program.ll
+
+// RUN: %t/program | FileCheck %s
+
+// CHECK: 0 1 2
+// CHECK-NEXT: Edge, Reachable, edge
+
+//--- program.eclair
+
+@def Edge(u32, u32) input.
+@def Reachable(u32, u32) output.
+
+Reachable(x, y) :-
+    Edge(x, y).
+
+Reachable(x, y) :-
+    Edge(x, z),
+    Reachable(z, y).
+
+//--- main.c
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
+
+
+struct program;
+
+struct symbol {
+    uint32_t length;
+    const char* data;
+} __attribute__((packed));
+
+extern struct program* eclair_program_init();
+extern void eclair_program_destroy(struct program*);
+extern uint32_t eclair_encode_string(struct program*, uint32_t length, const char* str);
+extern struct symbol* eclair_decode_string(struct program*, uint32_t index);
+
+static const char* str1 = "Edge";
+static const char* str2 = "Reachable";
+static const char* str3 = "edge";
+
+int main(int argc, char** argv)
+{
+    struct program* prog = eclair_program_init();
+
+    uint32_t str_index1 = eclair_encode_string(prog, strlen(str1), str1);
+    uint32_t str_index2 = eclair_encode_string(prog, strlen(str2), str2);
+    uint32_t str_index3 = eclair_encode_string(prog, strlen(str3), str3);
+    printf("%d %d %d\n", str_index1, str_index2, str_index3);
+
+    struct symbol* symbol0 = eclair_decode_string(prog, 0);
+    struct symbol* symbol1 = eclair_decode_string(prog, 1);
+    struct symbol* symbol2 = eclair_decode_string(prog, str_index3);
+    printf("%s, %s, %s\n", symbol0->data, symbol1->data, symbol2->data);
+
+    eclair_program_destroy(prog);
+    return 0;
+}
