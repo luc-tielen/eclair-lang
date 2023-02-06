@@ -7,13 +7,14 @@
 
 // RUN: %t/program | FileCheck %s
 
-// NOTE: not 0 0 1, because fact is inserted at place 0
-// CHECK: 1 1 2
-// CHECK-NEXT: fact, some example text, some more text
+// NOTE: fact is inserted at place 0, Test at place 1!
+// CHECK: 2 2 3 1
+// CHECK-NEXT: fact, Test, some example text, some more text
 
 //--- program.eclair
 
 @def fact(u32) input output.
+@def Test(u32) input output.
 
 //--- main.c
 
@@ -21,6 +22,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <string.h>
 
 
 struct program;
@@ -37,6 +39,7 @@ extern struct symbol* eclair_decode_string(struct program*, uint32_t index);
 
 static const char* str1 = "some example text";
 static const char* str2 = "some more text";
+static const char* str3 = "Test";
 
 int main(int argc, char** argv)
 {
@@ -45,12 +48,14 @@ int main(int argc, char** argv)
     uint32_t str_index1 = eclair_encode_string(prog, strlen(str1), str1);
     uint32_t str_index2 = eclair_encode_string(prog, strlen(str1), str1);
     uint32_t str_index3 = eclair_encode_string(prog, strlen(str2), str2);
-    printf("%d %d %d\n", str_index1, str_index2, str_index3);
+    uint32_t str_index4 = eclair_encode_string(prog, strlen(str3), str3);
+    printf("%d %d %d %d\n", str_index1, str_index2, str_index3, str_index4);
 
     struct symbol* symbol0 = eclair_decode_string(prog, 0);
-    struct symbol* symbol1 = eclair_decode_string(prog, str_index1);
-    struct symbol* symbol2 = eclair_decode_string(prog, str_index3);
-    printf("%s, %s, %s\n", symbol0->data, symbol1->data, symbol2->data);
+    struct symbol* symbol1 = eclair_decode_string(prog, 1);
+    struct symbol* symbol2 = eclair_decode_string(prog, str_index1);
+    struct symbol* symbol3 = eclair_decode_string(prog, str_index3);
+    printf("%s, %s, %s, %s\n", symbol0->data, symbol1->data, symbol2->data, symbol3->data);
 
     eclair_program_destroy(prog);
     return 0;
