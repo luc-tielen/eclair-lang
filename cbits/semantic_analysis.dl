@@ -192,10 +192,13 @@ dead_code(rule_id) :-
   dead_code(rule_clause_id).
 
 has_definitions(r) :-
-  (module_declaration(_, atom_id), atom(atom_id, r));
-  depends_on(r, _).
+  module_declaration(_, node_id),
+  (
+    atom(node_id, r);
+    rule(node_id, r)
+  ).
 
-// An internal relation is dead if there are no top level atoms and it doesn't depend on anything.
+// We consider an internal relation to be dead if there are no top level atoms or rules.
 dead_internal_relation(decl_id, r) :-
   internal_relation(r),
   declare_type(decl_id, r),
