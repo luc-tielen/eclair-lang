@@ -2,7 +2,7 @@
 // RUN: split-file %t/input.test %t
 
 //--- program1.eclair
-// RUN: %eclair compile --emit ra %t/program1.eclair | FileCheck %t/program1.eclair
+// RUN: %eclair compile --emit ra-transformed %t/program1.eclair | FileCheck %t/program1.eclair
 // CHECK: project
 
 @def edge(u32, u32) input.
@@ -23,7 +23,7 @@ test_externs(x) :-
   func1(func1(x)) = y.
 
 //--- program2.eclair
-// RUN: %eclair compile --emit ra %t/program2.eclair 2> %t/program2.out
+// RUN: %eclair compile --emit ra-transformed %t/program2.eclair 2> %t/program2.out
 // RUN: diff -w %t/expected.out %t/program2.out
 
 @extern constraint2(string).

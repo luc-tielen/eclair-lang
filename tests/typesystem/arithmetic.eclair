@@ -2,7 +2,7 @@
 // RUN: split-file %t/input.test %t
 
 //--- program1.eclair
-// RUN: %eclair compile --emit ra %t/program1.eclair | FileCheck %t/program1.eclair
+// RUN: %eclair compile --emit ra-transformed %t/program1.eclair | FileCheck %t/program1.eclair
 // CHECK: project
 
 @def number(u32) input.
@@ -19,7 +19,7 @@ arithmetic(x) :-
   x = 123 + (456 * 789).
 
 //--- program2.eclair
-// RUN: %eclair compile --emit ra %t/program2.eclair 2> %t/program2.out
+// RUN: %eclair compile --emit ra-transformed %t/program2.eclair 2> %t/program2.out
 // RUN: diff -w %t/expected.out %t/program2.out
 
 @def number(u32) input.

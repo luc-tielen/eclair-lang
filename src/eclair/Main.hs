@@ -25,8 +25,9 @@ main = do
     Compile cfg -> do
       let file = mainFile cfg
           fn = case emitKind cfg of
-            EmitSimplifiedAST -> emitSimplifiedAST
+            EmitTransformedAST -> emitTransformedAST
             EmitRA -> emitRA
+            EmitTransformedRA -> emitTransformedRA
             EmitEIR -> emitEIR
             EmitLLVM -> emitLLVM
           params = Parameters (cpuTarget cfg) tryReadFile

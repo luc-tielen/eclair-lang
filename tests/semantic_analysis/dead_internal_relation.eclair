@@ -1,7 +1,7 @@
 // RUN: mkdir -p %t && sed s@TEST_DIR@%t@g %s > %t/input.test
 // RUN: split-file %t/input.test %t
 
-// RUN: %eclair compile %t/program.eclair --emit ra 2> %t/actual.out
+// RUN: %eclair compile %t/program.eclair --emit ra-transformed 2> %t/actual.out
 // RUN: diff %t/expected.out %t/actual.out
 
 //--- program.eclair

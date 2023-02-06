@@ -3,7 +3,7 @@
 
 // RUN: split-file %s %t
 
-// RUN: %eclair compile --emit ra %t/program.eclair > %t/actual_ra.out
+// RUN: %eclair compile --emit ra-transformed %t/program.eclair > %t/actual_ra.out
 // RUN: diff %t/expected_ra.out %t/actual_ra.out
 
 // RUN: %eclair compile --emit eir %t/program.eclair > %t/actual_eir.out
