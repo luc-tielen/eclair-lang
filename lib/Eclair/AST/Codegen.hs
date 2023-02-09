@@ -130,6 +130,8 @@ search r terms inner = do
           addDirectConstraint ast a col
         AST.BinOp {} ->
           addDirectConstraint ast a col
+        AST.PWildcard _ ->
+          pass
         AST.Var _ v ->
           -- We append new constraints at the end.
           -- This will cause indices to always trigger as soon as possible,
@@ -195,6 +197,8 @@ toTerm ast = do
   case ast of
     AST.Lit _ (LNumber lit) ->
       pure $ RA.Lit nodeId lit
+    AST.PWildcard _ ->
+      pure $ RA.Undef nodeId
     AST.Var _ v -> do
       gets (find (\(_, _, v') -> v == v') . varMapping) >>= \case
         Just (alias, col, _) -> do

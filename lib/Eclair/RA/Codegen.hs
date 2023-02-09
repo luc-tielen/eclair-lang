@@ -363,7 +363,7 @@ idxFromConstraints r a constraints = do
       r' = stripIdPrefixes r
   if null constraints
     then do
-      -- NOTE: no constraints so we pick the longest index
+      -- NOTE: no constraints so we pick the longest index (total search)
       let mIndex = do
             indices <- M.lookup r' indexMap
             viaNonEmpty head $ sortOn (negate . length . unIndex) $ toList indices

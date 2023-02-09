@@ -9,6 +9,7 @@ module Eclair.RA.IndexSelection
   , NormalizedEquality(..)
   , normalizedEqToConstraints
   , extractEqualities
+  , definedColumnsFor
   ) where
 
 -- Based on the paper "Automatic Index Selection for Large-Scale Datalog Computation"
@@ -98,7 +99,8 @@ searchesForProgram defInfo ra =
           addFact $ SearchOn r signature
         action
       NotElemF _ r cols -> do
-        let cs = columnsFor cols
+        let values = map tFst cols
+            cs = definedColumnsFor values
             signature = SearchSignature $ Set.fromList cs
         addFact $ SearchOn r signature
       MergeF _ from' _ -> do
@@ -137,11 +139,14 @@ data NormalizedEquality
 
 extractEqualities :: RAF (RA, [NormalizedEquality]) -> [NormalizedEquality]
 extractEqualities = \case
-  CompareOpF _ Equals (lhs, _) (rhs, _) ->
+  CompareOpF _ Equals (lhs, _) (rhs, _) | isDefined lhs && isDefined rhs ->
     toEqualities lhs rhs
   raf ->
     foldMap snd raf
   where
+    isDefined = \case
+      Undef {} -> False
+      _ -> True
     toEqualities lhs rhs = case (lhs, rhs) of
       (ColumnIndex _ lA lCol, ColumnIndex _ rA rCol) ->
         [ NormalizedEquality lA lCol rhs
@@ -233,3 +238,11 @@ indexForChain chain = Index $ foldMap Set.toList columns
 
 columnsFor :: [a] -> [Int]
 columnsFor = zipWith const [0..]
+
+definedColumnsFor :: [RA] -> [Int]
+definedColumnsFor values =
+  catMaybes $ zipWith f [0..] values
+  where
+    f c = \case
+      Undef {} -> Nothing
+      _ -> Just c

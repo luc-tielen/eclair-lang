@@ -48,6 +48,7 @@
 .decl wildcard_in_rule_head(rule_node_id: unsigned, rule_arg_id: unsigned, pos: unsigned)
 .decl wildcard_in_constraint(constraint_node_id: unsigned, wildcard_node_id: unsigned)
 .decl wildcard_in_binop(binop_node_id: unsigned, wildcard_node_id: unsigned)
+.decl unconstrained_rule_var(rule_node_id: unsigned, var_node_id: unsigned, var_name: symbol)
 .decl rule_with_contradiction(rule_id: unsigned)
 .decl dead_code(node_id: unsigned)
 .decl no_output_relation(node_id: unsigned)
@@ -84,6 +85,7 @@
 .output wildcard_in_rule_head
 .output wildcard_in_constraint
 .output wildcard_in_binop
+.output unconstrained_rule_var
 .output dead_code
 .output no_output_relation
 .output dead_internal_relation
@@ -359,14 +361,21 @@ wildcard_in_binop(binop_node_id, rhs_node_id) :-
   binop(binop_node_id, _, _, rhs_node_id),
   wildcard(rhs_node_id).
 
+unconstrained_rule_var(rule_id, var_id, var_name) :-
+  rule(rule_id, _),
+  scoped_value(rule_id, var_id),
+  variable(var_id, var_name),
+  !alias(rule_id, var_id, _).
+
 assign(node_id, lhs_node_id, rhs_node_id) :-
   constraint(node_id, "=", lhs_node_id, rhs_node_id).
 
 // All variables with the same name in a rule are aliases of each other.
 alias(rule_id, var_id1, var_id2) :-
   scoped_value(rule_id, var_id1),
-  scoped_value(rule_id, var_id2),
   variable(var_id1, var_name),
+  scoped_value(rule_id, var_id2),
+  var_id1 != var_id2,
   variable(var_id2, var_name).
 
 // Two values are aliases if they are used inside an equality.
