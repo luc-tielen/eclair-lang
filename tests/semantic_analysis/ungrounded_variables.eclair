@@ -5,7 +5,7 @@
 // RUN: split-file %t/input.test %t
 
 // RUN: %eclair compile %t/program.eclair 2> %t/top_level_facts_actual.out
-// RUN: diff  %t/top_level_facts_expected.out %t/top_level_facts_actual.out
+// RUN: diff %t/top_level_facts_expected.out %t/top_level_facts_actual.out
 
 //--- program.eclair
 @def edge(u32, u32) output.
@@ -134,6 +134,90 @@ reachable(a, b) :-
      •
      │ Hint: Use the variable 'b' as an argument in a relation.
 ─────╯
+
+[error]: Found unconstrained variable
+     ╭──▶ TEST_DIR/program2.eclair@8:14-8:15
+     │
+   8 │ ╭┤ reachable(x, z) :-
+     • │               ┬
+     • │               ╰╸ The variable 'z' only occurs once.
+   9 │ ├┤   edge(x, y).
+     • │
+     • ╰╸ This rule contains no other references to 'z'.
+     •
+     │ Hint: Replace the variable with a wildcard ('_').
+     │ Hint: Use the variable in another rule clause.
+─────╯
+
+[error]: Found unconstrained variable
+     ╭──▶ TEST_DIR/program2.eclair@9:11-9:12
+     │
+   8 │ ╭┤ reachable(x, z) :-
+   9 │ ├┤   edge(x, y).
+     • │            ┬
+     • │            ╰╸ The variable 'y' only occurs once.
+     • │
+     • ╰╸ This rule contains no other references to 'y'.
+     •
+     │ Hint: Replace the variable with a wildcard ('_').
+     │ Hint: Use the variable in another rule clause.
+─────╯
+
+[error]: Found unconstrained variable
+     ╭──▶ TEST_DIR/program2.eclair@11:11-11:12
+     │
+  11 │ ╭┤ reachable(a, b) :-
+     • │            ┬
+     • │            ╰╸ The variable 'a' only occurs once.
+  12 │ ├┤   edge(x, y).
+     • │
+     • ╰╸ This rule contains no other references to 'a'.
+     •
+     │ Hint: Replace the variable with a wildcard ('_').
+     │ Hint: Use the variable in another rule clause.
+─────╯
+
+[error]: Found unconstrained variable
+     ╭──▶ TEST_DIR/program2.eclair@11:14-11:15
+     │
+  11 │ ╭┤ reachable(a, b) :-
+     • │               ┬
+     • │               ╰╸ The variable 'b' only occurs once.
+  12 │ ├┤   edge(x, y).
+     • │
+     • ╰╸ This rule contains no other references to 'b'.
+     •
+     │ Hint: Replace the variable with a wildcard ('_').
+     │ Hint: Use the variable in another rule clause.
+─────╯
+
+[error]: Found unconstrained variable
+     ╭──▶ TEST_DIR/program2.eclair@12:8-12:9
+     │
+  11 │ ╭┤ reachable(a, b) :-
+  12 │ ├┤   edge(x, y).
+     • │         ┬
+     • │         ╰╸ The variable 'x' only occurs once.
+     • │
+     • ╰╸ This rule contains no other references to 'x'.
+     •
+     │ Hint: Replace the variable with a wildcard ('_').
+     │ Hint: Use the variable in another rule clause.
+─────╯
+
+[error]: Found unconstrained variable
+     ╭──▶ TEST_DIR/program2.eclair@12:11-12:12
+     │
+  11 │ ╭┤ reachable(a, b) :-
+  12 │ ├┤   edge(x, y).
+     • │            ┬
+     • │            ╰╸ The variable 'y' only occurs once.
+     • │
+     • ╰╸ This rule contains no other references to 'y'.
+     •
+     │ Hint: Replace the variable with a wildcard ('_').
+     │ Hint: Use the variable in another rule clause.
+─────╯
 //--- program3.eclair
 
 // RUN: %eclair compile %t/program3.eclair 2> %t/ungrounded_var_check_in_rule_body_actual.out
@@ -148,3 +232,34 @@ reachable(x, z) :-
   edge(a, b).
 
 //--- ungrounded_var_check_in_rule_body_expected.out
+[error]: Found unconstrained variable
+     ╭──▶ TEST_DIR/program3.eclair@11:8-11:9
+     │
+   8 │ ╭┤ reachable(x, z) :-
+   9 │ │    edge(x, y),
+  10 │ │    reachable(y, z),
+  11 │ ├┤   edge(a, b).
+     • │         ┬
+     • │         ╰╸ The variable 'a' only occurs once.
+     • │
+     • ╰╸ This rule contains no other references to 'a'.
+     •
+     │ Hint: Replace the variable with a wildcard ('_').
+     │ Hint: Use the variable in another rule clause.
+─────╯
+
+[error]: Found unconstrained variable
+     ╭──▶ TEST_DIR/program3.eclair@11:11-11:12
+     │
+   8 │ ╭┤ reachable(x, z) :-
+   9 │ │    edge(x, y),
+  10 │ │    reachable(y, z),
+  11 │ ├┤   edge(a, b).
+     • │            ┬
+     • │            ╰╸ The variable 'b' only occurs once.
+     • │
+     • ╰╸ This rule contains no other references to 'b'.
+     •
+     │ Hint: Replace the variable with a wildcard ('_').
+     │ Hint: Use the variable in another rule clause.
+─────╯

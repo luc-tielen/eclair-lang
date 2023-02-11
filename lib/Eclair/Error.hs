@@ -265,6 +265,18 @@ wildcardInExternToReport e@(WildcardInExtern atomLoc _ _) =
               ]
     hints = [Hint "Replace the wildcard with a constant or grounded variable."]
 
+unconstrainedVarToReport :: UnconstrainedRuleVar Position -> Report Text
+unconstrainedVarToReport e@(UnconstrainedRuleVar ruleLoc _ varName) =
+  Err Nothing title markers hints
+  where
+    title = "Found unconstrained variable"
+    markers = [ (mainErrorPosition e, This $ "The variable '" <> unId varName <> "' only occurs once.")
+              , (ruleLoc, Where $ "This rule contains no other references to '" <> unId varName <> "'.")
+              ]
+    hints = [ Hint "Replace the variable with a wildcard ('_')."
+            , Hint "Use the variable in another rule clause."
+            ]
+
 wildcardInRuleHeadToReport :: WildcardInRuleHead Position -> Report Text
 wildcardInRuleHeadToReport e@(WildcardInRuleHead srcLocRule _ _pos) =
   let title = "Wildcard in 'head' of rule"
@@ -363,13 +375,14 @@ cyclicNegationToReport e =
 -- NOTE: pattern match is done this way to keep track of additional errors that need to be reported
 {-# ANN semanticErrorsToReportsWithLocations ("HLint: ignore Use record patterns" :: String) #-}
 semanticErrorsToReportsWithLocations :: SemanticErrors Position -> [(Report Text, Location)]
-semanticErrorsToReportsWithLocations e@(SemanticErrors _ _ _ _ _ _ _ _ _ _ _ _) =
+semanticErrorsToReportsWithLocations e@(SemanticErrors _ _ _ _ _ _ _ _ _ _ _ _ _) =
   concat [ ungroundedVarReports
          , wildcardInFactReports
          , wildcardInRuleHeadReports
          , wildcardInConstraintReports
          , wildcardInBinOpReports
          , wildcardInExternReports
+         , unconstrainedVarReports
          , deadInternalRelationReports
          , noOutputReports
          , conflictingDefinitionReports
@@ -391,6 +404,7 @@ semanticErrorsToReportsWithLocations e@(SemanticErrors _ _ _ _ _ _ _ _ _ _ _ _) 
     wildcardInConstraintReports = getReportsWithLocationsFor wildcardsInConstraints wildcardInConstraintToReport
     wildcardInBinOpReports = getReportsWithLocationsFor wildcardsInBinOps wildcardInBinOpToReport
     wildcardInExternReports = getReportsWithLocationsFor wildcardsInExternAtoms wildcardInExternToReport
+    unconstrainedVarReports = getReportsWithLocationsFor unconstrainedVars unconstrainedVarToReport
     deadInternalRelationReports = getReportsWithLocationsFor deadInternalRelations deadInternalRelationToReport
     noOutputReports = getReportsWithLocationsFor noOutputRelations noOutputRelationsToReport
     conflictingDefinitionReports = getReportsWithLocationsFor conflictingDefinitions conflictingDefinitionsToReport
@@ -439,6 +453,8 @@ instance HasMainErrorPosition (WildcardInFact Position) where
   mainErrorPosition (WildcardInFact _ factArgPos _) = factArgPos
 instance HasMainErrorPosition (WildcardInExtern Position) where
   mainErrorPosition (WildcardInExtern _ externArgPos _) = externArgPos
+instance HasMainErrorPosition (UnconstrainedRuleVar Position) where
+  mainErrorPosition (UnconstrainedRuleVar _ varPos _) = varPos
 instance HasMainErrorPosition (UngroundedVar Position) where
   mainErrorPosition (UngroundedVar _ varPos _) = varPos
 instance HasMainErrorPosition (WildcardInRuleHead Position) where

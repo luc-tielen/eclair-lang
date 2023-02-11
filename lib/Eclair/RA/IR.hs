@@ -44,6 +44,7 @@ data RA
   | Exit NodeId [Relation]
   | Module NodeId [RA]
   | Lit NodeId Word32
+  | Undef NodeId
   | ColumnIndex NodeId Relation ColumnIndex
   | CompareOp NodeId LogicalOp RA RA
   | PrimOp NodeId Op [RA]
@@ -90,6 +91,7 @@ instance Pretty RA where
     Module _ stmts ->
       vsep $ map pretty stmts
     Lit _ x -> pretty x
+    Undef _ -> "undefined"
     ColumnIndex _ r idx -> pretty r <> brackets (pretty idx)
     CompareOp _ op lhs rhs -> pretty lhs <+> pretty op <+> pretty rhs
     PrimOp _ op args ->

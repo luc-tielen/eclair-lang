@@ -9,7 +9,6 @@ import Eclair.Transform
 import qualified Eclair.AST.Transforms.ConstantFolding as ConstantFolding
 import qualified Eclair.AST.Transforms.RemoveAliases as RemoveAliases
 import qualified Eclair.AST.Transforms.DeadCodeElimination as DCE
-import qualified Eclair.AST.Transforms.RemoveWildcards as RmWildcards
 import qualified Eclair.AST.Transforms.ReplaceStrings as ReplaceStrings
 import qualified Eclair.AST.Transforms.NormalizeRules as NormalizeRules
 import Eclair.Common.Extern
@@ -27,7 +26,6 @@ simplify nodeId externs analysis =
   runTransform nodeId
     -- Transforms before optimizations:
       $ ConstantFolding.transform
-    >>> RmWildcards.transform
 
     -- Optimizations that run until fixpoint is reached:
     >>> RemoveAliases.transform externs

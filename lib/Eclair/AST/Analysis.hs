@@ -12,6 +12,7 @@ module Eclair.AST.Analysis
   , WildcardInConstraint(..)
   , WildcardInBinOp(..)
   , WildcardInExtern(..)
+  , UnconstrainedRuleVar(..)
   , DeadCode(..)
   , DeadInternalRelation(..)
   , NoOutputRelation(..)
@@ -231,6 +232,16 @@ data WildcardInExtern loc
   deriving anyclass S.Marshal
   deriving S.Fact via S.FactOptions (WildcardInExtern loc) "wildcard_in_extern" 'S.Output
 
+data UnconstrainedRuleVar loc
+  = UnconstrainedRuleVar
+  { urvRuleLoc :: loc
+  , urvVarLoc :: loc
+  , urvVarName :: Id
+  }
+  deriving stock (Generic, Eq, Functor)
+  deriving anyclass S.Marshal
+  deriving S.Fact via S.FactOptions (UnconstrainedRuleVar loc) "unconstrained_rule_var" 'S.Output
+
 newtype DeadCode
   = DeadCode { unDeadCode :: NodeId }
   deriving stock (Generic, Eq)
@@ -321,6 +332,7 @@ data SemanticAnalysis
        , WildcardInConstraint NodeId
        , WildcardInBinOp NodeId
        , WildcardInExtern NodeId
+       , UnconstrainedRuleVar NodeId
        , DeadCode
        , NoOutputRelation NodeId
        , DeadInternalRelation NodeId
@@ -353,6 +365,7 @@ data SemanticErrors loc
   , wildcardsInConstraints :: Container (WildcardInConstraint loc)
   , wildcardsInBinOps :: Container (WildcardInBinOp loc)
   , wildcardsInExternAtoms :: Container (WildcardInExtern loc)
+  , unconstrainedVars :: Container (UnconstrainedRuleVar loc)
   , deadInternalRelations :: Container (DeadInternalRelation loc)
   , noOutputRelations :: Container (NoOutputRelation loc)
   , conflictingDefinitions :: Container (ConflictingDefinitionGroup loc)
@@ -370,6 +383,7 @@ hasSemanticErrors result =
   isNotNull wildcardsInConstraints ||
   isNotNull wildcardsInBinOps ||
   isNotNull wildcardsInExternAtoms ||
+  isNotNull unconstrainedVars ||
   isNotNull deadInternalRelations ||
   isNotNull noOutputRelations ||
   isNotNull conflictingDefinitions ||
@@ -481,6 +495,7 @@ analysis prog = S.mkAnalysis addFacts run getFacts
     getFacts = do
       info <- SemanticInfo <$> S.getFacts prog
       errs <- SemanticErrors <$> S.getFacts prog
+                             <*> S.getFacts prog
                              <*> S.getFacts prog
                              <*> S.getFacts prog
                              <*> S.getFacts prog

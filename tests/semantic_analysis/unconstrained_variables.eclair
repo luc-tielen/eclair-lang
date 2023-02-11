@@ -1,0 +1,55 @@
+// RUN: mkdir -p %t && sed s@TEST_DIR@%t@g %s > %t/input.test
+// RUN: split-file %t/input.test %t
+
+// RUN: %eclair compile %t/program.eclair 2> %t/actual.out
+// RUN: diff -w %t/expected.out %t/actual.out
+
+//--- program.eclair
+@def fact1(u32, u32) output.
+@def fact2(u32) output.
+
+fact2(x) :- fact1(x, 1).
+
+fact2(2) :-
+  fact1(x, 2),
+  !fact1(2, x).
+
+fact2(3) :-
+  fact1(x, 3),
+  fact1(3, x).
+
+fact2(4) :-
+  fact1(x, 4),
+  x = 4.
+
+fact2(2) :-
+  fact1(x, y).
+
+//--- expected.out
+[error]: Found unconstrained variable
+     ╭──▶ TEST_DIR/program.eclair@19:9-19:10
+     │
+  18 │ ╭┤ fact2(2) :-
+  19 │ ├┤   fact1(x, y).
+     • │          ┬
+     • │          ╰╸ The variable 'x' only occurs once.
+     • │
+     • ╰╸ This rule contains no other references to 'x'.
+     •
+     │ Hint: Replace the variable with a wildcard ('_').
+     │ Hint: Use the variable in another rule clause.
+─────╯
+
+[error]: Found unconstrained variable
+     ╭──▶ TEST_DIR/program.eclair@19:12-19:13
+     │
+  18 │ ╭┤ fact2(2) :-
+  19 │ ├┤   fact1(x, y).
+     • │             ┬
+     • │             ╰╸ The variable 'y' only occurs once.
+     • │
+     • ╰╸ This rule contains no other references to 'y'.
+     •
+     │ Hint: Replace the variable with a wildcard ('_').
+     │ Hint: Use the variable in another rule clause.
+─────╯

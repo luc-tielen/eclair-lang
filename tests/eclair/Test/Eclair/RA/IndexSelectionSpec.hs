@@ -328,3 +328,42 @@ spec = describe "Index selection" $ parallel $ do
                   , ("third",  [[0,1]])
                   ]
 
+  it "creates indexes for negations with wildcards correctly" $ do
+    idxSel "multiple_rule_clauses" [text|
+      @def first(u32).
+      @def second(u32, u32).
+      @def third(u32, u32).
+
+      first(1).
+      second(2, 3).
+
+      third(x, x) :-
+        first(x),
+        !second(_, x).
+      |] `shouldBe`
+      toSelection [ ("first",  [[0]])
+                  , ("second", [[1,0]])
+                  , ("third",  [[0,1]])
+                  ]
+    idxSel "multiple_rule_clauses" [text|
+      @def first(u32).
+      @def second(u32, u32).
+      @def third(u32, u32).
+      @def fourth(u32).
+
+      first(1).
+      second(2, 3).
+
+      third(x, x) :-
+        first(x),
+        !second(_, x).
+
+      fourth(x) :-
+        first(x),
+        !second(x, _).
+      |] `shouldBe`
+      toSelection [ ("first",  [[0]])
+                  , ("second", [[0,1], [1]])
+                  , ("third",  [[0,1]])
+                  , ("fourth", [[0]])
+                  ]

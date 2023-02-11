@@ -1,6 +1,6 @@
 cabal-version: 2.2
 
--- This file has been generated from package.yaml by hpack version 0.35.0.
+-- This file has been generated from package.yaml by hpack version 0.35.1.
 --
 -- see: https://github.com/sol/hpack
 
@@ -40,7 +40,6 @@ library
       Eclair.AST.Transforms.DeadCodeElimination
       Eclair.AST.Transforms.NormalizeRules
       Eclair.AST.Transforms.RemoveAliases
-      Eclair.AST.Transforms.RemoveWildcards
       Eclair.AST.Transforms.ReplaceStrings
       Eclair.Common.Config
       Eclair.Common.Extern

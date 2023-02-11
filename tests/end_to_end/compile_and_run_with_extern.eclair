@@ -19,7 +19,7 @@
 test_externs(func(123)).
 
 test_externs(x) :-
-  edge(x, y),
+  edge(x, _),
   x = func(456).
 
 //--- main.c

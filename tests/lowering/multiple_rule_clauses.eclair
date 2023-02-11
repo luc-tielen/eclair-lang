@@ -75,8 +75,8 @@ export fn eclair_program_run(*Program) -> Void
   value_1.0 = 1
   first.insert(FN_ARG[0].1, value_1)
   lower_bound_value = first.stack_allocate Value
-  lower_bound_value.0 = 0
   upper_bound_value = first.stack_allocate Value
+  lower_bound_value.0 = 0
   upper_bound_value.0 = 4294967295
   begin_iter = first.stack_allocate Iter
   end_iter = first.stack_allocate Iter
@@ -91,9 +91,9 @@ export fn eclair_program_run(*Program) -> Void
     }
     current = first.iter_current(begin_iter)
     lower_bound_value_1 = second.stack_allocate Value
+    upper_bound_value_1 = second.stack_allocate Value
     lower_bound_value_1.0 = 0
     lower_bound_value_1.1 = current.0
-    upper_bound_value_1 = second.stack_allocate Value
     upper_bound_value_1.0 = 4294967295
     upper_bound_value_1.1 = current.0
     begin_iter_1 = second.stack_allocate Iter
@@ -191,9 +191,9 @@ start:
   %5 = getelementptr %program, %program* %arg_0, i32 0, i32 1
   %6 = call ccc i1 @btree_insert_value_0(%btree_t_0* %5, [1 x i32]* %value_1_0)
   %lower_bound_value_0 = alloca [1 x i32], i32 1
+  %upper_bound_value_0 = alloca [1 x i32], i32 1
   %7 = getelementptr [1 x i32], [1 x i32]* %lower_bound_value_0, i32 0, i32 0
   store i32 0, i32* %7
-  %upper_bound_value_0 = alloca [1 x i32], i32 1
   %8 = getelementptr [1 x i32], [1 x i32]* %upper_bound_value_0, i32 0, i32 0
   store i32 4294967295, i32* %8
   %begin_iter_0 = alloca %btree_iterator_t_0, i32 1
@@ -211,13 +211,13 @@ if_0:
 end_if_0:
   %current_0 = call ccc [1 x i32]* @btree_iterator_current_0(%btree_iterator_t_0* %begin_iter_0)
   %lower_bound_value_1_0 = alloca [2 x i32], i32 1
+  %upper_bound_value_1_0 = alloca [2 x i32], i32 1
   %11 = getelementptr [2 x i32], [2 x i32]* %lower_bound_value_1_0, i32 0, i32 0
   store i32 0, i32* %11
   %12 = getelementptr [2 x i32], [2 x i32]* %lower_bound_value_1_0, i32 0, i32 1
   %13 = getelementptr [1 x i32], [1 x i32]* %current_0, i32 0, i32 0
   %14 = load i32, i32* %13
   store i32 %14, i32* %12
-  %upper_bound_value_1_0 = alloca [2 x i32], i32 1
   %15 = getelementptr [2 x i32], [2 x i32]* %upper_bound_value_1_0, i32 0, i32 0
   store i32 4294967295, i32* %15
   %16 = getelementptr [2 x i32], [2 x i32]* %upper_bound_value_1_0, i32 0, i32 1

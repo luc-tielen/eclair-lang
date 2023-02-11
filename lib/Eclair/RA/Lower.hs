@@ -92,10 +92,9 @@ generateProgramInstructions = gcata (distribute extractEqualities) $ \case
           _ -> False
         queryClauses = map extract $ filter ((not . isConstrain) . tFst) clauses
         query = List.foldl1' and' queryClauses
-    (initLBValue, initUBValue, lbValue, ubValue) <- initValue r idx alias eqsInSearch
+    (initBoundValues, lbValue, ubValue) <- initValue r idx alias eqsInSearch
     block
-      [ initLBValue
-      , initUBValue
+      [ initBoundValues
       , rangeQuery r idx relationPtr lbValue ubValue $ \iter -> do
           current <- var "current"
           block
@@ -186,15 +185,52 @@ generateProgramInstructions = gcata (distribute extractEqualities) $ \case
             isEmpty = call r idx EIR.IsEmpty [relationPtr]
         if' isEmpty inner
   RA.LitF _ x -> lit x
-  RA.NotElemF _ r (map extract -> columnValues) -> do
-    value <- var "value"
-    let idx = mkFindIndex columnValues
-        relationPtr = lookupRelationByIndex r idx
-        allocValue = assign value $ stackAlloc r idx EIR.Value
-    containsVar <- var "contains_result"
-    let assignActions = zipWith (assign . fieldAccess value) [0..] columnValues
-        containsAction = assign containsVar $ call r idx EIR.Contains [relationPtr, value]
-    block $ allocValue : assignActions <> [containsAction, not' containsVar]
+  RA.NotElemF _ r values -> do
+    if containsUndefined $ map tFst values
+      then existenceCheckPartialSearch
+      else existenceCheckTotalSearch
+    where
+      containsUndefined = isJust . find (\case
+        RA.Undef {} -> True
+        _ -> False)
+      existenceCheckPartialSearch = do
+        getIndexForSearch <- idxSelector <$> getLowerState
+        lbValue <- var "lower_bound_value"
+        ubValue <- var "upper_bound_value"
+        beginIter <- var "begin_iter"
+        endIter <- var "end_iter"
+        isEmpty <- var "is_empty"
+        let values' = map tFst values
+            cs = definedColumnsFor values'
+            signature = SearchSignature $ Set.fromList cs
+            idx = getIndexForSearch r signature
+            lbValueWithCols = zipWith (curry $ second $ lowerConstrainValue (lit 0x00000000)) [0..] values'
+            ubValueWithCols = zipWith (curry $ second $ lowerConstrainValue (lit 0xffffffff)) [0..] values'
+            lbAssignStmts = block $ map (\(i, val) -> assign (fieldAccess lbValue i) val) lbValueWithCols
+            ubAssignStmts = block $ map (\(i, val) -> assign (fieldAccess ubValue i) val) ubValueWithCols
+            relationPtr = lookupRelationByIndex r idx
+        block
+          [ assign lbValue $ stackAlloc r idx EIR.Value
+          , lbAssignStmts
+          , assign ubValue $ stackAlloc r idx EIR.Value
+          , ubAssignStmts
+          , assign beginIter $ stackAlloc r idx EIR.Iter
+          , assign endIter $ stackAlloc r idx EIR.Iter
+          , call r idx EIR.IterLowerBound [relationPtr, lbValue, beginIter]
+          , call r idx EIR.IterUpperBound [relationPtr, ubValue, endIter]
+          , assign isEmpty $ call r idx EIR.IterIsEqual [beginIter, endIter]
+          , not' isEmpty
+          ]
+      existenceCheckTotalSearch = do
+        let columnValues = map extract values
+        value <- var "value"
+        let idx = mkFindIndex columnValues
+            relationPtr = lookupRelationByIndex r idx
+            allocValue = assign value $ stackAlloc r idx EIR.Value
+        containsVar <- var "contains_result"
+        let assignActions = zipWith (assign . fieldAccess value) [0..] columnValues
+            containsAction = assign containsVar $ call r idx EIR.Contains [relationPtr, value]
+        block $ allocValue : assignActions <> [containsAction, not' containsVar]
   RA.ColumnIndexF _ a' col -> ask >>= \case
     Search a value _ ->
       if a == a'
@@ -208,6 +244,8 @@ generateProgramInstructions = gcata (distribute extractEqualities) $ \case
     where
       getColumn value =
         fieldAccess (pure value)
+  RA.UndefF {} ->
+    panic "Undef should not occur when lowering to EIR!"
   where
     distribute :: Corecursive t
                => (Base t (t, a) -> a)
@@ -241,7 +279,7 @@ rangeQuery r idx relationPtr lbValue ubValue loopAction = do
 
 -- NOTE: only supports unsigned integers for now!
 initValue :: Relation -> Index -> RA.Alias -> [NormalizedEquality]
-          -> CodegenM (CodegenM EIR, CodegenM EIR, CodegenM EIR, CodegenM EIR)
+          -> CodegenM (CodegenM EIR, CodegenM EIR, CodegenM EIR)
 initValue r idx a eqs = do
   let r' = stripIdPrefixes r
   typeInfo <- fromJust . Map.lookup r' . typeEnv <$> getLowerState
@@ -251,31 +289,34 @@ initValue r idx a eqs = do
       lbAllocValue = assign lbValue $ stackAlloc r idx EIR.Value
       ubAllocValue = assign ubValue $ stackAlloc r idx EIR.Value
       -- TODO stack allocate all values so they are not computed twice?
-      lbValuesWithCols = [(nr, x) | nr <- columnNrs, let x = if isConstrained nr
-                                                              then constrain nr
-                                                              else lit 0x00000000]
-      ubValuesWithCols = [(nr, x) | nr <- columnNrs, let x = if isConstrained nr
-                                                              then constrain nr
-                                                              else lit 0xffffffff]
+      lbValuesWithCols = [(nr, x) | nr <- columnNrs, let x = constrain (lit 0x00000000) nr]
+      ubValuesWithCols = [(nr, x) | nr <- columnNrs, let x = constrain (lit 0xffffffff) nr]
       lbAssignStmts = map (\(i, val) -> assign (fieldAccess lbValue i) val) lbValuesWithCols
       ubAssignStmts = map (\(i, val) -> assign (fieldAccess ubValue i) val) ubValuesWithCols
-  pure (block $ lbAllocValue : lbAssignStmts, block $ ubAllocValue : ubAssignStmts, lbValue, ubValue)
+  pure (block $ lbAllocValue : ubAllocValue : lbAssignStmts <> ubAssignStmts, lbValue, ubValue)
   where
-    isConstrained col =
-      any (\(NormalizedEquality a' col' _) -> a == a' && col == col' ) eqs
-    constrain col =
-      let NormalizedEquality _ _ ra = fromJust $ find (\(NormalizedEquality a' col' _) -> a == a' && col == col') eqs
-       in lowerConstrainValue ra
-    lowerConstrainValue = \case
-      RA.Lit _ x ->
-        lit x
-      RA.ColumnIndex _ a' col' ->
-        fieldAccess (lookupAlias a') col'
-      RA.PrimOp _ (RA.BuiltinOp op) [lhs, rhs] ->
-        mkArithOp op (lowerConstrainValue lhs) (lowerConstrainValue rhs)
-      RA.PrimOp _ (RA.ExternOp opName) args ->
-        mkExternOp opName $ map lowerConstrainValue args
-      _ -> panic "Unsupported initial value while lowering to RA"
+    constrain bound col =
+      case find (\(NormalizedEquality a' col' _) -> a == a' && col == col') eqs of
+        Nothing ->
+          bound
+        Just (NormalizedEquality _ _ ra) ->
+          lowerConstrainValue bound ra
+      -- let NormalizedEquality _ _ ra = fromJust $ find (\(NormalizedEquality a' col' _) -> a == a' && col == col') eqs
+      --  in lowerConstrainValue bound ra
+
+lowerConstrainValue :: CodegenM EIR -> RA -> CodegenM EIR
+lowerConstrainValue bound = \case
+  RA.Lit _ x ->
+    lit x
+  RA.Undef _ ->
+    bound
+  RA.ColumnIndex _ a' col' ->
+    fieldAccess (lookupAlias a') col'
+  RA.PrimOp _ (RA.BuiltinOp op) [lhs, rhs] ->
+    mkArithOp op (lowerConstrainValue bound lhs) (lowerConstrainValue bound rhs)
+  RA.PrimOp _ (RA.ExternOp opName) args ->
+    mkExternOp opName $ map (lowerConstrainValue bound) args
+  _ -> panic "Unsupported initial value while lowering to RA"
 
 forEachRelation :: CodegenM EIR -> (ContainerInfo -> CodegenM EIR -> CodegenM EIR) -> CodegenM [CodegenM EIR]
 forEachRelation program f = do
@@ -317,7 +358,7 @@ getContainerInfos indexMap typedefInfo = containerInfos'
     storesList = Map.foldMapWithKey combinations indexMap
     containerInfos' = map (uncurry toContainerInfo) storesList
 
--- Open question: is this index always applicable for find/not elem query?
+-- NOTE: only use this index for a total search (all columns constrained)
 mkFindIndex :: [a] -> Index
 mkFindIndex =
   Index . zipWith const [0..]
