@@ -88,9 +88,9 @@ export fn eclair_program_run(*Program) -> Void
   {
     new_path.purge(FN_ARG[0].3)
     lower_bound_value = edge.stack_allocate Value
+    upper_bound_value = edge.stack_allocate Value
     lower_bound_value.0 = 0
     lower_bound_value.1 = 0
-    upper_bound_value = edge.stack_allocate Value
     upper_bound_value.0 = 4294967295
     upper_bound_value.1 = 4294967295
     begin_iter_1 = edge.stack_allocate Iter
@@ -106,9 +106,9 @@ export fn eclair_program_run(*Program) -> Void
       }
       current = edge.iter_current(begin_iter_1)
       lower_bound_value_1 = path.stack_allocate Value
+      upper_bound_value_1 = path.stack_allocate Value
       lower_bound_value_1.0 = current.1
       lower_bound_value_1.1 = 0
-      upper_bound_value_1 = path.stack_allocate Value
       upper_bound_value_1.0 = current.1
       upper_bound_value_1.1 = 4294967295
       begin_iter_2 = path.stack_allocate Iter
@@ -230,11 +230,11 @@ loop_0:
   %7 = getelementptr %program, %program* %arg_0, i32 0, i32 3
   call ccc void @btree_clear_0(%btree_t_0* %7)
   %lower_bound_value_0 = alloca [2 x i32], i32 1
+  %upper_bound_value_0 = alloca [2 x i32], i32 1
   %8 = getelementptr [2 x i32], [2 x i32]* %lower_bound_value_0, i32 0, i32 0
   store i32 0, i32* %8
   %9 = getelementptr [2 x i32], [2 x i32]* %lower_bound_value_0, i32 0, i32 1
   store i32 0, i32* %9
-  %upper_bound_value_0 = alloca [2 x i32], i32 1
   %10 = getelementptr [2 x i32], [2 x i32]* %upper_bound_value_0, i32 0, i32 0
   store i32 4294967295, i32* %10
   %11 = getelementptr [2 x i32], [2 x i32]* %upper_bound_value_0, i32 0, i32 1
@@ -254,13 +254,13 @@ if_0:
 end_if_0:
   %current_0 = call ccc [2 x i32]* @btree_iterator_current_0(%btree_iterator_t_0* %begin_iter_1_0)
   %lower_bound_value_1_0 = alloca [2 x i32], i32 1
+  %upper_bound_value_1_0 = alloca [2 x i32], i32 1
   %14 = getelementptr [2 x i32], [2 x i32]* %lower_bound_value_1_0, i32 0, i32 0
   %15 = getelementptr [2 x i32], [2 x i32]* %current_0, i32 0, i32 1
   %16 = load i32, i32* %15
   store i32 %16, i32* %14
   %17 = getelementptr [2 x i32], [2 x i32]* %lower_bound_value_1_0, i32 0, i32 1
   store i32 0, i32* %17
-  %upper_bound_value_1_0 = alloca [2 x i32], i32 1
   %18 = getelementptr [2 x i32], [2 x i32]* %upper_bound_value_1_0, i32 0, i32 0
   %19 = getelementptr [2 x i32], [2 x i32]* %current_0, i32 0, i32 1
   %20 = load i32, i32* %19

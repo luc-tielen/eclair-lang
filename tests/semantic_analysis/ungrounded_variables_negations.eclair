@@ -30,3 +30,20 @@ a(abc) :-
      •
      │ Hint: Use the variable 'def' as an argument in a relation.
 ─────╯
+
+[error]: Found unconstrained variable
+     ╭──▶ TEST_DIR/program1.eclair@7:6-7:9
+     │
+   4 │ ╭┤ a(abc) :-
+   5 │ │    abc = 123,
+   6 │ │    !b(abc),
+   7 │ │    !b(def),
+     • │       ┬──
+     • │       ╰╸ The variable 'def' only occurs once.
+   8 │ ├┤   !b(abc + 123).
+     • │
+     • ╰╸ This rule contains no other references to 'def'.
+     •
+     │ Hint: Replace the variable with a wildcard ('_').
+     │ Hint: Use the variable in another rule clause.
+─────╯

@@ -42,8 +42,8 @@ search fact1 as fact10 do
 export fn eclair_program_run(*Program) -> Void
 {
   lower_bound_value = fact1.stack_allocate Value
-  lower_bound_value.0 = 0
   upper_bound_value = fact1.stack_allocate Value
+  lower_bound_value.0 = 0
   upper_bound_value.0 = 4294967295
   begin_iter = fact1.stack_allocate Iter
   end_iter = fact1.stack_allocate Iter
@@ -58,8 +58,8 @@ export fn eclair_program_run(*Program) -> Void
     }
     current = fact1.iter_current(begin_iter)
     lower_bound_value_1 = fact2.stack_allocate Value
-    lower_bound_value_1.0 = 0
     upper_bound_value_1 = fact2.stack_allocate Value
+    lower_bound_value_1.0 = 0
     upper_bound_value_1.0 = 4294967295
     begin_iter_1 = fact2.stack_allocate Iter
     end_iter_1 = fact2.stack_allocate Iter
@@ -90,8 +90,8 @@ export fn eclair_program_run(*Program) -> Void
   }
   range_query.end:
   lower_bound_value_2 = fact1.stack_allocate Value
-  lower_bound_value_2.0 = 0
   upper_bound_value_2 = fact1.stack_allocate Value
+  lower_bound_value_2.0 = 0
   upper_bound_value_2.0 = 4294967295
   begin_iter_2 = fact1.stack_allocate Iter
   end_iter_2 = fact1.stack_allocate Iter
@@ -137,9 +137,9 @@ export fn eclair_program_run(*Program) -> Void
 define external ccc void @eclair_program_run(%program* %arg_0) "wasm-export-name"="eclair_program_run" {
 start:
   %lower_bound_value_0 = alloca [1 x i32], i32 1
+  %upper_bound_value_0 = alloca [1 x i32], i32 1
   %0 = getelementptr [1 x i32], [1 x i32]* %lower_bound_value_0, i32 0, i32 0
   store i32 0, i32* %0
-  %upper_bound_value_0 = alloca [1 x i32], i32 1
   %1 = getelementptr [1 x i32], [1 x i32]* %upper_bound_value_0, i32 0, i32 0
   store i32 4294967295, i32* %1
   %begin_iter_0 = alloca %btree_iterator_t_0, i32 1
@@ -157,9 +157,9 @@ if_0:
 end_if_0:
   %current_0 = call ccc [1 x i32]* @btree_iterator_current_0(%btree_iterator_t_0* %begin_iter_0)
   %lower_bound_value_1_0 = alloca [1 x i32], i32 1
+  %upper_bound_value_1_0 = alloca [1 x i32], i32 1
   %4 = getelementptr [1 x i32], [1 x i32]* %lower_bound_value_1_0, i32 0, i32 0
   store i32 0, i32* %4
-  %upper_bound_value_1_0 = alloca [1 x i32], i32 1
   %5 = getelementptr [1 x i32], [1 x i32]* %upper_bound_value_1_0, i32 0, i32 0
   store i32 4294967295, i32* %5
   %begin_iter_1_0 = alloca %btree_iterator_t_0, i32 1
@@ -202,9 +202,9 @@ range_query.end_1:
   br label %loop_0
 range_query.end:
   %lower_bound_value_2_0 = alloca [1 x i32], i32 1
+  %upper_bound_value_2_0 = alloca [1 x i32], i32 1
   %16 = getelementptr [1 x i32], [1 x i32]* %lower_bound_value_2_0, i32 0, i32 0
   store i32 0, i32* %16
-  %upper_bound_value_2_0 = alloca [1 x i32], i32 1
   %17 = getelementptr [1 x i32], [1 x i32]* %upper_bound_value_2_0, i32 0, i32 0
   store i32 4294967295, i32* %17
   %begin_iter_2_0 = alloca %btree_iterator_t_0, i32 1

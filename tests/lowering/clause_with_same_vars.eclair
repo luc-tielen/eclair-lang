@@ -22,7 +22,7 @@ a(x) :-
   other(x).
 
 a(y) :-
-  c(y, y, 42, x, y),
+  c(y, y, 42, _, y),
   other(y).
 
 //--- expected_ra.out
@@ -39,12 +39,12 @@ search b as b0 do
 export fn eclair_program_run(*Program) -> Void
 {
   lower_bound_value = c.stack_allocate Value
+  upper_bound_value = c.stack_allocate Value
   lower_bound_value.0 = 0
   lower_bound_value.1 = 0
   lower_bound_value.2 = 42
   lower_bound_value.3 = 0
   lower_bound_value.4 = 0
-  upper_bound_value = c.stack_allocate Value
   upper_bound_value.0 = 4294967295
   upper_bound_value.1 = 4294967295
   upper_bound_value.2 = 42
@@ -69,8 +69,8 @@ export fn eclair_program_run(*Program) -> Void
       if (condition_2)
       {
         lower_bound_value_1 = other.stack_allocate Value
-        lower_bound_value_1.0 = current.0
         upper_bound_value_1 = other.stack_allocate Value
+        lower_bound_value_1.0 = current.0
         upper_bound_value_1.0 = current.0
         begin_iter_1 = other.stack_allocate Iter
         end_iter_1 = other.stack_allocate Iter
@@ -96,9 +96,9 @@ export fn eclair_program_run(*Program) -> Void
   }
   range_query.end:
   lower_bound_value_2 = b.stack_allocate Value
+  upper_bound_value_2 = b.stack_allocate Value
   lower_bound_value_2.0 = 0
   lower_bound_value_2.1 = 0
-  upper_bound_value_2 = b.stack_allocate Value
   upper_bound_value_2.0 = 4294967295
   upper_bound_value_2.1 = 4294967295
   begin_iter_2 = b.stack_allocate Iter
@@ -117,8 +117,8 @@ export fn eclair_program_run(*Program) -> Void
     if (condition_5)
     {
       lower_bound_value_3 = other.stack_allocate Value
-      lower_bound_value_3.0 = current_2.0
       upper_bound_value_3 = other.stack_allocate Value
+      lower_bound_value_3.0 = current_2.0
       upper_bound_value_3.0 = current_2.0
       begin_iter_3 = other.stack_allocate Iter
       end_iter_3 = other.stack_allocate Iter
@@ -147,6 +147,7 @@ export fn eclair_program_run(*Program) -> Void
 define external ccc void @eclair_program_run(%program* %arg_0) "wasm-export-name"="eclair_program_run" {
 start:
   %lower_bound_value_0 = alloca [5 x i32], i32 1
+  %upper_bound_value_0 = alloca [5 x i32], i32 1
   %0 = getelementptr [5 x i32], [5 x i32]* %lower_bound_value_0, i32 0, i32 0
   store i32 0, i32* %0
   %1 = getelementptr [5 x i32], [5 x i32]* %lower_bound_value_0, i32 0, i32 1
@@ -157,7 +158,6 @@ start:
   store i32 0, i32* %3
   %4 = getelementptr [5 x i32], [5 x i32]* %lower_bound_value_0, i32 0, i32 4
   store i32 0, i32* %4
-  %upper_bound_value_0 = alloca [5 x i32], i32 1
   %5 = getelementptr [5 x i32], [5 x i32]* %upper_bound_value_0, i32 0, i32 0
   store i32 4294967295, i32* %5
   %6 = getelementptr [5 x i32], [5 x i32]* %upper_bound_value_0, i32 0, i32 1
@@ -197,11 +197,11 @@ if_1:
   br i1 %condition_2_4, label %if_2, label %end_if_2
 if_2:
   %lower_bound_value_1_0 = alloca [1 x i32], i32 1
+  %upper_bound_value_1_0 = alloca [1 x i32], i32 1
   %12 = getelementptr [1 x i32], [1 x i32]* %lower_bound_value_1_0, i32 0, i32 0
   %13 = getelementptr [5 x i32], [5 x i32]* %current_0, i32 0, i32 0
   %14 = load i32, i32* %13
   store i32 %14, i32* %12
-  %upper_bound_value_1_0 = alloca [1 x i32], i32 1
   %15 = getelementptr [1 x i32], [1 x i32]* %upper_bound_value_1_0, i32 0, i32 0
   %16 = getelementptr [5 x i32], [5 x i32]* %current_0, i32 0, i32 0
   %17 = load i32, i32* %16
@@ -238,11 +238,11 @@ end_if_3:
   br label %loop_0
 range_query.end:
   %lower_bound_value_2_0 = alloca [2 x i32], i32 1
+  %upper_bound_value_2_0 = alloca [2 x i32], i32 1
   %25 = getelementptr [2 x i32], [2 x i32]* %lower_bound_value_2_0, i32 0, i32 0
   store i32 0, i32* %25
   %26 = getelementptr [2 x i32], [2 x i32]* %lower_bound_value_2_0, i32 0, i32 1
   store i32 0, i32* %26
-  %upper_bound_value_2_0 = alloca [2 x i32], i32 1
   %27 = getelementptr [2 x i32], [2 x i32]* %upper_bound_value_2_0, i32 0, i32 0
   store i32 4294967295, i32* %27
   %28 = getelementptr [2 x i32], [2 x i32]* %upper_bound_value_2_0, i32 0, i32 1
@@ -269,11 +269,11 @@ end_if_4:
   br i1 %condition_5_4, label %if_5, label %end_if_6
 if_5:
   %lower_bound_value_3_0 = alloca [1 x i32], i32 1
+  %upper_bound_value_3_0 = alloca [1 x i32], i32 1
   %31 = getelementptr [1 x i32], [1 x i32]* %lower_bound_value_3_0, i32 0, i32 0
   %32 = getelementptr [2 x i32], [2 x i32]* %current_2_0, i32 0, i32 0
   %33 = load i32, i32* %32
   store i32 %33, i32* %31
-  %upper_bound_value_3_0 = alloca [1 x i32], i32 1
   %34 = getelementptr [1 x i32], [1 x i32]* %upper_bound_value_3_0, i32 0, i32 0
   %35 = getelementptr [2 x i32], [2 x i32]* %current_2_0, i32 0, i32 0
   %36 = load i32, i32* %35

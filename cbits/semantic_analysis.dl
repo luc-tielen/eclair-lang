@@ -38,6 +38,7 @@
 .decl live_rule(relation: symbol)
 .decl dependency_cycle(relation: symbol)
 .decl rule_scope(rule_id: unsigned, scope_id: unsigned)
+.decl constrained_rule_var(rule_node_id: unsigned, var_node_id: unsigned, var_name: symbol)
 
 // Output facts / rules
 .decl grounded_variable(rule_id: unsigned, var_name: symbol)
@@ -361,11 +362,23 @@ wildcard_in_binop(binop_node_id, rhs_node_id) :-
   binop(binop_node_id, _, _, rhs_node_id),
   wildcard(rhs_node_id).
 
+// A rule variable is unconstrained if there is no other occurence of the variable in the rule.
+// (This works because groundedness of a variable is also checked..
 unconstrained_rule_var(rule_id, var_id, var_name) :-
-  rule(rule_id, _),
-  scoped_value(rule_id, var_id),
+  rule_scope(rule_id, scope_id),
+  scoped_value(scope_id, var_id),
   variable(var_id, var_name),
-  !alias(rule_id, var_id, _).
+  !constrained_rule_var(rule_id, var_id, var_name).
+
+// This could be done much simpler using count aggregate but this is not implemented in Eclair yet.
+constrained_rule_var(rule_id, var_id1, var_name) :-
+  rule_scope(rule_id, scope_id1),
+  rule_scope(rule_id, scope_id2),
+  scoped_value(scope_id1, var_id1),
+  scoped_value(scope_id2, var_id2),
+  variable(var_id1, var_name),
+  variable(var_id2, var_name),
+  var_id1 != var_id2.
 
 assign(node_id, lhs_node_id, rhs_node_id) :-
   constraint(node_id, "=", lhs_node_id, rhs_node_id).
