@@ -10,6 +10,7 @@ module Eclair
   , emitTransformedRA
   , emitEIR
   , emitLLVM
+  , emitSouffle
   , Parameters(..)
   , EclairError(..)
   , handleErrorsCLI
@@ -28,6 +29,7 @@ import Eclair.Common.Extern
 import Eclair.Common.Config (Target(..))
 import Eclair.AST.IR
 import Eclair.AST.Transforms (StringMap)
+import Eclair.Souffle.IR
 import qualified Eclair.AST.Transforms as AST
 import qualified Eclair.RA.IR as RA
 import qualified Eclair.RA.Transforms as RA
@@ -61,6 +63,7 @@ data Query a where
   EmitEIR :: FilePath -> Query ()
   CompileLLVM :: FilePath -> Query Module
   EmitLLVM :: FilePath -> Query ()
+  EmitSouffle :: FilePath -> Query ()
   StringMapping :: FilePath -> Query (Map Text Word32)
   UsageMapping :: FilePath -> Query (Map Id UsageMode)
   ExternDefinitions :: FilePath -> Query [Extern]
@@ -83,6 +86,7 @@ queryFilePath = \case
   EmitEIR path             -> path
   CompileLLVM path         -> path
   EmitLLVM path            -> path
+  EmitSouffle path         -> path
   StringMapping path       -> path
   UsageMapping path        -> path
   ExternDefinitions path   -> path
@@ -103,9 +107,10 @@ queryEnum = \case
   EmitEIR {}             -> 11
   CompileLLVM {}         -> 12
   EmitLLVM {}            -> 13
-  StringMapping {}       -> 14
-  UsageMapping {}        -> 15
-  ExternDefinitions {}   -> 16
+  EmitSouffle {}         -> 14
+  StringMapping {}       -> 15
+  UsageMapping {}        -> 16
+  ExternDefinitions {}   -> 17
 
 deriveGEq ''Query
 
@@ -204,6 +209,14 @@ rules abortOnError params (Rock.Writer query) = case query of
   EmitLLVM path -> noError $ do
     llvmModule <- Rock.fetch (CompileLLVM path)
     liftIO $ putTextLn $ ppllvm llvmModule
+  EmitSouffle path -> do
+    (ast, _, _) <- Rock.fetch (Parse path)
+    case toSouffle ast of
+      Left err ->
+        pure ((), one $ ConversionErr path err)
+      Right souffleIR -> do
+        liftIO $ putTextLn $ printDoc souffleIR
+        pure ((), mempty)
 
 -- Helper function for tasks that don't emit any errors.
 noError :: Rock.Task Query a -> Rock.Task Query (a, [EclairError])
@@ -275,3 +288,7 @@ emitEIR params =
 emitLLVM :: Parameters -> FilePath -> CompilerM ()
 emitLLVM params =
   runQuery params . EmitLLVM
+
+emitSouffle :: Parameters -> FilePath -> CompilerM ()
+emitSouffle params =
+  runQuery params . EmitSouffle

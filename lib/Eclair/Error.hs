@@ -19,6 +19,7 @@ import Eclair.TypeSystem
 import Eclair.Parser
 import Eclair.Common.Id
 import Eclair.Common.Location
+import Eclair.Souffle.IR
 import Prettyprinter
 import Prettyprinter.Render.Terminal
 import Error.Diagnose hiding (stderr)
@@ -27,6 +28,7 @@ data EclairError
   = ParseErr FilePath ParsingError
   | TypeErr FilePath SpanMap [TypeError NodeId]
   | SemanticErr FilePath SpanMap (SemanticErrors NodeId)
+  | ConversionErr FilePath ConversionError
 
 -- TODO refactor using an error reporting monad?
 
