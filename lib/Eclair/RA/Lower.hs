@@ -199,7 +199,6 @@ generateProgramInstructions = gcata (distribute extractEqualities) $ \case
         ubValue <- var "upper_bound_value"
         beginIter <- var "begin_iter"
         endIter <- var "end_iter"
-        isEmpty <- var "is_empty"
         let values' = map tFst values
             cs = definedColumnsFor values'
             signature = SearchSignature $ Set.fromList cs
@@ -218,8 +217,7 @@ generateProgramInstructions = gcata (distribute extractEqualities) $ \case
           , assign endIter $ stackAlloc r idx EIR.Iter
           , call r idx EIR.IterLowerBound [relationPtr, lbValue, beginIter]
           , call r idx EIR.IterUpperBound [relationPtr, ubValue, endIter]
-          , assign isEmpty $ call r idx EIR.IterIsEqual [beginIter, endIter]
-          , not' isEmpty
+          , call r idx EIR.IterIsEqual [beginIter, endIter]
           ]
       existenceCheckTotalSearch = do
         let columnValues = map extract values
