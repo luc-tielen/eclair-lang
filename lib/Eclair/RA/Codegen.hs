@@ -96,17 +96,17 @@ mkLowerState typedefInfo indexMap getIndexForSearch relInfos end =
     where
       codegenInfo = CGInfo relInfos offsetsByRelationAndIndex offsetsByRelation
       offsetsByRelationAndIndex =
-        M.fromList
+        M.fromDistinctAscList
           [ (ri, offset)
-          | ri <- relInfos
+          | ri <- sortNub relInfos
           -- + 1 due to symbol table at position 0 in program struct
           , let offset = 1 + fromJust (List.elemIndex ri relInfos)
           ]
       offsetsByRelation =
         let rs = map fst relInfos
-         in M.fromList
+         in M.fromDistinctAscList
             [ (r, offset)
-            | r <- ordNub rs
+            | r <- sortNub rs
             -- + 1 due to symbol table at position 0 in program struct
             , let offset = 1 + fromJust (List.elemIndex r rs)
             ]
