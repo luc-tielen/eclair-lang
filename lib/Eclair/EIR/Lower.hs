@@ -77,7 +77,7 @@ compileToLLVM target stringMapping usageMapping externDefs eir = do
           let externMap = M.fromList externs
               lowerState = LowerState programTy programSize symbolTable symbol fnsMap' mempty 0 exts externMap
           traverse_ (processDecl lowerState) decls
-          usingReaderT (relationMapping, metas, lowerState) $ do
+          usingReaderT (mkInOutState relMapping metas lowerState) $ do
             addFactsFn <- generateAddFactsFn usageMapping
             _ <- generateAddFact addFactsFn
             _ <- generateGetFactsFn usageMapping
@@ -88,7 +88,7 @@ compileToLLVM target stringMapping usageMapping externDefs eir = do
       _ ->
         panic "Unexpected top level EIR declarations when compiling to LLVM!"
 
-    relationMapping =
+    relMapping =
       M.mapKeys Id stringMapping
 
     processExtern symbolTableTy (Extern fnName argCount extKind) = do
@@ -372,7 +372,7 @@ generateMemCmpFn = do
 
 generateAddFact :: MonadFix m => Operand -> CodegenInOutT (ModuleBuilderT m) Operand
 generateAddFact addFactsFn = do
-  lowerState <- asks getLowerStateInOut
+  lowerState <- asks inOutLowerState
   let args = [ (ptr (programType lowerState), ParameterName "eclair_program")
              , (i32, ParameterName "fact_type")
              , (ptr i32, ParameterName "memory")
@@ -385,9 +385,9 @@ generateAddFact addFactsFn = do
 
 generateAddFactsFn :: MonadFix m => Map Id UsageMode -> CodegenInOutT (ModuleBuilderT m) Operand
 generateAddFactsFn usageMapping = do
-  (relationMapping, metas, lowerState) <- ask
-
-  let relations = S.filter (isInputRelation usageMapping) $ getRelations metas
+  inOutState <- ask
+  let lowerState = inOutLowerState inOutState
+      rels = S.filter (isInputRelation usageMapping) $ relations inOutState
       args = [ (ptr (programType lowerState), ParameterName "eclair_program")
              , (i32, ParameterName "fact_type")
              , (ptr i32, ParameterName "memory")
@@ -395,11 +395,11 @@ generateAddFactsFn usageMapping = do
              ]
       returnType = void
   apiFunction "eclair_add_facts" args returnType $ \[program, factType, memory, factCount] -> do
-    switchOnFactType relations relationMapping retVoid factType $ \r -> do
-      let indexes = indexesFor lowerState r
+    switchOnFactType rels (relationMapping inOutState) retVoid factType $ \r -> do
+      indexes <- indicesForRelation r
       for_ indexes $ \idx -> do
-        let numCols = fromIntegral $ factNumColumns r metas
-            treeOffset = int32 $ toInteger $ getContainerOffset metas r idx
+        numCols <- fromIntegral <$> numColsForRelation r
+        treeOffset <- int32 . toInteger <$> offsetForRelationAndIndex r idx
         relationPtr <- gep program [int32 0, treeOffset]
         -- TODO: don't re-calculate this type, do this based on value datatype created in each runtime data structure
         arrayPtr <- memory `bitcast` ptr (ArrayType numCols i32)
@@ -411,23 +411,24 @@ generateAddFactsFn usageMapping = do
 
 generateGetFactsFn :: MonadFix m => Map Relation UsageMode -> CodegenInOutT (ModuleBuilderT m) Operand
 generateGetFactsFn usageMapping = do
-  (relationMapping, metas, lowerState) <- ask
-  let relations = S.filter (isOutputRelation usageMapping) $ getRelations metas
+  inOutState <- ask
+  let lowerState = inOutLowerState inOutState
+      rels = S.filter (isOutputRelation usageMapping) $ relations inOutState
       args = [ (ptr (programType lowerState), ParameterName "eclair_program")
              , (i32, ParameterName "fact_type")
              ]
       returnType = ptr i32
       mallocFn = extMalloc $ externals lowerState
   apiFunction "eclair_get_facts" args returnType $ \[program, factType] -> do
-    switchOnFactType relations relationMapping (ret $ nullPtr i32) factType $ \r -> do
-      let indexes = indexesFor lowerState r
-          idx = fromJust $ findLongestIndex indexes
+    switchOnFactType rels (relationMapping inOutState) (ret $ nullPtr i32) factType $ \r -> do
+      indexes <- indicesForRelation r
+      let idx = fromJust $ findLongestIndex indexes
           doCall op args' = do
             fn <- toCodegenInOut lowerState $ lookupFunction r idx op
             call fn args'
-          numCols = factNumColumns r metas
-          valueSize = 4 * numCols  -- TODO: should use LLVM "valueSize" instead of re-calculating here
-          treeOffset = int32 $ toInteger $ getContainerOffset metas r idx
+      numCols <- numColsForRelation r
+      let valueSize = 4 * numCols  -- TODO: should use LLVM "valueSize" instead of re-calculating here
+      treeOffset <- int32 . toInteger <$> offsetForRelationAndIndex r idx
       relationPtr <- gep program [int32 0, treeOffset]
       relationSize <- (doCall EIR.Size [relationPtr] >>= (`trunc` i32)) `named` "fact_count"
       memorySize <- mul relationSize (int32 $ toInteger valueSize) `named` "byte_count"
@@ -457,7 +458,7 @@ generateGetFactsFn usageMapping = do
 
 generateFreeBufferFn :: Monad m => CodegenInOutT (ModuleBuilderT m) Operand
 generateFreeBufferFn = do
-  lowerState <- asks getLowerStateInOut
+  lowerState <- asks inOutLowerState
   let freeFn = extFree $ externals lowerState
       args = [(ptr i32, ParameterName "buffer")]
       returnType = void
@@ -468,20 +469,21 @@ generateFreeBufferFn = do
 
 generateFactCountFn :: MonadFix m => Map Id UsageMode -> CodegenInOutT (ModuleBuilderT m) Operand
 generateFactCountFn usageMapping = do
-  (relationMapping, metas, lowerState) <- ask
-  let relations = S.filter (isOutputRelation usageMapping) $ getRelations metas
+  inOutState <- ask
+  let lowerState = inOutLowerState inOutState
+      rels = S.filter (isOutputRelation usageMapping) $ relations inOutState
       args = [ (ptr (programType lowerState), ParameterName "eclair_program")
              , (i32, ParameterName "fact_type")
              ]
       returnType = i32
   apiFunction "eclair_fact_count" args returnType $ \[program, factType] -> do
-    switchOnFactType relations relationMapping (ret $ int32 0) factType $ \r -> do
-      let indexes = indexesFor lowerState r
-          idx = fromJust $ findLongestIndex indexes
+    switchOnFactType rels (relationMapping inOutState) (ret $ int32 0) factType $ \r -> do
+      indexes <- indicesForRelation r
+      let idx = fromJust $ findLongestIndex indexes
           doCall op args' = do
             fn <- toCodegenInOut lowerState $ lookupFunction r idx op
             call fn args'
-          treeOffset = int32 $ toInteger $ getContainerOffset metas r idx
+      treeOffset <- int32 . toInteger <$> offsetForRelationAndIndex r idx
       relationPtr <- gep program [int32 0, treeOffset]
       relationSize <- doCall EIR.Size [relationPtr]
       ret =<< trunc relationSize i32
@@ -498,7 +500,7 @@ findLongestIndex =
 -- Eclair makes an internal copy of the string, for simpler memory management.
 generateEncodeStringFn :: MonadFix m => CodegenInOutT (ModuleBuilderT m) Operand
 generateEncodeStringFn = do
-  lowerState <- asks getLowerStateInOut
+  lowerState <- asks inOutLowerState
   let args = [ (ptr (programType lowerState), "eclair_program")
              , (i32, "string_length")
              , (ptr i8, "string_data")
@@ -530,7 +532,7 @@ generateEncodeStringFn = do
 -- this happens automatically when eclair_destroy is called
 generateDecodeStringFn :: MonadFix m => CodegenInOutT (ModuleBuilderT m) Operand
 generateDecodeStringFn = do
-  lowerState <- asks getLowerStateInOut
+  lowerState <- asks inOutLowerState
   let args = [ (ptr (programType lowerState), "eclair_program")
              , (i32, "string_index")
              ]
@@ -570,7 +572,53 @@ getSymbolTablePtr :: (MonadNameSupply m, MonadModuleBuilder m, MonadIRBuilder m)
 getSymbolTablePtr program =
   gep program [int32 0, int32 0]
 
-type InOutState = (Map Relation Word32, [(Relation, Metadata)], LowerState)
+-- Helper data type that pre-computes most of the important data.
+data InOutState
+  = InOutState
+  { relationMapping :: Map Relation Word32
+  , relationNumColumns :: Map Relation Int
+  , relations :: Set Relation
+  , indicesByRelation :: Map Relation [Index]
+  , offsetsByRelationAndIndex :: Map (Relation, Index) Int
+  , inOutLowerState :: LowerState
+  }
+
+mkInOutState :: Map Relation Word32 -> [(Relation, Metadata)] -> LowerState -> InOutState
+mkInOutState relMapping metas ls =
+  InOutState relMapping relNumCols rels indicesByRel offsetsByRelAndIndex ls
+    where
+      rs = map fst metas
+      -- NOTE: disregards all "special" relations, since they should not be visible to the end user!
+      rels = S.fromList $ filter (not . startsWithIdPrefix) rs
+      relNumCols =
+        M.fromList [ (r, numCols)
+                   | r <- rs
+                   , let numCols = getNumColumns (snd $ fromJust $ L.find ((== r) . fst) metas)
+                   ]
+      relInfos = M.keys $ fnsMap ls
+      indicesByRel =
+        M.fromAscListWith (<>) $ map (second one) $ sortWith fst relInfos
+      offsetsByRelAndIndex =
+        M.fromDistinctAscList
+          [ (ri, offset)
+          | ri <- sortNub relInfos
+          -- + 1 due to symbol table at position 0 in program struct
+          , let offset = 1 + fromJust (L.elemIndex ri relInfos)
+          ]
+
+indicesForRelation :: MonadReader InOutState m => Relation -> m [Index]
+indicesForRelation r = do
+  inOutState <- ask
+  pure . fromJust . M.lookup r $ indicesByRelation inOutState
+
+offsetForRelationAndIndex :: MonadReader InOutState m => Relation -> Index -> m Int
+offsetForRelationAndIndex r idx = do
+  inOutState <- ask
+  pure . fromJust . M.lookup (r, idx) $ offsetsByRelationAndIndex inOutState
+
+numColsForRelation :: MonadReader InOutState m => Relation -> m Int
+numColsForRelation r =
+  fromJust . M.lookup r . relationNumColumns <$> ask
 
 type CodegenInOutT = ReaderT InOutState
 
@@ -581,9 +629,9 @@ switchOnFactType :: MonadFix m
                  -> Operand
                  -> (Relation -> IRBuilderT m ())
                  -> IRBuilderT m ()
-switchOnFactType relations stringMap defaultCase factType generateCase = mdo
+switchOnFactType rels stringMap defaultCase factType generateCase = mdo
     switch factType end caseBlocks
-    caseBlocks <- for (M.toList relationMapping) $ \(r, factNum) -> do
+    caseBlocks <- for (M.toList relMapping) $ \(r, factNum) -> do
       caseBlock <- block `named` Name (unId r)
       generateCase r
       pure (int32 $ toInteger factNum, caseBlock)
@@ -591,33 +639,8 @@ switchOnFactType relations stringMap defaultCase factType generateCase = mdo
     end <- block `named` "switch.default"
     defaultCase
   where
-    relationMapping =
-      M.restrictKeys stringMap relations
-
-factNumColumns :: Relation -> [(Relation, Metadata)] -> Int
-factNumColumns r metas =
-  getNumColumns (snd $ fromJust $ L.find ((== r) . fst) metas)
-
--- NOTE: disregards all "special" relations, since they should not be visible to the end user!
-getRelations :: [(Relation, metadata)] -> Set Relation
-getRelations metas =
-  S.fromList $ ordNub $ filter (not . startsWithIdPrefix) $ map fst metas
-
--- (+1) due to symbol table at position 0 in program struct
-getContainerOffset :: [(Relation, Metadata)] -> Relation -> Index -> Int
-getContainerOffset metas r idx =
-  (+1) . fromJust $ L.findIndex (sameRelationAndIndex r idx) $ map (map getIndex) metas
-
-sameRelationAndIndex :: Relation -> Index -> (Relation, Index) -> Bool
-sameRelationAndIndex r idx (r', idx') =
-  r == r' && idx == idx'
-
-indexesFor :: LowerState -> Relation -> [Index]
-indexesFor ls r =
-  map snd $ filter ((== r) . fst) $ M.keys $ fnsMap ls
-
-getLowerStateInOut :: InOutState -> LowerState
-getLowerStateInOut (_, _, s) = s
+    relMapping =
+      M.restrictKeys stringMap rels
 
 apiFunction :: (MonadModuleBuilder m, HasSuffix m)
             => Name
