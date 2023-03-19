@@ -139,14 +139,14 @@ partialInstantiate p t = do
 
 function :: (MonadModuleBuilder m, HasSuffix m)
          => Name -> [(Type, ParameterName)] -> Type -> ([Operand] -> IRBuilderT m a) -> m Operand
-function (Name name) args retTy body = do
+function (unName -> name) args retTy body = do
   suffix <- getSuffix
   let nameWithSuffix = Name $ name <> suffix
   CG.function nameWithSuffix args retTy body
 
 typedef :: (MonadModuleBuilder m, HasSuffix m)
         => Name -> Flag Packed -> [Type] -> m Type
-typedef (Name name) packedFlag tys = do
+typedef (unName -> name) packedFlag tys = do
   suffix <- getSuffix
   let nameWithSuffix = Name $ name <> suffix
   CG.typedef nameWithSuffix packedFlag tys

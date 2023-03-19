@@ -162,7 +162,7 @@ newGlobalVarName name = do
 -- NOTE: this is for the case when we are assigning 1 field of a struct/array
 -- to another of the same kind, where the right side needs to be loaded before
 -- storing it to the left side of the equation.
-loadIfNeeded :: (MonadNameSupply m, MonadIRBuilder m) => m Operand -> EIR -> m Operand
+loadIfNeeded :: MonadIRBuilder m => m Operand -> EIR -> m Operand
 loadIfNeeded operand = \case
   EIR.FieldAccess _ _ -> flip load 0 =<< operand
   _ -> operand

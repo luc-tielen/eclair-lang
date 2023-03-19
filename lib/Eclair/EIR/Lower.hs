@@ -139,7 +139,7 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
       EIR.HeapAllocateProgramF -> do
         (malloc, (programTy, programSize)) <- gets (extMalloc . externals &&& programType &&& programSizeBytes)
         let memorySize = int32 $ fromIntegral programSize
-        pointer <- call malloc [memorySize] `named` "memory"
+        pointer <- call malloc [memorySize]
         pointer `bitcast` ptr programTy
       EIR.StackAllocateF r idx ty -> do
         theType <- toLLVMType r idx ty
@@ -178,7 +178,7 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
           EIR.Var varName -> do
             -- Assigning to a variable: evaluate the value, and add to the varMap.
             -- This allows for future lookups of a variable.
-            value <- val `named` Name varName
+            value <- val
             addVarBinding varName value
           _ -> do
             -- NOTE: here we assume we are assigning to an operand (of a struct field)
@@ -190,7 +190,7 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
       EIR.FreeProgramF (toOperand -> programVar) -> do
         freeFn <- gets (extFree . externals)
         program <- programVar
-        memory <- program `bitcast` ptr i8 `named` "memory"
+        memory <- program `bitcast` ptr i8
         Prelude.void $ call freeFn [memory]
       EIR.PrimOpF op (map (Relude.swap . toOperandWithContext) -> args') ->
         Prelude.void $ invokePrimOp op args'
@@ -430,16 +430,16 @@ generateGetFactsFn usageMapping = do
       let valueSize = 4 * numCols  -- TODO: should use LLVM "valueSize" instead of re-calculating here
       treeOffset <- int32 . toInteger <$> offsetForRelationAndIndex r idx
       relationPtr <- gep program [int32 0, treeOffset]
-      relationSize <- (doCall EIR.Size [relationPtr] >>= (`trunc` i32)) `named` "fact_count"
-      memorySize <- mul relationSize (int32 $ toInteger valueSize) `named` "byte_count"
-      memory <- call mallocFn [memorySize] `named` "memory"
-      arrayPtr <- memory `bitcast` ptr (ArrayType (fromIntegral numCols) i32) `named` "array"
+      relationSize <- (doCall EIR.Size [relationPtr] >>= (`trunc` i32))
+      memorySize <- mul relationSize (int32 $ toInteger valueSize)
+      memory <- call mallocFn [memorySize]
+      arrayPtr <- memory `bitcast` ptr (ArrayType (fromIntegral numCols) i32)
 
-      iPtr <- alloca i32 (Just (int32 1)) 0 `named` "i"
+      iPtr <- alloca i32 (Just (int32 1)) 0
       store iPtr 0 (int32 0)
       let iterTy = evalState (toLLVMType r idx EIR.Iter) lowerState
-      currIter <- alloca iterTy (Just (int32 1)) 0 `named` "current_iter"
-      endIter <- alloca iterTy (Just (int32 1)) 0 `named` "end_iter"
+      currIter <- alloca iterTy (Just (int32 1)) 0
+      endIter <- alloca iterTy (Just (int32 1)) 0
       _ <- doCall EIR.IterBegin [relationPtr, currIter]
       _ <- doCall EIR.IterEnd [relationPtr, endIter]
       let loopCondition = do
@@ -447,8 +447,8 @@ generateGetFactsFn usageMapping = do
             not' isEqual
       loopWhile loopCondition $ do
         i <- load iPtr 0
-        valuePtr <- gep arrayPtr [i] `named` "value"
-        currentVal <- doCall EIR.IterCurrent [currIter] `named` "current"
+        valuePtr <- gep arrayPtr [i]
+        currentVal <- doCall EIR.IterCurrent [currIter]
         copy (mkPath []) currentVal valuePtr
         i' <- add i (int32 1)
         store iPtr 0 i'
@@ -463,7 +463,7 @@ generateFreeBufferFn = do
       args = [(ptr i32, ParameterName "buffer")]
       returnType = void
   apiFunction "eclair_free_buffer" args returnType $ \[buf] -> mdo
-    memory <- buf `bitcast` ptr i8 `named` "memory"
+    memory <- buf `bitcast` ptr i8
     _ <- call freeFn [memory]
     retVoid
 
@@ -567,7 +567,7 @@ toCodegenInOut :: Monad m => LowerState -> CodegenT m Operand -> IRBuilderT (Cod
 toCodegenInOut lowerState m =
   hoist lift $ runCodegenM m lowerState
 
-getSymbolTablePtr :: (MonadNameSupply m, MonadModuleBuilder m, MonadIRBuilder m)
+getSymbolTablePtr :: (MonadModuleBuilder m, MonadIRBuilder m)
                   => Operand -> m Operand
 getSymbolTablePtr program =
   gep program [int32 0, int32 0]
@@ -632,11 +632,11 @@ switchOnFactType :: MonadFix m
 switchOnFactType rels stringMap defaultCase factType generateCase = mdo
     switch factType end caseBlocks
     caseBlocks <- for (M.toList relMapping) $ \(r, factNum) -> do
-      caseBlock <- block `named` Name (unId r)
+      caseBlock <- blockNamed (unId r)
       generateCase r
       pure (int32 $ toInteger factNum, caseBlock)
 
-    end <- block `named` "switch.default"
+    end <- blockNamed "switch.default"
     defaultCase
   where
     relMapping =
