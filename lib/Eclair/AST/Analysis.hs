@@ -488,7 +488,7 @@ analysis prog = S.mkAnalysis addFacts run getFacts
     run :: S.SouffleM ()
     run = do
       -- TODO: optimal CPU core count? just use all cores?
-      S.setNumThreads prog 8
+      -- TODO make configurable: S.setNumThreads prog 8
       S.run prog
 
     getFacts :: S.SouffleM Result
