@@ -394,8 +394,8 @@ hasSemanticErrors result =
     isNotNull :: (SemanticErrors NodeId -> [a]) -> Bool
     isNotNull f = not . null $ f errs
 
-analysis :: S.Handle SemanticAnalysis -> S.Analysis S.SouffleM IR.AST Result
-analysis prog = S.mkAnalysis addFacts run getFacts
+analysis :: Word -> S.Handle SemanticAnalysis -> S.Analysis S.SouffleM IR.AST Result
+analysis numCores prog = S.mkAnalysis addFacts run getFacts
   where
     addFacts :: IR.AST -> S.SouffleM ()
     addFacts ast = usingReaderT Nothing $ flip (zygo getNodeId) ast $ \case
@@ -487,8 +487,7 @@ analysis prog = S.mkAnalysis addFacts run getFacts
 
     run :: S.SouffleM ()
     run = do
-      -- TODO: optimal CPU core count? just use all cores?
-      -- TODO make configurable: S.setNumThreads prog 8
+      S.setNumThreads prog (fromIntegral numCores)
       S.run prog
 
     getFacts :: S.SouffleM Result
@@ -541,10 +540,10 @@ groupConflicts conflicts =
   where
     sameConflict = cdName &&& cdFirstLoc
 
-runAnalysis :: IR.AST -> IO Result
-runAnalysis ast = S.runSouffle SemanticAnalysis $ \case
+runAnalysis :: Word -> IR.AST -> IO Result
+runAnalysis numCores ast = S.runSouffle SemanticAnalysis $ \case
   Nothing -> panic "Failed to load Souffle during semantic analysis!"
-  Just prog -> S.execAnalysis (analysis prog) ast
+  Just prog -> S.execAnalysis (analysis numCores prog) ast
 
 computeUsageMapping :: IR.AST -> Map Id IR.UsageMode
 computeUsageMapping ast =

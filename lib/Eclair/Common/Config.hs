@@ -20,6 +20,7 @@ data CompileConfig
   { mainFile :: FilePath
   , emitKind :: EmitKind
   , cpuTarget :: Maybe Target  -- Nothing = compile to host architecture
+  , numCores :: Word -- Maximum number of cores Eclair is allowed to use
   } deriving (Eq, Show)
 
 data Target
@@ -30,4 +31,3 @@ data Config
   = Compile CompileConfig
   | LSP
   deriving (Eq, Show)
-

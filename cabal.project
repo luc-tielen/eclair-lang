@@ -8,7 +8,7 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/luc-tielen/souffle-haskell.git
-    tag: ab3fd188fdf1184e5c7ffb189557e680d227f1a9
+    tag: a4fa1158ec5fdd0c900ab979e26c90633707fe1e
 
 source-repository-package
     type: git

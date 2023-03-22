@@ -64,8 +64,7 @@ export fn eclair_program_run(*Program) -> Void
     end_iter_1 = second.stack_allocate Iter
     second.iter_lower_bound(FN_ARG[0].2, lower_bound_value_1, begin_iter_1)
     second.iter_upper_bound(FN_ARG[0].2, upper_bound_value_1, end_iter_1)
-    is_empty = second.iter_is_equal(begin_iter_1, end_iter_1)
-    condition_1 = not is_empty
+    condition_1 = second.iter_is_equal(begin_iter_1, end_iter_1)
     if (condition_1)
     {
       value_2 = third.stack_allocate Value
@@ -133,20 +132,19 @@ end_if_0:
   %32 = getelementptr %program, %program* %arg_0, i32 0, i32 2
   call ccc void @btree_upper_bound_1(%btree_t_1* %32, [2 x i32]* %24, %btree_iterator_t_1* %30)
   %33 = call ccc i1 @btree_iterator_is_equal_1(%btree_iterator_t_1* %29, %btree_iterator_t_1* %30)
-  %34 = select i1 %33, i1 0, i1 1
-  br i1 %34, label %if_1, label %end_if_1
+  br i1 %33, label %if_1, label %end_if_1
 if_1:
-  %35 = alloca [2 x i32], i32 1
-  %36 = getelementptr [2 x i32], [2 x i32]* %35, i32 0, i32 0
-  %37 = getelementptr [1 x i32], [1 x i32]* %18, i32 0, i32 0
-  %38 = load i32, i32* %37
-  store i32 %38, i32* %36
-  %39 = getelementptr [2 x i32], [2 x i32]* %35, i32 0, i32 1
-  %40 = getelementptr [1 x i32], [1 x i32]* %18, i32 0, i32 0
-  %41 = load i32, i32* %40
-  store i32 %41, i32* %39
-  %42 = getelementptr %program, %program* %arg_0, i32 0, i32 3
-  %43 = call ccc i1 @btree_insert_value_2(%btree_t_2* %42, [2 x i32]* %35)
+  %34 = alloca [2 x i32], i32 1
+  %35 = getelementptr [2 x i32], [2 x i32]* %34, i32 0, i32 0
+  %36 = getelementptr [1 x i32], [1 x i32]* %18, i32 0, i32 0
+  %37 = load i32, i32* %36
+  store i32 %37, i32* %35
+  %38 = getelementptr [2 x i32], [2 x i32]* %34, i32 0, i32 1
+  %39 = getelementptr [1 x i32], [1 x i32]* %18, i32 0, i32 0
+  %40 = load i32, i32* %39
+  store i32 %40, i32* %38
+  %41 = getelementptr %program, %program* %arg_0, i32 0, i32 3
+  %42 = call ccc i1 @btree_insert_value_2(%btree_t_2* %41, [2 x i32]* %34)
   br label %end_if_1
 end_if_1:
   call ccc void @btree_iterator_next_0(%btree_iterator_t_0* %13)
