@@ -1,4 +1,4 @@
-build:
+build: configure
 	@cabal build
 
 configure:
