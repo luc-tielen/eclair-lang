@@ -264,7 +264,7 @@ mkCompare = do
     results <- flip execStateT mempty $ flip (zygo endCheck) columns $ \case
       Nil -> pass
       Cons col (atEnd, asm) -> do
-        blk <- block `named` "comparison"
+        blk <- blockNamed "comparison"
         let indices = [int32 0, int32 col]
         lhsPtr <- gep lhs indices
         rhsPtr <- gep rhs indices
@@ -280,7 +280,7 @@ mkCompare = do
             asm
             continue <- currentBlock
             pass
-    end <- block `named` "end"
+    end <- blockNamed "end"
     ret =<< phi (Map.toList results)
   where
     endCheck = \case
@@ -449,7 +449,7 @@ mkGrowParent nodeNew insertInner = mdo
     numElems <- deref (metaOf ->> numElemsOf) n
     condBr isNull createNewRoot insertNewNodeInParent
 
-    createNewRoot <- block `named` "create_new_root"
+    createNewRoot <- blockNamed "create_new_root"
     -- TODO: assert(n == *root)
     newRoot <- call nodeNew [innerNodeTypeVal]
     iNewRoot <- newRoot `bitcast` ptr innerNode
@@ -467,7 +467,7 @@ mkGrowParent nodeNew insertInner = mdo
     store root 0 newRoot
     retVoid
 
-    insertNewNodeInParent <- block `named` "insert_new_node_in_parent"
+    insertNewNodeInParent <- blockNamed "insert_new_node_in_parent"
     pos <- deref (metaOf ->> posInParentOf) n
     lastValuePtr <- addr (valueAt numElems) n
     _ <- call insertInner [parent, root, pos, n, lastValuePtr, sibling]
@@ -555,7 +555,7 @@ mkRebalanceOrSplit splitFn = mdo
     shouldRebalance <- and hasParent posGTZero
     condBr shouldRebalance rebalance split
 
-    rebalance <- block `named` "rebalance"
+    rebalance <- blockNamed "rebalance"
     -- Option A) re-balance data
     pos' <- sub pos (int16 1)
     left <- deref (childAt pos') parent
@@ -617,7 +617,7 @@ mkRebalanceOrSplit splitFn = mdo
       ret leftSlotsOpen
 
     br split
-    split <- block `named` "split"
+    split <- blockNamed "split"
     -- Option B) split
     _ <- call splitFn [n, root]
     ret (int16 0)  -- No re-balancing
@@ -702,10 +702,10 @@ mkIteratorNext = do
       let loopCondition = mdo
             isNull <- deref currentPtrOf iter >>= (`eq` nullPtr node)
             condBr isNull nullBlock notNullBlock
-            nullBlock <- block `named` "leaf.no_parent"
+            nullBlock <- blockNamed "leaf.no_parent"
             br endLoopCondition
 
-            notNullBlock <- block `named` "leaf.has_parent"
+            notNullBlock <- blockNamed "leaf.has_parent"
             pos' <- deref valuePosOf iter
             current' <- deref currentPtrOf iter
             numElems' <- deref (metaOf ->> numElemsOf) current'
@@ -713,7 +713,7 @@ mkIteratorNext = do
 
             br endLoopCondition
 
-            endLoopCondition <- block `named` "loop.condition.end"
+            endLoopCondition <- blockNamed "loop.condition.end"
             phi [(bit 0, nullBlock), (atEnd, notNullBlock)]
       loopWhile loopCondition $ do
         current' <- deref currentPtrOf iter
@@ -829,10 +829,10 @@ mkBtreeSize nodeCountEntries = do
     isNull <- root `eq` nullPtr node
     condBr isNull nullBlock notNullBlock
 
-    nullBlock <- block `named` "null"
+    nullBlock <- blockNamed "null"
     ret (int64 0)
 
-    notNullBlock <- block `named` "not_null"
+    notNullBlock <- blockNamed "not_null"
     count <- call nodeCountEntries [root]
     ret count
 
@@ -847,7 +847,7 @@ mkBtreeInsertValue nodeNew rebalanceOrSplit compareValues searchLowerBound searc
     isEmpty <- call isEmptyTree [t]
     condBr isEmpty emptyCase nonEmptyCase
 
-    emptyCase <- block `named` "empty"
+    emptyCase <- blockNamed "empty"
     leaf <- call nodeNew [leafNodeTypeVal]
     assign (metaOf ->> numElemsOf) leaf (int16 1)
     assign (valueAt (int16 0)) leaf =<< load val 0
@@ -856,7 +856,7 @@ mkBtreeInsertValue nodeNew rebalanceOrSplit compareValues searchLowerBound searc
     assign firstPtrOf t leaf
     br inserted
 
-    nonEmptyCase <- block `named` "non_empty"
+    nonEmptyCase <- blockNamed "non_empty"
     -- Insert using iterative approach
     currentPtr <- allocate (ptr node) =<< deref rootPtrOf t
     loop $ mdo
@@ -865,16 +865,16 @@ mkBtreeInsertValue nodeNew rebalanceOrSplit compareValues searchLowerBound searc
       isInner <- deref (metaOf ->> nodeTypeOf) current >>= (`eq` innerNodeTypeVal)
       condBr isInner inner leaf
 
-      inner <- block `named` "inner"
+      inner <- blockNamed "inner"
       insertInNonEmptyInnerNode loopBlock noInsert currentPtr current val
 
-      leaf <- block `named` "leaf"
+      leaf <- blockNamed "leaf"
       insertInNonEmptyLeafNode noInsert inserted t currentPtr current val numberOfKeys
 
-    noInsert <- block `named` "no_insert"
+    noInsert <- blockNamed "no_insert"
     ret (bit 0)
 
-    inserted <- block `named` "inserted_new_value"
+    inserted <- blockNamed "inserted_new_value"
     ret (bit 1)
   where
     insertInNonEmptyInnerNode loopBlock noInsert currentPtr current val = mdo
@@ -892,7 +892,7 @@ mkBtreeInsertValue nodeNew rebalanceOrSplit compareValues searchLowerBound searc
       alreadyInserted <- notLast `and` isEqual
       condBr alreadyInserted noInsert continueInsert
 
-      continueInsert <- block `named` "inner_continue_insert"
+      continueInsert <- blockNamed "inner_continue_insert"
       iCurrent <- current `bitcast` ptr innerNode
       store currentPtr 0 =<< deref (childAt idx) iCurrent
       br loopBlock
@@ -915,11 +915,11 @@ mkBtreeInsertValue nodeNew rebalanceOrSplit compareValues searchLowerBound searc
       alreadyInserted <- notFirst `and` isEqual
       condBr alreadyInserted noInsert continueInsert
 
-      continueInsert <- block `named` "leaf_continue_insert"
+      continueInsert <- blockNamed "leaf_continue_insert"
       nodeIsFull <- numElems `uge` numberOfKeys
       condBr nodeIsFull split noSplit
 
-      split <- block `named` "split"
+      split <- blockNamed "split"
       root <- addr rootPtrOf t
       idx <- load idxPtr 0
       res <- call rebalanceOrSplit [current, root, idx]
@@ -939,7 +939,7 @@ mkBtreeInsertValue nodeNew rebalanceOrSplit compareValues searchLowerBound searc
 
       br noSplit
 
-      noSplit <- block `named` "no_split"
+      noSplit <- blockNamed "no_split"
       -- No split -> move keys and insert new element
       idx''' <- load idxPtr 0
       numElems''' <- deref (metaOf ->> numElemsOf) current  -- NOTE: Might've been updated in the meantime
@@ -1078,12 +1078,12 @@ mkBtreeLowerBound isEmptyTree iterInit iterInitEnd searchLowerBound compareValue
         isLast <- pos `eq` last
         condBr isLast handleLast handleOther
 
-        handleLast <- block `named` "handle_last"
+        handleLast <- blockNamed "handle_last"
         copy currentPtrOf res result
         copy valuePosOf res result
         retVoid
 
-        handleOther <- block `named` "handle_not_last"
+        handleOther <- blockNamed "handle_not_last"
         _ <- call iterInit [result, current, idx]
         retVoid
 
@@ -1133,12 +1133,12 @@ mkBtreeUpperBound isEmptyTree iterInit iterInitEnd searchUpperBound = do
         isLast <- pos `eq` last
         condBr isLast handleLast handleOther
 
-        handleLast <- block `named` "handle_last"
+        handleLast <- blockNamed "handle_last"
         copy currentPtrOf res result
         copy valuePosOf res result
         retVoid
 
-        handleOther <- block `named` "handle_not_last"
+        handleOther <- blockNamed "handle_not_last"
         _ <- call iterInit [result, current, idx]
         retVoid
 
