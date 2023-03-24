@@ -28,6 +28,8 @@
 # - functions:
 #   - {name: unsafePerformIO, within: []} # unsafePerformIO can only appear in no modules
 
+- arguments:
+  - "-XRecursiveDo"
 
 # Add custom hints for this project
 #

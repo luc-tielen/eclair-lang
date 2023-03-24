@@ -1,5 +1,4 @@
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
-{-# LANGUAGE RecursiveDo #-}
 
 module Eclair.EIR.Lower
   ( compileToLLVM
@@ -430,7 +429,7 @@ generateGetFactsFn usageMapping = do
       let valueSize = 4 * numCols  -- TODO: should use LLVM "valueSize" instead of re-calculating here
       treeOffset <- int32 . toInteger <$> offsetForRelationAndIndex r idx
       relationPtr <- gep program [int32 0, treeOffset]
-      relationSize <- (doCall EIR.Size [relationPtr] >>= (`trunc` i32))
+      relationSize <- doCall EIR.Size [relationPtr] >>= (`trunc` i32)
       memorySize <- mul relationSize (int32 $ toInteger valueSize)
       memory <- call mallocFn [memorySize]
       arrayPtr <- memory `bitcast` ptr (ArrayType (fromIntegral numCols) i32)
