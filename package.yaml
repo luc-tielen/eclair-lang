@@ -71,6 +71,7 @@ default-extensions:
   - FlexibleInstances
   - ScopedTypeVariables
   - PatternSynonyms
+  - RecursiveDo
 
 ghc-options:
   - -Wall

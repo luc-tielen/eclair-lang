@@ -1,6 +1,6 @@
 cabal-version: 2.2
 
--- This file has been generated from package.yaml by hpack version 0.35.0.
+-- This file has been generated from package.yaml by hpack version 0.35.2.
 --
 -- see: https://github.com/sol/hpack
 
@@ -54,6 +54,15 @@ library
       Eclair.EIR.Lower
       Eclair.Error
       Eclair.LLVM.BTree
+      Eclair.LLVM.BTree.Bounds
+      Eclair.LLVM.BTree.Compare
+      Eclair.LLVM.BTree.Create
+      Eclair.LLVM.BTree.Destroy
+      Eclair.LLVM.BTree.Find
+      Eclair.LLVM.BTree.Insert
+      Eclair.LLVM.BTree.Iterator
+      Eclair.LLVM.BTree.Size
+      Eclair.LLVM.BTree.Types
       Eclair.LLVM.Codegen
       Eclair.LLVM.Config
       Eclair.LLVM.Externals
@@ -97,6 +106,7 @@ library
       FlexibleInstances
       ScopedTypeVariables
       PatternSynonyms
+      RecursiveDo
   ghc-options: -Wall -Wincomplete-patterns -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
   cxx-options: -std=c++17 -D__EMBEDDED_SOUFFLE__ -Wall
   build-depends:
@@ -168,6 +178,7 @@ executable eclair
       FlexibleInstances
       ScopedTypeVariables
       PatternSynonyms
+      RecursiveDo
   ghc-options: -Wall -Wincomplete-patterns -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits -threaded -rtsopts -with-rtsopts=-N
   cxx-options: -std=c++17 -D__EMBEDDED_SOUFFLE__
   build-depends:
@@ -243,6 +254,7 @@ executable eclair-lsp-server
       FlexibleInstances
       ScopedTypeVariables
       PatternSynonyms
+      RecursiveDo
   ghc-options: -Wall -Wincomplete-patterns -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits -threaded -rtsopts -with-rtsopts=-N -Wall
   cxx-options: -std=c++17 -D__EMBEDDED_SOUFFLE__
   build-depends:
@@ -322,6 +334,7 @@ test-suite eclair-lsp-test
       FlexibleInstances
       ScopedTypeVariables
       PatternSynonyms
+      RecursiveDo
   ghc-options: -Wall -Wincomplete-patterns -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
   cxx-options: -std=c++17 -D__EMBEDDED_SOUFFLE__
   build-tools:
@@ -402,6 +415,7 @@ test-suite eclair-test
       FlexibleInstances
       ScopedTypeVariables
       PatternSynonyms
+      RecursiveDo
   ghc-options: -Wall -Wincomplete-patterns -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
   cxx-options: -std=c++17 -D__EMBEDDED_SOUFFLE__
   build-depends:
