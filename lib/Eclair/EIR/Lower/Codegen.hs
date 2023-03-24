@@ -1,4 +1,4 @@
-module Eclair.EIR.Codegen
+module Eclair.EIR.Lower.Codegen
   ( CodegenT
   , runCodegenM
   , LowerState(..)
