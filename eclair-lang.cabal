@@ -49,9 +49,11 @@ library
       Eclair.Common.Operator
       Eclair.Common.Pretty
       Eclair.Comonads
-      Eclair.EIR.Codegen
       Eclair.EIR.IR
       Eclair.EIR.Lower
+      Eclair.EIR.Lower.API
+      Eclair.EIR.Lower.Codegen
+      Eclair.EIR.Lower.Externals
       Eclair.Error
       Eclair.LLVM.BTree
       Eclair.LLVM.BTree.Bounds
