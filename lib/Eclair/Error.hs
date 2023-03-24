@@ -161,7 +161,7 @@ typeErrorToReport e = case e of
         lastMarker = (mainErrorPosition e, This $ show (length ctx + 1) <> ") Expected this to be of type " <> renderType expectedTy <> ","
                     <> " but it actually has type " <> renderType actualTy <> ".")
         markers = zipWith renderDeduction markerTypes (toList ctx) ++ [lastMarker]
-        markerTypes = zip [1..] $ repeat Where
+        markerTypes = map (, Where) [1..]
         hints = []  -- Can we even give a meaningful error here? Look in type env? (if a var is used)
 
   UnificationFailure _ _ ctx ->
@@ -176,7 +176,7 @@ typeErrorToReport e = case e of
     Err Nothing title markers hints
       where
         title = "Found hole"
-        markerTypes =  zip [1..] $ repeat Where
+        markerTypes = map (, Where) [1..]
         deductions = zipWith renderDeduction markerTypes (toList ctx)
         markers = deductions <>
           [(mainErrorPosition e, This $ show (length deductions + 1) <> ") Found hole with type " <> renderType holeTy <> ".")]
