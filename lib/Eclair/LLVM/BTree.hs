@@ -31,7 +31,6 @@ codegen exts = do
     runReaderT generateTableFunctions $ CGState tys sizes exts
   where intoIO = pure . runIdentity
 
--- TODO: can be merged with generateTypes now with llvm-codegen?
 computeSizes :: ConfigT (TemplateT Meta IO) Sizes
 computeSizes = do
   (ctx, td) <- (cfgLLVMContext &&& cfgTargetData) <$> getConfig
@@ -119,13 +118,7 @@ generateTableFunctions = mdo
 
   compareValues <- mkCompare
   nodeNew <- mkNodeNew
-  nodeDelete <- mkNodeDelete
   nodeCountEntries <- mkNodeCountEntries
-  splitPoint <- mkNodeSplitPoint
-  split <- mkSplit nodeNew splitPoint growParent
-  growParent <- mkGrowParent nodeNew insertInner
-  insertInner <- mkInsertInner rebalanceOrSplit
-  rebalanceOrSplit <- mkRebalanceOrSplit split
   iterInit <- mkIteratorInit
   iterInitEnd <- mkIteratorInitEnd iterInit
   iterIsEqual <- mkIteratorIsEqual
@@ -138,7 +131,7 @@ generateTableFunctions = mdo
   btreeDestroy <- mkBtreeDestroy btreeClear
   isEmptyTree <- mkBtreeIsEmpty
   btreeSize <- mkBtreeSize nodeCountEntries
-  btreeInsert <- mkBtreeInsertValue nodeNew rebalanceOrSplit compareValues searchLowerBound searchUpperBound isEmptyTree
+  btreeInsert <- mkBtreeInsertValue nodeNew compareValues searchLowerBound searchUpperBound isEmptyTree
   btreeInsertRangeTemplate <- mkBtreeInsertRangeTemplate btreeInsert
   -- We need to instantiate it atleast once for use in the BTree itself.
   let iterParams = IteratorParams
@@ -154,7 +147,7 @@ generateTableFunctions = mdo
   btreeFind <- mkBtreeFind isEmptyTree searchLowerBound compareValues iterInit iterInitEnd
   btreeLowerBound <- mkBtreeLowerBound isEmptyTree iterInit iterInitEnd searchLowerBound compareValues
   btreeUpperBound <- mkBtreeUpperBound isEmptyTree iterInit iterInitEnd searchUpperBound
-  btreeClear <- mkBtreeClear nodeDelete
+  btreeClear <- mkBtreeClear
   btreeSwap <- mkBtreeSwap
 
   pure Table

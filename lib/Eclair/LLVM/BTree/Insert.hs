@@ -1,12 +1,7 @@
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module Eclair.LLVM.BTree.Insert
-  ( mkNodeSplitPoint
-  , mkSplit
-  , mkGrowParent
-  , mkInsertInner
-  , mkRebalanceOrSplit
-  , mkBtreeInsertValue
+  ( mkBtreeInsertValue
   , mkBtreeInsertRangeTemplate
   ) where
 
@@ -257,12 +252,18 @@ mkRebalanceOrSplit splitFn = mdo
       isLessThan <- openSlots `slt` idx
       select isLessThan openSlots idx
 
-mkBtreeInsertValue :: Operand -> Operand -> Operand -> Operand -> Operand -> Operand -> ModuleCodegen Operand
-mkBtreeInsertValue nodeNew rebalanceOrSplit compareValues searchLowerBound searchUpperBound isEmptyTree = do
+mkBtreeInsertValue :: Operand -> Operand -> Operand -> Operand -> Operand -> ModuleCodegen Operand
+mkBtreeInsertValue nodeNew compareValues searchLowerBound searchUpperBound isEmptyTree = mdo
   tree <- typeOf BTree
   node <- typeOf Node
   value <- typeOf Value
   numberOfKeys <- numKeysAsOperand
+
+  splitPoint <- mkNodeSplitPoint
+  split <- mkSplit nodeNew splitPoint growParent
+  growParent <- mkGrowParent nodeNew insertInner
+  insertInner <- mkInsertInner rebalanceOrSplit
+  rebalanceOrSplit <- mkRebalanceOrSplit split
 
   function "btree_insert_value" [(ptr tree, "tree"), (ptr value, "val")] i1 $ \[t, val] -> mdo
     isEmpty <- call isEmptyTree [t]
@@ -290,7 +291,7 @@ mkBtreeInsertValue nodeNew rebalanceOrSplit compareValues searchLowerBound searc
       insertInNonEmptyInnerNode loopBlock noInsert currentPtr current val
 
       leaf <- blockNamed "leaf"
-      insertInNonEmptyLeafNode noInsert inserted t currentPtr current val numberOfKeys
+      insertInNonEmptyLeafNode rebalanceOrSplit noInsert inserted t currentPtr current val numberOfKeys
 
     noInsert <- blockNamed "no_insert"
     ret (bit 0)
@@ -318,7 +319,7 @@ mkBtreeInsertValue nodeNew rebalanceOrSplit compareValues searchLowerBound searc
       store currentPtr 0 =<< deref (childAt idx) iCurrent
       br loopBlock
 
-    insertInNonEmptyLeafNode noInsert inserted t currentPtr current val numberOfKeys = mdo
+    insertInNonEmptyLeafNode rebalanceOrSplit noInsert inserted t currentPtr current val numberOfKeys = mdo
       -- Rest is for leaf nodes
       innerNode <- typeOf InnerNode
       valSize <- asks (valueSize . typeSizes)

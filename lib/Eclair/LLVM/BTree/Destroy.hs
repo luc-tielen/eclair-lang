@@ -1,13 +1,21 @@
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module Eclair.LLVM.BTree.Destroy
-  ( mkNodeDelete
-  , mkBtreeDestroy
+  ( mkBtreeDestroy
   , mkBtreeClear
   ) where
 
 import Prelude hiding (void)
 import Eclair.LLVM.BTree.Types
+
+
+mkBtreeDestroy :: Operand -> ModuleCodegen Operand
+mkBtreeDestroy btreeClear = do
+  tree <- typeOf BTree
+
+  function "btree_destroy" [(ptr tree, "tree")] void $ \[t] -> do
+    _ <- call btreeClear [t]
+    pass
 
 mkNodeDelete :: ModuleCodegen Operand
 mkNodeDelete = mdo
@@ -34,18 +42,12 @@ mkNodeDelete = mdo
 
   pure nodeDelete
 
-mkBtreeDestroy :: Operand -> ModuleCodegen Operand
-mkBtreeDestroy btreeClear = do
-  tree <- typeOf BTree
-
-  function "btree_destroy" [(ptr tree, "tree")] void $ \[t] -> do
-    _ <- call btreeClear [t]
-    pass
-
-mkBtreeClear :: Operand -> ModuleCodegen Operand
-mkBtreeClear nodeDelete = do
+mkBtreeClear :: ModuleCodegen Operand
+mkBtreeClear = do
   tree <- typeOf BTree
   node <- typeOf Node
+
+  nodeDelete <- mkNodeDelete
 
   function "btree_clear" [(ptr tree, "tree")] void $ \[t] -> do
     root <- deref rootPtrOf t
