@@ -28,7 +28,7 @@ mkNodeNew = mdo
   malloc <- asks (extMalloc . externals)
 
   function "eclair_btree_node_new" [(nodeType, "type")] (ptr node) $ \[ty] -> mdo
-    structSize <- select ty leafSize innerSize
+    structSize <- select ty innerSize leafSize
     memory <- call malloc [structSize]
     n <- memory `bitcast` ptr node
 
