@@ -20,7 +20,7 @@ mkIteratorInit = do
   nodeSize <- typeOf NodeSize
   let args = [(ptr iter, "iter"), (ptr node, "cur"), (nodeSize, "pos")]
 
-  function "btree_iterator_init" args void $ \[it, cur, pos] -> do
+  function "eclair_btree_iterator_init" args void $ \[it, cur, pos] -> do
     assign currentPtrOf it cur
     assign valuePosOf it pos
 
@@ -29,7 +29,7 @@ mkIteratorInitEnd iterInit = do
   iter <- typeOf Iterator
   node <- typeOf Node
 
-  function "btree_iterator_end_init" [(ptr iter, "iter")] void $ \[it] -> do
+  function "eclair_btree_iterator_end_init" [(ptr iter, "iter")] void $ \[it] -> do
     _ <- call iterInit [it, nullPtr node, int16 0]
     retVoid
 
@@ -37,7 +37,7 @@ mkIteratorIsEqual :: ModuleCodegen Operand
 mkIteratorIsEqual = do
   iter <- typeOf Iterator
 
-  function "btree_iterator_is_equal" [(ptr iter, "lhs"), (ptr iter, "rhs")] i1 $ \[lhs, rhs] -> mdo
+  function "eclair_btree_iterator_is_equal" [(ptr iter, "lhs"), (ptr iter, "rhs")] i1 $ \[lhs, rhs] -> mdo
     currentLhs <- deref currentPtrOf lhs
     currentRhs <- deref currentPtrOf rhs
 
@@ -54,7 +54,7 @@ mkIteratorCurrent = do
   iter <- typeOf Iterator
   value <- typeOf Value
 
-  function "btree_iterator_current" [(ptr iter, "iter")] (ptr value) $ \[it] -> mdo
+  function "eclair_btree_iterator_current" [(ptr iter, "iter")] (ptr value) $ \[it] -> mdo
     valuePos <- deref valuePosOf it
     currentNode <- deref currentPtrOf it
     ret =<< addr (valueAt valuePos) currentNode
@@ -63,7 +63,7 @@ mkIteratorNext :: ModuleCodegen Operand
 mkIteratorNext = do
   iter <- typeOf Iterator
 
-  function "btree_iterator_next" [(ptr iter, "iter")] void $ \[it] -> mdo
+  function "eclair_btree_iterator_next" [(ptr iter, "iter")] void $ \[it] -> mdo
     current <- deref currentPtrOf it
     isLeaf <- deref (metaOf ->> nodeTypeOf) current >>= (`eq` leafNodeTypeVal)
     if' isLeaf $ do
@@ -127,7 +127,7 @@ mkBtreeBegin = do
   tree <- typeOf BTree
   iter <- typeOf Iterator
 
-  function "btree_begin" [(ptr tree, "tree"), (ptr iter, "result")] void $ \[t, result] -> do
+  function "eclair_btree_begin" [(ptr tree, "tree"), (ptr iter, "result")] void $ \[t, result] -> do
     assign currentPtrOf result =<< deref firstPtrOf t
     assign valuePosOf result (int16 0)
 
@@ -136,6 +136,6 @@ mkBtreeEnd iteratorInitEnd = do
   tree <- typeOf BTree
   iter <- typeOf Iterator
 
-  function "btree_end" [(ptr tree, "tree"), (ptr iter, "result")] void $ \[_t, result] -> do
+  function "eclair_btree_end" [(ptr tree, "tree"), (ptr iter, "result")] void $ \[_t, result] -> do
     _ <- call iteratorInitEnd [result]
     pass

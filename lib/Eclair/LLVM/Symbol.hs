@@ -57,7 +57,7 @@ mkSymbolInit :: ModuleCodegen Operand
 mkSymbolInit = do
   symbolTy <- asks tySym
   let args = [(ptr symbolTy, "symbol"), (i32, "size"), (ptr i8, "data")]
-  function "symbol_init" args void $ \[symbol, size, utf8Data] -> do
+  function "eclair_symbol_init" args void $ \[symbol, size, utf8Data] -> do
     -- assert(symbol && "symbol cannot be NULL!");
     -- assert(utf8Data && "data cannot be NULL!");
     assign sizeOf symbol size
@@ -68,7 +68,7 @@ mkSymbolDestroy :: ModuleCodegen Operand
 mkSymbolDestroy = do
   (symbolTy, freeFn) <- asks (tySym &&& extFree . externals)
   let args = [(ptr symbolTy, "symbol")]
-  function "symbol_destroy" args void $ \[symbol] -> do
+  function "eclair_symbol_destroy" args void $ \[symbol] -> do
     -- assert(symbol && "symbol cannot be NULL!");
     dataPtr <- deref dataOf symbol
     call freeFn [dataPtr]
@@ -77,7 +77,7 @@ mkSymbolIsEqual :: ModuleCodegen Operand
 mkSymbolIsEqual = do
   (symbolTy, memcmpFn) <- asks (tySym &&& extMemcmp . externals)
   let args = [(ptr symbolTy, "symbol1"), (ptr symbolTy, "symbol2")]
-  function "symbol_is_equal" args i1 $ \[symbol1, symbol2] -> do
+  function "eclair_symbol_is_equal" args i1 $ \[symbol1, symbol2] -> do
     -- assert(symbol1 && "symbol1 cannot be NULL!");
     -- assert(symbol2 && "symbol2 cannot be NULL!");
     size1 <- deref sizeOf symbol1

@@ -68,7 +68,7 @@ mkSymbolTableInit :: ModuleCodegen Operand
 mkSymbolTableInit = do
   CGState ty _ vec hm <- ask
 
-  function "symbol_table_init" [(ptr ty, "table")] void $ \[symTab] -> do
+  function "eclair_symbol_table_init" [(ptr ty, "table")] void $ \[symTab] -> do
     -- assert(table && "symbol table cannot be NULL!");
     vecPtr <- addr vecOf symTab
     hmPtr <- addr hashMapOf symTab
@@ -81,7 +81,7 @@ mkSymbolTableDestroy :: ModuleCodegen Operand
 mkSymbolTableDestroy = do
   CGState ty _ vec hm <- ask
 
-  function "symbol_table_destroy" [(ptr ty, "table")] void $ \[symTab] -> do
+  function "eclair_symbol_table_destroy" [(ptr ty, "table")] void $ \[symTab] -> do
     -- assert(table && "symbol table cannot be NULL!");
     vecPtr <- addr vecOf symTab
     hmPtr <- addr hashMapOf symTab
@@ -95,7 +95,7 @@ mkSymbolTableFindOrInsert = do
   CGState ty symbolTy' vec hm <- ask
   let args = [(ptr ty, "table"), (ptr symbolTy', "symbol")]
 
-  function "symbol_table_find_or_insert" args i32 $ \[symTabPtr, symbolPtr] -> do
+  function "eclair_symbol_table_find_or_insert" args i32 $ \[symTabPtr, symbolPtr] -> do
     -- assert(table && "symbol table cannot be NULL!");
     vecPtr <- addr vecOf symTabPtr
     hmPtr <- addr hashMapOf symTabPtr
@@ -115,7 +115,7 @@ mkSymbolTableContainsIndex = do
   CGState ty _ vec _ <- ask
   let args = [(ptr ty, "table"), (i32, "index")]
 
-  function "symbol_table_contains_index" args i1 $ \[symTabPtr, idx] -> do
+  function "eclair_symbol_table_contains_index" args i1 $ \[symTabPtr, idx] -> do
     -- assert(table && "symbol table cannot be NULL!");
     vecPtr <- addr vecOf symTabPtr
 
@@ -127,7 +127,7 @@ mkSymbolTableContainsSymbol = do
   CGState ty symbolTy' _ hm <- ask
   let args = [(ptr ty, "table"), (ptr symbolTy', "symbol")]
 
-  function "symbol_table_contains_symbol" args i1 $ \[symTabPtr, symbolPtr] -> do
+  function "eclair_symbol_table_contains_symbol" args i1 $ \[symTabPtr, symbolPtr] -> do
     hmPtr <- addr hashMapOf symTabPtr
     ret =<< call (HashMap.hashMapContains hm) [hmPtr, symbolPtr]
 
@@ -136,7 +136,7 @@ mkSymbolTableLookupIndex = do
   CGState ty symbolTy' _ hm <- ask
   let args = [(ptr ty, "table"), (ptr symbolTy', "symbol")]
 
-  function "symbol_table_lookup_index" args i32 $ \[symTabPtr, symbolPtr] -> do
+  function "eclair_symbol_table_lookup_index" args i32 $ \[symTabPtr, symbolPtr] -> do
     hmPtr <- addr hashMapOf symTabPtr
     ret =<< call (HashMap.hashMapLookup hm) [hmPtr, symbolPtr]
 
@@ -145,7 +145,7 @@ mkSymbolTableLookupSymbol = do
   CGState ty symbolTy' vec _ <- ask
   let args = [(ptr ty, "table"), (i32, "index")]
 
-  function "symbol_table_lookup_symbol" args (ptr symbolTy') $ \[symTabPtr, idx] -> do
+  function "eclair_symbol_table_lookup_symbol" args (ptr symbolTy') $ \[symTabPtr, idx] -> do
     -- assert(symbol_table_contains_index(table, index));
     vecPtr <- addr vecOf symTabPtr
     ret =<< call (Vector.vectorGetValue vec) [vecPtr, idx]
