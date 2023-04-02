@@ -76,38 +76,38 @@ start:
   %0 = call ccc i8* @malloc(i32 1592)
   %1 = bitcast i8* %0 to %program*
   %2 = getelementptr %program, %program* %1, i32 0, i32 0
-  call ccc void @symbol_table_init(%symbol_table* %2)
+  call ccc void @eclair_symbol_table_init(%symbol_table* %2)
   %3 = getelementptr %program, %program* %1, i32 0, i32 1
-  call ccc void @btree_init_empty_0(%btree_t_0* %3)
+  call ccc void @eclair_btree_init_empty_0(%btree_t_0* %3)
   %4 = getelementptr %program, %program* %1, i32 0, i32 2
-  call ccc void @btree_init_empty_1(%btree_t_1* %4)
+  call ccc void @eclair_btree_init_empty_1(%btree_t_1* %4)
   %5 = getelementptr %program, %program* %1, i32 0, i32 0
   %6 = getelementptr inbounds [5 x i8], [5 x i8]* @string_literal_0, i32 0, i32 0
   %7 = zext i32 4 to i64
   %8 = call ccc i8* @malloc(i32 4)
   call ccc void @llvm.memcpy.p0i8.p0i8.i64(i8* %8, i8* %6, i64 %7, i1 0)
   %9 = alloca %symbol_t, i32 1
-  call ccc void @symbol_init(%symbol_t* %9, i32 4, i8* %8)
-  %10 = call ccc i32 @symbol_table_find_or_insert(%symbol_table* %5, %symbol_t* %9)
+  call ccc void @eclair_symbol_init(%symbol_t* %9, i32 4, i8* %8)
+  %10 = call ccc i32 @eclair_symbol_table_find_or_insert(%symbol_table* %5, %symbol_t* %9)
   %11 = getelementptr %program, %program* %1, i32 0, i32 0
   %12 = getelementptr inbounds [8 x i8], [8 x i8]* @string_literal_1, i32 0, i32 0
   %13 = zext i32 7 to i64
   %14 = call ccc i8* @malloc(i32 7)
   call ccc void @llvm.memcpy.p0i8.p0i8.i64(i8* %14, i8* %12, i64 %13, i1 0)
   %15 = alloca %symbol_t, i32 1
-  call ccc void @symbol_init(%symbol_t* %15, i32 7, i8* %14)
-  %16 = call ccc i32 @symbol_table_find_or_insert(%symbol_table* %11, %symbol_t* %15)
+  call ccc void @eclair_symbol_init(%symbol_t* %15, i32 7, i8* %14)
+  %16 = call ccc i32 @eclair_symbol_table_find_or_insert(%symbol_table* %11, %symbol_t* %15)
   ret %program* %1
 }
 //--- expected_eclair_program_destroy_llvm.out
 define external ccc void @eclair_program_destroy(%program* %arg_0) "wasm-export-name"="eclair_program_destroy" {
 start:
   %0 = getelementptr %program, %program* %arg_0, i32 0, i32 0
-  call ccc void @symbol_table_destroy(%symbol_table* %0)
+  call ccc void @eclair_symbol_table_destroy(%symbol_table* %0)
   %1 = getelementptr %program, %program* %arg_0, i32 0, i32 1
-  call ccc void @btree_destroy_0(%btree_t_0* %1)
+  call ccc void @eclair_btree_destroy_0(%btree_t_0* %1)
   %2 = getelementptr %program, %program* %arg_0, i32 0, i32 2
-  call ccc void @btree_destroy_1(%btree_t_1* %2)
+  call ccc void @eclair_btree_destroy_1(%btree_t_1* %2)
   %3 = bitcast %program* %arg_0 to i8*
   call ccc void @free(i8* %3)
   ret void
@@ -123,20 +123,20 @@ start:
   %3 = getelementptr [3 x i32], [3 x i32]* %0, i32 0, i32 2
   store i32 3, i32* %3
   %4 = getelementptr %program, %program* %arg_0, i32 0, i32 1
-  %5 = call ccc i1 @btree_insert_value_0(%btree_t_0* %4, [3 x i32]* %0)
+  %5 = call ccc i1 @eclair_btree_insert_value_0(%btree_t_0* %4, [3 x i32]* %0)
   %6 = alloca [2 x i32], i32 1
   %7 = getelementptr [2 x i32], [2 x i32]* %6, i32 0, i32 0
   store i32 2, i32* %7
   %8 = getelementptr [2 x i32], [2 x i32]* %6, i32 0, i32 1
   store i32 3, i32* %8
   %9 = getelementptr %program, %program* %arg_0, i32 0, i32 2
-  %10 = call ccc i1 @btree_insert_value_1(%btree_t_1* %9, [2 x i32]* %6)
+  %10 = call ccc i1 @eclair_btree_insert_value_1(%btree_t_1* %9, [2 x i32]* %6)
   %11 = alloca [2 x i32], i32 1
   %12 = getelementptr [2 x i32], [2 x i32]* %11, i32 0, i32 0
   store i32 1, i32* %12
   %13 = getelementptr [2 x i32], [2 x i32]* %11, i32 0, i32 1
   store i32 2, i32* %13
   %14 = getelementptr %program, %program* %arg_0, i32 0, i32 2
-  %15 = call ccc i1 @btree_insert_value_1(%btree_t_1* %14, [2 x i32]* %11)
+  %15 = call ccc i1 @eclair_btree_insert_value_1(%btree_t_1* %14, [2 x i32]* %11)
   ret void
 }

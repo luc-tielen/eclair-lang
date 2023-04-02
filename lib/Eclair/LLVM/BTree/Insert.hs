@@ -221,7 +221,6 @@ mkRebalanceOrSplit splitFn = mdo
         loopFor (int16 0) (`ult` leftSlotsOpen) (add (int16 1)) $ \i -> do
           leftNumElems' <- deref (metaOf ->> numElemsOf) left
           leftPos <- add leftNumElems' (int16 1) >>= add i
-          -- TODO: check next part against C++ code
           assign (childAt leftPos) iLeft =<< deref (childAt i) iN
           leftChild <- deref (childAt leftPos) iLeft
           assign (metaOf ->> parentOf) leftChild left
