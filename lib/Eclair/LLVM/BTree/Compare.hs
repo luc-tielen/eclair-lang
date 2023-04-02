@@ -14,14 +14,14 @@ mkCompare = do
   tys <- asks types
   let column' = columnTy tys
       value = valueTy tys
-  compare' <- function "btree_value_compare" [(column', "lhs"), (column', "rhs")] i8 $ \[lhs, rhs] -> mdo
+  compare' <- function "eclair_btree_value_compare" [(column', "lhs"), (column', "rhs")] i8 $ \[lhs, rhs] -> mdo
     result1 <- lhs `ult` rhs
     if' result1 $
       ret $ int8 (-1)
     result2 <- lhs `ugt` rhs
     ret =<< select result2 (int8 1) (int8 0)
 
-  function "btree_value_compare_values" [(ptr value, "lhs"), (ptr value, "rhs")] i8 $ \[lhs, rhs] -> mdo
+  function "eclair_btree_value_compare_values" [(ptr value, "lhs"), (ptr value, "rhs")] i8 $ \[lhs, rhs] -> mdo
     let columns = map fromIntegral $ index settings
     results <- flip execStateT mempty $ flip (zygo endCheck) columns $ \case
       Nil -> pass

@@ -13,7 +13,7 @@ mkBtreeDestroy :: Operand -> ModuleCodegen Operand
 mkBtreeDestroy btreeClear = do
   tree <- typeOf BTree
 
-  function "btree_destroy" [(ptr tree, "tree")] void $ \[t] -> do
+  function "eclair_btree_destroy" [(ptr tree, "tree")] void $ \[t] -> do
     _ <- call btreeClear [t]
     pass
 
@@ -23,7 +23,7 @@ mkNodeDelete = mdo
   innerNode <- typeOf InnerNode
   free <- asks (extFree . externals)
 
-  nodeDelete <- function "btree_node_delete" [(ptr node, "node")] void $ \[n] -> mdo
+  nodeDelete <- function "eclair_btree_node_delete" [(ptr node, "node")] void $ \[n] -> mdo
     nodeTy <- deref (metaOf ->> nodeTypeOf) n
     isInner <- nodeTy `eq` innerNodeTypeVal
     if' isInner $ do  -- Delete children of inner node
@@ -49,7 +49,7 @@ mkBtreeClear = do
 
   nodeDelete <- mkNodeDelete
 
-  function "btree_clear" [(ptr tree, "tree")] void $ \[t] -> do
+  function "eclair_btree_clear" [(ptr tree, "tree")] void $ \[t] -> do
     root <- deref rootPtrOf t
     isNotNull <- root `ne` nullPtr node
     if' isNotNull $ do

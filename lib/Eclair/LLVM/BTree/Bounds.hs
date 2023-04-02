@@ -15,7 +15,7 @@ mkLinearSearchLowerBound compareValues = do
   value <- typeOf Value
   let args = [(ptr value, "val"), (ptr value, "current"), (ptr value, "end")]
 
-  function "btree_linear_search_lower_bound" args (ptr value) $ \[val, curr, end] -> mdo
+  function "eclair_btree_linear_search_lower_bound" args (ptr value) $ \[val, curr, end] -> mdo
     -- Finds an iterator to first element not less than given value.
     currentPtr <- allocate (ptr value) curr
     let loopCondition = do
@@ -38,7 +38,7 @@ mkLinearSearchUpperBound compareValues = do
   value <- typeOf Value
   let args = [(ptr value, "val"), (ptr value, "current"), (ptr value, "end")]
 
-  function "btree_linear_search_upper_bound" args (ptr value) $ \[val, curr, end] -> mdo
+  function "eclair_btree_linear_search_upper_bound" args (ptr value) $ \[val, curr, end] -> mdo
     -- Finds an iterator to first element that is greater than given value.
     currentPtr <- allocate (ptr value) curr
     let loopCondition = do
@@ -66,7 +66,7 @@ mkBtreeLowerBound isEmptyTree iterInit iterInitEnd searchLowerBound compareValue
   valSize <- asks (valueSize . typeSizes)
   let args = [(ptr tree, "tree"), (ptr value, "val"), (ptr iter, "result")]
 
-  function "btree_lower_bound" args void $ \[t, val, result] -> mdo
+  function "eclair_btree_lower_bound" args void $ \[t, val, result] -> mdo
     isEmpty <- call isEmptyTree [t]
     if' isEmpty $ do
       _ <- call iterInitEnd [result]
@@ -121,7 +121,7 @@ mkBtreeUpperBound isEmptyTree iterInit iterInitEnd searchUpperBound = do
   valSize <- asks (valueSize . typeSizes)
   let args = [(ptr tree, "tree"), (ptr value, "val"), (ptr iter, "result")]
 
-  function "btree_upper_bound" args void $ \[t, val, result] -> mdo
+  function "eclair_btree_upper_bound" args void $ \[t, val, result] -> mdo
     isEmpty <- call isEmptyTree [t]
     if' isEmpty $ do
       _ <- call iterInitEnd [result]

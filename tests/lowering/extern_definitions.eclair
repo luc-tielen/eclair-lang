@@ -138,17 +138,17 @@ if_0:
   %13 = alloca %btree_iterator_t_0, i32 1
   %14 = alloca %btree_iterator_t_0, i32 1
   %15 = getelementptr %program, %program* %arg_0, i32 0, i32 1
-  call ccc void @btree_lower_bound_0(%btree_t_0* %15, [2 x i32]* %3, %btree_iterator_t_0* %13)
+  call ccc void @eclair_btree_lower_bound_0(%btree_t_0* %15, [2 x i32]* %3, %btree_iterator_t_0* %13)
   %16 = getelementptr %program, %program* %arg_0, i32 0, i32 1
-  call ccc void @btree_upper_bound_0(%btree_t_0* %16, [2 x i32]* %4, %btree_iterator_t_0* %14)
+  call ccc void @eclair_btree_upper_bound_0(%btree_t_0* %16, [2 x i32]* %4, %btree_iterator_t_0* %14)
   br label %loop_0
 loop_0:
-  %17 = call ccc i1 @btree_iterator_is_equal_0(%btree_iterator_t_0* %13, %btree_iterator_t_0* %14)
+  %17 = call ccc i1 @eclair_btree_iterator_is_equal_0(%btree_iterator_t_0* %13, %btree_iterator_t_0* %14)
   br i1 %17, label %if_1, label %end_if_0
 if_1:
   br label %range_query.end
 end_if_0:
-  %18 = call ccc [2 x i32]* @btree_iterator_current_0(%btree_iterator_t_0* %13)
+  %18 = call ccc [2 x i32]* @eclair_btree_iterator_current_0(%btree_iterator_t_0* %13)
   %19 = getelementptr [2 x i32], [2 x i32]* %18, i32 0, i32 0
   %20 = load i32, i32* %19
   %21 = getelementptr %program, %program* %arg_0, i32 0, i32 0
@@ -163,10 +163,10 @@ if_2:
   %28 = load i32, i32* %27
   store i32 %28, i32* %26
   %29 = getelementptr %program, %program* %arg_0, i32 0, i32 2
-  %30 = call ccc i1 @btree_insert_value_1(%btree_t_1* %29, [1 x i32]* %25)
+  %30 = call ccc i1 @eclair_btree_insert_value_1(%btree_t_1* %29, [1 x i32]* %25)
   br label %end_if_1
 end_if_1:
-  call ccc void @btree_iterator_next_0(%btree_iterator_t_0* %13)
+  call ccc void @eclair_btree_iterator_next_0(%btree_iterator_t_0* %13)
   br label %loop_0
 range_query.end:
   br label %end_if_2
@@ -196,25 +196,25 @@ if_4:
   %45 = alloca %btree_iterator_t_0, i32 1
   %46 = alloca %btree_iterator_t_0, i32 1
   %47 = getelementptr %program, %program* %arg_0, i32 0, i32 1
-  call ccc void @btree_lower_bound_0(%btree_t_0* %47, [2 x i32]* %39, %btree_iterator_t_0* %45)
+  call ccc void @eclair_btree_lower_bound_0(%btree_t_0* %47, [2 x i32]* %39, %btree_iterator_t_0* %45)
   %48 = getelementptr %program, %program* %arg_0, i32 0, i32 1
-  call ccc void @btree_upper_bound_0(%btree_t_0* %48, [2 x i32]* %40, %btree_iterator_t_0* %46)
+  call ccc void @eclair_btree_upper_bound_0(%btree_t_0* %48, [2 x i32]* %40, %btree_iterator_t_0* %46)
   br label %loop_1
 loop_1:
-  %49 = call ccc i1 @btree_iterator_is_equal_0(%btree_iterator_t_0* %45, %btree_iterator_t_0* %46)
+  %49 = call ccc i1 @eclair_btree_iterator_is_equal_0(%btree_iterator_t_0* %45, %btree_iterator_t_0* %46)
   br i1 %49, label %if_5, label %end_if_3
 if_5:
   br label %range_query.end_1
 end_if_3:
-  %50 = call ccc [2 x i32]* @btree_iterator_current_0(%btree_iterator_t_0* %45)
+  %50 = call ccc [2 x i32]* @eclair_btree_iterator_current_0(%btree_iterator_t_0* %45)
   %51 = alloca [1 x i32], i32 1
   %52 = getelementptr [1 x i32], [1 x i32]* %51, i32 0, i32 0
   %53 = getelementptr [2 x i32], [2 x i32]* %50, i32 0, i32 0
   %54 = load i32, i32* %53
   store i32 %54, i32* %52
   %55 = getelementptr %program, %program* %arg_0, i32 0, i32 2
-  %56 = call ccc i1 @btree_insert_value_1(%btree_t_1* %55, [1 x i32]* %51)
-  call ccc void @btree_iterator_next_0(%btree_iterator_t_0* %45)
+  %56 = call ccc i1 @eclair_btree_insert_value_1(%btree_t_1* %55, [1 x i32]* %51)
+  call ccc void @eclair_btree_iterator_next_0(%btree_iterator_t_0* %45)
   br label %loop_1
 range_query.end_1:
   br label %end_if_4
@@ -227,6 +227,6 @@ end_if_5:
   %60 = call ccc i32 @func(%symbol_table* %59, i32 123)
   store i32 %60, i32* %58
   %61 = getelementptr %program, %program* %arg_0, i32 0, i32 2
-  %62 = call ccc i1 @btree_insert_value_1(%btree_t_1* %61, [1 x i32]* %57)
+  %62 = call ccc i1 @eclair_btree_insert_value_1(%btree_t_1* %61, [1 x i32]* %57)
   ret void
 }

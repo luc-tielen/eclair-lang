@@ -104,7 +104,7 @@ mkVectorInit = do
   let (vecTy, elemTy) = (tyVector &&& tyElement) tys
       mallocFn = extMalloc exts
 
-  function "vector_init" [(ptr vecTy, "vec")] void $ \[vec] -> do
+  function "eclair_vector_init" [(ptr vecTy, "vec")] void $ \[vec] -> do
     -- assert(vec && "Vector should not be null");
     let numBytes = int32 . toInteger $ sizeOfElem * fromIntegral initialCapacity
     memoryPtr <- (`bitcast` ptr elemTy) =<< call mallocFn [numBytes]
@@ -121,7 +121,7 @@ mkVectorDestroy = do
   let (vecTy, elemTy) = (tyVector &&& tyElement) tys
       freeFn = extFree exts
 
-  function "vector_destroy" [(ptr vecTy, "vec")] void $ \[vec] -> do
+  function "eclair_vector_destroy" [(ptr vecTy, "vec")] void $ \[vec] -> do
     -- assert(vec && "Vector should not be null");
     for_ elemDestructor $ \destructor' -> do
       iterPtrPtr <- allocate (ptr elemTy) =<< deref startPtrOf vec
@@ -148,7 +148,7 @@ mkVectorPush vectorSize' = do
       memcpyFn = extMemcpy exts
       sizeOfElem = int32 $ toInteger sizeElem
 
-  vectorGrow <- function "vector_grow" [(ptr vecTy, "vec")] void $ \[vec] -> do
+  vectorGrow <- function "eclair_vector_grow" [(ptr vecTy, "vec")] void $ \[vec] -> do
     -- NOTE: size == capacity in this function
     -- assert(vec && "Vector should not be null");
     currentCapacity <- deref capacityOf vec
@@ -168,7 +168,7 @@ mkVectorPush vectorSize' = do
     assign endPtrOf vec newMemoryEndPtr
     assign capacityOf vec newCapacity
 
-  function "vector_push" [(ptr vecTy, "vec"), (ptr elemTy, "elem")] i32 $ \[vec, elem'] -> do
+  function "eclair_vector_push" [(ptr vecTy, "vec"), (ptr elemTy, "elem")] i32 $ \[vec, elem'] -> do
     -- assert(vec && "Vector should not be null");
     numElems <- call vectorSize' [vec]
     capacity <- deref capacityOf vec
@@ -188,7 +188,7 @@ mkVectorSize = do
   let vecTy = tyVector tys
       sizeOfElem = int32 $ toInteger sizeElem
 
-  function "vector_size" [(ptr vecTy, "vec")] i32 $ \[vec] -> do
+  function "eclair_vector_size" [(ptr vecTy, "vec")] i32 $ \[vec] -> do
     -- assert(vec && "Vector should not be null");
     startPtr <- deref startPtrOf vec
     endPtr <- deref endPtrOf vec
@@ -198,7 +198,7 @@ mkVectorSize = do
 mkVectorGetValue :: ModuleCodegen Operand
 mkVectorGetValue = do
   (vecTy, elemTy) <- asks ((tyVector &&& tyElement) . types)
-  function "vector_get_value" [(ptr vecTy, "vec"), (i32, "idx")] (ptr elemTy) $ \[vec, idx] -> do
+  function "eclair_vector_get_value" [(ptr vecTy, "vec"), (i32, "idx")] (ptr elemTy) $ \[vec, idx] -> do
     startPtr <- deref startPtrOf vec
     -- We need a raw gep here, since this is a dynamically allocated pointer that we need to offset.
     ret =<< gep startPtr [idx]

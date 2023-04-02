@@ -14,7 +14,7 @@ mkBtreeContains iterIsEqual btreeFind btreeEnd = do
   tree <- typeOf BTree
   value <- typeOf Value
 
-  function "btree_contains" [(ptr tree, "tree"), (ptr value, "val")] i1 $ \[t, val] -> do
+  function "eclair_btree_contains" [(ptr tree, "tree"), (ptr value, "val")] i1 $ \[t, val] -> do
     iterPtr <- allocateIter
     endIterPtr <- allocateIter
     _ <- call btreeFind [t, val, iterPtr]
@@ -33,7 +33,7 @@ mkBtreeFind isEmptyTree searchLowerBound compareValues iterInit iterInitEnd = do
 
   let args = [(ptr tree, "tree"), (ptr value, "val"), (ptr iter, "result")]
 
-  function "btree_find" args void $ \[t, val, result] -> mdo
+  function "eclair_btree_find" args void $ \[t, val, result] -> mdo
     isEmpty <- call isEmptyTree [t]
     if' isEmpty $ do
       _ <- call iterInitEnd [result]

@@ -14,7 +14,7 @@ mkNodeSplitPoint = mdo
   nodeSize <- typeOf NodeSize
   numberOfKeys <- numKeysAsOperand
 
-  function "btree_node_split_point" [] nodeSize $ \_ -> mdo
+  function "eclair_btree_node_split_point" [] nodeSize $ \_ -> mdo
     a' <- mul (int16 3) numberOfKeys
     a <- udiv a' (int16 4)
     b <- sub numberOfKeys (int16 2)
@@ -26,7 +26,7 @@ mkSplit nodeNew nodeSplitPoint growParent = mdo
   innerNode <- typeOf InnerNode
   numberOfKeys <- numKeysAsOperand
 
-  function "btree_node_split" [(ptr node, "node"), (ptr (ptr node), "root")] void $ \[n, root] -> mdo
+  function "eclair_btree_node_split" [(ptr node, "node"), (ptr (ptr node), "root")] void $ \[n, root] -> mdo
     -- TODO: how to do assertions in LLVM?
     -- assert(n->meta.num_elements == NUM_KEYS);
     splitPoint <- call nodeSplitPoint []
@@ -66,7 +66,7 @@ mkGrowParent nodeNew insertInner = mdo
   node <- typeOf Node
   innerNode <- typeOf InnerNode
 
-  function "btree_node_grow_parent" [(ptr node, "node"), (ptr (ptr node), "root"), (ptr node, "sibling")] void $
+  function "eclair_btree_node_grow_parent" [(ptr node, "node"), (ptr (ptr node), "root"), (ptr node, "sibling")] void $
     \[n, root, sibling] -> mdo
     parent <- deref (metaOf ->> parentOf) n
     isNull <- parent `eq` nullPtr node
@@ -109,7 +109,7 @@ mkInsertInner rebalanceOrSplit = mdo
              ]
   numberOfKeys <- numKeysAsOperand
 
-  insertInner <- function "btree_node_insert_inner" args void $
+  insertInner <- function "eclair_btree_node_insert_inner" args void $
     \[n, root, pos, predecessor, key, newNode] -> mdo
     -- Need to allocate pos on the stack, otherwise pos updates are
     -- not visible later on!
@@ -169,7 +169,7 @@ mkRebalanceOrSplit splitFn = mdo
   numberOfKeys <- numKeysAsOperand
 
   let args = [(ptr node, "node"), (ptr (ptr node), "root"), (nodeSize, "idx")]
-  function "btree_node_rebalance_or_split" args nodeSize $ \[n, root, idx] -> mdo
+  function "eclair_btree_node_rebalance_or_split" args nodeSize $ \[n, root, idx] -> mdo
     -- TODO assert(n->meta.num_elements == NUM_KEYS);
 
     parent <- deref (metaOf ->> parentOf) n >>= (`bitcast` ptr innerNode)
@@ -221,7 +221,6 @@ mkRebalanceOrSplit splitFn = mdo
         loopFor (int16 0) (`ult` leftSlotsOpen) (add (int16 1)) $ \i -> do
           leftNumElems' <- deref (metaOf ->> numElemsOf) left
           leftPos <- add leftNumElems' (int16 1) >>= add i
-          -- TODO: check next part against C++ code
           assign (childAt leftPos) iLeft =<< deref (childAt i) iN
           leftChild <- deref (childAt leftPos) iLeft
           assign (metaOf ->> parentOf) leftChild left
@@ -265,7 +264,7 @@ mkBtreeInsertValue nodeNew compareValues searchLowerBound searchUpperBound isEmp
   insertInner <- mkInsertInner rebalanceOrSplit
   rebalanceOrSplit <- mkRebalanceOrSplit split
 
-  function "btree_insert_value" [(ptr tree, "tree"), (ptr value, "val")] i1 $ \[t, val] -> mdo
+  function "eclair_btree_insert_value" [(ptr tree, "tree"), (ptr value, "val")] i1 $ \[t, val] -> mdo
     isEmpty <- call isEmptyTree [t]
     condBr isEmpty emptyCase nonEmptyCase
 
@@ -383,7 +382,7 @@ mkBtreeInsertRangeTemplate btreeInsertValue = do
     iterParams <- getParams
     let iterTy = ipTypeIter iterParams
         args = [(ptr tree, "tree"), (ptr iterTy, "begin"), (ptr iterTy, "end")]
-    function "btree_insert_range" args void $ \[t, begin, end] -> do
+    function "eclair_btree_insert_range" args void $ \[t, begin, end] -> do
       let loopCondition = do
             isEqual <- call (ipIterIsEqual iterParams) [begin, end]
             not' isEqual

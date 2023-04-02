@@ -13,7 +13,7 @@ mkNodeCountEntries :: ModuleCodegen Operand
 mkNodeCountEntries = mdo
   node <- typeOf Node
 
-  countEntries <- function "node_count_entries" [(ptr node, "node")] i64 $ \[n] -> mdo
+  countEntries <- function "eclair_btree_node_count_entries" [(ptr node, "node")] i64 $ \[n] -> mdo
     numElements <- deref (metaOf ->> numElemsOf) n
     ty <- deref (metaOf ->> nodeTypeOf) n
     isLeaf <- ty `eq` leafNodeTypeVal
@@ -47,7 +47,7 @@ mkBtreeIsEmpty = do
   tree <- typeOf BTree
   node <- typeOf Node
 
-  function "btree_is_empty" [(ptr tree, "tree")] i1 $ \[t] -> do
+  function "eclair_btree_is_empty" [(ptr tree, "tree")] i1 $ \[t] -> do
     root <- deref rootPtrOf t
     ret =<< root `eq` nullPtr node
 
@@ -56,7 +56,7 @@ mkBtreeSize nodeCountEntries = do
   tree <- typeOf BTree
   node <- typeOf Node
 
-  function "btree_size" [(ptr tree, "tree")] i64 $ \[t] -> mdo
+  function "eclair_btree_size" [(ptr tree, "tree")] i64 $ \[t] -> mdo
     root <- deref rootPtrOf t
     isNull <- root `eq` nullPtr node
     condBr isNull nullBlock notNullBlock

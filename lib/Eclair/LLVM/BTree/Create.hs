@@ -27,8 +27,8 @@ mkNodeNew = mdo
 
   malloc <- asks (extMalloc . externals)
 
-  function "btree_node_new" [(nodeType, "type")] (ptr node) $ \[ty] -> mdo
-    structSize <- select ty leafSize innerSize
+  function "eclair_btree_node_new" [(nodeType, "type")] (ptr node) $ \[ty] -> mdo
+    structSize <- select ty innerSize leafSize
     memory <- call malloc [structSize]
     n <- memory `bitcast` ptr node
 
@@ -54,7 +54,7 @@ mkBtreeInitEmpty = do
   tree <- typeOf BTree
   node <- typeOf Node
 
-  function "btree_init_empty" [(ptr tree, "tree")] void $ \[t] -> mdo
+  function "eclair_btree_init_empty" [(ptr tree, "tree")] void $ \[t] -> mdo
     assign rootPtrOf t (nullPtr node)
     assign firstPtrOf t (nullPtr node)
 
@@ -64,7 +64,7 @@ mkBtreeInit btreeInsertRange = do
   iter <- typeOf Iterator
   let args = [(ptr tree, "tree"), (ptr iter, "start"), (ptr iter, "end")]
 
-  function "btree_init" args void $ \[t, start, end] -> mdo
+  function "eclair_btree_init" args void $ \[t, start, end] -> mdo
     _ <- call btreeInsertRange [t, start, end]
     pass
 
@@ -72,6 +72,6 @@ mkBtreeSwap :: ModuleCodegen Operand
 mkBtreeSwap = do
   tree <- typeOf BTree
 
-  function "btree_swap" [(ptr tree, "lhs"), (ptr tree, "rhs")] void $ \[lhs, rhs] ->
+  function "eclair_btree_swap" [(ptr tree, "lhs"), (ptr tree, "rhs")] void $ \[lhs, rhs] ->
     for_ [rootPtrOf, firstPtrOf] $ \path ->
       swap path lhs rhs

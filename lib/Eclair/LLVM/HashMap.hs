@@ -94,7 +94,7 @@ mkHash = do
   let hashTy = i32
 
   -- TODO better hash function?
-  function "symbol_hash" [(ptr symbolTy, "symbol")] hashTy $ \[symbol] -> do
+  function "eclair_symbol_hash" [(ptr symbolTy, "symbol")] hashTy $ \[symbol] -> do
     hashPtr <- allocate hashTy (int32 0)
     symbolSize <- deref Symbol.sizeOf symbol
     dataPtr <- deref Symbol.dataOf symbol
@@ -115,7 +115,7 @@ mkHashMapInit :: ModuleCodegen Operand
 mkHashMapInit = do
   (hmTy, vec) <- asks (tyHashMap . types &&& vectorCodegen)
 
-  function "hashmap_init" [(ptr hmTy, "hashmap")] void $ \[hm] -> do
+  function "eclair_hashmap_init" [(ptr hmTy, "hashmap")] void $ \[hm] -> do
     loopBuckets hm $ \bucketPtr -> do
       call (Vector.vectorInit vec) [bucketPtr]
 
@@ -123,7 +123,7 @@ mkHashMapDestroy :: ModuleCodegen Operand
 mkHashMapDestroy = do
   (hmTy, vec) <- asks (tyHashMap . types &&& vectorCodegen)
 
-  function "hashmap_destroy" [(ptr hmTy, "hashmap")] void $ \[hm] -> do
+  function "eclair_hashmap_destroy" [(ptr hmTy, "hashmap")] void $ \[hm] -> do
     loopBuckets hm $ \bucketPtr -> do
       call (Vector.vectorDestroy vec) [bucketPtr]
 
@@ -135,7 +135,7 @@ mkHashMapGetOrPutValue hashFn = do
 
   let args = [(ptr hmTy, "hashmap"), (ptr symbolTy, "symbol"), (i32, "value")]
 
-  function "hashmap_get_or_put_value" args i32 $ \[hm, symbolPtr, value] -> do
+  function "eclair_hashmap_get_or_put_value" args i32 $ \[hm, symbolPtr, value] -> do
     bucketPtr <- bucketForHash hashFn hm symbolPtr
     loopEntriesInBucket symbolPtr bucketPtr $
       ret <=< deref valueOf
@@ -154,7 +154,7 @@ mkHashMapLookup :: Operand -> ModuleCodegen Operand
 mkHashMapLookup hashFn = do
   (hmTy, symbolTy) <- asks (tyHashMap . types &&& Symbol.tySymbol . symbolCodegen)
   let args = [(ptr hmTy, "hashmap"), (ptr symbolTy, "symbol")]
-  function "hashmap_lookup" args i32 $ \[hm, symbolPtr] -> do
+  function "eclair_hashmap_lookup" args i32 $ \[hm, symbolPtr] -> do
     bucketPtr <- bucketForHash hashFn hm symbolPtr
     loopEntriesInBucket symbolPtr bucketPtr $
       ret <=< deref valueOf
@@ -165,7 +165,7 @@ mkHashMapContains :: Operand -> ModuleCodegen Operand
 mkHashMapContains hashFn = do
   (hmTy, symbolTy) <- asks (tyHashMap . types &&& Symbol.tySymbol . symbolCodegen)
   let args = [(ptr hmTy, "hashmap"), (ptr symbolTy, "symbol")]
-  function "hashmap_contains" args i1 $ \[hm, symbolPtr] -> do
+  function "eclair_hashmap_contains" args i1 $ \[hm, symbolPtr] -> do
     bucketPtr <- bucketForHash hashFn hm symbolPtr
     loopEntriesInBucket symbolPtr bucketPtr $
       const $ ret (bit 1)

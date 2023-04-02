@@ -35,7 +35,7 @@ typedef struct bucket {
 
 typedef struct hashmap {
   bucket_t buckets[64];
-} hashmap_t;
+} eclair_hashmap_t;
 
 static void ASSERT(bool result, const char *msg) {
   if (!result) {
@@ -44,27 +44,27 @@ static void ASSERT(bool result, const char *msg) {
   }
 }
 
-extern void hashmap_init(void *map);
-extern void hashmap_destroy(void *map);
-extern u32 hashmap_get_or_put_value(void *map, void *key, u32 value);
-extern bool hashmap_contains(void *map, void *key);
-extern u32 hashmap_lookup(void *map, void *key);
+extern void eclair_hashmap_init(void *map);
+extern void eclair_hashmap_destroy(void *map);
+extern u32 eclair_hashmap_get_or_put_value(void *map, void *key, u32 value);
+extern bool eclair_hashmap_contains(void *map, void *key);
+extern u32 eclair_hashmap_lookup(void *map, void *key);
 
-static void test_hashmap_init() {
-  hashmap_t map;
-  hashmap_init(&map);
-  hashmap_destroy(&map);
+static void test_eclair_hashmap_init() {
+  eclair_hashmap_t map;
+  eclair_hashmap_init(&map);
+  eclair_hashmap_destroy(&map);
 }
 
-static void test_hashmap_collisions() {
-  hashmap_t map;
-  hashmap_init(&map);
+static void test_eclair_hashmap_collisions() {
+  eclair_hashmap_t map;
+  eclair_hashmap_init(&map);
 
   // NOTE: these 2 create a collision
   symbol_t symbol1 = {.size = 1, .data = "<"};
   symbol_t symbol2 = {.size = 1, .data = "|"};
-  hashmap_get_or_put_value(&map, &symbol1, 0);
-  hashmap_get_or_put_value(&map, &symbol2, 1);
+  eclair_hashmap_get_or_put_value(&map, &symbol1, 0);
+  eclair_hashmap_get_or_put_value(&map, &symbol2, 1);
 
   u32 hash = 60; // 60 % 64 or 124 % 64 = 60
   printf("%s, %s\n", map.buckets[hash].start[0].symbol.data, symbol1.data);
@@ -75,83 +75,83 @@ static void test_hashmap_collisions() {
          "Unexpected symbol2 in hashmap");
   ASSERT(map.buckets[hash].start[1].value == 1, "Unexpected value2 in hashmap");
 
-  hashmap_destroy(&map);
+  eclair_hashmap_destroy(&map);
 }
 
-static void test_hashmap_get_or_put_value() {
-  hashmap_t map;
-  hashmap_init(&map);
+static void test_eclair_hashmap_get_or_put_value() {
+  eclair_hashmap_t map;
+  eclair_hashmap_init(&map);
 
   // NOTE: these 2 create a collision
   symbol_t symbol1 = {.size = 1, .data = "<"};
   symbol_t symbol2 = {.size = 1, .data = "|"};
 
   // non-existing value => adds new value
-  u32 result1 = hashmap_get_or_put_value(&map, &symbol1, 0);
-  u32 result2 = hashmap_get_or_put_value(&map, &symbol2, 1);
-  ASSERT(result1 == 0, "Unexpected result from hashmap_get_or_put_value");
-  ASSERT(result2 == 1, "Unexpected result from hashmap_get_or_put_value");
+  u32 result1 = eclair_hashmap_get_or_put_value(&map, &symbol1, 0);
+  u32 result2 = eclair_hashmap_get_or_put_value(&map, &symbol2, 1);
+  ASSERT(result1 == 0, "Unexpected result from eclair_hashmap_get_or_put_value");
+  ASSERT(result2 == 1, "Unexpected result from eclair_hashmap_get_or_put_value");
 
   // existing value => finds existing value
-  u32 result3 = hashmap_get_or_put_value(&map, &symbol1, 2);
-  u32 result4 = hashmap_get_or_put_value(&map, &symbol2, 3);
-  ASSERT(result1 == 0, "Unexpected result from hashmap_get_or_put_value");
-  ASSERT(result2 == 1, "Unexpected result from hashmap_get_or_put_value");
+  u32 result3 = eclair_hashmap_get_or_put_value(&map, &symbol1, 2);
+  u32 result4 = eclair_hashmap_get_or_put_value(&map, &symbol2, 3);
+  ASSERT(result1 == 0, "Unexpected result from eclair_hashmap_get_or_put_value");
+  ASSERT(result2 == 1, "Unexpected result from eclair_hashmap_get_or_put_value");
 
-  hashmap_destroy(&map);
+  eclair_hashmap_destroy(&map);
 }
 
-static void test_hashmap_contains() {
-  hashmap_t map;
-  hashmap_init(&map);
+static void test_eclair_hashmap_contains() {
+  eclair_hashmap_t map;
+  eclair_hashmap_init(&map);
 
   // NOTE: these 2 create a collision
   symbol_t symbol1 = {.size = 1, .data = "<"};
   symbol_t symbol2 = {.size = 1, .data = "|"};
-  hashmap_get_or_put_value(&map, &symbol1, 0);
-  hashmap_get_or_put_value(&map, &symbol2, 1);
+  eclair_hashmap_get_or_put_value(&map, &symbol1, 0);
+  eclair_hashmap_get_or_put_value(&map, &symbol2, 1);
 
-  ASSERT(hashmap_contains(&map, &symbol1), "Expected to find symbol1!");
-  ASSERT(hashmap_contains(&map, &symbol2), "Expected to find symbol2!");
+  ASSERT(eclair_hashmap_contains(&map, &symbol1), "Expected to find symbol1!");
+  ASSERT(eclair_hashmap_contains(&map, &symbol2), "Expected to find symbol2!");
 
   symbol_t symbol3 = {.size = 1, .data = "a"};
-  ASSERT(!hashmap_contains(&map, &symbol3), "Expected not to find symbol3!");
+  ASSERT(!eclair_hashmap_contains(&map, &symbol3), "Expected not to find symbol3!");
 
-  hashmap_destroy(&map);
+  eclair_hashmap_destroy(&map);
 }
 
-static void test_hashmap_lookup() {
+static void test_eclair_hashmap_lookup() {
   // NOTE: can't be used for value not present in map!
-  hashmap_t map;
-  hashmap_init(&map);
+  eclair_hashmap_t map;
+  eclair_hashmap_init(&map);
 
   // NOTE: these 2 create a collision
   symbol_t symbol1 = {.size = 1, .data = "<"};
   symbol_t symbol2 = {.size = 1, .data = "|"};
-  hashmap_get_or_put_value(&map, &symbol1, 0);
-  hashmap_get_or_put_value(&map, &symbol2, 1);
+  eclair_hashmap_get_or_put_value(&map, &symbol1, 0);
+  eclair_hashmap_get_or_put_value(&map, &symbol2, 1);
 
   symbol_t symbol3 = {.size = 1, .data = "a"};
-  hashmap_get_or_put_value(&map, &symbol3, 2);
+  eclair_hashmap_get_or_put_value(&map, &symbol3, 2);
 
-  ASSERT(hashmap_lookup(&map, &symbol1) == 0, "Expected to find symbol1!");
-  ASSERT(hashmap_lookup(&map, &symbol2) == 1, "Expected to find symbol2!");
-  ASSERT(hashmap_lookup(&map, &symbol3) == 2, "Expected to find symbol3!");
+  ASSERT(eclair_hashmap_lookup(&map, &symbol1) == 0, "Expected to find symbol1!");
+  ASSERT(eclair_hashmap_lookup(&map, &symbol2) == 1, "Expected to find symbol2!");
+  ASSERT(eclair_hashmap_lookup(&map, &symbol3) == 2, "Expected to find symbol3!");
 
-  hashmap_destroy(&map);
+  eclair_hashmap_destroy(&map);
 }
 
 int main(int argc, char **argv) {
   printf("Starting tests..\n");
-  test_hashmap_init();
+  test_eclair_hashmap_init();
   printf("hashmap init: OK!\n");
-  test_hashmap_collisions();
+  test_eclair_hashmap_collisions();
   printf("hashmap collisions: OK!\n");
-  test_hashmap_get_or_put_value();
+  test_eclair_hashmap_get_or_put_value();
   printf("hashmap get or put value: OK!\n");
-  test_hashmap_contains();
+  test_eclair_hashmap_contains();
   printf("hashmap contains: OK!\n");
-  test_hashmap_lookup();
+  test_eclair_hashmap_lookup();
   printf("Hashmap: all good!\n");
   return 0;
 }
