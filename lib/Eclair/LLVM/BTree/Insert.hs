@@ -207,7 +207,6 @@ mkRebalanceOrSplit splitFn = mdo
       numElemsN <- deref (metaOf ->> numElemsOf) n
       idxEnd <- sub numElemsN leftSlotsOpen
       loopFor (int16 0) (`ult` idxEnd) (add (int16 1)) $ \i -> do
-        -- TODO memmove possible?
         j <- add i leftSlotsOpen
         assign (valueAt i) n =<< deref (valueAt j) n
 

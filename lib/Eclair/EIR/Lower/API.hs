@@ -91,6 +91,8 @@ generateAddFactsFn usageMapping = do
           fn <- toCodegenInOut lowerState $ lookupFunction r idx EIR.Insert
           call fn [relationPtr, valuePtr]
 
+        retVoid
+
 generateGetFactsFn :: MonadFix m => Map Relation UsageMode -> CodegenInOutT (ModuleBuilderT m) Operand
 generateGetFactsFn usageMapping = do
   inOutState <- ask

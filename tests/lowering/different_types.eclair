@@ -30,7 +30,7 @@ for_body_0:
   %6 = add i32 1, %2
   br label %for_begin_0
 for_end_0:
-  br label %b_0
+  ret void
 b_0:
   %7 = getelementptr %program, %program* %eclair_program_0, i32 0, i32 2
   %8 = bitcast i32* %memory_0 to [3 x i32]*
@@ -45,7 +45,7 @@ for_body_1:
   %13 = add i32 1, %9
   br label %for_begin_1
 for_end_1:
-  br label %switch.default_0
+  ret void
 switch.default_0:
   ret void
 }
