@@ -46,11 +46,11 @@ mkSplit nodeNew nodeSplitPoint growParent = mdo
       iN <- n `bitcast` ptr innerNode
 
       store jPtr 0 (int16 0)
-      loopFor splitPoint' (`ult` numberOfKeys) (add (int16 1)) $ \i -> mdo
+      loopFor splitPoint' (`ule` numberOfKeys) (add (int16 1)) $ \i -> mdo
         j <- load jPtr 0
         iChild <- deref (childAt i) iN
         assign (metaOf ->> parentOf) iChild sibling
-        assign (metaOf ->> numElemsOf) iChild j
+        assign (metaOf ->> posInParentOf) iChild j
         assign (childAt j) iSibling iChild
         store jPtr 0 =<< add (int16 1) j
 
