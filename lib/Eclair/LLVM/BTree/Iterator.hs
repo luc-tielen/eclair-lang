@@ -65,14 +65,16 @@ mkIteratorNext = do
 
   function "eclair_btree_iterator_next" [(ptr iter, "iter")] void $ \[it] -> mdo
     current <- deref currentPtrOf it
-    isLeaf <- deref (metaOf ->> nodeTypeOf) current >>= (`eq` leafNodeTypeVal)
-    if' isLeaf $ do
-      leafIterNext it
+    isInner <- deref (metaOf ->> nodeTypeOf) current >>= (`eq` innerNodeTypeVal)
+    if' isInner $ do
+      innerIterNext leafNextBlock it
       retVoid
 
-    innerIterNext it
+    leafNextBlock <- leafIterNext it
+    pass
   where
     leafIterNext iter = mdo
+      leafNextBlock <- blockNamed "leaf.next"
       node <- typeOf Node
       -- Case 1: Still elements left to iterate -> increment position
       increment int16 valuePosOf iter
@@ -104,10 +106,13 @@ mkIteratorNext = do
         current' <- deref currentPtrOf iter
         assign valuePosOf iter =<< deref (metaOf ->> posInParentOf) current'
         assign currentPtrOf iter =<< deref (metaOf ->> parentOf) current'
-    innerIterNext iter = mdo
+
+      pure leafNextBlock
+
+    innerIterNext leafNext iter = mdo
       node <- typeOf Node
       innerNode <- typeOf InnerNode
-      -- Case 3: Go to left most child in inner node
+      -- Case 3: Go to left most child in inner node (a leaf node)
       nextPos <- deref valuePosOf iter >>= add (int16 1)
       iCurrent <- deref currentPtrOf iter >>= (`bitcast` ptr innerNode)
       currentPtr <- allocate (ptr node) =<< deref (childAt nextPos) iCurrent
@@ -119,8 +124,16 @@ mkIteratorNext = do
         firstChild <- deref (childAt (int16 0)) iCurrent'
         store currentPtr 0 firstChild
 
-      assign currentPtrOf iter =<< load currentPtr 0
+      currentLeaf <- load currentPtr 0
+      assign currentPtrOf iter currentLeaf
       assign valuePosOf iter (int16 0)
+
+      -- Leaf nodes may be empty due to biased insertion => go to next
+      isNotEmpty <- deref (metaOf ->> numElemsOf) currentLeaf >>= (`ne` int16 0)
+      if' isNotEmpty $ do
+        retVoid
+
+      br leafNext
 
 mkBtreeBegin :: ModuleCodegen Operand
 mkBtreeBegin = do

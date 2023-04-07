@@ -307,8 +307,7 @@ mkBtreeInsertValue nodeNew compareValues searchLowerBound searchUpperBound isEmp
       pos <- call searchLowerBound [val, first, last]
       idx <- pointerDiff i16 pos first >>= (`udiv` int32 (toInteger valSize))
       notLast <- pos `ne` last
-      valueAtPos <- gep pos [int32 0]
-      isEqual <- (int8 0 `eq`) =<< call compareValues [valueAtPos, val]  -- Can we do a weak compare just by using pointers here?
+      isEqual <- (int8 0 `eq`) =<< call compareValues [pos, val]  -- Can we do a weak compare just by using pointers here?
       alreadyInserted <- notLast `and` isEqual
       condBr alreadyInserted noInsert continueInsert
 
@@ -360,16 +359,18 @@ mkBtreeInsertValue nodeNew compareValues searchLowerBound searchUpperBound isEmp
       br noSplit
 
       noSplit <- blockNamed "no_split"
+
       -- No split -> move keys and insert new element
+      current' <- load currentPtr 0  -- NOTE: current might have changed in previous part
       idx''' <- load idxPtr 0
-      numElems''' <- deref (metaOf ->> numElemsOf) current  -- NOTE: Might've been updated in the meantime
+      numElems''' <- deref (metaOf ->> numElemsOf) current'  -- NOTE: Might've been updated in the meantime
       loopFor numElems''' (`ugt` idx''') (`sub` int16 1) $ \j -> do
         -- TODO: memmove possible?
         j' <- sub j (int16 1)
-        assign (valueAt j) current =<< deref (valueAt j') current
+        assign (valueAt j) current' =<< deref (valueAt j') current'
 
-      assign (valueAt idx''') current =<< load val 0
-      update (metaOf ->> numElemsOf) current (add (int16 1))
+      assign (valueAt idx''') current' =<< load val 0
+      update (metaOf ->> numElemsOf) current' (add (int16 1))
       br inserted
 
 mkBtreeInsertRangeTemplate :: Operand -> ModuleCodegen (Template IteratorParams Operand)
