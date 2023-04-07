@@ -410,7 +410,7 @@ for_body_0:
   %6 = add i32 1, %2
   br label %for_begin_0
 for_end_0:
-  br label %switch.default_0
+  ret void
 switch.default_0:
   ret void
 }

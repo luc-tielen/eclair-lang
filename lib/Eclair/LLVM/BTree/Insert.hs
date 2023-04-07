@@ -46,11 +46,11 @@ mkSplit nodeNew nodeSplitPoint growParent = mdo
       iN <- n `bitcast` ptr innerNode
 
       store jPtr 0 (int16 0)
-      loopFor splitPoint' (`ult` numberOfKeys) (add (int16 1)) $ \i -> mdo
+      loopFor splitPoint' (`ule` numberOfKeys) (add (int16 1)) $ \i -> mdo
         j <- load jPtr 0
         iChild <- deref (childAt i) iN
         assign (metaOf ->> parentOf) iChild sibling
-        assign (metaOf ->> numElemsOf) iChild j
+        assign (metaOf ->> posInParentOf) iChild j
         assign (childAt j) iSibling iChild
         store jPtr 0 =<< add (int16 1) j
 
@@ -85,8 +85,11 @@ mkGrowParent nodeNew insertInner = mdo
 
     assign (metaOf ->> parentOf) n newRoot
     assign (metaOf ->> parentOf) sibling newRoot
-    assign (metaOf ->> posInParentOf) n (int16 0)  -- TODO: why missing in souffle code? default initialized?
-                                                   -- also: why is num elements of n not decremented?
+    -- TODO: why missing in souffle code? happens in another function?
+    -- also: why is num elements of n not decremented?
+    -- assign (metaOf ->> posInParentOf) n (int16 0)
+
+    -- update (metaOf ->> numElemsOf) n (`sub` (int16 1))
     assign (metaOf ->> posInParentOf) sibling (int16 1)
     store root 0 newRoot
     retVoid
@@ -207,7 +210,6 @@ mkRebalanceOrSplit splitFn = mdo
       numElemsN <- deref (metaOf ->> numElemsOf) n
       idxEnd <- sub numElemsN leftSlotsOpen
       loopFor (int16 0) (`ult` idxEnd) (add (int16 1)) $ \i -> do
-        -- TODO memmove possible?
         j <- add i leftSlotsOpen
         assign (valueAt i) n =<< deref (valueAt j) n
 
@@ -308,8 +310,7 @@ mkBtreeInsertValue nodeNew compareValues searchLowerBound searchUpperBound isEmp
       pos <- call searchLowerBound [val, first, last]
       idx <- pointerDiff i16 pos first >>= (`udiv` int32 (toInteger valSize))
       notLast <- pos `ne` last
-      valueAtPos <- gep pos [int32 0]
-      isEqual <- (int8 0 `eq`) =<< call compareValues [valueAtPos, val]  -- Can we do a weak compare just by using pointers here?
+      isEqual <- (int8 0 `eq`) =<< call compareValues [pos, val]  -- Can we do a weak compare just by using pointers here?
       alreadyInserted <- notLast `and` isEqual
       condBr alreadyInserted noInsert continueInsert
 
@@ -361,16 +362,18 @@ mkBtreeInsertValue nodeNew compareValues searchLowerBound searchUpperBound isEmp
       br noSplit
 
       noSplit <- blockNamed "no_split"
+
       -- No split -> move keys and insert new element
+      current' <- load currentPtr 0  -- NOTE: current might have changed in previous part
       idx''' <- load idxPtr 0
-      numElems''' <- deref (metaOf ->> numElemsOf) current  -- NOTE: Might've been updated in the meantime
+      numElems''' <- deref (metaOf ->> numElemsOf) current'  -- NOTE: Might've been updated in the meantime
       loopFor numElems''' (`ugt` idx''') (`sub` int16 1) $ \j -> do
         -- TODO: memmove possible?
         j' <- sub j (int16 1)
-        assign (valueAt j) current =<< deref (valueAt j') current
+        assign (valueAt j) current' =<< deref (valueAt j') current'
 
-      assign (valueAt idx''') current =<< load val 0
-      update (metaOf ->> numElemsOf) current (add (int16 1))
+      assign (valueAt idx''') current' =<< load val 0
+      update (metaOf ->> numElemsOf) current' (add (int16 1))
       br inserted
 
 mkBtreeInsertRangeTemplate :: Operand -> ModuleCodegen (Template IteratorParams Operand)
