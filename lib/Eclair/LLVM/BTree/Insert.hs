@@ -85,8 +85,11 @@ mkGrowParent nodeNew insertInner = mdo
 
     assign (metaOf ->> parentOf) n newRoot
     assign (metaOf ->> parentOf) sibling newRoot
-    assign (metaOf ->> posInParentOf) n (int16 0)  -- TODO: why missing in souffle code? default initialized?
-                                                   -- also: why is num elements of n not decremented?
+    -- TODO: why missing in souffle code? happens in another function?
+    -- also: why is num elements of n not decremented?
+    -- assign (metaOf ->> posInParentOf) n (int16 0)
+
+    -- update (metaOf ->> numElemsOf) n (`sub` (int16 1))
     assign (metaOf ->> posInParentOf) sibling (int16 1)
     store root 0 newRoot
     retVoid
