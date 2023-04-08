@@ -52,6 +52,12 @@ switch.default_0:
 //--- expected_eclair_get_facts_llvm.out
 define external ccc i32* @eclair_get_facts(%program* %eclair_program_0, i32 %fact_type_0) "wasm-export-name"="eclair_get_facts" {
 start:
+  %stack.ptr_0 = alloca i32, i32 1
+  %stack.ptr_1 = alloca %btree_iterator_t_0, i32 1
+  %stack.ptr_2 = alloca %btree_iterator_t_0, i32 1
+  %stack.ptr_3 = alloca i32, i32 1
+  %stack.ptr_4 = alloca %btree_iterator_t_1, i32 1
+  %stack.ptr_5 = alloca %btree_iterator_t_1, i32 1
   switch i32 %fact_type_0, label %switch.default_0 [i32 0, label %a_0 i32 1, label %b_0]
 a_0:
   %0 = getelementptr %program, %program* %eclair_program_0, i32 0, i32 1
@@ -60,65 +66,59 @@ a_0:
   %3 = mul i32 %2, 4
   %4 = call ccc i8* @malloc(i32 %3)
   %5 = bitcast i8* %4 to [1 x i32]*
-  %6 = alloca i32, i32 1
-  store i32 0, i32* %6
-  %7 = alloca %btree_iterator_t_0, i32 1
-  %8 = alloca %btree_iterator_t_0, i32 1
-  call ccc void @eclair_btree_begin_0(%btree_t_0* %0, %btree_iterator_t_0* %7)
-  call ccc void @eclair_btree_end_0(%btree_t_0* %0, %btree_iterator_t_0* %8)
+  store i32 0, i32* %stack.ptr_0
+  call ccc void @eclair_btree_begin_0(%btree_t_0* %0, %btree_iterator_t_0* %stack.ptr_1)
+  call ccc void @eclair_btree_end_0(%btree_t_0* %0, %btree_iterator_t_0* %stack.ptr_2)
   br label %while_begin_0
 while_begin_0:
-  %9 = call ccc i1 @eclair_btree_iterator_is_equal_0(%btree_iterator_t_0* %7, %btree_iterator_t_0* %8)
-  %10 = select i1 %9, i1 0, i1 1
-  br i1 %10, label %while_body_0, label %while_end_0
+  %6 = call ccc i1 @eclair_btree_iterator_is_equal_0(%btree_iterator_t_0* %stack.ptr_1, %btree_iterator_t_0* %stack.ptr_2)
+  %7 = select i1 %6, i1 0, i1 1
+  br i1 %7, label %while_body_0, label %while_end_0
 while_body_0:
-  %11 = load i32, i32* %6
-  %12 = getelementptr [1 x i32], [1 x i32]* %5, i32 %11
-  %13 = call ccc [1 x i32]* @eclair_btree_iterator_current_0(%btree_iterator_t_0* %7)
-  %14 = getelementptr [1 x i32], [1 x i32]* %13, i32 0
-  %15 = load [1 x i32], [1 x i32]* %14
-  %16 = getelementptr [1 x i32], [1 x i32]* %12, i32 0
-  store [1 x i32] %15, [1 x i32]* %16
-  %17 = add i32 %11, 1
-  store i32 %17, i32* %6
-  call ccc void @eclair_btree_iterator_next_0(%btree_iterator_t_0* %7)
+  %8 = load i32, i32* %stack.ptr_0
+  %9 = getelementptr [1 x i32], [1 x i32]* %5, i32 %8
+  %10 = call ccc [1 x i32]* @eclair_btree_iterator_current_0(%btree_iterator_t_0* %stack.ptr_1)
+  %11 = getelementptr [1 x i32], [1 x i32]* %10, i32 0
+  %12 = load [1 x i32], [1 x i32]* %11
+  %13 = getelementptr [1 x i32], [1 x i32]* %9, i32 0
+  store [1 x i32] %12, [1 x i32]* %13
+  %14 = add i32 %8, 1
+  store i32 %14, i32* %stack.ptr_0
+  call ccc void @eclair_btree_iterator_next_0(%btree_iterator_t_0* %stack.ptr_1)
   br label %while_begin_0
 while_end_0:
-  %18 = bitcast i8* %4 to i32*
-  ret i32* %18
+  %15 = bitcast i8* %4 to i32*
+  ret i32* %15
 b_0:
-  %19 = getelementptr %program, %program* %eclair_program_0, i32 0, i32 2
-  %20 = call ccc i64 @eclair_btree_size_1(%btree_t_1* %19)
-  %21 = trunc i64 %20 to i32
-  %22 = mul i32 %21, 12
-  %23 = call ccc i8* @malloc(i32 %22)
-  %24 = bitcast i8* %23 to [3 x i32]*
-  %25 = alloca i32, i32 1
-  store i32 0, i32* %25
-  %26 = alloca %btree_iterator_t_1, i32 1
-  %27 = alloca %btree_iterator_t_1, i32 1
-  call ccc void @eclair_btree_begin_1(%btree_t_1* %19, %btree_iterator_t_1* %26)
-  call ccc void @eclair_btree_end_1(%btree_t_1* %19, %btree_iterator_t_1* %27)
+  %16 = getelementptr %program, %program* %eclair_program_0, i32 0, i32 2
+  %17 = call ccc i64 @eclair_btree_size_1(%btree_t_1* %16)
+  %18 = trunc i64 %17 to i32
+  %19 = mul i32 %18, 12
+  %20 = call ccc i8* @malloc(i32 %19)
+  %21 = bitcast i8* %20 to [3 x i32]*
+  store i32 0, i32* %stack.ptr_3
+  call ccc void @eclair_btree_begin_1(%btree_t_1* %16, %btree_iterator_t_1* %stack.ptr_4)
+  call ccc void @eclair_btree_end_1(%btree_t_1* %16, %btree_iterator_t_1* %stack.ptr_5)
   br label %while_begin_1
 while_begin_1:
-  %28 = call ccc i1 @eclair_btree_iterator_is_equal_1(%btree_iterator_t_1* %26, %btree_iterator_t_1* %27)
-  %29 = select i1 %28, i1 0, i1 1
-  br i1 %29, label %while_body_1, label %while_end_1
+  %22 = call ccc i1 @eclair_btree_iterator_is_equal_1(%btree_iterator_t_1* %stack.ptr_4, %btree_iterator_t_1* %stack.ptr_5)
+  %23 = select i1 %22, i1 0, i1 1
+  br i1 %23, label %while_body_1, label %while_end_1
 while_body_1:
-  %30 = load i32, i32* %25
-  %31 = getelementptr [3 x i32], [3 x i32]* %24, i32 %30
-  %32 = call ccc [3 x i32]* @eclair_btree_iterator_current_1(%btree_iterator_t_1* %26)
-  %33 = getelementptr [3 x i32], [3 x i32]* %32, i32 0
-  %34 = load [3 x i32], [3 x i32]* %33
-  %35 = getelementptr [3 x i32], [3 x i32]* %31, i32 0
-  store [3 x i32] %34, [3 x i32]* %35
-  %36 = add i32 %30, 1
-  store i32 %36, i32* %25
-  call ccc void @eclair_btree_iterator_next_1(%btree_iterator_t_1* %26)
+  %24 = load i32, i32* %stack.ptr_3
+  %25 = getelementptr [3 x i32], [3 x i32]* %21, i32 %24
+  %26 = call ccc [3 x i32]* @eclair_btree_iterator_current_1(%btree_iterator_t_1* %stack.ptr_4)
+  %27 = getelementptr [3 x i32], [3 x i32]* %26, i32 0
+  %28 = load [3 x i32], [3 x i32]* %27
+  %29 = getelementptr [3 x i32], [3 x i32]* %25, i32 0
+  store [3 x i32] %28, [3 x i32]* %29
+  %30 = add i32 %24, 1
+  store i32 %30, i32* %stack.ptr_3
+  call ccc void @eclair_btree_iterator_next_1(%btree_iterator_t_1* %stack.ptr_4)
   br label %while_begin_1
 while_end_1:
-  %37 = bitcast i8* %23 to i32*
-  ret i32* %37
+  %31 = bitcast i8* %20 to i32*
+  ret i32* %31
 switch.default_0:
   ret i32* zeroinitializer
 }
