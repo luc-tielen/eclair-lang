@@ -1,7 +1,7 @@
 module Eclair.Common.Literal
   ( Literal(..)
   ) where
-import Prettyprinter (Pretty (pretty))
+import Prettyprinter (Pretty (pretty), dquotes)
 
 data Literal
   = LNumber Word32
@@ -11,4 +11,4 @@ data Literal
 instance Pretty Literal where
   pretty = \case
     LNumber x -> pretty x
-    LString x -> pretty x
+    LString x -> dquotes $ pretty x
