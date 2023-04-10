@@ -28,7 +28,7 @@ data EclairError
   = ParseErr FilePath ParsingError
   | TypeErr FilePath SpanMap [TypeError NodeId]
   | SemanticErr FilePath SpanMap (SemanticErrors NodeId)
-  | ConversionErr FilePath ConversionError
+  | ConversionErr FilePath SpanMap (ConversionError NodeId)
 
 -- TODO refactor using an error reporting monad?
 
@@ -69,6 +69,13 @@ handleErrorsCLI e = do
             diagnostic' = addFile diagnostic file' (toString content)
          in pure $ prettyError useColor diagnostic'
 
+      ConversionErr file' spanMap conversionErr -> do
+        content <- decodeUtf8 <$> readFileBS file'
+        let errWithPosition = map (getSourcePos file' content spanMap) conversionErr
+            report = conversionErrorToReport errWithPosition
+            diagnostic = addReport def report
+            diagnostic' = addFile diagnostic file' (toString content)
+        pure $ prettyError useColor diagnostic'
 
 -- A single position in the code. 0-based!
 data Pos
@@ -127,6 +134,13 @@ errorToIssues readTextFile = \case
     let semanticErrsWithPositions = map (getSourcePos file' content spanMap) semanticErrs
         reportsWithLocs = semanticErrorsToReportsWithLocations semanticErrsWithPositions
     pure $ map (uncurry Issue) reportsWithLocs
+
+  ConversionErr file' spanMap conversionErr -> do
+    content <- readTextFile file'
+    let errWithPosition = map (getSourcePos file' content spanMap) conversionErr
+        report = conversionErrorToReport errWithPosition
+        loc = positionToLocation $ mainErrorPosition errWithPosition
+    pure $ one $ Issue report loc
 
 typeErrorToReport :: TypeError Position -> Report Text
 typeErrorToReport e = case e of
@@ -219,13 +233,6 @@ typeErrorToReport e = case e of
           ]
     in Err Nothing title markers hints
   where
-    renderType ty =
-      let userFacingType = case ty of
-            U32 -> "u32"
-            Str -> "string"
-            TUnknown x -> "t" <> show x
-      in "'" <> userFacingType <> "'"
-
     markersForTypeError ctx =
       zip [1..] $ replicate (length ctx - 1) Where ++ [This]
 
@@ -237,6 +244,24 @@ typeErrorToReport e = case e of
         (srcLoc, mkMarker $ show i <> ") While inferring the type of this..")
       WhileUnifying srcLoc ->
         (srcLoc, mkMarker $ show i <> ") While unifying these types..")
+
+conversionErrorToReport :: ConversionError Position -> Report Text
+conversionErrorToReport e = case e of
+  HoleNotSupported _ ->
+    let title = "Unsupported feature in Souffle"
+        markers = [(mainErrorPosition e, This "Souffle has no support for holes.")]
+        hints = [Hint "Replace the hole with a variable or literal."]
+    in Err Nothing title markers hints
+  UnsupportedCase _ ->
+    let title = "Unsupported feature in Souffle"
+        markers = [(mainErrorPosition e, This "Souffle has no support for this language feature.")]
+        hints = []
+     in Err Nothing title markers hints
+  UnsupportedType _ ty ->
+    let title = "Unsupported type in Souffle"
+        markers = [(mainErrorPosition e, This $ "Souffle has no support for the " <> renderType ty <> " type.")]
+        hints = []
+     in Err Nothing title markers hints
 
 ungroundedVarToReport :: UngroundedVar Position -> Report Text
 ungroundedVarToReport e@(UngroundedVar srcLocRule _ var) =
@@ -441,6 +466,14 @@ positionToLocation position =
     addOffset :: Int -> Word32
     addOffset x = fromIntegral (x - 1)
 
+renderType :: Type -> Text
+renderType ty =
+  let userFacingType = case ty of
+        U32 -> "u32"
+        Str -> "string"
+        TUnknown x -> "t" <> show x
+  in "'" <> userFacingType <> "'"
+
 class HasMainErrorPosition a where
   mainErrorPosition :: a -> Position
 instance HasMainErrorPosition (NoOutputRelation Position) where
@@ -479,6 +512,11 @@ instance HasMainErrorPosition (TypeError Position) where
     HoleFound pos _ _ _ -> pos
     UnexpectedFunctionType pos _ -> pos
     UnexpectedConstraintType pos _ -> pos
+instance HasMainErrorPosition (ConversionError Position) where
+  mainErrorPosition = \case
+    HoleNotSupported pos -> pos
+    UnsupportedType pos _ -> pos
+    UnsupportedCase pos -> pos
 
 -- Helper function to transform a Megaparsec error bundle into multiple reports
 -- Extracted from the Diagnose library, and simplified for usage in Eclair.

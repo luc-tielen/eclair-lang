@@ -209,10 +209,10 @@ rules abortOnError params (Rock.Writer query) = case query of
     llvmModule <- Rock.fetch (CompileLLVM path)
     liftIO $ putTextLn $ ppllvm llvmModule
   EmitSouffle path -> do
-    (ast, _, _) <- Rock.fetch (Parse path)
+    (ast, _, spanMap) <- Rock.fetch (Parse path)
     case toSouffle ast of
       Left err ->
-        pure ((), one $ ConversionErr path err)
+        pure ((), one $ ConversionErr path spanMap err)
       Right souffleIR -> do
         liftIO $ putTextLn $ printDoc souffleIR
         pure ((), mempty)

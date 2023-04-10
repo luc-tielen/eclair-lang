@@ -9,6 +9,7 @@ import Prettyprinter
 import Eclair.Common.Pretty
 import Eclair.Common.Literal
 import Eclair.Common.Id
+import Eclair.Common.Location (NodeId)
 import Eclair.Common.Operator
 
 type AST = AST.AST
@@ -33,21 +34,23 @@ data Souffle
   | DeclareUsage Id UsageMode
   | Module [Souffle]
 
--- TODO add node id here for location-based reporting?
-data ConversionError
-  = HoleNotSupported
-  | UnsupportedType AST.Type
-  | UnsupportedCase
+data ConversionError loc
+  = HoleNotSupported loc
+  | UnsupportedType loc AST.Type
+  | UnsupportedCase loc
+  deriving Functor
 
-toSouffle :: AST -> Either ConversionError Souffle
+toSouffle :: AST -> Either (ConversionError NodeId) Souffle
 toSouffle = map Module . zygo generate generateMultiple
   where
-    generateMultiple :: AST.ASTF (Either ConversionError Souffle, Either ConversionError [Souffle]) -> Either ConversionError [Souffle]
+    generateMultiple
+      :: AST.ASTF (Either (ConversionError NodeId) Souffle, Either (ConversionError NodeId) [Souffle])
+      -> Either (ConversionError NodeId) [Souffle]
     generateMultiple = \case
       AST.ModuleF _ decls -> do
         map mconcat $ traverse snd decls
-      AST.DeclareTypeF _ name tys usageMode -> do
-        souffleTys <- traverse toSouffleType tys
+      AST.DeclareTypeF nodeId name tys usageMode -> do
+        souffleTys <- traverse (toSouffleType nodeId) tys
         let declType = DeclareType name souffleTys
             usageDecls = case usageMode of
               AST.Input ->
@@ -68,17 +71,18 @@ toSouffle = map Module . zygo generate generateMultiple
         args' <- mconcat <$> traverse snd args
         clauses' <- mconcat <$> traverse snd clauses
         pure $ one $ Rule name args' clauses'
-      _ ->
-        throwError UnsupportedCase
+      astf ->
+        let nodeId = AST.getNodeIdF astf
+        in throwError $ UnsupportedCase nodeId
 
-    generate :: AST.ASTF (Either ConversionError Souffle) -> Either ConversionError Souffle
+    generate :: AST.ASTF (Either (ConversionError NodeId) Souffle) -> Either (ConversionError NodeId) Souffle
     generate = \case
       AST.LitF _ lit ->
         pure $ Lit lit
       AST.VarF _ name ->
         pure $ Var name
-      AST.HoleF _ ->
-        throwError HoleNotSupported
+      AST.HoleF nodeId ->
+        throwError $ HoleNotSupported nodeId
       AST.BinOpF _ op lhs rhs -> do
         BinOp op <$> lhs <*> rhs
       AST.ConstraintF _ op lhs rhs -> do
@@ -88,14 +92,15 @@ toSouffle = map Module . zygo generate generateMultiple
       AST.AtomF _ name args -> do
         args' <- sequence args
         pure $ Atom name args'
-      _ ->
-        throwError UnsupportedCase
+      astf ->
+        let nodeId = AST.getNodeIdF astf
+        in throwError $ UnsupportedCase nodeId
 
-    toSouffleType :: AST.Type -> Either ConversionError Type
-    toSouffleType = \case
+    toSouffleType :: NodeId -> AST.Type -> Either (ConversionError NodeId) Type
+    toSouffleType nodeId = \case
       AST.U32 -> pure Unsigned
       AST.Str -> pure Symbol
-      ty -> throwError $ UnsupportedType ty
+      ty -> throwError $ UnsupportedType nodeId ty
 
 
 instance Pretty Type where
