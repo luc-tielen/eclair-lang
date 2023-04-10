@@ -58,8 +58,9 @@ emitKindParser =
       "ra-transformed" -> Just EmitTransformedRA
       "eir" -> Just EmitEIR
       "llvm" -> Just EmitLLVM
+      "souffle" -> Just EmitSouffle
       _ -> Nothing
-    desc = "Emit a specific IR. Defaults to emitting LLVM IR. Supported options: 'ast-transformed, 'ra', 'ra-transformed', 'eir' and 'llvm'."
+    desc = "Compile to a specific format. Defaults to LLVM IR. Supported options: 'ast-transformed, 'ra', 'ra-transformed', 'eir', 'llvm' and 'souffle'."
 
 numCoresParser :: Parser Word
 numCoresParser = option auto $

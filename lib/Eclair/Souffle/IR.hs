@@ -41,14 +41,13 @@ data ConversionError loc
   deriving Functor
 
 toSouffle :: AST -> Either (ConversionError NodeId) Souffle
-toSouffle = map Module . zygo generate generateMultiple
+toSouffle = map Module . cata f
   where
-    generateMultiple
-      :: AST.ASTF (Either (ConversionError NodeId) Souffle, Either (ConversionError NodeId) [Souffle])
+    f :: AST.ASTF (Either (ConversionError NodeId) [Souffle])
       -> Either (ConversionError NodeId) [Souffle]
-    generateMultiple = \case
+    f = \case
       AST.ModuleF _ decls -> do
-        map mconcat $ traverse snd decls
+        map mconcat $ sequence decls
       AST.DeclareTypeF nodeId name tys usageMode -> do
         souffleTys <- traverse (toSouffleType nodeId) tys
         let declType = DeclareType name souffleTys
@@ -65,33 +64,29 @@ toSouffle = map Module . zygo generate generateMultiple
                 mempty
         pure $ declType : usageDecls
       AST.AtomF _ name args -> do
-        args' <- mconcat <$> traverse snd args
+        args' <- mconcat <$> sequence args
         pure $ one $ Atom name args'
       AST.RuleF _ name args clauses -> do
-        args' <- mconcat <$> traverse snd args
-        clauses' <- mconcat <$> traverse snd clauses
+        args' <- mconcat <$> sequence args
+        clauses' <- mconcat <$> sequence clauses
         pure $ one $ Rule name args' clauses'
-      astf ->
-        let nodeId = AST.getNodeIdF astf
-        in throwError $ UnsupportedCase nodeId
-
-    generate :: AST.ASTF (Either (ConversionError NodeId) Souffle) -> Either (ConversionError NodeId) Souffle
-    generate = \case
-      AST.LitF _ lit ->
-        pure $ Lit lit
       AST.VarF _ name ->
-        pure $ Var name
+        pure $ one $ Var name
+      AST.LitF _ lit ->
+        pure $ one $ Lit lit
       AST.HoleF nodeId ->
         throwError $ HoleNotSupported nodeId
       AST.BinOpF _ op lhs rhs -> do
-        BinOp op <$> lhs <*> rhs
+        lhs' <- lhs
+        rhs' <- rhs
+        pure $ BinOp op <$> lhs' <*> rhs'
       AST.ConstraintF _ op lhs rhs -> do
-        Constraint op <$> lhs <*> rhs
+        lhs' <- lhs
+        rhs' <- rhs
+        pure $ Constraint op <$> lhs' <*> rhs'
       AST.NotF _ inner -> do
-        Not <$> inner
-      AST.AtomF _ name args -> do
-        args' <- sequence args
-        pure $ Atom name args'
+        inner' <- inner
+        pure $ Not <$> inner'
       astf ->
         let nodeId = AST.getNodeIdF astf
         in throwError $ UnsupportedCase nodeId
