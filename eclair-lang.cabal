@@ -137,7 +137,7 @@ library
     , souffle-haskell ==4.0.0
     , text ==2.*
     , transformers ==0.*
-    , vector ==0.12.*
+    , vector ==0.13.*
   mixins:
       base hiding (Prelude)
   default-language: Haskell2010
@@ -212,7 +212,7 @@ executable eclair
     , souffle-haskell ==4.0.0
     , text ==2.*
     , transformers ==0.*
-    , vector ==0.12.*
+    , vector ==0.13.*
   mixins:
       base hiding (Prelude)
   default-language: Haskell2010
@@ -295,7 +295,7 @@ executable eclair-lsp-server
     , souffle-haskell ==4.0.0
     , text ==2.*
     , transformers ==0.*
-    , vector ==0.12.*
+    , vector ==0.13.*
   mixins:
       base hiding (Prelude)
   default-language: Haskell2010
@@ -373,7 +373,7 @@ test-suite eclair-lsp-test
     , souffle-haskell ==4.0.0
     , text ==2.*
     , transformers ==0.*
-    , vector ==0.12.*
+    , vector ==0.13.*
   mixins:
       base hiding (Prelude)
   default-language: Haskell2010
@@ -453,9 +453,85 @@ test-suite eclair-test
     , souffle-haskell ==4.0.0
     , text ==2.*
     , transformers ==0.*
-    , vector ==0.12.*
+    , vector ==0.13.*
   mixins:
       base hiding (Prelude)
+  default-language: Haskell2010
+  if os(darwin)
+    extra-libraries:
+        c++
+  if flag(debug)
+    ghc-options: -fplugin=StackTrace.Plugin
+    build-depends:
+        haskell-stack-trace-plugin ==0.1.3.0
+
+benchmark eclair-benchmarks
+  type: exitcode-stdio-1.0
+  main-is: Main.hs
+  other-modules:
+      Facts
+      Graph
+      Paths_eclair_lang
+  autogen-modules:
+      Paths_eclair_lang
+  hs-source-dirs:
+      benchmarks/src
+  default-extensions:
+      OverloadedStrings
+      LambdaCase
+      ViewPatterns
+      RankNTypes
+      TypeFamilies
+      DataKinds
+      KindSignatures
+      TupleSections
+      DeriveFunctor
+      DeriveFoldable
+      DeriveTraversable
+      DeriveGeneric
+      DeriveAnyClass
+      DerivingStrategies
+      DerivingVia
+      FlexibleContexts
+      FlexibleInstances
+      ScopedTypeVariables
+      PatternSynonyms
+      RecursiveDo
+  ghc-options: -Wall -Wincomplete-patterns -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits -threaded -rtsopts -with-rtsopts=-N -optl -lbenchmark
+  cxx-options: -std=c++17 -D__EMBEDDED_SOUFFLE__
+  extra-lib-dirs:
+      benchmarks/cbits
+  build-depends:
+      algebraic-graphs ==0.*
+    , attoparsec ==0.14.*
+    , base >=4.7 && <5
+    , bytestring ==0.11.*
+    , comonad ==5.*
+    , containers ==0.*
+    , criterion ==1.*
+    , deepseq ==1.*
+    , dependent-sum >=0.6 && <1
+    , dependent-sum-template ==0.1.*
+    , diagnose ==2.3.*
+    , dlist ==1.*
+    , eclair-haskell ==0.1.*
+    , exceptions ==0.10.*
+    , extra ==1.*
+    , llvm-codegen
+    , megaparsec ==9.*
+    , mmorph ==1.*
+    , mtl ==2.*
+    , optparse-applicative ==0.16.*
+    , parser-combinators ==1.3.*
+    , prettyprinter ==1.7.*
+    , prettyprinter-ansi-terminal ==1.*
+    , recursion-schemes ==5.*
+    , relude ==1.1.*
+    , rock ==0.3.*
+    , souffle-haskell ==4.0.0
+    , text ==2.*
+    , transformers ==0.*
+    , vector ==0.13.*
   default-language: Haskell2010
   if os(darwin)
     extra-libraries:

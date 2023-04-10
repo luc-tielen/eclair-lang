@@ -29,7 +29,7 @@ dependencies:
   - extra == 1.*
   - text == 2.*
   - bytestring == 0.11.*
-  - vector == 0.12.*
+  - vector == 0.13.*
   - containers == 0.*
   - transformers == 0.*
   - mtl == 2.*
@@ -151,6 +151,28 @@ executables:
       - -rtsopts
       - -with-rtsopts=-N
       - -Wall
+
+benchmarks:
+  eclair-benchmarks:
+    main: Main.hs
+    source-dirs: benchmarks/src
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+      - -optl -lbenchmark # extra-libraries: benchmark does not work?
+      # - -Wall
+    extra-lib-dirs:
+      - benchmarks/cbits
+    dependencies:
+      - base >= 4.7 && < 5
+      - criterion == 1.*
+      - vector == 0.13.*
+      - text == 2.*
+      - containers == 0.*
+      - attoparsec == 0.14.*
+      - deepseq == 1.*
+      - eclair-haskell == 0.1.*
 
 tests:
   eclair-test:

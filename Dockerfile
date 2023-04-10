@@ -9,7 +9,7 @@ RUN echo 'tzdata tzdata/Areas select Europe' | debconf-set-selections \
     && apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y \
        wget software-properties-common gnupg curl libffi-dev make \
-       python3 python3-pip libgmp-dev \
+       python3 python3-pip libgmp-dev jq \
     && curl -o - https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.2/install.sh | bash \
     && source /root/.nvm/nvm.sh \
     && nvm install 18.1.0 \

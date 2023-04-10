@@ -19,3 +19,5 @@ eclair.prof
 eclair.svg
 *.eventlog*
 eclair.hp
+
+performance*.json
