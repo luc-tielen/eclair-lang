@@ -11,6 +11,7 @@ data EmitKind
   | EmitTransformedRA
   | EmitEIR
   | EmitLLVM
+  | EmitSouffle
   -- TODO: object file, WASM, ...
   deriving (Eq, Show)
 

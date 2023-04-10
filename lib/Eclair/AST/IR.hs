@@ -12,6 +12,7 @@ module Eclair.AST.IR
   , LogicalOp(..)
   , isEqualityOp
   , getNodeId
+  , getNodeIdF
   , getExternDefs
   , UsageMode(..)
   , Attributes
@@ -86,6 +87,20 @@ getNodeId = \case
   Lit nodeId _ -> nodeId
   Var nodeId _ -> nodeId
   Hole nodeId -> nodeId
+
+getNodeIdF :: ASTF a -> NodeId
+getNodeIdF = \case
+  ModuleF nodeId _ -> nodeId
+  DeclareTypeF nodeId _ _ _ -> nodeId
+  ExternDefinitionF nodeId _ _ _ -> nodeId
+  RuleF nodeId _ _ _ -> nodeId
+  NotF nodeId _ -> nodeId
+  AtomF nodeId _ _ -> nodeId
+  BinOpF nodeId _ _ _ -> nodeId
+  ConstraintF nodeId _ _ _ -> nodeId
+  LitF nodeId _ -> nodeId
+  VarF nodeId _ -> nodeId
+  HoleF nodeId -> nodeId
 
 getExternDefs :: AST -> [Extern]
 getExternDefs = cata $ \case

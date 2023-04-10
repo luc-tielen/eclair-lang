@@ -1,0 +1,95 @@
+// RUN: mkdir -p %t && sed s@TEST_DIR@%t@g %s > %t/input.test
+// RUN: split-file %t/input.test %t
+
+// RUN: %eclair compile --emit souffle %t/program.eclair > %t/actual_souffle.out
+// RUN: diff %t/expected_souffle.out %t/actual_souffle.out
+// RUN: %eclair compile --emit souffle %t/unsupported.eclair 2> %t/error.out
+// RUN: diff -w %t/expected_error.out %t/error.out
+// RUN: %eclair compile --emit souffle %t/unsupported2.eclair 2> %t/error.out
+// RUN: diff  %t/expected_error2.out %t/error.out
+
+//--- program.eclair
+@def fact1(u32) input.
+@def fact2(u32) output.
+
+fact2(y) :-
+  fact1(x),
+  y = x + 3.
+
+fact2(x + 3) :-
+  fact1(x).
+
+fact2((x + 1) + 2 * x) :-
+  fact1(x).
+
+fact2(x) :-
+  !fact1(x),
+  fact1(x + 4),
+  fact1(x + 4).
+
+fact2((8 - x) / x) :-
+  fact1(x).
+
+@def fact3(u32, string) output.
+
+fact3(123, "abcd").
+
+//--- expected_souffle.out
+.decl fact1(arg_0: unsigned)
+
+.input fact1
+
+.decl fact2(arg_0: unsigned)
+
+.output fact2
+
+fact2(y) :-
+  fact1(x),
+  y = (x + 3).
+
+fact2((x + 3)) :-
+  fact1(x).
+
+fact2(((x + 1) + (2 * x))) :-
+  fact1(x).
+
+fact2(x) :-
+  !fact1(x),
+  fact1((x + 4)),
+  fact1((x + 4)).
+
+fact2(((8 - x) / x)) :-
+  fact1(x).
+
+.decl fact3(arg_0: unsigned, arg_1: symbol)
+
+.output fact3
+
+fact3(123, "abcd").
+//--- unsupported.eclair
+@def fact1(u32) input.
+
+fact2(y) :-
+  fact1(?).
+//--- expected_error.out
+[error]: Unsupported feature in Souffle
+     ╭──▶ TEST_DIR/unsupported.eclair@4:9-4:10
+     │
+   4 │   fact1(?).
+     •         ┬
+     •         ╰╸ Souffle has no support for holes.
+     •
+     │ Hint: Replace the hole with a variable or literal.
+─────╯
+//--- unsupported2.eclair
+@extern match(string, string).
+//--- expected_error2.out
+[error]: Unsupported feature in Souffle
+     ╭──▶ TEST_DIR/unsupported2.eclair@1:1-1:31
+     │
+   1 │ @extern match(string, string).
+     • ┬─────────────────────────────
+     • ╰╸ Eclair can't transpile extern definitions yet.
+     •
+     │ Hint: Please open a github issue asking for this feature.
+─────╯

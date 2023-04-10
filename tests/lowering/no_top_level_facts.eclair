@@ -63,8 +63,8 @@ export fn eclair_program_init() -> *Program
   edge.init_empty(program.2)
   new_path.init_empty(program.3)
   path.init_empty(program.4)
-  symbol_table.insert(program.0, edge)
-  symbol_table.insert(program.0, path)
+  symbol_table.insert(program.0, "edge")
+  symbol_table.insert(program.0, "path")
   return program
 }
 

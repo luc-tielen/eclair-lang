@@ -30,6 +30,7 @@ main = do
             EmitTransformedRA -> emitTransformedRA
             EmitEIR -> emitEIR
             EmitLLVM -> emitLLVM
+            EmitSouffle -> emitSouffle
           params = Parameters (numCores cfg) (cpuTarget cfg) tryReadFile
       whenLeftM_ (fn params file) $ \errs -> do
         let errActions =

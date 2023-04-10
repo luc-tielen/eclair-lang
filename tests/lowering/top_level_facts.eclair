@@ -41,8 +41,8 @@ export fn eclair_program_init() -> *Program
   symbol_table.init(program.0)
   another.init_empty(program.1)
   edge.init_empty(program.2)
-  symbol_table.insert(program.0, edge)
-  symbol_table.insert(program.0, another)
+  symbol_table.insert(program.0, "edge")
+  symbol_table.insert(program.0, "another")
   return program
 }
 

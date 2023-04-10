@@ -31,18 +31,21 @@ data Source
   = Parser
   | Typesystem
   | SemanticAnalysis
+  | Transpiler
 
 sourceToText :: Source -> Text
 sourceToText = \case
   Parser -> "Eclair.Parser"
   Typesystem -> "Eclair.Typesystem"
   SemanticAnalysis -> "Eclair.SemanticAnalysis"
+  Transpiler -> "Eclair.Souffle.IR"
 
 errorSource :: EclairError -> Source
 errorSource = \case
   ParseErr {} -> Parser
   TypeErr {} -> Typesystem
   SemanticErr {} -> SemanticAnalysis
+  ConversionErr {} -> Transpiler
 
 mkDiagnostic :: Text -> Maybe LSP.Range -> Source -> Diagnostic
 mkDiagnostic message location source =
