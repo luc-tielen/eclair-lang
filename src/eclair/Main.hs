@@ -31,7 +31,7 @@ main = do
             EmitEIR -> emitEIR
             EmitLLVM -> emitLLVM
             EmitSouffle -> emitSouffle
-          params = Parameters (cpuTarget cfg) tryReadFile
+          params = Parameters (numCores cfg) (cpuTarget cfg) tryReadFile
       whenLeftM_ (fn params file) $ \errs -> do
         let errActions =
               errs & map handleErrorsCLI

@@ -1,6 +1,6 @@
 cabal-version: 2.2
 
--- This file has been generated from package.yaml by hpack version 0.35.1.
+-- This file has been generated from package.yaml by hpack version 0.35.2.
 --
 -- see: https://github.com/sol/hpack
 
@@ -49,11 +49,22 @@ library
       Eclair.Common.Operator
       Eclair.Common.Pretty
       Eclair.Comonads
-      Eclair.EIR.Codegen
       Eclair.EIR.IR
       Eclair.EIR.Lower
+      Eclair.EIR.Lower.API
+      Eclair.EIR.Lower.Codegen
+      Eclair.EIR.Lower.Externals
       Eclair.Error
       Eclair.LLVM.BTree
+      Eclair.LLVM.BTree.Bounds
+      Eclair.LLVM.BTree.Compare
+      Eclair.LLVM.BTree.Create
+      Eclair.LLVM.BTree.Destroy
+      Eclair.LLVM.BTree.Find
+      Eclair.LLVM.BTree.Insert
+      Eclair.LLVM.BTree.Iterator
+      Eclair.LLVM.BTree.Size
+      Eclair.LLVM.BTree.Types
       Eclair.LLVM.Codegen
       Eclair.LLVM.Config
       Eclair.LLVM.Externals
@@ -98,8 +109,9 @@ library
       FlexibleInstances
       ScopedTypeVariables
       PatternSynonyms
+      RecursiveDo
   ghc-options: -Wall -Wincomplete-patterns -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
-  cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__ -Wall
+  cxx-options: -std=c++17 -D__EMBEDDED_SOUFFLE__ -Wall
   build-depends:
       algebraic-graphs ==0.*
     , base >=4.7 && <5
@@ -123,8 +135,8 @@ library
     , recursion-schemes ==5.*
     , relude ==1.1.*
     , rock ==0.3.*
-    , souffle-haskell ==3.5.1
-    , text ==1.*
+    , souffle-haskell ==4.0.0
+    , text ==2.*
     , transformers ==0.*
     , vector ==0.12.*
   mixins:
@@ -169,8 +181,9 @@ executable eclair
       FlexibleInstances
       ScopedTypeVariables
       PatternSynonyms
+      RecursiveDo
   ghc-options: -Wall -Wincomplete-patterns -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits -threaded -rtsopts -with-rtsopts=-N
-  cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__
+  cxx-options: -std=c++17 -D__EMBEDDED_SOUFFLE__
   build-depends:
       algebraic-graphs ==0.*
     , base >=4.7 && <5
@@ -197,8 +210,8 @@ executable eclair
     , recursion-schemes ==5.*
     , relude ==1.1.*
     , rock ==0.3.*
-    , souffle-haskell ==3.5.1
-    , text ==1.*
+    , souffle-haskell ==4.0.0
+    , text ==2.*
     , transformers ==0.*
     , vector ==0.12.*
   mixins:
@@ -244,8 +257,9 @@ executable eclair-lsp-server
       FlexibleInstances
       ScopedTypeVariables
       PatternSynonyms
+      RecursiveDo
   ghc-options: -Wall -Wincomplete-patterns -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits -threaded -rtsopts -with-rtsopts=-N -Wall
-  cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__
+  cxx-options: -std=c++17 -D__EMBEDDED_SOUFFLE__
   build-depends:
       aeson
     , algebraic-graphs ==0.*
@@ -278,9 +292,9 @@ executable eclair-lsp-server
     , recursion-schemes ==5.*
     , relude ==1.1.*
     , rock ==0.3.*
-    , rope-utf16-splay ==0.3.*
-    , souffle-haskell ==3.5.1
-    , text ==1.*
+    , rope-utf16-splay ==0.4.*
+    , souffle-haskell ==4.0.0
+    , text ==2.*
     , transformers ==0.*
     , vector ==0.12.*
   mixins:
@@ -323,8 +337,9 @@ test-suite eclair-lsp-test
       FlexibleInstances
       ScopedTypeVariables
       PatternSynonyms
+      RecursiveDo
   ghc-options: -Wall -Wincomplete-patterns -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
-  cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__
+  cxx-options: -std=c++17 -D__EMBEDDED_SOUFFLE__
   build-tools:
       eclair-lsp-server
   build-depends:
@@ -355,9 +370,9 @@ test-suite eclair-lsp-test
     , recursion-schemes ==5.*
     , relude ==1.1.*
     , rock ==0.3.*
-    , rope-utf16-splay ==0.3.*
-    , souffle-haskell ==3.5.1
-    , text ==1.*
+    , rope-utf16-splay ==0.4.*
+    , souffle-haskell ==4.0.0
+    , text ==2.*
     , transformers ==0.*
     , vector ==0.12.*
   mixins:
@@ -403,8 +418,9 @@ test-suite eclair-test
       FlexibleInstances
       ScopedTypeVariables
       PatternSynonyms
+      RecursiveDo
   ghc-options: -Wall -Wincomplete-patterns -fhide-source-paths -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
-  cxx-options: -std=c++20 -D__EMBEDDED_SOUFFLE__
+  cxx-options: -std=c++17 -D__EMBEDDED_SOUFFLE__
   build-depends:
       algebraic-graphs ==0.*
     , base >=4.7 && <5
@@ -435,8 +451,8 @@ test-suite eclair-test
     , relude ==1.1.*
     , rock ==0.3.*
     , silently ==1.2.*
-    , souffle-haskell ==3.5.1
-    , text ==1.*
+    , souffle-haskell ==4.0.0
+    , text ==2.*
     , transformers ==0.*
     , vector ==0.12.*
   mixins:

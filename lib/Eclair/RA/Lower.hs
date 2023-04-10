@@ -27,10 +27,10 @@ compileToEIR stringMap typedefInfo ra =
   let (indexMap, getIndexForSearch) = runIndexSelection typedefInfo ra
       containerInfos' = getContainerInfos indexMap typedefInfo
       end = "the.end"
-      lowerState = LowerState typedefInfo indexMap getIndexForSearch containerInfos' end mempty
+      lowerState = mkLowerState typedefInfo indexMap getIndexForSearch (map fst containerInfos') end
       moduleStmts :: [CodegenM EIR]
       moduleStmts =
-        [ declareProgram $ map (\(r, _, m) -> (r, m)) containerInfos'
+        [ declareProgram $ map (\((r, _), m) -> (r, m)) containerInfos'
         , compileInit stringMap
         , compileDestroy
         , compileRun ra
@@ -42,7 +42,7 @@ compileInit stringMap = do
   program <- var "program"
   let symbolTable = fieldAccess program 0
       symbolTableInitAction = primOp EIR.SymbolTableInit [symbolTable]
-  relationInitActions <- forEachRelation program $ \(r, idx, _) relationPtr ->
+  relationInitActions <- forEachRelation program $ \(r, idx) relationPtr ->
     call r idx EIR.InitializeEmpty [relationPtr]
   let addSymbolActions = toSymbolTableInsertActions symbolTable stringMap
       initActions = symbolTableInitAction : relationInitActions <> addSymbolActions
@@ -66,7 +66,7 @@ compileDestroy :: CodegenM EIR
 compileDestroy = do
   let program = fnArg 0
       symbolTableDestroyAction = primOp EIR.SymbolTableDestroy [fieldAccess program 0]
-  relationDestroyActions <- forEachRelation program $ \(r, idx, _) relationPtr ->
+  relationDestroyActions <- forEachRelation program $ \(r, idx) relationPtr ->
     call r idx EIR.Destroy [relationPtr]
   let destroyActions = symbolTableDestroyAction : relationDestroyActions
   apiFn "eclair_program_destroy" [EIR.Pointer EIR.Program] EIR.Void $
@@ -179,7 +179,7 @@ generateProgramInstructions = gcata (distribute extractEqualities) $ \case
     foldl' f (jump end) =<< traverse getFirstFieldOffset rs
     where
       f inner field = do
-        (r, idx, _) <- getContainerInfoByOffset field
+        (r, idx) <- getContainerInfoByOffset field
         let programPtr = fnArg 0
             relationPtr = fieldAccess programPtr field
             isEmpty = call r idx EIR.IsEmpty [relationPtr]
@@ -199,7 +199,6 @@ generateProgramInstructions = gcata (distribute extractEqualities) $ \case
         ubValue <- var "upper_bound_value"
         beginIter <- var "begin_iter"
         endIter <- var "end_iter"
-        isEmpty <- var "is_empty"
         let values' = map tFst values
             cs = definedColumnsFor values'
             signature = SearchSignature $ Set.fromList cs
@@ -218,8 +217,7 @@ generateProgramInstructions = gcata (distribute extractEqualities) $ \case
           , assign endIter $ stackAlloc r idx EIR.Iter
           , call r idx EIR.IterLowerBound [relationPtr, lbValue, beginIter]
           , call r idx EIR.IterUpperBound [relationPtr, ubValue, endIter]
-          , assign isEmpty $ call r idx EIR.IterIsEqual [beginIter, endIter]
-          , not' isEmpty
+          , call r idx EIR.IterIsEqual [beginIter, endIter]
           ]
       existenceCheckTotalSearch = do
         let columnValues = map extract values
@@ -318,13 +316,13 @@ lowerConstrainValue bound = \case
     mkExternOp opName $ map (lowerConstrainValue bound) args
   _ -> panic "Unsupported initial value while lowering to RA"
 
-forEachRelation :: CodegenM EIR -> (ContainerInfo -> CodegenM EIR -> CodegenM EIR) -> CodegenM [CodegenM EIR]
+forEachRelation :: CodegenM EIR -> ((Relation, Index) -> CodegenM EIR -> CodegenM EIR) -> CodegenM [CodegenM EIR]
 forEachRelation program f = do
-  cis <- containerInfos <$> getLowerState
+  cis <- relInfo . cgInfo <$> getLowerState
   pure $ zipWith doCall [1..] cis
   where
-    doCall fieldOffset ci =
-      f ci (fieldAccess program fieldOffset)
+    doCall fieldOffset relationInfo =
+      f relationInfo (fieldAccess program fieldOffset)
 
 relationUnaryFn :: Relation -> EIR.Function -> CodegenM [CodegenM EIR]
 relationUnaryFn r fn' = forEachIndex r $ \idx -> do
@@ -346,7 +344,7 @@ forEachIndex r f = do
   indices <- indexesForRelation r
   pure $ map f indices
 
-getContainerInfos :: IndexMap -> TypedefInfo -> [ContainerInfo]
+getContainerInfos :: IndexMap -> TypedefInfo -> [((Relation, Index), M.Metadata)]
 getContainerInfos indexMap typedefInfo = containerInfos'
   where
     combinations r idxs =
@@ -354,7 +352,7 @@ getContainerInfos indexMap typedefInfo = containerInfos'
     toContainerInfo r idx =
       let r' = stripIdPrefixes r
           meta = M.mkMeta idx $ fromJust $ Map.lookup r' typedefInfo
-       in (r, idx, meta)
+       in ((r, idx), meta)
     storesList = Map.foldMapWithKey combinations indexMap
     containerInfos' = map (uncurry toContainerInfo) storesList
 

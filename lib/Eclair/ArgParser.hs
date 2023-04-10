@@ -11,6 +11,7 @@ import Eclair.Common.Config
 import Options.Applicative
 import qualified Data.List.Extra as L
 
+
 parseArgs :: [String] -> IO Config
 parseArgs = handleParseResult . execParserPure parserPrefs parserInfo
   where
@@ -36,6 +37,7 @@ compileParser = Compile <$> compileParser'
       CompileConfig <$> argument str (metavar "FILE" <> help "The main Datalog file to compile.")
                     <*> emitKindParser
                     <*> optional targetParser
+                    <*> numCoresParser
 
 targetParser :: Parser Target
 targetParser =
@@ -58,3 +60,11 @@ emitKindParser =
       "llvm" -> Just EmitLLVM
       _ -> Nothing
     desc = "Emit a specific IR. Defaults to emitting LLVM IR. Supported options: 'ast-transformed, 'ra', 'ra-transformed', 'eir' and 'llvm'."
+
+numCoresParser :: Parser Word
+numCoresParser = option auto $
+  long "jobs"
+    <> metavar "JOBS"
+    <> short 'j'
+    <> value 1
+    <> help "Number of threads used for compilation."

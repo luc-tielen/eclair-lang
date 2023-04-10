@@ -17,3 +17,5 @@ cabal.project.local*
 result
 eclair.prof
 eclair.svg
+*.eventlog*
+eclair.hp

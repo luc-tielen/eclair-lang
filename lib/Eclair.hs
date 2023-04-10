@@ -45,8 +45,6 @@ import "dependent-sum" Data.Some
 type RA = RA.RA
 type EIR = EIR.EIR
 
-type Config = Maybe Target
-
 
 data Query a where
   Parse :: FilePath -> Query (AST, NodeId, SpanMap)
@@ -124,7 +122,8 @@ instance Hashable (Some Query) where
 
 data Parameters
   = Parameters
-  { paramsConfig :: !Config
+  { paramsNumCores :: Word
+  , paramsTarget :: !(Maybe Target)
   , paramsReadSourceFile :: FilePath -> IO (Maybe Text)
   }
 
@@ -137,7 +136,7 @@ rules abortOnError params (Rock.Writer query) = case query of
     pure ((ast, nodeId, spanMap), ParseErr path <$> maybeToList mParseErr)
   RunSemanticAnalysis path -> do
     (ast, _, spans) <- Rock.fetch (Parse path)
-    result <- liftIO $ SA.runAnalysis ast
+    result <- liftIO $ SA.runAnalysis (paramsNumCores params) ast
     let errs = if SA.hasSemanticErrors result
                  then one $ SemanticErr path spans $ SA.semanticErrors result
                  else mempty
@@ -205,7 +204,7 @@ rules abortOnError params (Rock.Writer query) = case query of
     stringMapping <- Rock.fetch (StringMapping path)
     usageMapping <- Rock.fetch (UsageMapping path)
     externDefs <- Rock.fetch (ExternDefinitions path)
-    liftIO $ compileToLLVM (paramsConfig params) stringMapping usageMapping externDefs eir
+    liftIO $ compileToLLVM (paramsTarget params) stringMapping usageMapping externDefs eir
   EmitLLVM path -> noError $ do
     llvmModule <- Rock.fetch (CompileLLVM path)
     liftIO $ putTextLn $ ppllvm llvmModule

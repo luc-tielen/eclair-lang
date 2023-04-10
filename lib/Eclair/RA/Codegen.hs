@@ -1,9 +1,10 @@
 module Eclair.RA.Codegen
   ( CodegenM
   , runCodegen
-  , ContainerInfo
   , LowerState(..)
+  , mkLowerState
   , CGState(..)
+  , CGInfo(..)
   , getLowerState
   , Relation
   , Alias
@@ -62,7 +63,7 @@ import Eclair.Common.Id
 import Eclair.Common.Literal
 import qualified Eclair.EIR.IR as EIR
 import qualified Eclair.RA.IR as RA
-import qualified Eclair.LLVM.Metadata as M
+import qualified Eclair.LLVM.Metadata as Meta
 
 
 type Alias = RA.Alias
@@ -70,17 +71,45 @@ type Relation = EIR.Relation
 type EIR = EIR.EIR
 type AliasMap = Map Alias EIR
 
-type ContainerInfo = (Relation, Index, M.Metadata)
+-- Helper data type that pre-computes some data that is used a lot,
+-- to speed up the compiler.
+data CGInfo
+  = CGInfo
+  { relInfo :: [(Relation, Index)]
+  , offsetsForRelationAndIndex :: Map (Relation, Index) Int
+  , offsetsForRelation :: Map Relation Int  -- only tracks first one
+  }
 
 data LowerState
   = LowerState
   { typeEnv :: TypedefInfo
   , idxMap :: IndexMap
   , idxSelector :: IndexSelector
-  , containerInfos :: [ContainerInfo]
+  , cgInfo :: CGInfo
   , endLabel :: EIR.LabelId
   , aliasMap :: AliasMap
   }
+
+mkLowerState :: TypedefInfo -> IndexMap -> IndexSelector -> [(Relation, Index)] -> EIR.LabelId -> LowerState
+mkLowerState typedefInfo indexMap getIndexForSearch relInfos end =
+  LowerState typedefInfo indexMap getIndexForSearch codegenInfo end mempty
+    where
+      codegenInfo = CGInfo relInfos offsetsByRelationAndIndex offsetsByRelation
+      offsetsByRelationAndIndex =
+        M.fromDistinctAscList
+          [ (ri, offset)
+          | ri <- sortNub relInfos
+          -- + 1 due to symbol table at position 0 in program struct
+          , let offset = 1 + fromJust (List.elemIndex ri relInfos)
+          ]
+      offsetsByRelation =
+        let rs = map fst relInfos
+         in M.fromDistinctAscList
+            [ (r, offset)
+            | r <- sortNub rs
+            -- + 1 due to symbol table at position 0 in program struct
+            , let offset = 1 + fromJust (List.elemIndex r rs)
+            ]
 
 data CGState
   = Normal LowerState
@@ -137,7 +166,7 @@ flattenBlocks actions = flip concatMap actions $ \case
   EIR.Block stmts -> stmts
   stmt -> [stmt]
 
-declareProgram :: [(Relation, M.Metadata)] -> CodegenM EIR
+declareProgram :: [(Relation, Meta.Metadata)] -> CodegenM EIR
 declareProgram metas = pure $ EIR.DeclareProgram metas
 
 fn :: Text -> [EIR.Type] -> EIR.Type -> [CodegenM EIR] -> CodegenM EIR
@@ -309,25 +338,16 @@ lookupId name mapping = do
 
 getFieldOffset :: Relation -> Index -> CodegenM Int
 getFieldOffset r idx = do
-  cis <- containerInfos <$> getLowerState
-  -- + 1 due to symbol table at position 0 in program struct
-  pure $ (+1) . fromJust $ List.findIndex sameRelationAndIndex cis
-  where
-    sameRelationAndIndex (r', idx', _) =
-      r == r' && idx == idx'
+  fromJust . M.lookup (r, idx) . offsetsForRelationAndIndex . cgInfo <$> getLowerState
 
 getFirstFieldOffset :: Relation -> CodegenM Int
 getFirstFieldOffset r = do
-  cis <- containerInfos <$> getLowerState
-  -- + 1 due to symbol table at position 0 in program struct
-  pure $ (+1) . fromJust $ List.findIndex sameRelation cis
-  where
-    sameRelation (r', _, _) = r == r'
+  fromJust . M.lookup r . offsetsForRelation . cgInfo <$> getLowerState
 
-getContainerInfoByOffset :: Int -> CodegenM ContainerInfo
+getContainerInfoByOffset :: Int -> CodegenM (Relation, Index)
 getContainerInfoByOffset offset =
   -- - 1 due to symbol table at position 0 in program struct
-  (List.!! (offset - 1)) . containerInfos <$> getLowerState
+  (List.!! (offset - 1)) . relInfo . cgInfo <$> getLowerState
 
 lookupAlias :: Alias -> CodegenM EIR
 lookupAlias a = ask >>= \case

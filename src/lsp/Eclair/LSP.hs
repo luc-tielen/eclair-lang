@@ -73,7 +73,7 @@ run mLogFile = do
             LSP.runLspT environment $ do
               -- This should work, since the VFS is wrapped by a TVar
               let tryReadFile = lspReadFromVFS environment
-                  params = Parameters Nothing tryReadFile
+                  params = Parameters 8 Nothing tryReadFile
               runReaderT (runExceptT handler) params >>= \case
                 Left (Log, _message) -> do
                   let _xtype = MtLog
