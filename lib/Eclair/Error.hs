@@ -254,8 +254,8 @@ conversionErrorToReport e = case e of
     in Err Nothing title markers hints
   UnsupportedCase _ ->
     let title = "Unsupported feature in Souffle"
-        markers = [(mainErrorPosition e, This "Souffle has no support for this language feature.")]
-        hints = []
+        markers = [(mainErrorPosition e, This "Eclair can't transpile extern definitions yet.")]
+        hints = [Hint "Please open a github issue asking for this feature."]
      in Err Nothing title markers hints
   UnsupportedType _ ty ->
     let title = "Unsupported type in Souffle"
