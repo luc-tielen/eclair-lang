@@ -3,6 +3,7 @@ dist/
 .direnv/
 .devcontainer/
 cabal.project.local*
+cbits/*.dl
 
 *.ll
 *.bc
