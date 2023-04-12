@@ -230,11 +230,10 @@ ungrounded_variable(rule_id, var_id, var_name) :-
   var_name != "_",
   !grounded_variable(rule_id, var_name).  // Only compare by variable name!
 
-// Variables used in a constraint (comparison or inequality) need to be grounded.
+// Variables used in a constraint (comparison, equality or inequality) need to be grounded.
 ungrounded_variable(rule_id, var_id, var_name) :-
   rule_clause(rule_id, _, rule_clause_id),
   constraint(rule_clause_id, op, var_id, _),
-  inequality_op(op),
   variable(var_id, var_name),
   var_name != "_",
   !grounded_variable(rule_id, var_name).
@@ -242,7 +241,6 @@ ungrounded_variable(rule_id, var_id, var_name) :-
 ungrounded_variable(rule_id, var_id, var_name) :-
   rule_clause(rule_id, _, rule_clause_id),
   constraint(rule_clause_id, op, _, var_id),
-  inequality_op(op),
   variable(var_id, var_name),
   var_name != "_",
   !grounded_variable(rule_id, var_name).
@@ -362,7 +360,7 @@ wildcard_in_binop(binop_node_id, rhs_node_id) :-
   binop(binop_node_id, _, _, rhs_node_id),
   wildcard(rhs_node_id).
 
-// A rule variable is unconstrained if there is no other occurence of the variable in the rule.
+// A rule variable is unconstrained if there is no other occurrence of the variable in the rule.
 // (This works because groundedness of a variable is also checked..
 unconstrained_rule_var(rule_id, var_id, var_name) :-
   rule_scope(rule_id, scope_id),
@@ -434,7 +432,7 @@ literal_contradiction(id1, id2) :-
   value1 != value2.
 
 
-// Helper relation for getting all grounded variables in head of a rule.
+// Helper relation for getting all variables in head of a rule.
 rule_head_var(rule_id, var_id, var_name) :-
   rule_arg(rule_id, _, var_id),
   variable(var_id, var_name).
