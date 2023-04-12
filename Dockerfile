@@ -33,10 +33,10 @@ RUN echo 'tzdata tzdata/Areas select Europe' | debconf-set-selections \
     && curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | sh \
     # install and set ghc
     && source /root/.ghcup/env \
-    && ghcup install ghc --force 9.2.4 && ghcup set ghc 9.2.4 \
+    && ghcup install ghc --force 9.2.7 && ghcup set ghc 9.2.7 \
+    && rm -rf /root/.ghcup/ghc/9.2.5 \
     && ghcup install cabal --force 3.6.2.0 && ghcup set cabal 3.6.2.0 \
     && cabal install hspec-discover \
-    && rm -rf /root/.ghcup/ghc/9.2.5 \
     && apt-get autoremove -y \
     && apt-get purge -y --auto-remove \
     && rm -rf /var/lib/apt/lists/*
