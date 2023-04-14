@@ -30,7 +30,7 @@ data Souffle
   | Rule Id [Souffle] [Souffle]
   | Not Souffle
   | Atom Id [Souffle]
-  | DeclareType Id [Type]
+  | DeclareType Id [(Maybe Id, Type)]
   | DeclareUsage Id UsageMode
   | Module [Souffle]
 
@@ -49,7 +49,7 @@ toSouffle = map Module . cata f
       AST.ModuleF _ decls -> do
         map mconcat $ sequence decls
       AST.DeclareTypeF nodeId name tys usageMode -> do
-        souffleTys <- traverse (toSouffleType nodeId) tys
+        souffleTys <- traverse (toSouffleArg nodeId) tys
         let declType = DeclareType name souffleTys
             usageDecls = case usageMode of
               AST.Input ->
@@ -91,11 +91,11 @@ toSouffle = map Module . cata f
         let nodeId = AST.getNodeIdF astf
         in throwError $ UnsupportedCase nodeId
 
-    toSouffleType :: NodeId -> AST.Type -> Either (ConversionError NodeId) Type
-    toSouffleType nodeId = \case
-      AST.U32 -> pure Unsigned
-      AST.Str -> pure Symbol
-      ty -> throwError $ UnsupportedType nodeId ty
+    toSouffleArg :: NodeId -> (Maybe Id, AST.Type) -> Either (ConversionError NodeId) (Maybe Id, Type)
+    toSouffleArg nodeId = \case
+      (mName, AST.U32) -> pure (mName, Unsigned)
+      (mName, AST.Str) -> pure (mName, Symbol)
+      ty -> throwError $ UnsupportedType nodeId $ snd ty
 
 
 instance Pretty Type where
@@ -135,10 +135,14 @@ instance Pretty Souffle where
           let separators = replicate (length clauses - 1) "," <> ["."]
           pure $ pretty name <> parens (withCommas values') <+> ":-" <> hardline <>
                 indent 2 (vsep (zipWith (<>) clauses' separators))
-        DeclareType name tys -> do
-          let argNames = map (\col -> "arg_" <> show col) [0 :: Int ..]
-              args = zipWith (\argName ty -> argName <> ":" <+> pretty ty) argNames tys
-          pure $ ".decl" <+> pretty name <> parens (withCommas args)
+        DeclareType name args -> do
+          let defaultArgNames = map (\col -> Id $ "arg_" <> show col) [0 :: Int ..]
+              argNames = zipWith prettyArg args defaultArgNames
+              argDocs = zipWith (\argName arg -> argName <> ":" <+> pretty (snd arg)) argNames args
+          pure $ ".decl" <+> pretty name <> parens (withCommas argDocs)
+          where
+            prettyArg arg defaultArg =
+              pretty $ fromMaybe defaultArg $ fst arg
         DeclareUsage name usageMode ->
           pure $ case usageMode of
             Input -> ".input" <+> pretty name

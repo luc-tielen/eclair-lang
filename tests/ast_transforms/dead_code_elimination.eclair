@@ -21,6 +21,10 @@ unused_rule(x) :-
 @def live5(u32) input.
 @def live6(u32).
 @def live7(u32) output.
+@def live8(u32) output.
+@extern func(field1: u32) u32.
+@extern func2(u32) u32.
+@extern constraint(field1: u32).
 
 live2(123).
 
@@ -34,7 +38,13 @@ live6(x) :-
   live5(x).
 
 live7(x) :-
-  live6(x).
+  live6(x),
+  x = func(123),
+  constraint(x).
+
+live8(x) :-
+  live6(x),
+  func2(123) = x.
 
 // NOTE: Rule with contradictions is tested in another file already.
 
@@ -53,6 +63,14 @@ live7(x) :-
 
 @def live7(u32) output.
 
+@def live8(u32) output.
+
+@extern func(field1: u32) u32.
+
+@extern func2(u32) u32.
+
+@extern constraint(field1: u32).
+
 live2(123).
 
 live3(x) :-
@@ -65,4 +83,10 @@ live6(x) :-
   live5(x).
 
 live7(x) :-
-  live6(x).
+  live6(x),
+  constraint(x),
+  x = func(123).
+
+live8(x) :-
+  live6(x),
+  func2(123) = x.

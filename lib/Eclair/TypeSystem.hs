@@ -120,15 +120,16 @@ typeCheck ast
     combine f g = f . map fst &&& g . map snd
 
     extractTypedefs = \case
-      DeclareTypeF nodeId name tys _ ->
-        one (name, (nodeId, tys))
+      DeclareTypeF nodeId name args _ ->
+        one (name, (nodeId, map snd args))
       AtomF {} -> mempty
       RuleF {} -> mempty
       astf -> fold astf
 
     extractExternDefs = \case
-      ExternDefinitionF nodeId name tys mRetTy ->
-        one (name, (nodeId, maybe (ConstraintType tys) (FunctionType tys) mRetTy))
+      ExternDefinitionF nodeId name args mRetTy ->
+        let tys = map snd args
+        in one (name, (nodeId, maybe (ConstraintType tys) (FunctionType tys) mRetTy))
       AtomF {} -> mempty
       RuleF {} -> mempty
       astf -> fold astf
