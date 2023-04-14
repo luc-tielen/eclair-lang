@@ -132,10 +132,10 @@ externParser :: NodeId -> Parser AST
 externParser nodeId = do
   void $ lexeme $ P.chunk "@extern"
   name <- lexeme identifier
-  tys <- lexeme $ betweenParens $ typeParser `P.sepBy1` lexeme comma
+  args <- lexeme $ betweenParens $ argParser `P.sepBy1` lexeme comma
   mRetTy <- optional typeParser
   void $ P.char '.'
-  pure $ ExternDefinition nodeId name tys mRetTy
+  pure $ ExternDefinition nodeId name args mRetTy
 
 typedefParser :: NodeId -> Parser AST
 typedefParser nodeId = do

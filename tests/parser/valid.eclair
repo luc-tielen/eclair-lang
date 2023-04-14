@@ -76,6 +76,9 @@ test_externs(x) :-
   x = func(y) + y,
   func(x) = func(y).
 
+@extern func_with_named_fields(field1: u32, field2: u32) string.
+@extern constraint_with_named_field(u32, another_field: u32).
+
 @def test_negation(u32).
 
 test_negation(x) :-

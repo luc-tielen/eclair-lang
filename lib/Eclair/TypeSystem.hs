@@ -127,8 +127,9 @@ typeCheck ast
       astf -> fold astf
 
     extractExternDefs = \case
-      ExternDefinitionF nodeId name tys mRetTy ->
-        one (name, (nodeId, maybe (ConstraintType tys) (FunctionType tys) mRetTy))
+      ExternDefinitionF nodeId name args mRetTy ->
+        let tys = map snd args
+        in one (name, (nodeId, maybe (ConstraintType tys) (FunctionType tys) mRetTy))
       AtomF {} -> mempty
       RuleF {} -> mempty
       astf -> fold astf

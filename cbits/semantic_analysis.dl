@@ -119,6 +119,16 @@ depends_on(r1, r2) :-
   negation(negation_id, atom_id),
   atom(atom_id, r2).
 
+// Variant for extern functions.
+depends_on(r1, r2) :-
+  rule(rule_id, r1),
+  rule_clause(rule_id, _, assign_id),
+  assign(assign_id, lhs_node_id, rhs_node_id),
+  (
+    extern_atom(lhs_node_id, r2);
+    extern_atom(rhs_node_id, r2)
+  ).
+
 transitive_depends_on(r1, r2) :-
   depends_on(r1, r2).
 
