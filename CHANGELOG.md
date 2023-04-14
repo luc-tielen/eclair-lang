@@ -20,6 +20,9 @@ The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-has
 - Optimization passes:
   - HoistConstraints (faster searches by narrowing search-space as early as possible)
 - CLI: Allow emitting initial and transformed RA IR
+- Support named fields in type definitions and extern definitions
+- Support transpiling to Souffle
+- Support running semantic analysis on multiple threads
 
 ### Changed
 
@@ -29,6 +32,8 @@ The CHANGELOG is available on [Github](https://github.com/luc-tielen/souffle-has
 ### Fixed
 
 - 0 is now parsed correctly as a number.
+- Type holes now correctly show all possible results in a rule.
+- BTree implementation is now better suited for large sets of facts
 
 ## [0.1.0] - 2022-11-20
 
