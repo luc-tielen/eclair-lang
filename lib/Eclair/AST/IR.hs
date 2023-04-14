@@ -60,7 +60,7 @@ data AST
   | Not NodeId Clause
   | Atom NodeId Id [Value]  -- Can be both a Datalog relation, or a externally defined function / constraint
   | ExternDefinition NodeId Id [Type] (Maybe Type)
-  | DeclareType NodeId Id [Type] Attributes
+  | DeclareType NodeId Id [(Maybe Id, Type)] Attributes
   | Module NodeId [Decl]
   deriving (Eq, Show)
 
@@ -159,10 +159,12 @@ instance Pretty AST where
         DeclareType _ name tys attrs ->
           pure $ "@def"
             <+> pretty name
-             <> parens (withCommas $ map pretty tys)
+             <> parens (withCommas $ map prettyArg tys)
              <> prettyAttrs
              <> "."
           where
+            prettyArg (mName, ty) =
+              maybe (pretty ty) (\fieldName -> pretty fieldName <> ":" <+> pretty ty) mName
             prettyAttrs = case attrs of
               Internal -> ""
               Input -> " input"

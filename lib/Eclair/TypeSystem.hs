@@ -120,8 +120,8 @@ typeCheck ast
     combine f g = f . map fst &&& g . map snd
 
     extractTypedefs = \case
-      DeclareTypeF nodeId name tys _ ->
-        one (name, (nodeId, tys))
+      DeclareTypeF nodeId name args _ ->
+        one (name, (nodeId, map snd args))
       AtomF {} -> mempty
       RuleF {} -> mempty
       astf -> fold astf
