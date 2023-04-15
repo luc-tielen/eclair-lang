@@ -50,9 +50,9 @@ export fn eclair_program_init() -> *Program
   first.init_empty(program.1)
   second.init_empty(program.2)
   third.init_empty(program.3)
-  symbol_table.insert(program.0, first)
-  symbol_table.insert(program.0, second)
-  symbol_table.insert(program.0, third)
+  symbol_table.insert(program.0, "first")
+  symbol_table.insert(program.0, "second")
+  symbol_table.insert(program.0, "third")
   return program
 }
 

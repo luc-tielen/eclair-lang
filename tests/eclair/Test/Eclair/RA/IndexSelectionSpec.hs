@@ -20,7 +20,7 @@ import NeatInterpolation
 
 idxSel :: FilePath -> Text -> IndexMap
 idxSel path text' = do
-  let file = "tests/fixtures" </> path <.> "dl"
+  let file = "tests/fixtures" </> path <.> "eclair"
       ast = (\(parsed, _, _, _) -> parsed) $ parseText file text'
    in case TS.typeCheck ast of
         Left _ -> panic $ "Failed to typecheck " <> toText file <> "!"

@@ -12,6 +12,7 @@ module Eclair.AST.IR
   , LogicalOp(..)
   , isEqualityOp
   , getNodeId
+  , getNodeIdF
   , getExternDefs
   , UsageMode(..)
   , Attributes
@@ -58,8 +59,8 @@ data AST
   | Rule NodeId Id [Value] [Clause]
   | Not NodeId Clause
   | Atom NodeId Id [Value]  -- Can be both a Datalog relation, or a externally defined function / constraint
-  | ExternDefinition NodeId Id [Type] (Maybe Type)
-  | DeclareType NodeId Id [Type] Attributes
+  | ExternDefinition NodeId Id [(Maybe Id, Type)] (Maybe Type)
+  | DeclareType NodeId Id [(Maybe Id, Type)] Attributes
   | Module NodeId [Decl]
   deriving (Eq, Show)
 
@@ -86,6 +87,20 @@ getNodeId = \case
   Lit nodeId _ -> nodeId
   Var nodeId _ -> nodeId
   Hole nodeId -> nodeId
+
+getNodeIdF :: ASTF a -> NodeId
+getNodeIdF = \case
+  ModuleF nodeId _ -> nodeId
+  DeclareTypeF nodeId _ _ _ -> nodeId
+  ExternDefinitionF nodeId _ _ _ -> nodeId
+  RuleF nodeId _ _ _ -> nodeId
+  NotF nodeId _ -> nodeId
+  AtomF nodeId _ _ -> nodeId
+  BinOpF nodeId _ _ _ -> nodeId
+  ConstraintF nodeId _ _ _ -> nodeId
+  LitF nodeId _ -> nodeId
+  VarF nodeId _ -> nodeId
+  HoleF nodeId -> nodeId
 
 getExternDefs :: AST -> [Extern]
 getExternDefs = cata $ \case
@@ -135,16 +150,16 @@ instance Pretty AST where
           let separators = replicate (length clauses - 1) "," ++ ["."]
           pure $ pretty name <> parens (withCommas values') <+> ":-" <> hardline <>
                 indent 2 (vsep (zipWith (<>) clauses' separators))
-        ExternDefinition _ name argTys mRetTy -> do
+        ExternDefinition _ name args mRetTy -> do
           let prettyRetTy = case mRetTy of
                 Just retTy -> " " <> pretty retTy
                 Nothing    -> mempty
-          pure $ "@extern" <+> pretty name <> parens (withCommas $ map pretty argTys)
+          pure $ "@extern" <+> pretty name <> parens (withCommas $ map prettyArg args)
                     <> prettyRetTy <> "."
         DeclareType _ name tys attrs ->
           pure $ "@def"
             <+> pretty name
-             <> parens (withCommas $ map pretty tys)
+             <> parens (withCommas $ map prettyArg tys)
              <> prettyAttrs
              <> "."
           where
@@ -156,3 +171,6 @@ instance Pretty AST where
         Module _ decls -> do
           decls' <- traverse pretty' decls
           pure $ vsep $ intersperse mempty decls'
+
+      prettyArg (mName, ty) =
+        maybe (pretty ty) (\fieldName -> pretty fieldName <> ":" <+> pretty ty) mName

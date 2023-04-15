@@ -263,3 +263,210 @@ reachable(x, z) :-
      │ Hint: Replace the variable with a wildcard ('_').
      │ Hint: Use the variable in another rule clause.
 ─────╯
+//--- program4.eclair
+
+// RUN: %eclair compile %t/program4.eclair 2> %t/ungrounded_var_check_for_edge_cases.out
+// RUN: diff -w %t/ungrounded_var_check_for_edge_cases.out %t/ungrounded_var_check_for_edge_cases_actual.out
+
+@def bar(u32) input.
+@def foo(u32) output.
+
+foo(x) :-
+  bar(x),
+  y = y.
+
+foo(x) :-
+  bar(x),
+  a = b,
+  b = a.
+
+foo(x) :-
+  bar(x),
+  a = b,
+  b = c,
+  c = a.
+
+//--- ungrounded_var_check_for_edge_cases_actual.out
+[error]: Ungrounded variable
+     ╭──▶ TEST_DIR/program4.eclair@10:3-10:4
+     │
+   8 │ ╭┤ foo(x) :-
+   9 │ │    bar(x),
+  10 │ ├┤   y = y.
+     • │    ┬
+     • │    ╰╸ The variable 'y' is ungrounded, meaning it is not directly bound as an argument to a relation.
+     • │
+     • ╰╸ This contains no clauses that refer to 'y'.
+     •
+     │ Hint: Use the variable 'y' as an argument in a relation.
+─────╯
+
+[error]: Ungrounded variable
+     ╭──▶ TEST_DIR/program4.eclair@10:7-10:8
+     │
+   8 │ ╭┤ foo(x) :-
+   9 │ │    bar(x),
+  10 │ ├┤   y = y.
+     • │        ┬
+     • │        ╰╸ The variable 'y' is ungrounded, meaning it is not directly bound as an argument to a relation.
+     • │
+     • ╰╸ This contains no clauses that refer to 'y'.
+     •
+     │ Hint: Use the variable 'y' as an argument in a relation.
+─────╯
+
+[error]: Ungrounded variable
+     ╭──▶ TEST_DIR/program4.eclair@14:3-14:4
+     │
+  12 │ ╭┤ foo(x) :-
+  13 │ │    bar(x),
+  14 │ │    a = b,
+     • │    ┬
+     • │    ╰╸ The variable 'a' is ungrounded, meaning it is not directly bound as an argument to a relation.
+  15 │ ├┤   b = a.
+     • │
+     • ╰╸ This contains no clauses that refer to 'a'.
+     •
+     │ Hint: Use the variable 'a' as an argument in a relation.
+─────╯
+
+[error]: Ungrounded variable
+     ╭──▶ TEST_DIR/program4.eclair@14:7-14:8
+     │
+  12 │ ╭┤ foo(x) :-
+  13 │ │    bar(x),
+  14 │ │    a = b,
+     • │        ┬
+     • │        ╰╸ The variable 'b' is ungrounded, meaning it is not directly bound as an argument to a relation.
+  15 │ ├┤   b = a.
+     • │
+     • ╰╸ This contains no clauses that refer to 'b'.
+     •
+     │ Hint: Use the variable 'b' as an argument in a relation.
+─────╯
+
+[error]: Ungrounded variable
+     ╭──▶ TEST_DIR/program4.eclair@15:3-15:4
+     │
+  12 │ ╭┤ foo(x) :-
+  13 │ │    bar(x),
+  14 │ │    a = b,
+  15 │ ├┤   b = a.
+     • │    ┬
+     • │    ╰╸ The variable 'b' is ungrounded, meaning it is not directly bound as an argument to a relation.
+     • │
+     • ╰╸ This contains no clauses that refer to 'b'.
+     •
+     │ Hint: Use the variable 'b' as an argument in a relation.
+─────╯
+
+[error]: Ungrounded variable
+     ╭──▶ TEST_DIR/program4.eclair@15:7-15:8
+     │
+  12 │ ╭┤ foo(x) :-
+  13 │ │    bar(x),
+  14 │ │    a = b,
+  15 │ ├┤   b = a.
+     • │        ┬
+     • │        ╰╸ The variable 'a' is ungrounded, meaning it is not directly bound as an argument to a relation.
+     • │
+     • ╰╸ This contains no clauses that refer to 'a'.
+     •
+     │ Hint: Use the variable 'a' as an argument in a relation.
+─────╯
+
+[error]: Ungrounded variable
+     ╭──▶ TEST_DIR/program4.eclair@19:3-19:4
+     │
+  17 │ ╭┤ foo(x) :-
+  18 │ │    bar(x),
+  19 │ │    a = b,
+     • │    ┬
+     • │    ╰╸ The variable 'a' is ungrounded, meaning it is not directly bound as an argument to a relation.
+  20 │ │    b = c,
+  21 │ ├┤   c = a.
+     • │
+     • ╰╸ This contains no clauses that refer to 'a'.
+     •
+     │ Hint: Use the variable 'a' as an argument in a relation.
+─────╯
+
+[error]: Ungrounded variable
+     ╭──▶ TEST_DIR/program4.eclair@19:7-19:8
+     │
+  17 │ ╭┤ foo(x) :-
+  18 │ │    bar(x),
+  19 │ │    a = b,
+     • │        ┬
+     • │        ╰╸ The variable 'b' is ungrounded, meaning it is not directly bound as an argument to a relation.
+  20 │ │    b = c,
+  21 │ ├┤   c = a.
+     • │
+     • ╰╸ This contains no clauses that refer to 'b'.
+     •
+     │ Hint: Use the variable 'b' as an argument in a relation.
+─────╯
+
+[error]: Ungrounded variable
+     ╭──▶ TEST_DIR/program4.eclair@20:3-20:4
+     │
+  17 │ ╭┤ foo(x) :-
+  18 │ │    bar(x),
+  19 │ │    a = b,
+  20 │ │    b = c,
+     • │    ┬
+     • │    ╰╸ The variable 'b' is ungrounded, meaning it is not directly bound as an argument to a relation.
+  21 │ ├┤   c = a.
+     • │
+     • ╰╸ This contains no clauses that refer to 'b'.
+     •
+     │ Hint: Use the variable 'b' as an argument in a relation.
+─────╯
+
+[error]: Ungrounded variable
+     ╭──▶ TEST_DIR/program4.eclair@20:7-20:8
+     │
+  17 │ ╭┤ foo(x) :-
+  18 │ │    bar(x),
+  19 │ │    a = b,
+  20 │ │    b = c,
+     • │        ┬
+     • │        ╰╸ The variable 'c' is ungrounded, meaning it is not directly bound as an argument to a relation.
+  21 │ ├┤   c = a.
+     • │
+     • ╰╸ This contains no clauses that refer to 'c'.
+     •
+     │ Hint: Use the variable 'c' as an argument in a relation.
+─────╯
+
+[error]: Ungrounded variable
+     ╭──▶ TEST_DIR/program4.eclair@21:3-21:4
+     │
+  17 │ ╭┤ foo(x) :-
+  18 │ │    bar(x),
+  19 │ │    a = b,
+  20 │ │    b = c,
+  21 │ ├┤   c = a.
+     • │    ┬
+     • │    ╰╸ The variable 'c' is ungrounded, meaning it is not directly bound as an argument to a relation.
+     • │
+     • ╰╸ This contains no clauses that refer to 'c'.
+     •
+     │ Hint: Use the variable 'c' as an argument in a relation.
+─────╯
+
+[error]: Ungrounded variable
+     ╭──▶ TEST_DIR/program4.eclair@21:7-21:8
+     │
+  17 │ ╭┤ foo(x) :-
+  18 │ │    bar(x),
+  19 │ │    a = b,
+  20 │ │    b = c,
+  21 │ ├┤   c = a.
+     • │        ┬
+     • │        ╰╸ The variable 'a' is ungrounded, meaning it is not directly bound as an argument to a relation.
+     • │
+     • ╰╸ This contains no clauses that refer to 'a'.
+     •
+     │ Hint: Use the variable 'a' as an argument in a relation.
+─────╯

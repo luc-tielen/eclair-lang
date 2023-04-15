@@ -25,8 +25,8 @@ fact4("\"\n\r\t\b\f\v\0").
 // NOTE: rules and assignments are tested implicitly in other tests
 
 // mix of everything
-@def edge(u32, u32) input.
-@def path(u32, u32) output.
+@def edge(field1: u32, field2: u32) input.
+@def path(u32, only_one_named_field: u32) output.
 @def literals_in_rule(u32) output.
 
 edge(1, 2).
@@ -75,6 +75,9 @@ test_externs(x) :-
   func(y) + 1 = x,
   x = func(y) + y,
   func(x) = func(y).
+
+@extern func_with_named_fields(field1: u32, field2: u32) string.
+@extern constraint_with_named_field(u32, another_field: u32).
 
 @def test_negation(u32).
 

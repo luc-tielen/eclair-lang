@@ -55,6 +55,20 @@ test_externs(x) :-
      │ Hint: Use the variable 'x' as an argument in a relation.
 ─────╯
 
+[error]: Ungrounded variable
+     ╭──▶ TEST_DIR/program1.eclair@37:3-37:4
+     │
+  35 │ ╭┤ test_externs(x) :-
+  36 │ │    constraint2(x),
+  37 │ ├┤   x = func4(x, x).
+     • │    ┬
+     • │    ╰╸ The variable 'x' is ungrounded, meaning it is not directly bound as an argument to a relation.
+     • │
+     • ╰╸ This contains no clauses that refer to 'x'.
+     •
+     │ Hint: Use the variable 'x' as an argument in a relation.
+─────╯
+
 [error]: Wildcard in externally defined atom
      ╭──▶ TEST_DIR/program1.eclair@30:17-30:18
      │

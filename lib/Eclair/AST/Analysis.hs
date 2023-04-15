@@ -398,7 +398,7 @@ analysis :: Word -> S.Handle SemanticAnalysis -> S.Analysis S.SouffleM IR.AST Re
 analysis numCores prog = S.mkAnalysis addFacts run getFacts
   where
     addFacts :: IR.AST -> S.SouffleM ()
-    addFacts ast = usingReaderT Nothing $ flip (zygo getNodeId) ast $ \case
+    addFacts ast = usingReaderT Nothing $ flip (zygo IR.getNodeIdF) ast $ \case
       IR.LitF nodeId lit -> do
         mScopeId <- ask
         for_ mScopeId $ \scopeId ->
@@ -507,20 +507,6 @@ analysis numCores prog = S.mkAnalysis addFacts run getFacts
                              <*> S.getFacts prog
                              <*> S.getFacts prog
       pure $ Result info errs
-
-    getNodeId :: IR.ASTF NodeId -> NodeId
-    getNodeId = \case
-      IR.LitF nodeId _ -> nodeId
-      IR.VarF nodeId _ -> nodeId
-      IR.HoleF nodeId -> nodeId
-      IR.BinOpF nodeId _ _ _ -> nodeId
-      IR.ConstraintF nodeId _ _ _ -> nodeId
-      IR.NotF nodeId _ -> nodeId
-      IR.AtomF nodeId _ _ -> nodeId
-      IR.RuleF nodeId _ _ _ -> nodeId
-      IR.ExternDefinitionF nodeId _ _ _ -> nodeId
-      IR.DeclareTypeF nodeId _ _ _ -> nodeId
-      IR.ModuleF nodeId _ -> nodeId
 
     mapWithPos :: (Word32 -> a -> b) -> [a] -> [b]
     mapWithPos g = zipWith g [0..]

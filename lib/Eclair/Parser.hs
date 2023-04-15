@@ -132,19 +132,19 @@ externParser :: NodeId -> Parser AST
 externParser nodeId = do
   void $ lexeme $ P.chunk "@extern"
   name <- lexeme identifier
-  tys <- lexeme $ betweenParens $ typeParser `P.sepBy1` lexeme comma
+  args <- lexeme $ betweenParens $ argParser `P.sepBy1` lexeme comma
   mRetTy <- optional typeParser
   void $ P.char '.'
-  pure $ ExternDefinition nodeId name tys mRetTy
+  pure $ ExternDefinition nodeId name args mRetTy
 
 typedefParser :: NodeId -> Parser AST
 typedefParser nodeId = do
   void $ lexeme $ P.chunk "@def"
   name <- lexeme identifier
-  tys <- lexeme $ betweenParens $ typeParser `P.sepBy1` lexeme comma
+  args <- lexeme $ betweenParens $ argParser `P.sepBy1` lexeme comma
   attrs <- attributesParser
   void $ P.char '.'
-  pure $ DeclareType nodeId name tys attrs
+  pure $ DeclareType nodeId name args attrs
   where
     attributesParser = map (fromMaybe Internal) $ lexeme $ optional $ do
       options <- some attrParser
@@ -164,8 +164,21 @@ typedefParser nodeId = do
     attrParser = lexeme $
       Left <$> P.chunk "input" <|> Right <$> P.chunk "output"
 
+argParser :: Parser (Maybe Id, Type)
+argParser =
+  P.try argWithoutName <|> argWithName
+  where
+    argWithoutName = (Nothing,) <$> typeParser
+    argWithName = P.label "field name" $ do
+      mFieldName <- optional $ do
+        name <- lexeme identifier
+        _ <- lexeme $ P.char ':'
+        pure name
+      ty <- typeParser
+      pure (mFieldName, ty)
+
 typeParser :: Parser Type
-typeParser = lexeme $ u32 <|> str
+typeParser = P.label "type" $ lexeme $ u32 <|> str
   where
     u32 = U32 <$ P.chunk "u32"
     str = Str <$ P.chunk "string"

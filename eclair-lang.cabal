@@ -83,6 +83,7 @@ library
       Eclair.RA.Lower
       Eclair.RA.Transforms
       Eclair.RA.Transforms.HoistConstraints
+      Eclair.Souffle.IR
       Eclair.Transform
       Eclair.TypeSystem
       Prelude

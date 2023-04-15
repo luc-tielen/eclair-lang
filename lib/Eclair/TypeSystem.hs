@@ -120,15 +120,16 @@ typeCheck ast
     combine f g = f . map fst &&& g . map snd
 
     extractTypedefs = \case
-      DeclareTypeF nodeId name tys _ ->
-        one (name, (nodeId, tys))
+      DeclareTypeF nodeId name args _ ->
+        one (name, (nodeId, map snd args))
       AtomF {} -> mempty
       RuleF {} -> mempty
       astf -> fold astf
 
     extractExternDefs = \case
-      ExternDefinitionF nodeId name tys mRetTy ->
-        one (name, (nodeId, maybe (ConstraintType tys) (FunctionType tys) mRetTy))
+      ExternDefinitionF nodeId name args mRetTy ->
+        let tys = map snd args
+        in one (name, (nodeId, maybe (ConstraintType tys) (FunctionType tys) mRetTy))
       AtomF {} -> mempty
       RuleF {} -> mempty
       astf -> fold astf
@@ -138,12 +139,15 @@ checkDecls :: DefMap -> AST -> ([TypeErr], Map NodeId Type)
 checkDecls defMap = \case
   Module _ decls ->
     -- NOTE: By using runM once per decl, each decl is checked with a clean state
-    let results = map (\d -> runM (beginContext d) defMap $ checkDecl d) decls
+    let results = map (\d -> runM (beginContext d) defMap $ typecheckDecl d) decls
      in bimap fold fold $ partitionEithers results
   _ ->
     panic "Unexpected AST node in 'checkDecls'"
   where
     beginContext d = WhileChecking (getNodeId d)
+    typecheckDecl d = do
+      checkDecl d
+      processUnresolvedHoles
 
 checkDecl :: AST -> TypeCheckM ()
 checkDecl ast = case ast of
@@ -154,17 +158,17 @@ checkDecl ast = case ast of
   Atom nodeId name args -> do
     ctx <- getContext
     -- TODO find better way to update context only for non-top level atoms
-    let updateCtx = if isTopLevel ctx then id else addCtx
-    updateCtx $ lookupRelationType name >>= \case
-      Just (nodeId', ConstraintType types) -> do
-        checkArgCount name (nodeId', types) (nodeId, args)
-        zipWithM_ checkExpr args types
-      Just (nodeId', FunctionType {}) -> do
-        emitError $ UnexpectedFunctionType nodeId nodeId'
-      Nothing ->
-        emitError $ UnknownConstraint nodeId name
-
-    processUnresolvedHoles
+    let isTopLevelFact = isTopLevel ctx
+        updateCtx = if isTopLevelFact then id else addCtx
+    updateCtx $ do
+      lookupRelationType name >>= \case
+        Just (nodeId', ConstraintType types) -> do
+          checkArgCount name (nodeId', types) (nodeId, args)
+          zipWithM_ checkExpr args types
+        Just (nodeId', FunctionType {}) -> do
+          emitError $ UnexpectedFunctionType nodeId nodeId'
+        Nothing ->
+          emitError $ UnknownConstraint nodeId name
 
   Rule nodeId name args clauses -> do
     lookupRelationType name >>= \case
@@ -177,7 +181,6 @@ checkDecl ast = case ast of
         emitError $ UnknownConstraint nodeId name
 
     traverse_ checkDecl clauses
-    processUnresolvedHoles
 
   Constraint nodeId op lhs rhs -> addCtx $ do
     if isEqualityOp op
@@ -197,7 +200,7 @@ checkDecl ast = case ast of
     panic "Unexpected case in 'checkDecl'"
   where
     addCtx = addContext (WhileChecking $ getNodeId ast)
-    isTopLevel = (==1) . length
+    isTopLevel = (== 1) . length
 
 checkArgCount :: Id -> (NodeId, [Type]) -> (NodeId, [AST]) -> TypeCheckM ()
 checkArgCount name (nodeIdTypedef, types) (nodeId, args) = do
@@ -222,7 +225,6 @@ checkExpr ast expectedTy = do
       trackDirectlyResolvedType nodeId expectedTy
     Var _ var -> do
       trackVariable nodeId var
-
       lookupVarType var >>= \case
         Nothing ->
           -- TODO: also store in context/state a variable was bound here for better errors?
@@ -267,7 +269,6 @@ inferExpr ast = do
       pure ty
     Var _ var -> do
       trackVariable nodeId var
-
       lookupVarType var >>= \case
         Nothing -> do
           ty <- freshType
@@ -440,4 +441,3 @@ trackVariable nodeId var = do
   ts <- gets trackingState
   let ts' = ts { trackedVariables = (var, nodeId) : trackedVariables ts }
   modify $ \s -> s { trackingState = ts' }
-

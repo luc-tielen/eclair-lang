@@ -27,7 +27,7 @@ edge(2, 3).
    1 │ @def edge(u32,).
      •               ┬
      •               ├╸ unexpected ").<newline>@de"
-     •               ╰╸ expecting "string" or "u32"
+     •               ╰╸ expecting field name or type
 ─────╯
 
 [error]: Failed to parse file
