@@ -17,9 +17,8 @@ Eclair is a minimal Datalog (for now). It supports the following features:
 - Rules consisting of one or more clauses.
 - Rules can be non-recursive, recursive or mutually recursive.
 
-It's still early stage software, not ready for real use. Right now it compiles
-to LLVM but be aware there might still be bugs. Some edge cases might not be
-handled yet.
+Right now it compiles to LLVM but be aware there might still be bugs. 
+Some edge cases might not be handled yet.
 
 ## Motivating example
 
