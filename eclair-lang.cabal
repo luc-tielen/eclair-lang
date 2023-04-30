@@ -119,7 +119,6 @@ library
     , comonad ==5.*
     , containers ==0.*
     , dependent-sum >=0.6 && <1
-    , dependent-sum-template ==0.1.*
     , diagnose ==2.3.*
     , dlist ==1.*
     , exceptions ==0.10.*
@@ -191,7 +190,6 @@ executable eclair
     , comonad ==5.*
     , containers ==0.*
     , dependent-sum >=0.6 && <1
-    , dependent-sum-template ==0.1.*
     , diagnose ==2.3.*
     , directory ==1.*
     , dlist ==1.*
@@ -269,7 +267,6 @@ executable eclair-lsp-server
     , containers ==0.*
     , data-default ==0.7.*
     , dependent-sum >=0.6 && <1
-    , dependent-sum-template ==0.1.*
     , diagnose ==2.3.*
     , directory ==1.*
     , dlist ==1.*
@@ -349,7 +346,6 @@ test-suite eclair-lsp-test
     , comonad ==5.*
     , containers ==0.*
     , dependent-sum >=0.6 && <1
-    , dependent-sum-template ==0.1.*
     , diagnose ==2.3.*
     , dlist ==1.*
     , eclair-lang
@@ -428,7 +424,6 @@ test-suite eclair-test
     , comonad ==5.*
     , containers ==0.*
     , dependent-sum >=0.6 && <1
-    , dependent-sum-template ==0.1.*
     , diagnose ==2.3.*
     , dlist ==1.*
     , eclair-lang
