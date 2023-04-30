@@ -1,4 +1,4 @@
-{-# LANGUAGE GADTs, QuasiQuotes, TemplateHaskell, PackageImports, StandaloneDeriving #-}
+{-# LANGUAGE GADTs, StandaloneDeriving #-}
 
 module Eclair
   ( parse
@@ -38,8 +38,9 @@ import qualified Eclair.TypeSystem as TS
 import qualified Eclair.AST.Analysis as SA
 import LLVM.Codegen (Module, ppllvm)
 import qualified Rock
-import Data.GADT.Compare.TH (deriveGEq)
-import "dependent-sum" Data.Some
+import Data.GADT.Compare
+import Data.Some
+import Data.Type.Equality
 
 
 type RA = RA.RA
@@ -67,6 +68,28 @@ data Query a where
   ExternDefinitions :: FilePath -> Query [Extern]
 
 deriving instance Eq (Query a)
+
+instance GEq Query where
+  geq a b = case (a, b) of
+    (Parse file1, Parse file2) | file1 == file2 -> Just Refl
+    (RunSemanticAnalysis file1, RunSemanticAnalysis file2) | file1 == file2 -> Just Refl
+    (Typecheck file1, Typecheck file2) | file1 == file2 -> Just Refl
+    (EmitDiagnostics file1, EmitDiagnostics file2) | file1 == file2 -> Just Refl
+    (TransformAST file1, TransformAST file2) | file1 == file2 -> Just Refl
+    (EmitTransformedAST file1, EmitTransformedAST file2) | file1 == file2 -> Just Refl
+    (CompileRA file1, CompileRA file2) | file1 == file2 -> Just Refl
+    (TransformRA file1, TransformRA file2) | file1 == file2 -> Just Refl
+    (EmitRA file1, EmitRA file2) | file1 == file2 -> Just Refl
+    (EmitTransformedRA file1, EmitTransformedRA file2) | file1 == file2 -> Just Refl
+    (CompileEIR file1, CompileEIR file2) | file1 == file2 -> Just Refl
+    (EmitEIR file1, EmitEIR file2) | file1 == file2 -> Just Refl
+    (CompileLLVM file1, CompileLLVM file2) | file1 == file2 -> Just Refl
+    (EmitLLVM file1, EmitLLVM file2) | file1 == file2 -> Just Refl
+    (EmitSouffle file1, EmitSouffle file2) | file1 == file2 -> Just Refl
+    (StringMapping file1, StringMapping file2) | file1 == file2 -> Just Refl
+    (UsageMapping file1, UsageMapping file2) | file1 == file2 -> Just Refl
+    (ExternDefinitions file1, ExternDefinitions file2) | file1 == file2 -> Just Refl
+    _ -> Nothing
 
 queryFilePath :: Query a -> FilePath
 queryFilePath = \case
@@ -109,8 +132,6 @@ queryEnum = \case
   StringMapping {}       -> 15
   UsageMapping {}        -> 16
   ExternDefinitions {}   -> 17
-
-deriveGEq ''Query
 
 instance Hashable (Query a) where
   hashWithSalt salt =
