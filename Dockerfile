@@ -29,13 +29,12 @@ RUN echo 'tzdata tzdata/Areas select Europe' | debconf-set-selections \
     && ln -s wasm-ld-14 wasm-ld \
     && cd - \
     && pip install lit==14.0.6 \
-    # install ghcup
-    && curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | sh \
-    # install and set ghc
+    # install ghcup, ghc-9.4.4 and cabal-3.8.1.0
+    && curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | \
+    BOOTSTRAP_HASKELL_NONINTERACTIVE=1 BOOTSTRAP_HASKELL_GHC_VERSION=9.4.4 BOOTSTRAP_HASKELL_CABAL_VERSION=3.8.1.0 \
+    BOOTSTRAP_HASKELL_INSTALL_STACK=1 BOOTSTRAP_HASKELL_INSTALL_HLS=1 BOOTSTRAP_HASKELL_ADJUST_BASHRC=P sh \
     && source /root/.ghcup/env \
-    && ghcup install ghc --force 9.2.7 && ghcup set ghc 9.2.7 \
-    && rm -rf /root/.ghcup/ghc/9.2.5 \
-    && ghcup install cabal --force 3.6.2.0 && ghcup set cabal 3.6.2.0 \
+    && cabal install hpack \
     && cabal install hspec-discover \
     && apt-get autoremove -y \
     && apt-get purge -y --auto-remove \

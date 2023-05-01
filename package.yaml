@@ -25,7 +25,7 @@ dependencies:
     version: ">= 4.7 && < 5"
     mixin:
       - hiding (Prelude)
-  - relude == 1.1.*
+  - relude == 1.2.*
   - extra == 1.*
   - text == 2.*
   - bytestring == 0.11.*
@@ -115,7 +115,7 @@ executables:
         version: ">= 4.7 && < 5"
         mixin:
           - hiding (Prelude)
-      - relude == 1.1.*
+      - relude == 1.2.*
       - directory == 1.*
       - process == 1.6.*
     ghc-options:
@@ -134,7 +134,7 @@ executables:
         version: ">= 4.7 && < 5"
         mixin:
           - hiding (Prelude)
-      - relude == 1.1.*
+      - relude == 1.2.*
       - lsp == 1.4.*
       - lsp-types == 1.4.*
       - lens == 5.2.*
