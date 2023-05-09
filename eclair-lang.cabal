@@ -132,7 +132,7 @@ library
     , prettyprinter ==1.7.*
     , prettyprinter-ansi-terminal ==1.*
     , recursion-schemes ==5.*
-    , relude ==1.1.*
+    , relude ==1.2.*
     , rock ==0.3.*
     , souffle-haskell ==4.0.0
     , text ==2.*
@@ -206,7 +206,7 @@ executable eclair
     , prettyprinter-ansi-terminal ==1.*
     , process ==1.6.*
     , recursion-schemes ==5.*
-    , relude ==1.1.*
+    , relude ==1.2.*
     , rock ==0.3.*
     , souffle-haskell ==4.0.0
     , text ==2.*
@@ -287,7 +287,7 @@ executable eclair-lsp-server
     , prettyprinter ==1.7.*
     , prettyprinter-ansi-terminal ==1.*
     , recursion-schemes ==5.*
-    , relude ==1.1.*
+    , relude ==1.2.*
     , rock ==0.3.*
     , rope-utf16-splay ==0.4.*
     , souffle-haskell ==4.0.0
@@ -364,7 +364,7 @@ test-suite eclair-lsp-test
     , prettyprinter ==1.7.*
     , prettyprinter-ansi-terminal ==1.*
     , recursion-schemes ==5.*
-    , relude ==1.1.*
+    , relude ==1.2.*
     , rock ==0.3.*
     , rope-utf16-splay ==0.4.*
     , souffle-haskell ==4.0.0
@@ -443,7 +443,7 @@ test-suite eclair-test
     , prettyprinter ==1.7.*
     , prettyprinter-ansi-terminal ==1.*
     , recursion-schemes ==5.*
-    , relude ==1.1.*
+    , relude ==1.2.*
     , rock ==0.3.*
     , silently ==1.2.*
     , souffle-haskell ==4.0.0

@@ -3,14 +3,14 @@ packages: .
 source-repository-package
     type: git
     location: https://github.com/luc-tielen/llvm-codegen.git
-    tag: 4290b121d2442e5a53ddf6d97da10810d5c94c15
+    tag: 79a839af7c15d6fcd49d575edcef65936b933d94
 
 source-repository-package
     type: git
     location: https://github.com/luc-tielen/souffle-haskell.git
-    tag: a4fa1158ec5fdd0c900ab979e26c90633707fe1e
+    tag: 51786c809e6b5db9d0da80b9821ed87654f620c7
 
 source-repository-package
     type: git
     location: https://github.com/luc-tielen/diagnose.git
-    tag: 98653e2537445b5fb9d4aeb5477d9bf630d5bebd
+    tag: 24a1d7a2b716d74c1fe44d47941a76c9f5a90c23

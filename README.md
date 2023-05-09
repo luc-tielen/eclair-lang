@@ -9,6 +9,8 @@
 
 _An experimental and minimal Datalog implementation that compiles down to LLVM._
 
+[![Build](https://github.com/luc-tielen/eclair-lang/actions/workflows/build.yml/badge.svg)](https://github.com/luc-tielen/eclair-lang/actions/workflows/build.yml)
+
 ## Features
 
 Eclair is a minimal Datalog (for now). It supports the following features:
