@@ -1,0 +1,13 @@
+// See Section 6.2 at: https://www.vldb.org/pvldb/vol12/p695-fan.pdf
+// NOTE: id -> vertex, arc -> edge
+
+@def vertex(u32) input.
+@def edge(u32, u32) input.
+@def reachable(u32) output.
+
+reachable(y) :-
+  vertex(y).
+
+reachable(y) :-
+  reachable(x),
+  edge(x, y).

@@ -1,0 +1,58 @@
+# Do not run this workflow on pull request since this workflow has permission to modify contents.
+# on:
+#   push:
+#     branches:
+#       - main
+on: [push, pull_request]
+
+permissions:
+  # deployments permission to deploy GitHub pages website
+  deployments: write
+  # contents permission to update benchmark contents in gh-pages branch
+  contents: write
+
+jobs:
+  benchmark:
+    name: Performance regression check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          lfs: "true"
+
+      # In this step, this action saves a list of existing images, the cache is created without them in the post run.
+      # It also restores the cache if it exists.
+      - uses: jpribyl/action-docker-layer-caching@v0.1.1
+        continue-on-error: true # Ignore the failure of a step and avoid terminating the job.
+
+      - name: Run benchmarks
+        run: |
+          set -eo pipefail
+          export TIMESTAMP=$(date +%s)
+          docker build -f Dockerfile . -t eclair:$TIMESTAMP | tee eclair-lang-bench-${{matrix.os}}.log
+          docker run --rm eclair:$TIMESTAMP bash -c "make bench" | tee output.txt
+
+      # Download previous benchmark result from cache (if exists)
+      - name: Download previous benchmark data
+        uses: actions/cache@v1
+        with:
+          path: ./cache
+          key: ${{ runner.os }}-benchmark
+
+      # gh-pages branch is updated and pushed automatically with extracted benchmark data
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: Store benchmarks in Github Pages
+          tool: "customSmallerIsBetter"
+          output-file-path: output.txt
+          # Where the previous data file is stored
+          external-data-json-path: ./cache/previous-benchmark-data.json
+          # Access token to deploy GitHub Pages branch
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Push and deploy GitHub pages branch automatically
+          # auto-push: true
+          # Enable alert commit comment
+          comment-on-alert: true
+          # Mention @luc-tielen in the commit comment
+          alert-comment-cc-users: "@luc-tielen"

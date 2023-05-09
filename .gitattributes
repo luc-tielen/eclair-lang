@@ -1,0 +1,2 @@
+benchmarks/data/ filter=lfs diff=lfs merge=lfs -text
+benchmarks/data/*.gr filter=lfs diff=lfs merge=lfs -text
