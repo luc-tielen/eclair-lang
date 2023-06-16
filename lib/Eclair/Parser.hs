@@ -78,7 +78,7 @@ runParserT path text p = do
   pure $ case result of
     P.Error fatalError ->
       (Nothing, Just $ ParsingError $ toBundle $ fatalError :| P.stateParseErrors s')
-    P.OK x ->
+    P.OK _ x ->
       let nonFatalErrs = viaNonEmpty toBundle (P.stateParseErrors s')
        in (Just x, ParsingError <$> nonFatalErrs)
   where

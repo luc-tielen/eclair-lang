@@ -34,7 +34,7 @@ RUN echo 'tzdata tzdata/Areas select Europe' | debconf-set-selections \
     BOOTSTRAP_HASKELL_NONINTERACTIVE=1 BOOTSTRAP_HASKELL_GHC_VERSION=9.4.4 BOOTSTRAP_HASKELL_CABAL_VERSION=3.8.1.0 \
     BOOTSTRAP_HASKELL_INSTALL_STACK=1 BOOTSTRAP_HASKELL_INSTALL_HLS=1 BOOTSTRAP_HASKELL_ADJUST_BASHRC=P sh \
     && source /root/.ghcup/env \
-    && cabal install hpack \
+    && cabal install cabal-fmt \
     && cabal install hspec-discover \
     && apt-get autoremove -y \
     && apt-get purge -y --auto-remove \
