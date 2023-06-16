@@ -15,7 +15,7 @@ versions.
 
 #### Installing the Haskell toolchain
 
-Run the following commands to install `ghcup`, `ghc` and `cabal`.
+Run the following commands to install `ghcup`, `ghc` and `cabal`. `cabal-fmt`, 
 `hspec-discover` and `hlint` are also installed but they are only needed when working on the
 compiler.
 
@@ -24,6 +24,7 @@ $ curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | sh
 $ ghcup tui
 # In the terminal UI, select GHC 9.2.4, Haskell language server 1.8 and Cabal 3.6.
 # Important: both install + set them!
+$ cabal install cabal-fmt
 $ cabal install hspec-discover
 $ cabal install hlint
 ```
@@ -102,9 +103,10 @@ $ ghcup tui
 ```
 
 The following commands are only needed when working on the compiler.
-Run the commands to install `hspec-discover`, and `hlint`.
+Run the commands to install `cabal-fmt`, `hspec-discover`, and `hlint`.
 
 ```bash
+$ cabal install cabal-fmt
 $ cabal install hspec-discover
 $ cabal install hlint
 ```
