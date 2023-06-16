@@ -27,6 +27,7 @@ flag debug
   default:     False
 
 library
+  -- cabal-fmt: expand lib
   exposed-modules:
     Eclair
     Eclair.ArgParser
