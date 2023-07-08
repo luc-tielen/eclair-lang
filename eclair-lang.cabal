@@ -55,6 +55,8 @@ library
     Eclair.EIR.Lower.Codegen
     Eclair.EIR.Lower.Externals
     Eclair.Error
+    Eclair.LLVM.Allocator.Common
+    Eclair.LLVM.Allocator.Page
     Eclair.LLVM.BTree
     Eclair.LLVM.BTree.Bounds
     Eclair.LLVM.BTree.Compare
