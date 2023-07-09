@@ -1,18 +1,19 @@
 module Eclair.LLVM.Allocator.Page
-  ( allocator
+  ( Page
+  , allocator
   ) where
 
 import Eclair.LLVM.Allocator.Common
 import Eclair.LLVM.Codegen hiding (allocate)
 
--- TODO: parametrize on page size
-allocator :: Allocator a
-allocator =
-  Allocator
-  { cgType = Nothing
-  , cgAlloc = allocatePages
-  , cgFree = freePages
-  , backingAllocator = Nothing
+data Page
+
+-- TODO: parametrize on page size (add argument, pass to helper functions)
+allocator :: Allocator 'Base Page
+allocator
+  = Stateless
+  { slAlloc = allocatePages
+  , slFree = freePages
   }
 
 pageSize :: Operand
