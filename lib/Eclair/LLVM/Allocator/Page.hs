@@ -4,17 +4,26 @@ module Eclair.LLVM.Allocator.Page
   ) where
 
 import Eclair.LLVM.Allocator.Common
-import Eclair.LLVM.Codegen hiding (allocate)
+import Eclair.LLVM.Codegen
 
 data Page
 
 -- TODO: parametrize on page size (add argument, pass to helper functions)
-allocator :: Allocator 'Base Page
+allocator :: Allocator Page
 allocator
-  = Stateless
-  { slAlloc = allocatePages
-  , slFree = freePages
+  = Allocator
+  { aType = mkType
+  , aInit = const pass
+  , aDestroy = const pass
+  , aAlloc = const allocatePages
+  , aFree = const freePages
+  , aKind = Root
+  , aInner = None
   }
+
+mkType :: Text -> AllocCodegenM Type
+mkType prefix =
+  typedef (Name $ prefix <> "page_allocator") Off []
 
 pageSize :: Operand
 pageSize = int32 4096

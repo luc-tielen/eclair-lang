@@ -1,171 +1,175 @@
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
-{-# LANGUAGE GADTs, PolyKinds #-}
+{-# LANGUAGE GADTs, TypeFamilyDependencies, PolyKinds #-}
 
 module Eclair.LLVM.Allocator.Common
   ( Allocator(..)
-  , AllocatorKind(..)
   , Alloc(..)
-  , Refl(..)  -- TODO use dependency for this?
+  , AllocatorKind(..)
+  , AllocatorKindTag(..)
+  , VTable(..)
+  , None(..)
   , cgAlloc
-  , isBaseAlloc
   , AllocCodegenM
   , AllocIRCodegenM
+  , InitFn
+  , DestroyFn
+  , AllocateFn
+  , DeallocateFn
   , module Eclair.LLVM.Externals
   ) where
 
 import Prelude hiding (void)
+import qualified Data.Kind as K
 import Eclair.LLVM.Codegen
 import Eclair.LLVM.Externals
 
 type AllocCodegenM = StateT Externals ModuleBuilder
 type AllocIRCodegenM = IRBuilderT AllocCodegenM
 
-type AllocFn = Operand  -- length (in bytes)
-            -> AllocIRCodegenM Operand
-type FreeFn = Operand  -- ptr
-           -> Operand  -- length
-           -> AllocIRCodegenM ()
+type InitFn
+  = Operand -- allocator
+  -> AllocIRCodegenM ()
+type DestroyFn
+  = Operand -- allocator
+  -> AllocIRCodegenM ()
+type AllocateFn
+  =  Operand  -- allocator
+  -> Operand  -- length (in bytes)
+  -> AllocIRCodegenM Operand
+type DeallocateFn
+  = Operand   -- allocator
+  -> Operand  -- ptr
+  -> Operand  -- length
+  -> AllocIRCodegenM ()
 -- TODO add resize everywhere, just like alloc and free
 -- type ResizeFn = Operand  -- ptr
 --              -> Operand  -- length
 --              -> AllocIRCodegenM ()
 
--- Helper type, used as a type level tag to keep track of the shape of an allocator.
-data AllocatorKind
-  = Base
-  | Nested
+-- Helper type that for performing actions on an allocator.
+-- This allows a composed allocator to call inner functionality freely.
+data VTable
+  = VTable
+  { vtInit       :: InitFn
+  , vtDestroy    :: DestroyFn
+  , vtAllocate   :: AllocateFn
+  , vtDeallocate :: DeallocateFn
+  }
 
--- Helper type for type level equality.
-data Refl (a :: k) (b :: k) where
-  Refl :: Refl a a
+data AllocatorKindTag
+  = IsRoot
+  | IsNode
 
--- Helper function, allows us to to check at compile time of k.
--- This helps us properly use the type families in this module.
-isBaseAlloc :: Allocator k a -> Maybe (Refl k 'Base)
-isBaseAlloc = \case
-  Stateless{} -> Just Refl
-  Stateful{} -> Nothing
+data AllocatorKind (k :: AllocatorKindTag) where
+  Root :: AllocatorKind 'IsRoot
+  Node :: AllocatorKind 'IsNode
 
--- Helper type during codegen process.
-data Generated (k :: AllocatorKind) where
-  GeneratedBase
-    :: { baseAlloc :: AllocFn
-       , baseFree  :: FreeFn
-       }
-    -> Generated 'Base
-  GeneratedNested
-    :: { nestedTy      :: Text -> AllocCodegenM Type
-       , nestedInit    :: Operand -> AllocIRCodegenM ()
-       , nestedDestroy :: Operand -> AllocIRCodegenM ()
-       , nestedAlloc   :: Operand -> AllocFn
-       , nestedFree    :: Operand -> FreeFn
-       -- TODO add nestedResize :: Operand -> ResizeFn
-       }
-    -> Generated 'Nested
+type family CreateTypeFn (k :: AllocatorKindTag) where
+  CreateTypeFn 'IsRoot = Text -> AllocCodegenM Type
+  CreateTypeFn 'IsNode = Text -> Type -> AllocCodegenM Type
 
--- Helper type for keeping references to the generated allocator code
-data Alloc (k :: AllocatorKind) where
-  BaseAlloc :: { baseAllocFn :: Operand, baseFreeFn :: Operand } -> Alloc 'Base
-  NestedAlloc :: { nestedAllocTy :: Type
-                 , nestedInitFn :: Operand
-                 , nestedDestroyFn :: Operand
-                 , nestedAllocFn :: Operand
-                 , nestedFreeFn :: Operand
-                 }
-              -> Alloc 'Nested
+type family AllocatorFn (k :: AllocatorKindTag) (ty :: K.Type) where
+  AllocatorFn 'IsRoot f = f
+  AllocatorFn 'IsNode f = VTable -> f
 
-type family InnerAllocFn (k :: AllocatorKind) where
-  InnerAllocFn 'Base = AllocFn
-  InnerAllocFn 'Nested = Operand -> AllocFn
+data None a = None
 
-type family InnerFreeFn (k :: AllocatorKind) where
-  InnerFreeFn 'Base = FreeFn
-  InnerFreeFn 'Nested = Operand -> FreeFn
+type family BackingAllocator (k :: AllocatorKindTag) :: (K.Type -> K.Type) where
+  BackingAllocator 'IsRoot = None
+  BackingAllocator 'IsNode = Allocator
 
 -- First we build up the allocator info in a data-structure.
 -- "Stateless" allocators carry no state, and call direct functions provided by the OS (mmap, malloc, ...)
 -- "Stateful" allocators do have state, and can further enhance the behavior of the underlying allocator.
-data Allocator (k :: AllocatorKind) repr where
-  Stateless
-    :: { slAlloc :: AllocFn
-       , slFree :: FreeFn
+-- TODO rename to something else: VTable? Definition? AllocatorFns, rename record fields, update comment
+data Allocator repr where
+  Allocator
+    :: { aType    :: CreateTypeFn k
+       , aInit    :: AllocatorFn k InitFn
+       , aDestroy :: AllocatorFn k DestroyFn
+       , aAlloc   :: AllocatorFn k AllocateFn
+       , aFree    :: AllocatorFn k DeallocateFn
+       , aInner   :: BackingAllocator k inner
+       , aKind    :: AllocatorKind k
        }
-    -> Allocator 'Base repr
-  Stateful
-    :: { sfType             :: Text -> Maybe Type -> AllocCodegenM Type
-       , sfInit             :: (Operand -> AllocIRCodegenM ()) -> Operand -> AllocIRCodegenM ()
-       , sfDestroy          :: (Operand -> AllocIRCodegenM ()) -> Operand -> AllocIRCodegenM ()
-       , sfAlloc            :: InnerAllocFn k -> Operand -> AllocFn
-       , sfFree             :: InnerFreeFn k -> Operand -> FreeFn
-       , sfBackingAllocator :: Allocator k inner
-       }
-    -> Allocator 'Nested (wrapper inner)
+    -> Allocator repr
+
+-- Helper type for keeping references to the generated allocator code
+-- TODO rename to Allocator
+data Alloc
+  = Alloc
+  { allocTy :: Type
+  , allocInitFn :: Operand
+  , allocDestroyFn :: Operand
+  , allocAllocFn :: Operand
+  , allocFreeFn :: Operand
+  }
+
+-- Helper type during codegen process.
+data Gen
+  = Gen
+  { generateTy      :: Text -> AllocCodegenM Type
+  , generateInit    :: InitFn
+  , generateDestroy :: DestroyFn
+  , generateAlloc   :: AllocateFn
+  , generateFree    :: DeallocateFn
+  }
 
 -- This function does the actual code generation of the allocator.
-cgAlloc :: Text -> Allocator k inner -> AllocCodegenM (Alloc k)
-cgAlloc prefix allocator =
-  case cgHelper allocator of
-    g@GeneratedBase{} -> do
-      allocFn <- function (Name $ prefix <> "_alloc")
-                    [(i32, "size")] (ptr void)
-                    $ \[size] -> do
-        baseAlloc g size
-      freeFn <- function (Name $ prefix <> "_free")
-                    [(ptr void, "memory"), (i32, "size")] void
-                    $ \[memory, size] -> do
-        baseFree g memory size
+cgAlloc :: Text -> Allocator inner -> AllocCodegenM Alloc
+cgAlloc prefix allocator = do
+  let g = cgHelper allocator
+  allocatorTy <- generateTy g prefix
+  allocFn <- function (Name $ prefix <> "_alloc")
+                [(ptr allocatorTy, "allocator"), (i32, "size")] (ptr void)
+                $ \[alloc, size] -> do
+    ret =<< generateAlloc g alloc size
+  freeFn <- function (Name $ prefix <> "_free")
+                [(ptr allocatorTy, "allocator"), (i32, "size")] void
+                $ \[alloc, memory, size] -> do
+    generateFree g alloc memory size
+  initFn <- function (Name $ prefix <> "_init")
+                [(ptr allocatorTy, "allocator")] void
+                $ \[alloc] -> do
+    generateInit g alloc
+  destroyFn <- function (Name $ prefix <> "_destroy")
+                [(ptr allocatorTy, "allocator")] void
+                $ \[alloc] -> do
+    generateDestroy g alloc
 
-      pure $ BaseAlloc allocFn freeFn
-
-    g@GeneratedNested{} -> do
-      allocTy <- nestedTy g prefix
-      allocFn <- function (Name $ prefix <> "_alloc")
-                    [(ptr allocTy, "allocator"), (i32, "size")] (ptr void)
-                    $ \[alloc, size] -> do
-        nestedAlloc g alloc size
-      freeFn <- function (Name $ prefix <> "_free")
-                    [(ptr allocTy, "allocator"), (i32, "size")] void
-                    $ \[alloc, memory, size] -> do
-        nestedFree g alloc memory size
-      initFn <- function (Name $ prefix <> "_init")
-                    [(ptr allocTy, "allocator")] void
-                    $ \[alloc] -> do
-        nestedInit g alloc
-      destroyFn <- function (Name $ prefix <> "_destroy")
-                    [(ptr allocTy, "allocator")] void
-                    $ \[alloc] -> do
-        nestedDestroy g alloc
-
-      pure $ NestedAlloc allocTy initFn destroyFn allocFn freeFn
+  pure $ Alloc allocatorTy initFn destroyFn allocFn freeFn
   where
     -- Recursively generates the code
-    cgHelper :: Allocator k inner -> Generated k
+    cgHelper :: Allocator repr -> Gen
     cgHelper = \case
-      alloc@Stateless{} ->
-        GeneratedBase { baseAlloc = slAlloc alloc, baseFree = slFree alloc }
+      Allocator genTy genInit genDestroy genAlloc genFree innerAlloc kind ->
+        case kind of
+          Root ->
+            Gen { generateTy = genTy
+                , generateInit = genInit
+                , generateDestroy = genDestroy
+                , generateAlloc = genAlloc
+                , generateFree = genFree
+                }
 
-      Stateful genTy genInit genDestroy genAlloc genFree innerAlloc ->
-        case cgHelper innerAlloc of
-          generated@GeneratedBase{} ->
-            GeneratedNested
-              { nestedTy      = (`genTy` Nothing)
-              -- TODO check if init and destroy work correctly
-              -- also work with type family here?
-              , nestedInit    = genInit (const pass)
-              , nestedDestroy = genDestroy (const pass)
-              , nestedAlloc   = genAlloc $ baseAlloc generated
-              , nestedFree    = genFree $ baseFree generated
-              }
+          Node ->
+            let generated = cgHelper innerAlloc
+                vtable = VTable
+                  { vtInit = generateInit generated
+                  , vtDestroy = generateDestroy generated
+                  , vtAllocate = generateAlloc generated
+                  , vtDeallocate = generateFree generated
+                  }
+            in Gen
+                { generateTy = \namePrefix -> do
+                    -- First generate inner type, then outer type.
+                    ty <- generateTy generated namePrefix
+                    genTy namePrefix ty
+                  -- Pass generated inner code as function, then generate outer code based on that.
+                , generateInit = genInit vtable
+                , generateDestroy = genDestroy vtable
+                , generateAlloc   = genAlloc vtable
+                , generateFree    = genFree vtable
+                }
 
-          generated@GeneratedNested{} ->
-            GeneratedNested
-              { nestedTy = \namePrefix -> do
-                  -- First generate inner type, then outer type.
-                  ty <- nestedTy generated namePrefix
-                  genTy namePrefix $ Just ty
-                -- Pass generated inner code as function, then generate outer code based on that.
-              , nestedInit = genInit $ nestedInit generated
-              , nestedDestroy = genDestroy $ nestedDestroy generated
-              , nestedAlloc   = genAlloc $ nestedAlloc generated
-              , nestedFree    = genFree $ nestedFree generated
-              }
+-- TODO helper function for root allocators
