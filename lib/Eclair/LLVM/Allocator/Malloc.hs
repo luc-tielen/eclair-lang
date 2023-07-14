@@ -9,16 +9,7 @@ import Eclair.LLVM.Codegen
 data Malloc
 
 allocator :: Allocator Malloc
-allocator
-  = Allocator
-  { aType = mkType
-  , aInit = const pass
-  , aDestroy = const pass
-  , aAlloc = const allocFn
-  , aFree = const freeFn
-  , aKind = Root
-  , aInner = None
-  }
+allocator = mkBaseAllocator mkType allocFn freeFn
 
 mkType :: Text -> AllocCodegenM Type
 mkType prefix =

@@ -10,16 +10,7 @@ data Page
 
 -- TODO: parametrize on page size (add argument, pass to helper functions)
 allocator :: Allocator Page
-allocator
-  = Allocator
-  { aType = mkType
-  , aInit = const pass
-  , aDestroy = const pass
-  , aAlloc = const allocatePages
-  , aFree = const freePages
-  , aKind = Root
-  , aInner = None
-  }
+allocator = mkBaseAllocator mkType allocatePages freePages
 
 mkType :: Text -> AllocCodegenM Type
 mkType prefix =

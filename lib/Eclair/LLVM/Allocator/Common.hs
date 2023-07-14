@@ -1,20 +1,21 @@
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
-{-# LANGUAGE GADTs, TypeFamilyDependencies, PolyKinds #-}
+{-# LANGUAGE GADTs #-}
 
 module Eclair.LLVM.Allocator.Common
   ( Allocator(..)
-  , Alloc(..)
+  , Blueprint(..)
   , AllocatorKind(..)
   , AllocatorKindTag(..)
   , VTable(..)
   , None(..)
-  , cgAlloc
   , AllocCodegenM
   , AllocIRCodegenM
   , InitFn
   , DestroyFn
   , AllocateFn
   , DeallocateFn
+  , cgAlloc
+  , mkBaseAllocator
   , module Eclair.LLVM.Externals
   ) where
 
@@ -81,7 +82,6 @@ type family BackingAllocator (k :: AllocatorKindTag) :: (K.Type -> K.Type) where
 -- First we build up the allocator info in a data-structure.
 -- "Stateless" allocators carry no state, and call direct functions provided by the OS (mmap, malloc, ...)
 -- "Stateful" allocators do have state, and can further enhance the behavior of the underlying allocator.
--- TODO rename to something else: VTable? Definition? AllocatorFns, rename record fields, update comment
 data Allocator repr where
   Allocator
     :: { aType    :: CreateTypeFn k
@@ -94,15 +94,14 @@ data Allocator repr where
        }
     -> Allocator repr
 
--- Helper type for keeping references to the generated allocator code
--- TODO rename to Allocator
-data Alloc
-  = Alloc
-  { allocTy :: Type
-  , allocInitFn :: Operand
-  , allocDestroyFn :: Operand
-  , allocAllocFn :: Operand
-  , allocFreeFn :: Operand
+-- Helper type for keeping references to generated allocator code
+data Blueprint repr
+  = Blueprint
+  { bpType :: Type
+  , bpInitFn :: Operand
+  , bpDestroyFn :: Operand
+  , bpAllocateFn :: Operand
+  , bpDeallocateFn :: Operand
   }
 
 -- Helper type during codegen process.
@@ -116,7 +115,7 @@ data Gen
   }
 
 -- This function does the actual code generation of the allocator.
-cgAlloc :: Text -> Allocator inner -> AllocCodegenM Alloc
+cgAlloc :: Text -> Allocator repr -> AllocCodegenM (Blueprint repr)
 cgAlloc prefix allocator = do
   let g = cgHelper allocator
   allocatorTy <- generateTy g prefix
@@ -137,7 +136,7 @@ cgAlloc prefix allocator = do
                 $ \[alloc] -> do
     generateDestroy g alloc
 
-  pure $ Alloc allocatorTy initFn destroyFn allocFn freeFn
+  pure $ Blueprint allocatorTy initFn destroyFn allocFn freeFn
   where
     -- Recursively generates the code
     cgHelper :: Allocator repr -> Gen
@@ -172,4 +171,18 @@ cgAlloc prefix allocator = do
                 , generateFree    = genFree vtable
                 }
 
--- TODO helper function for root allocators
+mkBaseAllocator
+  :: (Text -> AllocCodegenM Type)
+  -> (Operand -> AllocIRCodegenM Operand)
+  -> (Operand -> Operand -> AllocIRCodegenM ())
+  -> Allocator repr
+mkBaseAllocator mkType allocFn freeFn
+  = Allocator
+  { aType = mkType
+  , aInit = const pass
+  , aDestroy = const pass
+  , aAlloc = const allocFn
+  , aFree = const freeFn
+  , aKind = Root
+  , aInner = None
+  }

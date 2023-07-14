@@ -6,7 +6,7 @@ module Eclair.LLVM.Allocator.Arena
   ) where
 
 import Prelude hiding (void)
-import Eclair.LLVM.Allocator.Common hiding (Alloc) -- TODO rename Alloc
+import Eclair.LLVM.Allocator.Common
 import Eclair.LLVM.Codegen
 
 data Arena a
@@ -80,16 +80,16 @@ arenaAlloc _ alloc numBytes = do
   currentPtr <- deref currentPtrOf alloc
 
   numBytesNegated <- sub (int32 0) numBytes
-  currentPtr' <- gep currentPtr [numBytesNegated]
-  currentAddr <- ptrtoint currentPtr' i64
+  newPtr <- gep currentPtr [numBytesNegated]
+  newAddr <- ptrtoint newPtr i64
   startAddr <- ptrtoint startPtr i64
-  noSpaceLeft <- currentAddr `ult` startAddr
+  noSpaceLeft <- newAddr `ult` startAddr
 
   if' noSpaceLeft $ do
     pure $ nullPtr void
 
-  assign currentPtrOf alloc currentPtr'
-  pure currentPtr'
+  assign currentPtrOf alloc newPtr
+  pure newPtr
 
 -- Arena can't free individual pieces of memory, only everything at once
 arenaFree :: VTable -> DeallocateFn
