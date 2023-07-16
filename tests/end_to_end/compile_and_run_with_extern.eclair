@@ -37,6 +37,7 @@ extern void eclair_program_run(struct program*);
 extern void eclair_add_facts(struct program*, uint32_t fact_type, uint32_t* data, size_t fact_count);
 extern void eclair_add_fact(struct program*, uint32_t fact_type, uint32_t* data);
 extern uint32_t* eclair_get_facts(struct program*, uint32_t fact_type);
+extern uint32_t eclair_fact_count(struct program*, uint32_t fact_type);
 extern void eclair_free_buffer(uint32_t* data);
 
 uint32_t func(struct symbol_table*, uint32_t value) {
