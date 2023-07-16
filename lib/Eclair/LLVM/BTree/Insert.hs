@@ -42,8 +42,8 @@ mkSplit nodeNew nodeSplitPoint growParent = mdo
 
     isInner <- ty `eq` innerNodeTypeVal
     if' isInner $ mdo
-      iSibling <- sibling `bitcast` ptr innerNode
-      iN <- n `bitcast` ptr innerNode
+      let iSibling = ptrcast innerNode sibling
+      let iN = ptrcast innerNode n
 
       store jPtr 0 (int16 0)
       loopFor splitPoint' (`ule` numberOfKeys) (add (int16 1)) $ \i -> mdo
@@ -76,7 +76,7 @@ mkGrowParent nodeNew insertInner = mdo
     createNewRoot <- blockNamed "create_new_root"
     -- TODO: assert(n == *root)
     newRoot <- call nodeNew [innerNodeTypeVal]
-    iNewRoot <- newRoot `bitcast` ptr innerNode
+    let iNewRoot = ptrcast innerNode newRoot
     assign (metaOf ->> numElemsOf) newRoot (int16 1)
     lastValueOfN <- deref (valueAt numElems) n
     assign (valueAt (int16 0)) newRoot lastValueOfN
@@ -132,14 +132,14 @@ mkInsertInner rebalanceOrSplit = mdo
         -- Insertion needs to be done in new sibling node:
         pos''' <- sub position'' numElems' >>= flip sub (int16 1)
         store posPtr 0 pos'''
-        parent <- deref (metaOf ->> parentOf) n >>= (`bitcast` ptr innerNode)
+        parent <- ptrcast innerNode <$> deref (metaOf ->> parentOf) n
         siblingPos <- add (int16 1) =<< deref (metaOf ->> posInParentOf) n
         sibling <- deref (childAt siblingPos) parent
         _ <- call insertInner [sibling, root, pos''', predecessor, key, newNode]
         retVoid
 
     -- Move bigger keys one forward
-    iN <- n `bitcast` ptr innerNode
+    let iN = ptrcast innerNode n
     numElems'' <- deref (metaOf ->> numElemsOf) n
     startIdx <- sub numElems'' (int16 1)
     pos' <- load posPtr 0
@@ -175,7 +175,7 @@ mkRebalanceOrSplit splitFn = mdo
   function "eclair_btree_node_rebalance_or_split" args nodeSize $ \[n, root, idx] -> mdo
     -- TODO assert(n->meta.num_elements == NUM_KEYS);
 
-    parent <- deref (metaOf ->> parentOf) n >>= (`bitcast` ptr innerNode)
+    parent <- ptrcast innerNode <$> deref (metaOf ->> parentOf) n
     pos <- deref (metaOf ->> posInParentOf) n
     hasParent <- parent `ne` nullPtr node
     posGTZero <- pos `ugt` int16 0
@@ -216,8 +216,8 @@ mkRebalanceOrSplit splitFn = mdo
       -- And children (if necessary)
       isInnerNode <- deref (metaOf ->> nodeTypeOf) n >>= (`eq` innerNodeTypeVal)
       if' isInnerNode $ do
-        iN <- n `bitcast` ptr innerNode
-        iLeft <- left `bitcast` ptr innerNode
+        let iN = ptrcast innerNode n
+        let iLeft = ptrcast innerNode left
 
         -- Move children
         loopFor (int16 0) (`ult` leftSlotsOpen) (add (int16 1)) $ \i -> do
@@ -315,7 +315,7 @@ mkBtreeInsertValue nodeNew compareValues searchLowerBound searchUpperBound isEmp
       condBr alreadyInserted noInsert continueInsert
 
       continueInsert <- blockNamed "inner_continue_insert"
-      iCurrent <- current `bitcast` ptr innerNode
+      let iCurrent = ptrcast innerNode current
       store currentPtr 0 =<< deref (childAt idx) iCurrent
       br loopBlock
 
@@ -355,7 +355,7 @@ mkBtreeInsertValue nodeNew compareValues searchLowerBound searchUpperBound isEmp
         numElems'' <- add numElems' (int16 1)
         idx'' <- sub idx' numElems''
         store idxPtr 0 idx''
-        parent <- deref (metaOf ->> parentOf) current >>= (`bitcast` ptr innerNode)
+        parent <- ptrcast innerNode <$> deref (metaOf ->> parentOf) current
         nextPos <- deref (metaOf ->> posInParentOf) current >>= add (int16 1)
         store currentPtr 0 =<< deref (childAt nextPos) parent
 

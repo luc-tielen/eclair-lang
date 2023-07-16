@@ -107,7 +107,7 @@ mkVectorInit = do
   function "eclair_vector_init" [(ptr vecTy, "vec")] void $ \[vec] -> do
     -- assert(vec && "Vector should not be null");
     let numBytes = int32 . toInteger $ sizeOfElem * fromIntegral initialCapacity
-    memoryPtr <- (`bitcast` ptr elemTy) =<< call mallocFn [numBytes]
+    memoryPtr <- ptrcast elemTy <$> call mallocFn [numBytes]
     --   assert(memory && "Failed to allocate memory!");
 
     assign startPtrOf vec memoryPtr
@@ -134,7 +134,7 @@ mkVectorDestroy = do
         destructor' iterPtr
         store iterPtrPtr 0 =<< incrementPtr iterPtr
 
-    startPtr <- (`bitcast` ptr i8) =<< deref startPtrOf vec
+    startPtr <- ptrcast i8 <$> deref startPtrOf vec
     call freeFn [startPtr]
 
 -- NOTE: Returns the index at which the element was inserted => no size necessary
@@ -156,11 +156,11 @@ mkVectorPush vectorSize' = do
 
     newCapacity <- mul currentCapacity (int32 $ toInteger growFactor)
     newNumBytes <- mul newCapacity sizeOfElem
-    newMemoryPtr <- (`bitcast` ptr elemTy) =<< call mallocFn [newNumBytes]
+    newMemoryPtr <- ptrcast elemTy <$> call mallocFn [newNumBytes]
     -- assert(new_memory && "Failed to allocate more memory for vector!");
     newMemoryEndPtr <- gep newMemoryPtr [currentCapacity]
-    startPtr <- deref startPtrOf vec >>= (`bitcast` ptr i8)
-    newMemoryPtrBytes <- newMemoryPtr `bitcast` ptr i8
+    startPtr <- ptrcast i8 <$> deref startPtrOf vec
+    let newMemoryPtrBytes = ptrcast i8 newMemoryPtr
     _ <- call memcpyFn [newMemoryPtrBytes, startPtr, currentNumBytes, bit 0]
     _ <- call freeFn [startPtr]
 

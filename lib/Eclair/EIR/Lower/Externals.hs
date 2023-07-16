@@ -54,8 +54,8 @@ generateMemCmpFn = do
   function "memcmp_wasm32" args i32 $ \[array1, array2, byteCount] -> do
     i64Count <- byteCount `udiv` int64 8
     restCount <- byteCount `and` int64 7  -- modulo 8
-    i64Array1 <- array1 `bitcast` ptr i64
-    i64Array2 <- array2 `bitcast` ptr i64
+    let i64Array1 = ptrcast i64 array1
+    let i64Array2 = ptrcast i64 array2
 
     loopFor (int64 0) (`ult` i64Count) (add (int64 1)) $ \i -> do
       valuePtr1 <- gep i64Array1 [i]

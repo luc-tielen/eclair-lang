@@ -27,7 +27,7 @@ mkNodeDelete = mdo
     nodeTy <- deref (metaOf ->> nodeTypeOf) n
     isInner <- nodeTy `eq` innerNodeTypeVal
     if' isInner $ do  -- Delete children of inner node
-      inner <- n `bitcast` ptr innerNode
+      let inner = ptrcast innerNode n
 
       numElements <- deref (metaOf ->> numElemsOf) n
       loopFor (int16 0) (`ule` numElements) (add (int16 1)) $ \i -> mdo
@@ -36,7 +36,7 @@ mkNodeDelete = mdo
         if' isNotNull $
           call nodeDelete [child]
 
-    memory <- n `bitcast` ptr i8
+    let memory = ptrcast i8 n
     _ <- call free [memory]
     pass
 

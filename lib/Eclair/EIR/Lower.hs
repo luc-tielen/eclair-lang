@@ -130,7 +130,7 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
         (malloc, (programTy, programSize)) <- gets (extMalloc . externals &&& programType &&& programSizeBytes)
         let memorySize = int32 $ fromIntegral programSize
         pointer <- call malloc [memorySize]
-        pointer `bitcast` ptr programTy
+        pure $ ptrcast programTy pointer
       EIR.StackAllocateF r idx ty -> do
         theType <- toLLVMType r idx ty
         alloca theType (Just (int32 1)) 0
@@ -180,7 +180,7 @@ fnBodyToLLVM args = lowerM instrToOperand instrToUnit
       EIR.FreeProgramF (toOperand -> programVar) -> do
         freeFn <- gets (extFree . externals)
         program <- programVar
-        memory <- program `bitcast` ptr i8
+        let memory = ptrcast i8 program
         Prelude.void $ call freeFn [memory]
       EIR.PrimOpF op (map (Relude.swap . toOperandWithContext) -> args') ->
         Prelude.void $ invokePrimOp op args'

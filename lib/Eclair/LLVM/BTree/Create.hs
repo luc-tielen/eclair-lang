@@ -30,7 +30,7 @@ mkNodeNew = mdo
   function "eclair_btree_node_new" [(nodeType, "type")] (ptr node) $ \[ty] -> mdo
     structSize <- select ty innerSize leafSize
     memory <- call malloc [structSize]
-    n <- memory `bitcast` ptr node
+    let n = ptrcast node memory
 
     assign (metaOf ->> parentOf) n (nullPtr node)
     assign (metaOf ->> posInParentOf) n (int16 0)
@@ -42,7 +42,7 @@ mkNodeNew = mdo
 
     isInner <- ty `eq` innerNodeTypeVal
     if' isInner $ mdo
-      inner <- n `bitcast` ptr innerNode
+      let inner = ptrcast innerNode n
       let childrenByteCount = (numKeys' + 1) * ptrSize
       childrenPtr <- addr childrenOf inner
       memset childrenPtr 0 childrenByteCount

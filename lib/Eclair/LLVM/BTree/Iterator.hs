@@ -114,13 +114,13 @@ mkIteratorNext = do
       innerNode <- typeOf InnerNode
       -- Case 3: Go to left most child in inner node (a leaf node)
       nextPos <- deref valuePosOf iter >>= add (int16 1)
-      iCurrent <- deref currentPtrOf iter >>= (`bitcast` ptr innerNode)
+      iCurrent <- ptrcast innerNode <$> deref currentPtrOf iter
       currentPtr <- allocate (ptr node) =<< deref (childAt nextPos) iCurrent
       let loopCondition' = do
             ty <- deref (metaOf ->> nodeTypeOf) =<< load currentPtr 0
             ty `eq` innerNodeTypeVal
       loopWhile loopCondition' $ do
-        iCurrent' <- load currentPtr 0 >>= (`bitcast` ptr innerNode)
+        iCurrent' <- ptrcast innerNode <$> load currentPtr 0
         firstChild <- deref (childAt (int16 0)) iCurrent'
         store currentPtr 0 firstChild
 

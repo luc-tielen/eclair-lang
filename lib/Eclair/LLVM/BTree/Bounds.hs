@@ -108,7 +108,7 @@ mkBtreeLowerBound isEmptyTree iterInit iterInitEnd searchLowerBound compareValue
       if' isNotLast $ do
         call iterInit [res, current, idx]
 
-      iCurrent <- current `bitcast` ptr innerNode
+      let iCurrent = ptrcast innerNode current
       store currentPtr 0 =<< deref (childAt idx) iCurrent
 
 mkBtreeUpperBound :: Operand -> Operand -> Operand -> Operand -> ModuleCodegen Operand
@@ -157,5 +157,5 @@ mkBtreeUpperBound isEmptyTree iterInit iterInitEnd searchUpperBound = do
       if' isNotLast $ do
         call iterInit [result, current, idx]
 
-      iCurrent <- current `bitcast` ptr innerNode
+      let iCurrent = ptrcast innerNode current
       store currentPtr 0 =<< deref (childAt idx) iCurrent

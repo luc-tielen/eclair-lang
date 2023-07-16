@@ -13,48 +13,46 @@ edge(1, 2).
 another(1,2,3).
 
 //--- expected_wasm_memcmp.out
-define external ccc i32 @memcmp_wasm32(i8* %array1_0, i8* %array2_0, i64 %byte_count_0) {
+define external ccc i32 @memcmp_wasm32(ptr %array1_0, ptr %array2_0, i64 %byte_count_0) {
 start:
   %0 = udiv i64 %byte_count_0, 8
   %1 = and i64 %byte_count_0, 7
-  %2 = bitcast i8* %array1_0 to i64*
-  %3 = bitcast i8* %array2_0 to i64*
   br label %for_begin_0
 for_begin_0:
-  %4 = phi i64 [0, %start], [%11, %end_if_0]
-  %5 = icmp ult i64 %4, %0
-  br i1 %5, label %for_body_0, label %for_end_0
+  %2 = phi i64 [0, %start], [%9, %end_if_0]
+  %3 = icmp ult i64 %2, %0
+  br i1 %3, label %for_body_0, label %for_end_0
 for_body_0:
-  %6 = getelementptr i64, i64* %2, i64 %4
-  %7 = getelementptr i64, i64* %3, i64 %4
-  %8 = load i64, i64* %6
-  %9 = load i64, i64* %7
-  %10 = icmp ne i64 %8, %9
-  br i1 %10, label %if_0, label %end_if_0
+  %4 = getelementptr i64, ptr %array1_0, i64 %2
+  %5 = getelementptr i64, ptr %array2_0, i64 %2
+  %6 = load i64, ptr %4
+  %7 = load i64, ptr %5
+  %8 = icmp ne i64 %6, %7
+  br i1 %8, label %if_0, label %end_if_0
 if_0:
   ret i32 1
 end_if_0:
-  %11 = add i64 1, %4
+  %9 = add i64 1, %2
   br label %for_begin_0
 for_end_0:
-  %12 = mul i64 %0, 8
+  %10 = mul i64 %0, 8
   br label %for_begin_1
 for_begin_1:
-  %13 = phi i64 [0, %for_end_0], [%21, %end_if_1]
-  %14 = icmp ult i64 %13, %1
-  br i1 %14, label %for_body_1, label %for_end_1
+  %11 = phi i64 [0, %for_end_0], [%19, %end_if_1]
+  %12 = icmp ult i64 %11, %1
+  br i1 %12, label %for_body_1, label %for_end_1
 for_body_1:
-  %15 = add i64 %13, %12
-  %16 = getelementptr i8, i8* %array1_0, i64 %15
-  %17 = getelementptr i8, i8* %array2_0, i64 %15
-  %18 = load i8, i8* %16
-  %19 = load i8, i8* %17
-  %20 = icmp ne i8 %18, %19
-  br i1 %20, label %if_1, label %end_if_1
+  %13 = add i64 %11, %10
+  %14 = getelementptr i8, ptr %array1_0, i64 %13
+  %15 = getelementptr i8, ptr %array2_0, i64 %13
+  %16 = load i8, ptr %14
+  %17 = load i8, ptr %15
+  %18 = icmp ne i8 %16, %17
+  br i1 %18, label %if_1, label %end_if_1
 if_1:
   ret i32 1
 end_if_1:
-  %21 = add i64 1, %13
+  %19 = add i64 1, %11
   br label %for_begin_1
 for_end_1:
   ret i32 0
