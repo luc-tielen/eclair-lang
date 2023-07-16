@@ -189,7 +189,7 @@ typeOf dt =
 memset :: Operand -> Word8 -> Word64 -> IRCodegen ()
 memset p val byteCount = do
   memsetFn <- asks (extMemset . externals)
-  p' <- p `bitcast` ptr i8
+  let p' = ptrcast i8 p
   _ <- call memsetFn [ p'
                      , int8 $ fromIntegral val
                      , int64 (fromIntegral byteCount)

@@ -84,7 +84,7 @@ generateAddFactsFn usageMapping = do
         treeOffset <- int32 . toInteger <$> offsetForRelationAndIndex r idx
         relationPtr <- gep program [int32 0, treeOffset]
         -- TODO: don't re-calculate this type, do this based on value datatype created in each runtime data structure
-        arrayPtr <- memory `bitcast` ptr (ArrayType numCols i32)
+        let arrayPtr = ptrcast (ArrayType numCols i32) memory
 
         loopFor (int32 0) (`ult` factCount) (add (int32 1)) $ \i -> do
           valuePtr <- gep arrayPtr [i]
@@ -117,7 +117,7 @@ generateGetFactsFn usageMapping = do
       relationSize <- doCall EIR.Size [relationPtr] >>= (`trunc` i32)
       memorySize <- mul relationSize (int32 $ toInteger valueSize)
       memory <- call mallocFn [memorySize]
-      arrayPtr <- memory `bitcast` ptr (ArrayType (fromIntegral numCols) i32)
+      let arrayPtr = ptrcast (ArrayType (fromIntegral numCols) i32) memory
 
       iPtr <- alloca i32 (Just (int32 1)) 0
       store iPtr 0 (int32 0)
@@ -138,7 +138,7 @@ generateGetFactsFn usageMapping = do
         store iPtr 0 i'
         doCall EIR.IterNext [currIter]
 
-      ret =<< memory `bitcast` ptr i32
+      ret $ ptrcast i32 memory
 
 generateFreeBufferFn :: Monad m => CodegenInOutT (ModuleBuilderT m) Operand
 generateFreeBufferFn = do
@@ -147,7 +147,7 @@ generateFreeBufferFn = do
       args = [(ptr i32, ParameterName "buffer")]
       returnType = void
   apiFunction "eclair_free_buffer" args returnType $ \[buf] -> mdo
-    memory <- buf `bitcast` ptr i8
+    let memory = ptrcast i8 buf
     _ <- call freeFn [memory]
     retVoid
 
@@ -220,7 +220,7 @@ generateDecodeStringFn = do
     containsIndex <- call (SymbolTable.symbolTableContainsIndex symbolTable) [symbolTablePtr, idx]
     if' containsIndex $ do
       symbolPtr <- call (SymbolTable.symbolTableLookupSymbol symbolTable) [symbolTablePtr, idx]
-      ret =<< symbolPtr `bitcast` ptr i8
+      ret $ ptrcast i8 symbolPtr
 
     ret $ nullPtr i8
 

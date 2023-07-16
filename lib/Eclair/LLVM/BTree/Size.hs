@@ -30,8 +30,7 @@ mkNodeCountEntries = mdo
   where
     loopChildren n ty beginValue f = mdo
       innerNode <- typeOf InnerNode
-      inner <- n `bitcast` ptr innerNode
-
+      let inner = ptrcast innerNode n
       result <- allocate ty beginValue
       numElements <- deref (metaOf ->> numElemsOf) n
       loopFor (int16 0) (`ule` numElements) (add (int16 1)) $ \i -> mdo

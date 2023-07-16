@@ -63,5 +63,5 @@ mkBtreeFind isEmptyTree searchLowerBound compareValues iterInit iterInitEnd = do
         retVoid
 
       -- Continue search in child node
-      iCurrent <- current `bitcast` ptr innerNode
+      let iCurrent = ptrcast innerNode current
       store currentPtr 0 =<< deref (childAt idx) iCurrent
