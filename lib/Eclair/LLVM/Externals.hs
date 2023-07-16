@@ -8,8 +8,10 @@ import Eclair.LLVM.Codegen (Operand)
 data Externals
   = Externals
   { extMalloc :: Operand
-  , extFree :: Operand
+  , extFree   :: Operand
   , extMemset :: Operand
   , extMemcpy :: Operand
   , extMemcmp :: Operand
+  , extMmap   :: Operand
+  , extMunmap :: Operand
   }

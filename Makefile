@@ -13,4 +13,7 @@ test:
 	#@cabal run eclair-lsp-test
 	@lit tests/ -v
 
-.PHONY: build configure clean test
+cabal-file:
+	@cabal-fmt --Werror -i eclair-lang.cabal
+
+.PHONY: build configure clean test cabal-file

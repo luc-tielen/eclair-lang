@@ -20,7 +20,10 @@ createExternals = do
   memcmpFn <- if target == Just Wasm32
                 then lift generateMemCmpFn
                 else extern "memcmp" [ptr i8, ptr i8, i64] i32
-  pure $ Externals mallocFn freeFn memsetFn memcpyFn memcmpFn
+  -- TODO write alternatives for WASM
+  mmapFn <- extern "mmap" [ptr void, i64, i32, i32, i32, i32] (ptr void)
+  munmapFn <- extern "munmap" [ptr void, i64] i32
+  pure $ Externals mallocFn freeFn memsetFn memcpyFn memcmpFn mmapFn munmapFn
 
 generateMallocFn :: Monad m => Maybe Target -> ModuleBuilderT m Operand
 generateMallocFn target = do

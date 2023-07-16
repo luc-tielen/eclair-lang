@@ -18,7 +18,8 @@ module Prelude
   ) where
 
 import Relude hiding ( Type, Constraint, Op
-                     , and, id, (.), map, first
+                     , and, or, id, (.), map, first
+                     , absurd
                      )
 import Control.Arrow hiding (second, loop, (<+>))
 import Control.Comonad
