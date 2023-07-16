@@ -1,5 +1,5 @@
 FROM primordus/souffle-ubuntu:2.3
-ARG LLVM_VERSION=14
+ARG LLVM_VERSION=17
 
 SHELL [ "/bin/bash", "-c" ]
 
@@ -14,7 +14,7 @@ RUN echo 'tzdata tzdata/Areas select Europe' | debconf-set-selections \
     && source /root/.nvm/nvm.sh \
     && nvm install 18.1.0 \
     && echo "source /root/.ghcup/env" >> ~/.bashrc \
-    # install llvm 14
+    # install llvm 17
     && mkdir -p /tmp/llvm-dir \
     && cd /tmp/llvm-dir \
     && wget https://apt.llvm.org/llvm.sh \
@@ -23,10 +23,10 @@ RUN echo 'tzdata tzdata/Areas select Europe' | debconf-set-selections \
     && cd /tmp \
     && rm -rf /tmp/llvm-dir \
     && cd /usr/bin \
-    && ln -s /usr/lib/llvm-14/bin/split-file \
-    && ln -s /usr/lib/llvm-14/bin/FileCheck \
-    && ln -s clang-14 clang \
-    && ln -s wasm-ld-14 wasm-ld \
+    && ln -s /usr/lib/llvm-$LLVM_VERSION/bin/split-file \
+    && ln -s /usr/lib/llvm-$LLVM_VERSION/bin/FileCheck \
+    && ln -s clang-$LLVM_VERSION clang \
+    && ln -s wasm-ld-$LLVM_VERSION wasm-ld \
     && cd - \
     && pip install lit==14.0.6 \
     # install ghcup, ghc-9.4.4 and cabal-3.8.1.0
