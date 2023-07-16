@@ -3,7 +3,7 @@ packages: .
 source-repository-package
     type: git
     location: https://github.com/luc-tielen/llvm-codegen.git
-    tag: 9c9723db01b2a4dfea46099f8ccc7e8536125733
+    tag: 42043c279797a4f57e254fcf5e60f3df56f9bf65
 
 source-repository-package
     type: git
