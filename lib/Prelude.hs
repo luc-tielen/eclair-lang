@@ -15,6 +15,7 @@ module Prelude
   , map
   , panic
   , groupBy
+  , uniqOrderPreserving
   ) where
 
 import Relude hiding ( Type, Constraint, Op
@@ -32,6 +33,7 @@ import Data.Functor.Foldable.TH
 import GHC.TypeLits (KnownSymbol, Symbol, symbolVal)
 import GHC.Generics (Rep, K1(..), U1(..), M1(..), (:*:)(..), from, to)
 import GHC.Records (HasField(..))
+import qualified Data.List.Extra as E
 
 
 map :: Functor f => (a -> b) -> f a -> f b
@@ -47,3 +49,6 @@ groupBy eq  = \case
   (x:xs) ->  (x :| ys) : groupBy eq zs
     where (ys,zs) = span (eq x) xs
 
+uniqOrderPreserving :: Ord a => [a] -> [a]
+uniqOrderPreserving =
+  map snd . sortWith fst . E.nubOrdOn snd . zip [0 :: Int ..]

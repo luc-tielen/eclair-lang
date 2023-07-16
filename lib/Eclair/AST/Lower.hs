@@ -61,19 +61,20 @@ compileToRA externs ast =
 processMultipleRules :: [AST] -> CodegenM [RA]
 processMultipleRules rules = sequence stmts where
   stmts = mergeStmts <> [loop (purgeStmts <> ruleStmts <> [exitStmt] <> endLoopStmts)]
-  mergeStmts = map (\r -> merge r (deltaRelationOf r)) relations
-  purgeStmts = map (purge . newRelationOf) relations
-  ruleStmts = [parallel $ map f rulesInfo]
-  exitStmt = exit $ map newRelationOf relations
-  endLoopStmts = concatMap toMergeAndSwapStmts relations
+  mergeStmts = map (\r -> merge r (deltaRelationOf r)) uniqRelations
+  purgeStmts = map (purge . newRelationOf) uniqRelations
+  ruleStmts = [parallel $ map lowerRule rulesInfo]
+  exitStmt = exit $ map newRelationOf uniqRelations
+  endLoopStmts = concatMap toMergeAndSwapStmts uniqRelations
   toMergeAndSwapStmts r =
     let newRelation = newRelationOf r
         deltaRelation = deltaRelationOf r
      in [merge newRelation r, swap newRelation deltaRelation]
   rulesInfo = mapMaybe extractRuleData rules
   relations = map (\(r, _, _) -> r) rulesInfo
+  uniqRelations = uniqOrderPreserving relations
   -- TODO: better func name
-  f (r, map toTerm -> ts, clauses) =
+  lowerRule (r, map toTerm -> ts, clauses) =
     recursiveRuleToStmt r ts clauses
 
 processSingleRule :: Relation -> [CodegenM RA] -> [AST] -> CodegenM [RA]
