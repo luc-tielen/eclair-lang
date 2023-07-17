@@ -37,23 +37,29 @@ compileToRA externs ast =
     scc = \case
       Module _ decls -> map G.flattenSCC sortedDecls'
         where
-          relevantDecls = filter isRuleOrAtom decls
+          relevantDecls = filter isRelevant decls
           sortedDecls' = G.stronglyConnComp $ zipWith (\i d -> (d, i, refersTo d)) [0..] relevantDecls
           declLineMapping = M.fromListWith (<>) $ zipWith (\i d -> (nameFor d, [i])) [0..] relevantDecls
-          isRuleOrAtom = \case
+          isRelevant = \case
             Atom {} -> True
             Rule {} -> True
+            Not {} -> True
             _ -> False
+          nameFor = \case
+            Atom _ name _ -> name
+            Rule _ name _ _ -> name
+            _ ->  unreachable  -- Because of "isRelevant"
           refersTo :: AST -> [Int]
           refersTo = \case
             Rule _ _ _ clauses ->
               -- If no top level facts are defined, no entry exists in declLine mapping -> default to -1
-              concatMap (fromMaybe [-1] . flip M.lookup declLineMapping . nameFor) $ filter isRuleOrAtom clauses
+              concatMap (fromMaybe [-1] . flip M.lookup declLineMapping . dependsOn) $ filter isRelevant clauses
             _ -> []
-          nameFor = \case
+          dependsOn = \case
             Atom _ name _ -> name
             Rule _ name _ _ -> name
-            _ ->  unreachable  -- Because of "isRuleOrAtom"
+            Not _ (Atom _ name _) -> name
+            _ ->  unreachable  -- Because of "isRelevant"
       _ -> unreachable         -- Because rejected by parser
       where unreachable = panic "Unreachable code in 'scc'"
 
