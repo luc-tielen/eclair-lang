@@ -18,6 +18,10 @@ b(x) :-
   !b(x).
 
 d(x) :-
+  c(x),
+  !d(x).
+
+d(x) :-
   !c(x),
   d(x).
 
@@ -41,9 +45,9 @@ f(x) :-
 ─────╯
 
 [error]: Negation used in recursive set of rules
-     ╭──▶ TEST_DIR/program1.eclair@14:3-14:8
+     ╭──▶ TEST_DIR/program1.eclair@15:3-15:8
      │
-  14 │   !c(x),
+  15 │   !d(x).
      •   ┬────
      •   ╰╸ This negation is used in a set of rules that is recursive, which is not allowed.
      •
@@ -52,9 +56,9 @@ f(x) :-
 ─────╯
 
 [error]: Negation used in recursive set of rules
-     ╭──▶ TEST_DIR/program1.eclair@22:3-22:8
+     ╭──▶ TEST_DIR/program1.eclair@26:3-26:8
      │
-  22 │   !g(x).
+  26 │   !g(x).
      •   ┬────
      •   ╰╸ This negation is used in a set of rules that is recursive, which is not allowed.
      •

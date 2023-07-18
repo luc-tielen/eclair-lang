@@ -1,0 +1,41 @@
+
+// RUN: split-file %s %t
+
+// RUN: %eclair compile --emit ra-transformed %t/program.eclair > %t/actual_ra.out
+// RUN: diff %t/expected_ra.out %t/actual_ra.out
+
+//--- program.eclair
+@def edge(u32, u32) input.
+@def reachable(u32) output.
+
+reachable(x) :- edge(x, _).
+reachable(x) :- edge(_, x).
+
+reachable(x) :-
+  edge(x, y),
+  reachable(y).
+
+reachable(x) :-
+  edge(y, x),
+  reachable(y).
+
+//--- expected_ra.out
+search edge as edge0 do
+  project (edge0[1]) into reachable
+search edge as edge0 do
+  project (edge0[0]) into reachable
+merge reachable delta_reachable
+loop do
+  purge new_reachable
+  parallel do
+    search edge as edge0 do
+      if (edge0[1]) ∉ reachable do
+        search delta_reachable as delta_reachable1 where (edge0[0] = delta_reachable1[0]) do
+          project (edge0[1]) into new_reachable
+    search edge as edge0 do
+      if (edge0[0]) ∉ reachable do
+        search delta_reachable as delta_reachable1 where (edge0[1] = delta_reachable1[0]) do
+          project (edge0[0]) into new_reachable
+  exit if counttuples(new_reachable) = 0
+  merge new_reachable reachable
+  swap new_reachable delta_reachable

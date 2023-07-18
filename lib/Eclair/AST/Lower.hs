@@ -37,23 +37,29 @@ compileToRA externs ast =
     scc = \case
       Module _ decls -> map G.flattenSCC sortedDecls'
         where
-          relevantDecls = filter isRuleOrAtom decls
+          relevantDecls = filter isRelevant decls
           sortedDecls' = G.stronglyConnComp $ zipWith (\i d -> (d, i, refersTo d)) [0..] relevantDecls
           declLineMapping = M.fromListWith (<>) $ zipWith (\i d -> (nameFor d, [i])) [0..] relevantDecls
-          isRuleOrAtom = \case
+          isRelevant = \case
             Atom {} -> True
             Rule {} -> True
+            Not {} -> True
             _ -> False
+          nameFor = \case
+            Atom _ name _ -> name
+            Rule _ name _ _ -> name
+            _ ->  unreachable  -- Because of "isRelevant"
           refersTo :: AST -> [Int]
           refersTo = \case
             Rule _ _ _ clauses ->
               -- If no top level facts are defined, no entry exists in declLine mapping -> default to -1
-              concatMap (fromMaybe [-1] . flip M.lookup declLineMapping . nameFor) $ filter isRuleOrAtom clauses
+              concatMap (fromMaybe [-1] . flip M.lookup declLineMapping . dependsOn) $ filter isRelevant clauses
             _ -> []
-          nameFor = \case
+          dependsOn = \case
             Atom _ name _ -> name
             Rule _ name _ _ -> name
-            _ ->  unreachable  -- Because of "isRuleOrAtom"
+            Not _ (Atom _ name _) -> name
+            _ ->  unreachable  -- Because of "isRelevant"
       _ -> unreachable         -- Because rejected by parser
       where unreachable = panic "Unreachable code in 'scc'"
 
@@ -61,19 +67,20 @@ compileToRA externs ast =
 processMultipleRules :: [AST] -> CodegenM [RA]
 processMultipleRules rules = sequence stmts where
   stmts = mergeStmts <> [loop (purgeStmts <> ruleStmts <> [exitStmt] <> endLoopStmts)]
-  mergeStmts = map (\r -> merge r (deltaRelationOf r)) relations
-  purgeStmts = map (purge . newRelationOf) relations
-  ruleStmts = [parallel $ map f rulesInfo]
-  exitStmt = exit $ map newRelationOf relations
-  endLoopStmts = concatMap toMergeAndSwapStmts relations
+  mergeStmts = map (\r -> merge r (deltaRelationOf r)) uniqRelations
+  purgeStmts = map (purge . newRelationOf) uniqRelations
+  ruleStmts = [parallel $ map lowerRule rulesInfo]
+  exitStmt = exit $ map newRelationOf uniqRelations
+  endLoopStmts = concatMap toMergeAndSwapStmts uniqRelations
   toMergeAndSwapStmts r =
     let newRelation = newRelationOf r
         deltaRelation = deltaRelationOf r
      in [merge newRelation r, swap newRelation deltaRelation]
   rulesInfo = mapMaybe extractRuleData rules
   relations = map (\(r, _, _) -> r) rulesInfo
+  uniqRelations = uniqOrderPreserving relations
   -- TODO: better func name
-  f (r, map toTerm -> ts, clauses) =
+  lowerRule (r, map toTerm -> ts, clauses) =
     recursiveRuleToStmt r ts clauses
 
 processSingleRule :: Relation -> [CodegenM RA] -> [AST] -> CodegenM [RA]

@@ -1,0 +1,57 @@
+// RUN: split-file %s %t
+
+// RUN: %eclair compile --emit ra-transformed %t/program.eclair > %t/actual_ra.out
+// RUN: diff %t/expected_ra.out %t/actual_ra.out
+
+//--- program.eclair
+// TODO change eclair code
+
+@def a(u32) input.
+@def b(u32) input.
+@def c(u32).
+@def d(u32).
+@def e(u32) output.
+@def f(u32, u32) input.
+@def g(u32, u32) output.
+
+c(x) :-
+  a(x),
+  !b(x).
+
+d(x) :-
+  b(x).
+
+e(x) :-
+  !c(x),
+  d(x).
+
+g(x, y) :-
+  f(x, y).
+
+g(x, z) :-
+  f(x, y),
+  g(y, z),
+  !d(x).
+
+//--- expected_ra.out
+search f as f0 do
+  project (f0[0], f0[1]) into g
+search b as b0 do
+  project (b0[0]) into d
+merge g delta_g
+loop do
+  purge new_g
+  search f as f0 do
+    if (f0[0]) ∉ d do
+      search delta_g as delta_g1 where (f0[1] = delta_g1[0]) do
+        if (f0[0], delta_g1[1]) ∉ g do
+          project (f0[0], delta_g1[1]) into new_g
+  exit if counttuples(new_g) = 0
+  merge new_g g
+  swap new_g delta_g
+search a as a0 do
+  if (a0[0]) ∉ b do
+    project (a0[0]) into c
+search d as d0 do
+  if (d0[0]) ∉ c do
+    project (d0[0]) into e
