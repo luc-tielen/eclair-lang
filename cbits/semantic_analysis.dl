@@ -140,13 +140,16 @@ transitive_depends_on(r1, r3) :-
 dependency_cycle(r) :-
   transitive_depends_on(r, r).
 
-// Negations are not allowed inside a rule that is part of a cyclic dependency,
-// since this is not stratifiable.
+// Negations are not allowed inside a rule if the negated atom is part of a
+// dependency cycle since this is not stratifiable.
 cyclic_negation(negation_id) :-
-  rule(rule_id, name),
-  dependency_cycle(name),
+  dependency_cycle(r1),
+  transitive_depends_on(r1, r2),
+  rule(rule_id, r2),
   rule_clause(rule_id, _, negation_id),
-  negation(negation_id, _).
+  negation(negation_id, atom_id),
+  atom(atom_id, r3),
+  transitive_depends_on(r3, r1).
 
 // An input can always be a source of data.
 source(r) :-
