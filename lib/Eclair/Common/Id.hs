@@ -9,14 +9,14 @@ module Eclair.Common.Id
   , newPrefix
   ) where
 
+import Eclair.Datalog
 import qualified Data.Text as T
-import qualified Language.Souffle.Marshal as S
 import Prettyprinter
 
 
 newtype Id = Id { unId :: Text }
   deriving (Eq, Ord, Show, Generic)
-  deriving anyclass S.Marshal
+  deriving anyclass Marshal
 
 instance Pretty Id where
   pretty = pretty . unId
