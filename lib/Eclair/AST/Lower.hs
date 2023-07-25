@@ -105,47 +105,71 @@ ruleToStmt :: Relation -> [CodegenM RA] -> [AST] -> CodegenM RA
 ruleToStmt relation terms clauses
   | isRecursive relation clauses =
     recursiveRuleToStmt relation terms clauses
-  | otherwise = nestedSearchAndProject relation relation terms clauses id
+  | otherwise = nestedSearchAndProject relation relation terms clauses
 
 recursiveRuleToStmt :: Relation -> [CodegenM RA] -> [AST] -> CodegenM RA
 recursiveRuleToStmt relation terms clauses =
-  let newRelation = newRelationOf relation
-      extraClause = noElemOf relation terms
-    in nestedSearchAndProject relation newRelation terms clauses extraClause
+  nestedSearchAndProject relation newRelation terms clauses'
+  where
+    newRelation = newRelationOf relation
+    -- If there are multiple recursive clauses, convert (only?) the first to delta_RULE
+    clauses' =
+      if recursiveRuleCount > 1
+        then flip evalState False $ traverse f clauses
+        else clauses
+    f = \case
+      c@(Atom nodeId clauseName args) -> do
+        alreadyFound <- get
+        case (alreadyFound, clauseName == relation) of
+          (False, True) -> do
+            put True
+            let deltaClauseName = prependToId deltaPrefix clauseName
+            pure $ Atom nodeId deltaClauseName args
+          _ ->
+            pure c
+      clause ->
+        pure clause
+    -- TODO we need to keep track of all atoms that are part of the scc, and keep track of the counts..
+    recursiveRuleCount = length $ flip filter clauses $ \case
+      Atom _ name _  -> name == relation
+      _ -> False
 
 nestedSearchAndProject
   :: Relation
   -> Relation
   -> [CodegenM RA]
   -> [AST]
-  -> (CodegenM RA -> CodegenM RA)
   -> CodegenM RA
-nestedSearchAndProject relation intoRelation terms clauses wrapWithExtraClause =
-  flip (foldr (processRuleClause relation)) clauses $ wrapWithExtraClause $
+nestedSearchAndProject relation intoRelation terms clauses =
+  flip (foldr (processRuleClause relation)) clauses $
     project intoRelation terms
   where
+    processRuleClause :: Relation -> AST -> CodegenM RA -> CodegenM RA
     processRuleClause ruleName clause inner = case clause of
+      Not _ (Atom _ clauseName args) -> do
+        -- No starts with check here, since cyclic negation is not allowed.
+        let terms' = map toTerm args
+        noElemOf clauseName terms' inner
+
+      Constraint _ op lhs rhs -> do
+        lhsTerm <- toTerm lhs
+        rhsTerm <- toTerm rhs
+        if' op lhsTerm rhsTerm inner
+
       Atom _ clauseName args -> do
         externs <- asks envExterns
-        let relation' =
-              if clauseName `startsWithId` ruleName
-                then prependToId deltaPrefix clauseName
-                else clauseName
-            isExtern = isJust $ find (\(Extern name _ _) -> relation' == name) externs
+        -- TODO refactor
+        let isExtern = isJust $ find (\(Extern name _ _) -> clauseName == name) externs
+            isDeltaClause = startsWithDeltaPrefix clauseName
+            isRecursiveClause = stripIdPrefixes clauseName == ruleName
+            terms' = map toTerm args
+            wrapper = if isRecursiveClause && not isDeltaClause then noElemOf (prependToId deltaPrefix clauseName) terms' else id
         if isExtern
           then do
             clause' <- toTerm clause
             zero <- toTerm (Lit (NodeId 0) $ LNumber 0)
             if' NotEquals clause' zero inner
-          else search relation' args inner
-      Not _ (Atom _ clauseName args) -> do
-        -- No starts with check here, since cyclic negation is not allowed.
-        let terms' = map toTerm args
-        noElemOf clauseName terms' inner
-      Constraint _ op lhs rhs -> do
-        lhsTerm <- toTerm lhs
-        rhsTerm <- toTerm rhs
-        if' op lhsTerm rhsTerm inner
+          else search clauseName args $ wrapper inner
       _ ->
         panic "Unexpected rule clause in 'nestedSearchAndProject'!"
 

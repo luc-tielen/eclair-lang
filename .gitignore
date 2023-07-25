@@ -4,14 +4,16 @@ dist/
 .devcontainer/
 cabal.project.local*
 
-*.ll
 *.bc
 *.o
 *.a
 *.s
+*.ll
+!/cbits/*.ll
 /*.wasm
 /*.dl
 /*.eclair
+/*.ra
 /*.js
 
 result

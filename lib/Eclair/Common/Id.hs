@@ -5,6 +5,7 @@ module Eclair.Common.Id
   , startsWithId
   , stripIdPrefixes
   , startsWithIdPrefix
+  , startsWithDeltaPrefix
   , deltaPrefix
   , newPrefix
   ) where
@@ -45,3 +46,7 @@ newPrefix = "new_"
 startsWithIdPrefix :: Id -> Bool
 startsWithIdPrefix (Id x) =
   any (`T.isPrefixOf` x) [deltaPrefix, newPrefix]
+
+startsWithDeltaPrefix :: Id -> Bool
+startsWithDeltaPrefix (Id x) =
+  deltaPrefix `T.isPrefixOf` x

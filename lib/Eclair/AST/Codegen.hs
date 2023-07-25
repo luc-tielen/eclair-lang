@@ -40,10 +40,16 @@ type Column = Int
 newtype Row = Row { unRow :: Int }
   deriving (Eq, Ord)
 
+data InLoop
+  = InLoop
+  deriving Eq
+
 data Env
   = Env
   { envRow :: Row
   , envExterns :: [Extern]
+  , envLoopContext :: Maybe InLoop
+  , envNoElemConstraints :: CodegenM RA -> CodegenM RA
   }
 
 data LowerState
@@ -65,7 +71,7 @@ runCodegen :: [Extern] -> CodegenM a -> a
 runCodegen externs (CodegenM m) =
   -- NOTE: NodeId starts at 1, since module is manually created, and has NodeId 0
   let beginState = LowerState 1 id mempty
-   in fst $ evalRWS m (Env (Row 0) externs) beginState
+   in fst $ evalRWS m (Env (Row 0) externs Nothing id) beginState
 
 freshNodeId :: CodegenM NodeId
 freshNodeId = do
@@ -85,7 +91,8 @@ project r terms = do
       eqs = map toIndirectConstraint grouped
       addIndirectConstraints = foldl' (.) id eqs
 
-  addDirectConstraints $ addIndirectConstraints $
+  noElemConstraints <- lookupNoElemConstraints
+  addDirectConstraints . addIndirectConstraints . noElemConstraints $
     RA.Project nodeId r <$> sequence terms
   where
     varNameOf (_, _, v) = v
@@ -102,13 +109,21 @@ project r terms = do
             wrapConstraints = foldl' (.) id constraints
         wrapConstraints m
 
+    lookupNoElemConstraints :: CodegenM (CodegenM RA -> CodegenM RA)
+    lookupNoElemConstraints = do
+      (noElemConstraints, loopCtx) <- asks (envNoElemConstraints &&& envLoopContext)
+      let r' = stripIdPrefixes r
+      pure $ if loopCtx == Just InLoop
+        then noElemConstraints . mkNoElemOf r' terms
+        else noElemConstraints
+
 search :: Relation -> [AST] -> CodegenM RA -> CodegenM RA
 search r terms inner = do
+  nodeId <- freshNodeId
   -- Potentially reset var mapping when we reach the first search,
   -- this makes it possible to easily support multiple project statements.
   maybeResetSearchState
 
-  nodeId <- freshNodeId
   a <- relationToAlias r
   zipWithM_ (\col t -> emitSearchTerm t a col) [0..] terms
   action <- local nextRow inner
@@ -148,7 +163,7 @@ search r terms inner = do
       modify $ \s -> s { directConstraints = directConstraints s . constraint }
 
 loop :: [CodegenM RA] -> CodegenM RA
-loop ms = do
+loop ms = local (\env -> env { envLoopContext = Just InLoop}) $ do
   nodeId <- freshNodeId
   RA.Loop nodeId <$> sequence ms
 
@@ -179,10 +194,15 @@ exit rs = do
 
 noElemOf :: Relation -> [CodegenM RA] -> CodegenM RA -> CodegenM RA
 noElemOf r ts m = do
+  let wrapper = mkNoElemOf r ts
+  local (\env -> env { envNoElemConstraints = wrapper . envNoElemConstraints env }) m
+
+mkNoElemOf :: Relation -> [CodegenM RA] -> CodegenM RA -> CodegenM RA
+mkNoElemOf r ts inner = do
   notElemNodeId <- freshNodeId
   ifNodeId <- freshNodeId
   cond <- RA.NotElem notElemNodeId r <$> sequence ts
-  RA.If ifNodeId cond <$> m
+  RA.If ifNodeId cond <$> inner
 
 if' :: LogicalOp -> RA -> RA -> CodegenM RA -> CodegenM RA
 if' op lhs rhs body = do
