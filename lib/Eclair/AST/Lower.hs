@@ -111,17 +111,16 @@ ruleToStmt sccNames relation terms clauses
   | otherwise = nestedSearchAndProject relation terms clauses mempty
 
 recursiveRuleToStmts :: [Relation] -> Relation -> [CodegenM RA] -> [AST] -> CodegenM RA
-recursiveRuleToStmts sccNames relation terms clauses
-  | sccClauseCount > 1 = parallel $
+recursiveRuleToStmts sccNames relation terms clauses =
+  parallel $
     [ stmt
     | i <- [0..sccClauseCount - 1]
-    , let clauses' = transformAt i toDeltaClause clauses
-    , clauses' /= clauses
-    , let sccAtoms' = drop (i + 1) sccAtoms
+    , let sccAtom = maybeAt i sccAtoms
+          clauses' = map (maybeToDeltaClause sccAtom) clauses
+          -- clauses' = transformAt i toDeltaClause clauses
+          sccAtoms' = drop (i + 1) sccAtoms
           stmt = nestedSearchAndProject newRelation terms clauses' sccAtoms'
     ]
-  | otherwise =
-    nestedSearchAndProject newRelation terms clauses sccAtoms -- TODO mempty?
   where
     newRelation = newRelationOf relation
     sccAtoms = clauses & filter isPartOfScc & mapMaybe (\case
@@ -131,42 +130,10 @@ recursiveRuleToStmts sccNames relation terms clauses
     isPartOfScc = \case
       Atom _ name _  -> name `elem` sccNames
       _ -> False
-    toDeltaClause = \case
-      Atom nodeId clauseName args | clauseName `elem` sccNames ->
+    maybeToDeltaClause sccAtom = \case
+      Atom nodeId clauseName args | sccAtom == Just (clauseName, args) ->
         Atom nodeId (deltaRelationOf clauseName) args
       clause -> clause
-
-transformAt :: Int -> (a -> a) -> [a] -> [a]
-transformAt i f =
-  zipWith (\i' x -> if i == i' then f x else x) [0..]
-
--- TODO rm
--- recursiveRuleToStmts :: [Relation] -> Relation -> [CodegenM RA] -> [AST] -> CodegenM RA
--- recursiveRuleToStmts sccNames relation terms clauses =
---   nestedSearchAndProject relation newRelation terms clauses'
---   where
---     newRelation = newRelationOf relation
---     -- If there are multiple recursive clauses, convert (only?) the first to delta_RULE
---     clauses' =
---       if recursiveClauseCount > 1
---         then flip evalState False $ traverse f clauses
---         else clauses
---     f = \case
---       c@(Atom nodeId clauseName args) -> do
---         alreadyFound <- get
---         case (alreadyFound, clauseName == relation) of
---           (False, True) -> do
---             put True
---             let deltaClauseName = deltaRelationOf clauseName
---             pure $ Atom nodeId deltaClauseName args
---           _ ->
---             pure c
---       clause ->
---         pure clause
---     recursiveClauseCount = length $ filter isPartOfScc clauses
---     isPartOfScc = \case
---       Atom _ name _  -> name `elem` sccNames
---       _ -> False
 
 nestedSearchAndProject
   :: Relation

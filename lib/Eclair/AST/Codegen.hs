@@ -165,9 +165,11 @@ loop ms = local (\env -> env { envLoopContext = Just InLoop}) $ do -- TODO refac
   RA.Loop nodeId <$> sequence ms
 
 parallel :: [CodegenM RA] -> CodegenM RA
-parallel ms = do
-  nodeId <- freshNodeId
-  RA.Par nodeId <$> sequence ms
+parallel = \case
+  [m] -> m
+  ms -> do
+    nodeId <- freshNodeId
+    RA.Par nodeId <$> sequence ms
 
 merge :: Relation -> Relation -> CodegenM RA
 merge from' to' = do
