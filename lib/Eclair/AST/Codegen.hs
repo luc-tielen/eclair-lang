@@ -49,7 +49,6 @@ data Env
   { envRow :: Row
   , envExterns :: [Extern]
   , envLoopContext :: Maybe InLoop
-  , envNoElemConstraints :: CodegenM RA -> CodegenM RA
   }
 
 data LowerState
@@ -71,7 +70,7 @@ runCodegen :: [Extern] -> CodegenM a -> a
 runCodegen externs (CodegenM m) =
   -- NOTE: NodeId starts at 1, since module is manually created, and has NodeId 0
   let beginState = LowerState 1 id mempty
-   in fst $ evalRWS m (Env (Row 0) externs Nothing id) beginState
+   in fst $ evalRWS m (Env (Row 0) externs Nothing) beginState
 
 freshNodeId :: CodegenM NodeId
 freshNodeId = do
@@ -91,8 +90,8 @@ project r terms = do
       eqs = map toIndirectConstraint grouped
       addIndirectConstraints = foldl' (.) id eqs
 
-  noElemConstraints <- lookupNoElemConstraints
-  addDirectConstraints . addIndirectConstraints . noElemConstraints $
+  noElemConstraint <- lookupNoElemConstraint
+  addDirectConstraints . addIndirectConstraints . noElemConstraint $
     RA.Project nodeId r <$> sequence terms
   where
     varNameOf (_, _, v) = v
@@ -109,13 +108,11 @@ project r terms = do
             wrapConstraints = foldl' (.) id constraints
         wrapConstraints m
 
-    lookupNoElemConstraints :: CodegenM (CodegenM RA -> CodegenM RA)
-    lookupNoElemConstraints = do
-      (noElemConstraints, loopCtx) <- asks (envNoElemConstraints &&& envLoopContext)
-      let r' = stripIdPrefixes r
-      pure $ if loopCtx == Just InLoop
-        then noElemConstraints . mkNoElemOf r' terms
-        else noElemConstraints
+    lookupNoElemConstraint = do
+      loopCtx <- asks envLoopContext
+      if loopCtx == Just InLoop
+        then pure $ noElemOf (stripIdPrefixes r) terms
+        else pure id
 
 search :: Relation -> [AST] -> CodegenM RA -> CodegenM RA
 search r terms inner = do
@@ -163,7 +160,7 @@ search r terms inner = do
       modify $ \s -> s { directConstraints = directConstraints s . constraint }
 
 loop :: [CodegenM RA] -> CodegenM RA
-loop ms = local (\env -> env { envLoopContext = Just InLoop}) $ do
+loop ms = local (\env -> env { envLoopContext = Just InLoop}) $ do -- TODO refactor
   nodeId <- freshNodeId
   RA.Loop nodeId <$> sequence ms
 
@@ -193,12 +190,7 @@ exit rs = do
   pure $ RA.Exit nodeId rs
 
 noElemOf :: Relation -> [CodegenM RA] -> CodegenM RA -> CodegenM RA
-noElemOf r ts m = do
-  let wrapper = mkNoElemOf r ts
-  local (\env -> env { envNoElemConstraints = wrapper . envNoElemConstraints env }) m
-
-mkNoElemOf :: Relation -> [CodegenM RA] -> CodegenM RA -> CodegenM RA
-mkNoElemOf r ts inner = do
+noElemOf r ts inner = do
   notElemNodeId <- freshNodeId
   ifNodeId <- freshNodeId
   cond <- RA.NotElem notElemNodeId r <$> sequence ts
