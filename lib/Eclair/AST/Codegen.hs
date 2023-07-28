@@ -40,10 +40,15 @@ type Column = Int
 newtype Row = Row { unRow :: Int }
   deriving (Eq, Ord)
 
+data InLoop
+  = InLoop
+  deriving Eq
+
 data Env
   = Env
   { envRow :: Row
   , envExterns :: [Extern]
+  , envLoopContext :: Maybe InLoop
   }
 
 data LowerState
@@ -65,7 +70,7 @@ runCodegen :: [Extern] -> CodegenM a -> a
 runCodegen externs (CodegenM m) =
   -- NOTE: NodeId starts at 1, since module is manually created, and has NodeId 0
   let beginState = LowerState 1 id mempty
-   in fst $ evalRWS m (Env (Row 0) externs) beginState
+   in fst $ evalRWS m (Env (Row 0) externs Nothing) beginState
 
 freshNodeId :: CodegenM NodeId
 freshNodeId = do
@@ -85,7 +90,8 @@ project r terms = do
       eqs = map toIndirectConstraint grouped
       addIndirectConstraints = foldl' (.) id eqs
 
-  addDirectConstraints $ addIndirectConstraints $
+  noElemConstraint <- lookupNoElemConstraint
+  addDirectConstraints . addIndirectConstraints . noElemConstraint $
     RA.Project nodeId r <$> sequence terms
   where
     varNameOf (_, _, v) = v
@@ -102,13 +108,19 @@ project r terms = do
             wrapConstraints = foldl' (.) id constraints
         wrapConstraints m
 
+    lookupNoElemConstraint = do
+      loopCtx <- asks envLoopContext
+      if loopCtx == Just InLoop
+        then pure $ noElemOf (stripIdPrefixes r) terms
+        else pure id
+
 search :: Relation -> [AST] -> CodegenM RA -> CodegenM RA
 search r terms inner = do
+  nodeId <- freshNodeId
   -- Potentially reset var mapping when we reach the first search,
   -- this makes it possible to easily support multiple project statements.
   maybeResetSearchState
 
-  nodeId <- freshNodeId
   a <- relationToAlias r
   zipWithM_ (\col t -> emitSearchTerm t a col) [0..] terms
   action <- local nextRow inner
@@ -148,14 +160,16 @@ search r terms inner = do
       modify $ \s -> s { directConstraints = directConstraints s . constraint }
 
 loop :: [CodegenM RA] -> CodegenM RA
-loop ms = do
+loop ms = local (\env -> env { envLoopContext = Just InLoop}) $ do
   nodeId <- freshNodeId
   RA.Loop nodeId <$> sequence ms
 
 parallel :: [CodegenM RA] -> CodegenM RA
-parallel ms = do
-  nodeId <- freshNodeId
-  RA.Par nodeId <$> sequence ms
+parallel = \case
+  [m] -> m
+  ms -> do
+    nodeId <- freshNodeId
+    RA.Par nodeId <$> sequence ms
 
 merge :: Relation -> Relation -> CodegenM RA
 merge from' to' = do
@@ -178,11 +192,11 @@ exit rs = do
   pure $ RA.Exit nodeId rs
 
 noElemOf :: Relation -> [CodegenM RA] -> CodegenM RA -> CodegenM RA
-noElemOf r ts m = do
+noElemOf r ts inner = do
   notElemNodeId <- freshNodeId
   ifNodeId <- freshNodeId
   cond <- RA.NotElem notElemNodeId r <$> sequence ts
-  RA.If ifNodeId cond <$> m
+  RA.If ifNodeId cond <$> inner
 
 if' :: LogicalOp -> RA -> RA -> CodegenM RA -> CodegenM RA
 if' op lhs rhs body = do

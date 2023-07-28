@@ -3,9 +3,10 @@
 // RUN: %eclair compile --emit ra-transformed %t/program.eclair > %t/actual_ra.out
 // RUN: diff %t/expected_ra.out %t/actual_ra.out
 
-//--- program.eclair
-// TODO change eclair code
+// RUN: %eclair compile --emit ra %t/program2.eclair > %t/actual_ra2.out
+// RUN: diff %t/expected_ra2.out %t/actual_ra2.out
 
+//--- program.eclair
 @def a(u32) input.
 @def b(u32) input.
 @def c(u32).
@@ -55,3 +56,57 @@ search a as a0 do
 search d as d0 do
   if (d0[0]) ∉ c do
     project (d0[0]) into e
+//--- program2.eclair
+@def a(u32, string) input.
+@def b(u32, string, u32, u32) input.
+@def c(u32, string) input.
+@def d(u32, u32) input.
+@def e(u32, u32).
+@def f(u32, string) output.
+
+e(x, y) :-
+  d(x, y),
+  c(y, _).
+
+e(x, y) :-
+  e(x, z),
+  e(x, a),
+  b(y, _, z, a).
+
+f(x, y) :-
+  e(x, z),
+  a(z, y).
+
+//--- expected_ra2.out
+search d as d0 do
+  search c as c1 do
+    if d0[1] = c1[0] do
+      project (d0[0], d0[1]) into e
+merge e delta_e
+loop do
+  purge new_e
+  parallel do
+    search delta_e as delta_e0 do
+      search e as e1 do
+        search b as b2 do
+          if (delta_e0[0], e1[1]) ∉ delta_e do
+            if e1[1] = b2[3] do
+              if delta_e0[0] = e1[0] do
+                if delta_e0[1] = b2[2] do
+                  if (delta_e0[0], b2[0]) ∉ e do
+                    project (delta_e0[0], b2[0]) into new_e
+    search e as e0 do
+      search delta_e as delta_e1 do
+        search b as b2 do
+          if delta_e1[1] = b2[3] do
+            if e0[0] = delta_e1[0] do
+              if e0[1] = b2[2] do
+                if (e0[0], b2[0]) ∉ e do
+                  project (e0[0], b2[0]) into new_e
+  exit if counttuples(new_e) = 0
+  merge new_e e
+  swap new_e delta_e
+search e as e0 do
+  search a as a1 do
+    if e0[1] = a1[0] do
+      project (e0[0], a1[1]) into f

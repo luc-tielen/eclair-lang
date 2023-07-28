@@ -42,14 +42,14 @@ loop do
   purge new_c
   purge new_b
   parallel do
-    search b as b0 do
-      if (b0[0]) ∉ c do
-        search d as d1 where (b0[0] = d1[0]) do
-          project (b0[0]) into new_c
-    search c as c0 do
-      if (c0[0]) ∉ b do
-        search d as d1 where (c0[0] = d1[0]) do
-          project (c0[0]) into new_b
+    search delta_b as delta_b0 do
+      if (delta_b0[0]) ∉ c do
+        search d as d1 where (delta_b0[0] = d1[0]) do
+          project (delta_b0[0]) into new_c
+    search delta_c as delta_c0 do
+      if (delta_c0[0]) ∉ b do
+        search d as d1 where (delta_c0[0] = d1[0]) do
+          project (delta_c0[0]) into new_b
   exit if counttuples(new_c) = 0 and counttuples(new_b) = 0
   merge new_c c
   swap new_c delta_c
@@ -138,16 +138,16 @@ export fn eclair_program_run(*Program) -> Void
       upper_bound_value.0 = 4294967295
       begin_iter_2 = b.stack_allocate Iter
       end_iter_2 = b.stack_allocate Iter
-      b.iter_lower_bound(FN_ARG[0].2, lower_bound_value, begin_iter_2)
-      b.iter_upper_bound(FN_ARG[0].2, upper_bound_value, end_iter_2)
+      delta_b.iter_lower_bound(FN_ARG[0].5, lower_bound_value, begin_iter_2)
+      delta_b.iter_upper_bound(FN_ARG[0].5, upper_bound_value, end_iter_2)
       loop
       {
-        condition = b.iter_is_equal(begin_iter_2, end_iter_2)
+        condition = delta_b.iter_is_equal(begin_iter_2, end_iter_2)
         if (condition)
         {
           goto range_query.end
         }
-        current = b.iter_current(begin_iter_2)
+        current = delta_b.iter_current(begin_iter_2)
         value_3 = c.stack_allocate Value
         value_3.0 = current.0
         contains_result = c.contains(FN_ARG[0].3, value_3)
@@ -177,7 +177,7 @@ export fn eclair_program_run(*Program) -> Void
           }
           range_query.end_1:
         }
-        b.iter_next(begin_iter_2)
+        delta_b.iter_next(begin_iter_2)
       }
       range_query.end:
       lower_bound_value_2 = c.stack_allocate Value
@@ -186,16 +186,16 @@ export fn eclair_program_run(*Program) -> Void
       upper_bound_value_2.0 = 4294967295
       begin_iter_4 = c.stack_allocate Iter
       end_iter_4 = c.stack_allocate Iter
-      c.iter_lower_bound(FN_ARG[0].3, lower_bound_value_2, begin_iter_4)
-      c.iter_upper_bound(FN_ARG[0].3, upper_bound_value_2, end_iter_4)
+      delta_c.iter_lower_bound(FN_ARG[0].6, lower_bound_value_2, begin_iter_4)
+      delta_c.iter_upper_bound(FN_ARG[0].6, upper_bound_value_2, end_iter_4)
       loop
       {
-        condition_3 = c.iter_is_equal(begin_iter_4, end_iter_4)
+        condition_3 = delta_c.iter_is_equal(begin_iter_4, end_iter_4)
         if (condition_3)
         {
           goto range_query.end_2
         }
-        current_2 = c.iter_current(begin_iter_4)
+        current_2 = delta_c.iter_current(begin_iter_4)
         value_5 = b.stack_allocate Value
         value_5.0 = current_2.0
         contains_result_1 = b.contains(FN_ARG[0].2, value_5)
@@ -225,7 +225,7 @@ export fn eclair_program_run(*Program) -> Void
           }
           range_query.end_3:
         }
-        c.iter_next(begin_iter_4)
+        delta_c.iter_next(begin_iter_4)
       }
       range_query.end_2:
     }
@@ -453,9 +453,9 @@ loop_0:
   store i32 0, ptr %17
   %18 = getelementptr [1 x i32], ptr %stack.ptr_8, i32 0, i32 0
   store i32 4294967295, ptr %18
-  %19 = getelementptr %program, ptr %arg_0, i32 0, i32 2
+  %19 = getelementptr %program, ptr %arg_0, i32 0, i32 5
   call ccc void @eclair_btree_lower_bound_0(ptr %19, ptr %stack.ptr_7, ptr %stack.ptr_9)
-  %20 = getelementptr %program, ptr %arg_0, i32 0, i32 2
+  %20 = getelementptr %program, ptr %arg_0, i32 0, i32 5
   call ccc void @eclair_btree_upper_bound_0(ptr %20, ptr %stack.ptr_8, ptr %stack.ptr_10)
   br label %loop_1
 loop_1:
@@ -512,9 +512,9 @@ range_query.end:
   store i32 0, ptr %44
   %45 = getelementptr [1 x i32], ptr %stack.ptr_18, i32 0, i32 0
   store i32 4294967295, ptr %45
-  %46 = getelementptr %program, ptr %arg_0, i32 0, i32 3
+  %46 = getelementptr %program, ptr %arg_0, i32 0, i32 6
   call ccc void @eclair_btree_lower_bound_0(ptr %46, ptr %stack.ptr_17, ptr %stack.ptr_19)
-  %47 = getelementptr %program, ptr %arg_0, i32 0, i32 3
+  %47 = getelementptr %program, ptr %arg_0, i32 0, i32 6
   call ccc void @eclair_btree_upper_bound_0(ptr %47, ptr %stack.ptr_18, ptr %stack.ptr_20)
   br label %loop_3
 loop_3:

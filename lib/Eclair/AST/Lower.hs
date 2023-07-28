@@ -29,9 +29,12 @@ compileToRA externs ast =
         in one <$> project name literals
       [Rule _ name args clauses] ->
         let terms = map toTerm args
-        in runCodegen externs $ processSingleRule name terms clauses
+        in runCodegen externs $ processSingleRule [name] name terms clauses
       rules ->  -- case for multiple mutually recursive rules
-        runCodegen externs $ processMultipleRules rules
+        let sccNames = rules & mapMaybe (\case
+              Rule _ name _ _ -> Just name
+              _ -> Nothing)
+        in runCodegen externs $ processMultipleRules sccNames rules
 
     scc :: AST -> [[AST]]
     scc = \case
@@ -64,8 +67,8 @@ compileToRA externs ast =
       where unreachable = panic "Unreachable code in 'scc'"
 
 -- NOTE: These rules can all be evaluated in parallel inside the fixpoint loop
-processMultipleRules :: [AST] -> CodegenM [RA]
-processMultipleRules rules = sequence stmts where
+processMultipleRules :: [Relation] -> [AST] -> CodegenM [RA]
+processMultipleRules sccNames rules = sequence stmts where
   stmts = mergeStmts <> [loop (purgeStmts <> ruleStmts <> [exitStmt] <> endLoopStmts)]
   mergeStmts = map (\r -> merge r (deltaRelationOf r)) uniqRelations
   purgeStmts = map (purge . newRelationOf) uniqRelations
@@ -81,80 +84,104 @@ processMultipleRules rules = sequence stmts where
   uniqRelations = uniqOrderPreserving relations
   -- TODO: better func name
   lowerRule (r, map toTerm -> ts, clauses) =
-    recursiveRuleToStmt r ts clauses
+    recursiveRuleToStmts sccNames r ts clauses
 
-processSingleRule :: Relation -> [CodegenM RA] -> [AST] -> CodegenM [RA]
-processSingleRule relation terms clauses
-  | isRecursive relation clauses =
+processSingleRule :: [Relation] -> Relation -> [CodegenM RA] -> [AST] -> CodegenM [RA]
+processSingleRule sccNames relation terms clauses
+  | isRecursive sccNames clauses =
     let deltaRelation = deltaRelationOf relation
         newRelation = newRelationOf relation
         stmts =
           [ merge relation deltaRelation
           , loop
             [ purge newRelation
-            , ruleToStmt relation terms clauses
+            , ruleToStmt sccNames relation terms clauses
             , exit [newRelation]
             , merge newRelation relation
             , swap newRelation deltaRelation
             ]
           ]
       in sequence stmts
-  | otherwise = one <$> ruleToStmt relation terms clauses
+  | otherwise = one <$> ruleToStmt sccNames relation terms clauses
 
-ruleToStmt :: Relation -> [CodegenM RA] -> [AST] -> CodegenM RA
-ruleToStmt relation terms clauses
-  | isRecursive relation clauses =
-    recursiveRuleToStmt relation terms clauses
-  | otherwise = nestedSearchAndProject relation relation terms clauses id
+ruleToStmt :: [Relation] -> Relation -> [CodegenM RA] -> [AST] -> CodegenM RA
+ruleToStmt sccNames relation terms clauses
+  | isRecursive sccNames clauses =
+    recursiveRuleToStmts sccNames relation terms clauses
+  | otherwise = nestedSearchAndProject relation terms clauses mempty
 
-recursiveRuleToStmt :: Relation -> [CodegenM RA] -> [AST] -> CodegenM RA
-recursiveRuleToStmt relation terms clauses =
-  let newRelation = newRelationOf relation
-      extraClause = noElemOf relation terms
-    in nestedSearchAndProject relation newRelation terms clauses extraClause
+recursiveRuleToStmts :: [Relation] -> Relation -> [CodegenM RA] -> [AST] -> CodegenM RA
+recursiveRuleToStmts sccNames relation terms clauses =
+  parallel $
+    [ stmt
+    | i <- [0..sccClauseCount - 1]
+    , let sccAtom = maybeAt i sccAtoms
+          clauses' = map (maybeToDeltaClause sccAtom) clauses
+          sccAtoms' = drop (i + 1) sccAtoms
+          stmt = nestedSearchAndProject newRelation terms clauses' sccAtoms'
+    ]
+  where
+    newRelation = newRelationOf relation
+    sccAtoms = clauses & filter isPartOfScc & mapMaybe (\case
+      Atom _ name args -> Just (name, args)
+      _ -> Nothing)
+    sccClauseCount = length sccAtoms
+    isPartOfScc = \case
+      Atom _ name _  -> name `elem` sccNames
+      _ -> False
+    maybeToDeltaClause sccAtom = \case
+      Atom nodeId clauseName args | sccAtom == Just (clauseName, args) ->
+        Atom nodeId (deltaRelationOf clauseName) args
+      clause -> clause
 
 nestedSearchAndProject
   :: Relation
-  -> Relation
   -> [CodegenM RA]
   -> [AST]
-  -> (CodegenM RA -> CodegenM RA)
+  -> [(Relation, [AST])]
   -> CodegenM RA
-nestedSearchAndProject relation intoRelation terms clauses wrapWithExtraClause =
-  flip (foldr (processRuleClause relation)) clauses $ wrapWithExtraClause $
-    project intoRelation terms
+nestedSearchAndProject intoRelation terms clauses sccAtoms =
+  flip (foldr processRuleClause) clauses $
+    addNegatedDeltaAtoms sccAtoms $
+      project intoRelation terms
   where
-    processRuleClause ruleName clause inner = case clause of
+    processRuleClause :: AST -> CodegenM RA -> CodegenM RA
+    processRuleClause clause inner = case clause of
+      Not _ (Atom _ clauseName args) -> do
+        -- No starts with check here, since cyclic negation is not allowed.
+        let terms' = map toTerm args
+        noElemOf clauseName terms' inner
+
+      Constraint _ op lhs rhs -> do
+        lhsTerm <- toTerm lhs
+        rhsTerm <- toTerm rhs
+        if' op lhsTerm rhsTerm inner
+
       Atom _ clauseName args -> do
         externs <- asks envExterns
-        let relation' =
-              if clauseName `startsWithId` ruleName
-                then prependToId deltaPrefix clauseName
-                else clauseName
-            isExtern = isJust $ find (\(Extern name _ _) -> relation' == name) externs
+        let isExtern = isJust $ find (\(Extern name _ _) -> clauseName == name) externs
         if isExtern
           then do
             clause' <- toTerm clause
             zero <- toTerm (Lit (NodeId 0) $ LNumber 0)
             if' NotEquals clause' zero inner
-          else search relation' args inner
-      Not _ (Atom _ clauseName args) -> do
-        -- No starts with check here, since cyclic negation is not allowed.
-        let terms' = map toTerm args
-        noElemOf clauseName terms' inner
-      Constraint _ op lhs rhs -> do
-        lhsTerm <- toTerm lhs
-        rhsTerm <- toTerm rhs
-        if' op lhsTerm rhsTerm inner
+          else search clauseName args inner
       _ ->
         panic "Unexpected rule clause in 'nestedSearchAndProject'!"
 
-isRecursive :: Relation -> [AST] -> Bool
-isRecursive ruleName clauses =
+    addNegatedDeltaAtoms =
+      foldr (\(clauseName, args) wrapper -> wrapper . addNegatedDeltaAtom clauseName args) id
+
+addNegatedDeltaAtom :: Relation -> [AST] -> CodegenM RA -> CodegenM RA
+addNegatedDeltaAtom clauseName args =
+  noElemOf (deltaRelationOf clauseName) (map toTerm args)
+
+isRecursive :: [Relation] -> [AST] -> Bool
+isRecursive sccNames clauses =
   let atomNames = flip mapMaybe clauses $ \case
         Atom _ name _ -> Just name
         _ -> Nothing
-   in ruleName `elem` atomNames
+   in any (`elem` atomNames) sccNames
 
 extractRuleData :: AST -> Maybe (Relation, [AST], [AST])
 extractRuleData = \case
