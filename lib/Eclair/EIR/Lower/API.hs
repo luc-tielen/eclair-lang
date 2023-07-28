@@ -76,7 +76,7 @@ generateAddFactsFn usageMapping = do
              , (i32, ParameterName "fact_count")
              ]
       returnType = void
-  apiFunction "eclair_add_facts" args returnType $ \[program, factType, memory, factCount] -> do
+  apiFunction "eclair_add_facts" args returnType $ \[program, factType, memory, factCount] -> mdo
     switchOnFactType rels (relationMapping inOutState) retVoid factType $ \r -> do
       indexes <- indicesForRelation r
       for_ indexes $ \idx -> do
@@ -91,7 +91,10 @@ generateAddFactsFn usageMapping = do
           fn <- toCodegenInOut lowerState $ lookupFunction r idx EIR.Insert
           call fn [relationPtr, valuePtr]
 
-        retVoid  -- early return!
+      br end -- early return
+
+    end <- blockNamed "end"
+    retVoid
 
 generateGetFactsFn :: MonadFix m => Map Relation UsageMode -> CodegenInOutT (ModuleBuilderT m) Operand
 generateGetFactsFn usageMapping = do

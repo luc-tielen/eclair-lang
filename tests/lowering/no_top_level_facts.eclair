@@ -407,8 +407,10 @@ for_body_0:
   %5 = add i32 1, %1
   br label %for_begin_0
 for_end_0:
-  ret void
+  br label %end_0
 switch.default_0:
+  ret void
+end_0:
   ret void
 }
 //--- expected_eclair_get_facts_llvm.out
