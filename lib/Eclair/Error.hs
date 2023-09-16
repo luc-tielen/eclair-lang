@@ -6,6 +6,8 @@ module Eclair.Error
   , Issue(..)
   , Location(..)
   , Pos(..)
+  , posToSourcePos
+  , locationToSourceSpan
   , handleErrorsCLI
   , errorToIssues
   , renderIssueMessage
@@ -84,14 +86,26 @@ data Pos
   , posColumn :: {-# UNPACK #-} !Word32
   }
 
+posToSourcePos :: Pos -> SourcePos
+posToSourcePos (Pos l c) =
+  SourcePos (fromIntegral l) (fromIntegral c)
+
 -- Actual location in the code (a range).
 -- Contains the file, start and end of the position.
+-- TODO make this the leading location type instead of SourceSpan
 data Location
   = Location
   { locationFile :: FilePath
   , locationStart :: {-# UNPACK #-} !Pos
   , locationEnd :: {-# UNPACK #-} !Pos
   }
+
+locationToSourceSpan :: Location -> SourceSpan
+locationToSourceSpan loc =
+  SourceSpan (locationFile loc) posBegin posEnd
+  where
+    posBegin = posToSourcePos $ locationStart loc
+    posEnd = posToSourcePos $ locationEnd loc
 
 -- A helper type for referring to an issue at a location.
 data Issue

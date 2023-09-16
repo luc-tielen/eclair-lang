@@ -55,6 +55,8 @@ library
     Eclair.EIR.Lower.Codegen
     Eclair.EIR.Lower.Externals
     Eclair.Error
+    Eclair.JSON
+    Eclair.LLVM.Allocator.Arena
     Eclair.LLVM.Allocator.Common
     Eclair.LLVM.Allocator.Malloc
     Eclair.LLVM.Allocator.Page
@@ -79,6 +81,13 @@ library
     Eclair.LLVM.Table
     Eclair.LLVM.Template
     Eclair.LLVM.Vector
+    Eclair.LSP
+    Eclair.LSP.Handlers
+    Eclair.LSP.Handlers.Diagnostics
+    Eclair.LSP.Handlers.DocumentHighlight
+    Eclair.LSP.Handlers.Hover
+    Eclair.LSP.Monad
+    Eclair.LSP.VFS
     Eclair.Parser
     Eclair.RA.Codegen
     Eclair.RA.IndexSelection
@@ -127,9 +136,12 @@ library
     , containers                   <1
     , dependent-sum                >=0.6   && <1
     , diagnose                     >=2.3   && <2.4
+    , directory                    >=1     && <2
     , dlist                        >=1     && <2
     , exceptions                   >=0.10  && <0.11
     , extra                        >=1     && <2
+    , ghc-prim                     <1
+    , hermes-json                  <1
     , llvm-codegen
     , megaparsec                   >=9     && <10
     , mmorph                       >=1     && <2
@@ -143,6 +155,7 @@ library
     , rock                         >=0.3   && <0.4
     , souffle-haskell              ==4.0.0
     , text                         >=2     && <3
+    , text-builder-linear          <1
     , transformers                 <1
     , vector                       >=0.12  && <0.13
 
