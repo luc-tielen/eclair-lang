@@ -21,7 +21,6 @@ import Eclair.TypeSystem hiding (typeCheck)
 import Eclair.LSP.Handlers
 import Eclair.LSP.Types
 import Eclair.Common.Location
-import qualified Data.HashMap.Strict as HM
 
 commandDecoder :: H.Decoder Command
 commandDecoder = H.object $ do
@@ -70,12 +69,12 @@ srcPosDecoder = H.object $
 responseToJSON :: Response -> J.JSON
 responseToJSON = \case
   HoverResponse (HoverOk srcSpan ty) ->
-    J.Object $ HM.fromList
+    J.Object
       [ ("location", srcSpanToJSON srcSpan)
       , ("type", typeToJSON ty)
       ]
   HoverResponse (HoverError path pos err) ->
-    J.Object $ HM.fromList
+    J.Object
       [ ("file", J.String $ toText path)
       , ("position", srcPosToJSON pos)
       , ("error", J.String err)
@@ -83,7 +82,7 @@ responseToJSON = \case
   DocumentHighlightResponse (DocHLOk refs) ->
     J.Array $ map srcSpanToJSON refs
   DocumentHighlightResponse (DocHLError path pos err) ->
-    J.Object $ HM.fromList
+    J.Object
       [ ("file", J.String $ toText path)
       , ("position", srcPosToJSON pos)
       , ("error", J.String err)
@@ -91,19 +90,19 @@ responseToJSON = \case
   DiagnosticsResponse (DiagnosticsOk diagnostics) ->
     J.Array $ map diagnosticToJSON diagnostics
   DiagnosticsResponse (DiagnosticsError path mPos err) ->
-    J.Object $ HM.fromList
+    J.Object
       [ ("file", J.String $ toText path)
       , ("position", srcPosToJSON $ fromMaybe (SourcePos 0 0) mPos)
       , ("error", J.String err)
       ]
   SuccessResponse ->
-    J.Object $ HM.fromList [("success", J.Boolean True)]
+    J.Object [("success", J.Boolean True)]
   ShuttingDown ->
-    J.Object $ HM.fromList [("shutdown", J.Boolean True)]
+    J.Object [("shutdown", J.Boolean True)]
 
 diagnosticToJSON :: Diagnostic -> J.JSON
 diagnosticToJSON (Diagnostic source srcSpan severity msg) =
-  J.Object $ HM.fromList
+  J.Object
     [ ("location", srcSpanToJSON srcSpan)
     , ("source", diagnosticSourceToJSON source)
     , ("severity", severityToJSON severity)
@@ -120,14 +119,14 @@ severityToJSON Error =
 
 srcSpanToJSON :: SourceSpan -> J.JSON
 srcSpanToJSON srcSpan =
-  J.Object $ HM.fromList
+  J.Object
     [ ("file", J.String $ toText path)
-    , ("start", J.Object $ HM.fromList
+    , ("start", J.Object
         [ ("line", J.Number $ sourcePosLine start)
         , ("column", J.Number $ sourcePosColumn start)
         ]
       )
-    , ("end", J.Object $ HM.fromList
+    , ("end", J.Object
         [ ("line", J.Number $ sourcePosLine end)
         , ("column", J.Number $ sourcePosColumn end)
         ]
@@ -140,7 +139,7 @@ srcSpanToJSON srcSpan =
 
 srcPosToJSON :: SourcePos -> J.JSON
 srcPosToJSON pos =
-  J.Object $ HM.fromList
+  J.Object
     [ ("line", J.Number $ sourcePosLine pos)
     , ("column", J.Number $ sourcePosColumn pos)
     ]

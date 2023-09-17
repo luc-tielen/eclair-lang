@@ -250,10 +250,13 @@ executable eclair
 test-suite eclair-test
   type:               exitcode-stdio-1.0
   main-is:            test.hs
+
+  -- cabal-fmt: expand tests/eclair
   other-modules:
     Paths_eclair_lang
     Test.Eclair.ArgParserSpec
     Test.Eclair.LLVM.HashSpec
+    Test.Eclair.LSP.JSONSpec
     Test.Eclair.RA.IndexSelectionSpec
 
   autogen-modules:    Paths_eclair_lang
@@ -302,6 +305,7 @@ test-suite eclair-test
     , hspec                        >=2.6.1 && <3.0.0
     , hspec-hedgehog               <1
     , llvm-codegen
+    , hermes-json                  <1
     , megaparsec                   >=9     && <10
     , mmorph                       >=1     && <2
     , mtl                          >=2     && <3

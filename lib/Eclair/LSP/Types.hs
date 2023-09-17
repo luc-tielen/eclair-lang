@@ -12,6 +12,7 @@ data Command
   | Diagnostics FilePath
   | UpdateVFS FilePath Text
   | Shutdown
+  deriving (Eq, Show)
 
 data Response
   = HoverResponse HoverResult

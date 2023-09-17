@@ -7,7 +7,6 @@ module Eclair.JSON
   , encodeJSON
   ) where
 
-import qualified Data.HashMap.Strict as HM
 import Data.Text.Builder.Linear.Buffer
 import GHC.Prim (Addr#)
 
@@ -16,7 +15,7 @@ data JSON
   | Boolean Bool
   | Number Int
   | String Text
-  | Object (HashMap Text JSON)
+  | Object [(Text, JSON)]
   | Array [JSON]
 
 encodeJSON :: JSON -> Text
@@ -33,13 +32,12 @@ encodeJSON json =
         buf |> show x
       String s ->
         dquotes buf (|> s)
-      Object kvPairs ->
-        let pairs = HM.toList kvPairs
-        in braces buf (\buf' ->
-             sepBy ","# buf' pairs (\buf'' (k, v) ->
-               (dquotes buf'' (|> k) |>. ':') `toJSON'` v
-             )
-           )
+      Object pairs ->
+        braces buf (\buf' ->
+          sepBy ","# buf' pairs (\buf'' (k, v) ->
+            (dquotes buf'' (|> k) |>. ':') `toJSON'` v
+          )
+        )
       Array elems ->
         brackets buf (\buf' -> sepBy ","# buf' elems toJSON')
 

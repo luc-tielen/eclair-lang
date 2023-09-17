@@ -69,7 +69,7 @@ data SourcePos
   = SourcePos
   { sourcePosLine :: {-# UNPACK #-} !Int
   , sourcePosColumn :: {-# UNPACK #-} !Int
-  } deriving (Eq, Ord)
+  } deriving (Eq, Ord, Show)
 
 data SourceSpan
   = SourceSpan
