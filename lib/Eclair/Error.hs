@@ -92,7 +92,6 @@ posToSourcePos (Pos l c) =
 
 -- Actual location in the code (a range).
 -- Contains the file, start and end of the position.
--- TODO make this the leading location type instead of SourceSpan
 data Location
   = Location
   { locationFile :: FilePath

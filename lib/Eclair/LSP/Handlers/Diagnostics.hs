@@ -37,7 +37,7 @@ diagnosticsHandler path = do
   mFileContents <- lift $ vfsLookupFile path
   case mFileContents of
     Nothing ->
-      pure $ DiagnosticsError path Nothing "Failed to read file from VFS!"
+      pure $ DiagnosticsError path Nothing "File not found in VFS!"
     Just fileContents -> do
       errs <- liftLSP $ emitDiagnostics params path
       diagnostics <- mconcat <$> traverse (errorToDiagnostics fileContents) errs

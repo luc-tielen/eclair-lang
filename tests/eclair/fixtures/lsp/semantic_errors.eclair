@@ -1,0 +1,3 @@
+@def wildcard_in_fact(u32) output.
+
+wildcard_in_fact(_).

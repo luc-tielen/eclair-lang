@@ -14,9 +14,7 @@ spec :: Spec
 spec = describe "LSP handlers" $ parallel $ do
   hoverSpec
   documentHighlightSpec
-
-  describe "diagnostics" $ parallel $ do
-    it "" pending
+  diagnosticsSpec
 
 hoverSpec :: Spec
 hoverSpec = describe "Hover action" $ do
@@ -98,6 +96,31 @@ documentHighlightSpec = describe "Document highlight action" $ do
     result <- withLSP (Just file) $ documentHighlightHandler file srcPos
     result `shouldBe` DocHLError file srcPos "Failed to get highlight information!"
 
+diagnosticsSpec :: Spec
+diagnosticsSpec = describe "Diagnostics action" $ parallel $ do
+  it "reports nothing if file is OK" pending
+
+  it "reports invalid syntax" $ do
+    let file = fixture "invalid_syntax.eclair"
+    DiagnosticsOk diags <- withLSP (Just file) $ diagnosticsHandler file
+    length diags `shouldBe` 2
+
+  it "returns an error if file not found in vfs" $ do
+    let file = "not_found.eclair"
+    result <- withLSP Nothing $ diagnosticsHandler file
+    result `shouldBe` DiagnosticsError file Nothing "File not found in VFS!"
+
+  it "reports semantic errors" $ do
+    let file = fixture "semantic_errors.eclair"
+    DiagnosticsOk [diag] <- withLSP (Just file) $ diagnosticsHandler file
+    let (Diagnostic _ _ _ msg) = diag
+    toString msg `shouldContain` "Wildcard in top level fact"
+
+  it "reports type errors" $ do
+    let file = fixture "type_errors.eclair"
+    DiagnosticsOk (_:_:diag:_) <- withLSP (Just file) $ diagnosticsHandler file
+    let (Diagnostic _ _ _ msg) = diag
+    toString msg `shouldContain` "Type mismatch"
 
 fixture :: FilePath -> FilePath
 fixture file =
