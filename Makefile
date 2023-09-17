@@ -8,9 +8,7 @@ clean:
 	@cabal clean
 
 test:
-	@cabal run eclair-test
-	# next line is broken on CI
-	#@cabal run eclair-lsp-test
+	@DATALOG_DIR=cbits/ cabal run eclair-test
 	@lit tests/ -v
 
 cabal-file:
