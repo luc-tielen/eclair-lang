@@ -12,16 +12,14 @@ import Test.Hspec
 
 spec :: Spec
 spec = describe "LSP handlers" $ parallel $ do
-  hoveringSpec
+  hoverSpec
+  documentHighlightSpec
 
   describe "diagnostics" $ parallel $ do
     it "" pending
 
-  describe "document highlight" $ parallel $ do
-    it "" pending
-
-hoveringSpec :: Spec
-hoveringSpec = describe "Hover action" $ do
+hoverSpec :: Spec
+hoverSpec = describe "Hover action" $ do
   it "reports types on hover" $ do
     let file = fixture "hover.eclair"
         srcPos1 = SourcePos 6 8  -- 1-indexed, same as editor!
@@ -64,7 +62,41 @@ hoveringSpec = describe "Hover action" $ do
     result <- withLSP (Just file) $ hoverHandler file srcPos
     result `shouldBe` HoverError file srcPos "File contains errors!"
 
-  -- TODO more error tests
+documentHighlightSpec :: Spec
+documentHighlightSpec = describe "Document highlight action" $ do
+  it "highlights the same identifiers in scope" $ do
+    let file = fixture "document_highlight.eclair"
+        srcPos1 = SourcePos 7 11 -- x
+        srcPos2 = SourcePos 7 14 -- y
+        srcPos3 = SourcePos 8 11 -- z
+    (result1, result2, result3) <- withLSP (Just file) $ do
+      (,,) <$> documentHighlightHandler file srcPos1
+           <*> documentHighlightHandler file srcPos2
+           <*> documentHighlightHandler file srcPos3
+    result1 `shouldBe` DocHLOk
+      [ SourceSpan file (SourcePos 7 11) (SourcePos 7 12)
+      , SourceSpan file (SourcePos 8 8) (SourcePos 8 9)
+      ]
+    result2 `shouldBe` DocHLOk
+      [ SourceSpan file (SourcePos 7 14) (SourcePos 7 15)
+      , SourceSpan file (SourcePos 9 16) (SourcePos 9 17)
+      ]
+    result3 `shouldBe` DocHLOk
+      [ SourceSpan file (SourcePos 8 11) (SourcePos 8 12)
+      , SourceSpan file (SourcePos 9 13) (SourcePos 9 14)
+      ]
+
+  it "returns an error if file not found in vfs" $ do
+    let file = "not_found.eclair"
+        srcPos = SourcePos 11 10
+    result <- withLSP Nothing $ documentHighlightHandler file srcPos
+    result `shouldBe` DocHLError file (SourcePos 11 10) "File not found in VFS!"
+
+  it "returns an error if file failed to parse" $ do
+    let file = fixture "unparsable.eclair"
+        srcPos = SourcePos 4 1
+    result <- withLSP (Just file) $ documentHighlightHandler file srcPos
+    result `shouldBe` DocHLError file srcPos "Failed to get highlight information!"
 
 
 fixture :: FilePath -> FilePath
