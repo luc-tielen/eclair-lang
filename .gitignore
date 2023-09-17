@@ -19,3 +19,6 @@ eclair.prof
 eclair.svg
 *.eventlog*
 eclair.hp
+perf.data
+perf.data.old
+perf.svg
