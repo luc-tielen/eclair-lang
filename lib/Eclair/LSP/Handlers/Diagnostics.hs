@@ -16,17 +16,20 @@ data DiagnosticSource
   | Typesystem
   | SemanticAnalysis
   | Transpiler
-  deriving Show
+  deriving (Eq, Show)
 
 data Severity
   = Error  -- (for now Eclair only has errors)
+  deriving (Eq, Show)
 
 data Diagnostic
   = Diagnostic DiagnosticSource SourceSpan Severity Text
+  deriving (Eq, Show)
 
 data DiagnosticsResult
   = DiagnosticsOk [Diagnostic]
   | DiagnosticsError FilePath (Maybe SourcePos) Text
+  deriving (Eq, Show)
 
 diagnosticsHandler :: FilePath -> LspM DiagnosticsResult
 diagnosticsHandler path = do

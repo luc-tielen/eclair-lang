@@ -76,7 +76,7 @@ data SourceSpan
   { sourceSpanFile :: FilePath
   , sourceSpanBegin :: {-# UNPACK #-} !SourcePos
   , sourceSpanEnd :: {-# UNPACK #-} !SourcePos
-  }
+  } deriving (Eq, Show)
 
 spanToSourceSpan :: FilePath -> Text -> Span -> SourceSpan
 spanToSourceSpan path text span'@(Span begin end) =

@@ -11,6 +11,7 @@ import Eclair.LSP.Monad
 data DocHLResult
   = DocHLOk [SourceSpan]
   | DocHLError FilePath SourcePos Text
+  deriving (Eq, Show)
 
 documentHighlightHandler :: FilePath -> SourcePos -> LspM DocHLResult
 documentHighlightHandler path srcPos = do

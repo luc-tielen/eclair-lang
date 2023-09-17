@@ -5,6 +5,7 @@ module Eclair.LSP.Monad
   , getParams
   , module Eclair.LSP.VFS
   , posToOffset
+  , toMachineSrcPos
   ) where
 
 import Eclair (Parameters(..))
@@ -35,7 +36,7 @@ posToOffset :: SourcePos -> Text -> Either Text Int
 posToOffset lspPos fileContents = do
   case P.runParser p "<lsp>" fileContents of
     Left _ ->
-      Left "Error computing location offset in file."
+      Left "Error computing location offset in file!"
     Right offset ->
       pure offset
   where
@@ -48,3 +49,8 @@ posToOffset lspPos fileContents = do
       -- Skip to correct column
       void $ P.takeP Nothing (fromIntegral $ sourcePosColumn lspPos)
       P.getOffset
+
+-- Helper function to go from 1-indexing to 0-indexing
+toMachineSrcPos :: SourcePos -> SourcePos
+toMachineSrcPos srcPos =
+  SourcePos (sourcePosLine srcPos - 1) (sourcePosColumn srcPos - 1)
