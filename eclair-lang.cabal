@@ -86,7 +86,9 @@ library
     Eclair.LSP.Handlers.Diagnostics
     Eclair.LSP.Handlers.DocumentHighlight
     Eclair.LSP.Handlers.Hover
+    Eclair.LSP.JSON
     Eclair.LSP.Monad
+    Eclair.LSP.Types
     Eclair.LSP.VFS
     Eclair.Parser
     Eclair.RA.Codegen

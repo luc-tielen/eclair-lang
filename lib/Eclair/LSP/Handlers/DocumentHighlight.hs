@@ -14,7 +14,7 @@ data DocHLResult
 
 documentHighlightHandler :: FilePath -> SourcePos -> LspM DocHLResult
 documentHighlightHandler path srcPos = do
-  mFileContents <- vfsLookupFile path
+  mFileContents <- lift $ vfsLookupFile path
   case mFileContents of
     Nothing ->
       pure $ DocHLError path srcPos "Failed to read file from VFS!"
@@ -23,7 +23,7 @@ documentHighlightHandler path srcPos = do
         Left err ->
           pure $ DocHLError path srcPos err
         Right fileOffset -> do
-          params <- ask
+          params <- getParams
           parseResult <- liftLSP $ runExceptT $ do
             (ast, spanMap) <- ExceptT (parse params path)
             let mNodeId = lookupNodeId spanMap fileOffset

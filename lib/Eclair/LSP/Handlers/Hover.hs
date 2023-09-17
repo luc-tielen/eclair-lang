@@ -16,7 +16,7 @@ data HoverResult
 
 hoverHandler :: FilePath -> SourcePos -> LspM HoverResult
 hoverHandler path srcPos = do
-  mFileContents <- vfsLookupFile path
+  mFileContents <- lift $ vfsLookupFile path
   case mFileContents of
     Nothing ->
       pure $ HoverError path srcPos "File not found in VFS!"
@@ -52,7 +52,8 @@ hoverHandler path srcPos = do
           pure $ HoverOk srcSpan ty
 
     processErrors fileContents errs = do
-      vfs <- get
+      vfsVar <- lift getVfsVar
+      vfs <- liftIO $ readMVar vfsVar
       issues <- traverse (liftLSP . errorToIssues (unsafeReadFromVFS vfs)) errs
       case findIssueAtPosition issues of
         Nothing ->

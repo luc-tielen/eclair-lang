@@ -30,8 +30,8 @@ data DiagnosticsResult
 
 diagnosticsHandler :: FilePath -> LspM DiagnosticsResult
 diagnosticsHandler path = do
-  params <- ask
-  mFileContents <- vfsLookupFile path  -- TODO handle nothing
+  params <- getParams
+  mFileContents <- lift $ vfsLookupFile path
   case mFileContents of
     Nothing ->
       pure $ DiagnosticsError path Nothing "Failed to read file from VFS!"
@@ -42,7 +42,8 @@ diagnosticsHandler path = do
   where
     errorToDiagnostics :: Text -> EclairError -> LspM [Diagnostic]
     errorToDiagnostics fileContents err = do
-      vfs <- get
+      vfsVar <- lift getVfsVar
+      vfs <- liftIO $ readMVar vfsVar
       let readSourceFile = unsafeReadFromVFS vfs
           source = diagnosticSource err
       issues <- liftLSP $ errorToIssues readSourceFile err

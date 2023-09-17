@@ -7,17 +7,20 @@ module Eclair.LSP.Monad
   , posToOffset
   ) where
 
-import Eclair (Parameters)
+import Eclair (Parameters(..))
 import Eclair.LSP.VFS
 import Eclair.Common.Location
 import qualified Text.Megaparsec as P
 import qualified Text.Megaparsec.Char as P
 
-type LspM = VFST (ReaderT Parameters IO)
+type LspM = ReaderT Parameters (VFST IO)
 
-runLSP :: Parameters -> LspM a -> IO a
-runLSP params m =
-  runReaderT (runVFST m) params
+runLSP :: LspM a -> IO a
+runLSP m = do
+  runVFST $ runReaderT m placeHolderParams
+  where
+    -- TODO make number of cores configurable via CLI
+    placeHolderParams = Parameters 1 Nothing mempty
 
 getParams :: LspM Parameters
 getParams = ask
