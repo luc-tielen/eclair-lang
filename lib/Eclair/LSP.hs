@@ -22,12 +22,14 @@ data Command
   = Hover FilePath SourcePos
   | DocumentHighlight FilePath SourcePos
   | Diagnostics FilePath
+  | UpdateVFS FilePath Text
   | Shutdown
 
 data Response
   = HoverResponse HoverResult
   | DocumentHighlightResponse DocHLResult
   | DiagnosticsResponse DiagnosticsResult
+  | SuccessResponse
   | ShuttingDown
 
 lspMain :: IO ()
@@ -62,6 +64,9 @@ processCommand = \case
   Diagnostics path -> do
     diagnostics <- diagnosticsHandler path
     pure (Continue, DiagnosticsResponse diagnostics)
+  UpdateVFS path fileContents -> do
+    vfsSetFile path fileContents
+    pure (Continue, SuccessResponse)
   Shutdown ->
     pure (Stop, ShuttingDown)
 
@@ -76,6 +81,7 @@ readCommand env = liftLSP $
             "hover" -> Just hoverDecoder
             "references" -> Just referencesDecoder
             "diagnostics" -> Just diagnosticsDecoder
+            "update-vfs" -> Just updateVfsDecoder
             "shutdown" -> Nothing
             _ -> Nothing -- TODO return exception?
       case mDecoder of
@@ -92,13 +98,16 @@ readCommand env = liftLSP $
     referencesDecoder = H.object $
       DocumentHighlight
         <$> H.atKey "file" H.string
-        -- <*> H.atKey "contents" H.text
         <*> H.atKey "position" srcPosDecoder
 
     diagnosticsDecoder = H.object $
       Diagnostics
         <$> H.atKey "file" H.string
-        -- <*> H.atKey "contents" H.text
+
+    updateVfsDecoder = H.object $
+      UpdateVFS
+        <$> H.atKey "file" H.string
+        <*> H.atKey "contents" H.text
 
     srcPosDecoder = H.object $
       SourcePos
@@ -138,6 +147,8 @@ sendResponse resp =
           , ("position", srcPosToJSON $ fromMaybe (SourcePos 0 0) mPos)
           , ("error", J.String err)
           ]
+      SuccessResponse ->
+        J.Object $ HM.fromList [("success", J.Boolean True)]
       ShuttingDown ->
         J.Object $ HM.fromList [("shutdown", J.Boolean True)]
 
