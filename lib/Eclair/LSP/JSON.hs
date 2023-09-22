@@ -27,7 +27,7 @@ commandDecoder = H.object $ do
   cmdType <- H.atKey "type" H.text
   let mDecoder = case cmdType of
         "hover" -> Just hoverDecoder
-        "references" -> Just referencesDecoder
+        "document-highlight" -> Just referencesDecoder
         "diagnostics" -> Just diagnosticsDecoder
         "update-vfs" -> Just updateVfsDecoder
         "shutdown" -> Nothing
@@ -66,34 +66,48 @@ srcPosDecoder = H.object $
     <$> H.atKey "line" H.int
     <*> H.atKey "column" H.int
 
+successResponse :: Text -> J.JSON -> J.JSON
+successResponse responseKey response =
+  J.Object [
+    ("type", J.String "success"),
+    (responseKey, response)
+  ]
+
+errorResponse :: J.JSON -> J.JSON
+errorResponse response =
+  J.Object [
+    ("type", J.String "error"),
+    ("error", response)
+  ]
+
 responseToJSON :: Response -> J.JSON
 responseToJSON = \case
   HoverResponse (HoverOk srcSpan ty) ->
-    J.Object
+    successResponse "hover" $ J.Object
       [ ("location", srcSpanToJSON srcSpan)
       , ("type", typeToJSON ty)
       ]
   HoverResponse (HoverError path pos err) ->
-    J.Object
+    errorResponse $ J.Object
       [ ("file", J.String $ toText path)
       , ("position", srcPosToJSON pos)
-      , ("error", J.String err)
+      , ("message", J.String err)
       ]
   DocumentHighlightResponse (DocHLOk refs) ->
-    J.Array $ map srcSpanToJSON refs
+    successResponse "highlights" $ J.Array $ map srcSpanToJSON refs
   DocumentHighlightResponse (DocHLError path pos err) ->
-    J.Object
+    errorResponse $ J.Object
       [ ("file", J.String $ toText path)
       , ("position", srcPosToJSON pos)
-      , ("error", J.String err)
+      , ("message", J.String err)
       ]
   DiagnosticsResponse (DiagnosticsOk diagnostics) ->
-    J.Array $ map diagnosticToJSON diagnostics
+    successResponse "diagnostics" $ J.Array $ map diagnosticToJSON diagnostics
   DiagnosticsResponse (DiagnosticsError path mPos err) ->
-    J.Object
+    errorResponse $ J.Object
       [ ("file", J.String $ toText path)
       , ("position", srcPosToJSON $ fromMaybe (SourcePos 0 0) mPos)
-      , ("error", J.String err)
+      , ("message", J.String err)
       ]
   SuccessResponse ->
     J.Object [("success", J.Boolean True)]
