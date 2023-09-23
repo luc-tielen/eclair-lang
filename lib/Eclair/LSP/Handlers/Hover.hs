@@ -17,13 +17,12 @@ data HoverResult
 
 hoverHandler :: FilePath -> SourcePos -> LspM HoverResult
 hoverHandler path srcPos = do
-  let srcPos0 = toMachineSrcPos srcPos
   mFileContents <- lift $ vfsLookupFile path
   case mFileContents of
     Nothing ->
       pure $ HoverError path srcPos "File not found in VFS!"
     Just fileContents ->
-      case posToOffset srcPos0 fileContents of
+      case posToOffset srcPos fileContents of
         Left err ->
           pure $ HoverError path srcPos err
         Right fileOffset -> do

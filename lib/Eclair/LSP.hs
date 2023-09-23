@@ -63,7 +63,9 @@ readCommand env = liftLSP $
 
 sendResponse :: Response -> LspM ()
 sendResponse resp =
-  liftLSP $ TIO.hPutStrLn stdout txt
+  liftLSP $ do
+    TIO.hPutStrLn stdout txt
+    hFlush stdout
   where
     txt = J.encodeJSON json
     json = responseToJSON resp

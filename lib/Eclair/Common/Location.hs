@@ -64,7 +64,7 @@ lookupNodeId (SpanMap _ m) offset =
 
 -- Helpers for producing error messages:
 
--- Line and column information. 1-based!
+-- Line and column information. 0-based!
 data SourcePos
   = SourcePos
   { sourcePosLine :: {-# UNPACK #-} !Int
@@ -90,8 +90,8 @@ spanToSourceSpan path text span'@(Span begin end) =
       beginPos' <- P.getSourcePos
       _ <- P.takeP Nothing diff
       endPos' <- P.getSourcePos
-      let beginSourcePos = SourcePos (line beginPos') (column beginPos')
-          endSourcePos = SourcePos (line endPos') (column endPos')
+      let beginSourcePos = SourcePos (line beginPos' - 1) (column beginPos' - 1)
+          endSourcePos = SourcePos (line endPos' - 1) (column endPos' - 1)
       pure $ SourceSpan path beginSourcePos endSourcePos
       where
         diff = end - begin

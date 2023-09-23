@@ -573,7 +573,7 @@ prettyError useColor =
     tabSpaces = 2
 
 startOfFile :: FilePath -> Position
-startOfFile = Position (1, 1) (1, 2)
+startOfFile = Position (0, 0) (0, 1)
 
 style :: Style
 style = reAnnotate style'

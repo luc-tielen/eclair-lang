@@ -15,13 +15,12 @@ data DocHLResult
 
 documentHighlightHandler :: FilePath -> SourcePos -> LspM DocHLResult
 documentHighlightHandler path srcPos = do
-  let srcPos0 = toMachineSrcPos srcPos
   mFileContents <- lift $ vfsLookupFile path
   case mFileContents of
     Nothing ->
       pure $ DocHLError path srcPos "File not found in VFS!"
     Just fileContents ->
-      case posToOffset srcPos0 fileContents of
+      case posToOffset srcPos fileContents of
         Left err ->
           pure $ DocHLError path srcPos err
         Right fileOffset -> do
