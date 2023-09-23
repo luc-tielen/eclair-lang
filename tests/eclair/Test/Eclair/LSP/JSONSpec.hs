@@ -111,7 +111,7 @@ spec = describe "LSP JSON processing" $ parallel $ do
       |]
 
   describe "JSON decoding" $ parallel $ do
-    it "can decode a command from JSON" $ do
+    it "can decode hover command from JSON" $ do
       decodesAs
         commandDecoder
         [text|
@@ -125,7 +125,7 @@ spec = describe "LSP JSON processing" $ parallel $ do
         |]
         (Hover "/tmp/file.eclair" (SourcePos 100 22))
 
-    it "can decode a command from JSON" $ do
+    it "can decode document-highlight command from JSON" $ do
       decodesAs
         commandDecoder
         [text|
@@ -139,7 +139,7 @@ spec = describe "LSP JSON processing" $ parallel $ do
         |]
         (DocumentHighlight "/tmp/file.eclair" (SourcePos 100 22))
 
-    it "can decode a command from JSON" $ do
+    it "can decode diagnostics command from JSON" $ do
       decodesAs
         commandDecoder
         [text|
@@ -152,7 +152,7 @@ spec = describe "LSP JSON processing" $ parallel $ do
         |]
         (Diagnostics "/tmp/file.eclair")
 
-    it "can decode a command from JSON" $ do
+    it "can decode update-vfs command from JSON" $ do
       decodesAs
         commandDecoder
         [text|
