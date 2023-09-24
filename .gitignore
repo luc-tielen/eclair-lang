@@ -1,7 +1,6 @@
 dist-newstyle/
 dist/
 .direnv/
-.devcontainer/
 cabal.project.local*
 
 *.ll
