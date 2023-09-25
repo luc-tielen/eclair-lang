@@ -471,13 +471,12 @@ sourceSpanToPosition sourceSpan =
 
 positionToLocation :: Position -> Location
 positionToLocation position =
-  let locStart = uncurry Pos (bimap addOffset addOffset $ begin position)
-      locEnd = uncurry Pos (bimap addOffset addOffset $ end position)
+  let locStart = uncurry Pos (both fromIntegral $ begin position)
+      locEnd = uncurry Pos (both fromIntegral $ end position)
    in Location (file position) locStart locEnd
-  where
-    -- Diagnose is 1-based, Eclair is 0-based.
-    addOffset :: Int -> Word32
-    addOffset x = fromIntegral (x - 1)
+
+both :: (a -> b) -> (a, a) -> (b, b)
+both f = bimap f f
 
 renderType :: Type -> Text
 renderType ty =
@@ -552,8 +551,7 @@ errReportsWithLocationsFromBundle msg errBundle =
       in (report, positionToLocation source)
 
     fromSourcePos sourcePos =
-      let both f = bimap f f
-          begin' = both (fromIntegral . P.unPos) (P.sourceLine sourcePos, P.sourceColumn sourcePos)
+      let begin' = both (fromIntegral . P.unPos) (P.sourceLine sourcePos, P.sourceColumn sourcePos)
           end' = second (+ 1) begin'
        in Position begin' end' (P.sourceName sourcePos)
 
