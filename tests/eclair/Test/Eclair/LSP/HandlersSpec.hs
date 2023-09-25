@@ -20,15 +20,15 @@ hoverSpec :: Spec
 hoverSpec = describe "Hover action" $ do
   it "reports types on hover" $ do
     let file = fixture "hover.eclair"
-        srcPos1 = SourcePos 6 8  -- 1-indexed, same as editor!
-        srcPos2 = SourcePos 12 10
+        srcPos1 = SourcePos 5 7  -- 0-indexed!
+        srcPos2 = SourcePos 11 9
     (result1, result2) <- withLSP (Just file) $ do
       (,) <$> hoverHandler file srcPos1
           <*> hoverHandler file srcPos2
     result1 `shouldBe`
-      HoverOk (SourceSpan file (SourcePos 6 8) (SourcePos 6 9)) U32
+      HoverOk (SourceSpan file (SourcePos 5 7) (SourcePos 5 8)) U32
     result2 `shouldBe`
-      HoverOk (SourceSpan file (SourcePos 12 9) (SourcePos 12 14)) Str
+      HoverOk (SourceSpan file (SourcePos 11 8) (SourcePos 11 13)) Str
 
   it "returns an error if file not found in vfs" $ do
     let file = "not_found.eclair"
@@ -64,24 +64,24 @@ documentHighlightSpec :: Spec
 documentHighlightSpec = describe "Document highlight action" $ do
   it "highlights the same identifiers in scope" $ do
     let file = fixture "document_highlight.eclair"
-        srcPos1 = SourcePos 7 11 -- x
-        srcPos2 = SourcePos 7 14 -- y
-        srcPos3 = SourcePos 8 11 -- z
+        srcPos1 = SourcePos 6 10 -- x
+        srcPos2 = SourcePos 6 13 -- y
+        srcPos3 = SourcePos 7 10 -- z
     (result1, result2, result3) <- withLSP (Just file) $ do
       (,,) <$> documentHighlightHandler file srcPos1
            <*> documentHighlightHandler file srcPos2
            <*> documentHighlightHandler file srcPos3
     result1 `shouldBe` DocHLOk
-      [ SourceSpan file (SourcePos 7 11) (SourcePos 7 12)
-      , SourceSpan file (SourcePos 8 8) (SourcePos 8 9)
+      [ SourceSpan file (SourcePos 6 10) (SourcePos 6 11)
+      , SourceSpan file (SourcePos 7 7) (SourcePos 7 8)
       ]
     result2 `shouldBe` DocHLOk
-      [ SourceSpan file (SourcePos 7 14) (SourcePos 7 15)
-      , SourceSpan file (SourcePos 9 16) (SourcePos 9 17)
+      [ SourceSpan file (SourcePos 6 13) (SourcePos 6 14)
+      , SourceSpan file (SourcePos 8 15) (SourcePos 8 16)
       ]
     result3 `shouldBe` DocHLOk
-      [ SourceSpan file (SourcePos 8 11) (SourcePos 8 12)
-      , SourceSpan file (SourcePos 9 13) (SourcePos 9 14)
+      [ SourceSpan file (SourcePos 7 10) (SourcePos 7 11)
+      , SourceSpan file (SourcePos 8 12) (SourcePos 8 13)
       ]
 
   it "returns an error if file not found in vfs" $ do
