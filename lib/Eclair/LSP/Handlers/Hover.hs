@@ -60,7 +60,7 @@ hoverHandler path srcPos = do
         Nothing ->
           pure $ HoverError path srcPos "File contains errors!"
         Just issue -> do
-          let msg = renderIssueMessage path fileContents issue
+          let msg = renderIssueMessage LSP path fileContents issue
           pure $ HoverError path srcPos msg
 
     findIssueAtPosition issues =

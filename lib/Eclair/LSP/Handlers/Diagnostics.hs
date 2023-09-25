@@ -53,7 +53,7 @@ diagnosticsHandler path = do
       traverse (toDiagnostic fileContents source) issues
 
     toDiagnostic fileContents source issue = do
-      let msg = renderIssueMessage path fileContents issue
+      let msg = renderIssueMessage LSP path fileContents issue
           srcSpan = locationToSourceSpan $ issueLocation issue
       pure $ Diagnostic source srcSpan Error msg
 

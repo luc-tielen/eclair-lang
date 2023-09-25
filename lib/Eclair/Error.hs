@@ -6,6 +6,7 @@ module Eclair.Error
   , Issue(..)
   , Location(..)
   , Pos(..)
+  , ReportingMode(..)
   , posToSourcePos
   , locationToSourceSpan
   , handleErrorsCLI
@@ -31,6 +32,10 @@ data EclairError
   | TypeErr FilePath SpanMap [TypeError NodeId]
   | SemanticErr FilePath SpanMap (SemanticErrors NodeId)
   | ConversionErr FilePath SpanMap (ConversionError NodeId)
+
+data ReportingMode
+  = CLI
+  | LSP
 
 -- TODO refactor using an error reporting monad?
 
@@ -113,12 +118,24 @@ data Issue
   , issueLocation :: Location
   }
 
-renderIssueMessage :: FilePath -> Text -> Issue -> Text
-renderIssueMessage file' content issue =
-  let report = addReport def $ issueMessage issue
-      diagnostic = addFile report file' (toString content)
-      doc = unAnnotate $ prettyError Nothing diagnostic
-   in renderStrict . layoutSmart defaultLayoutOptions $ doc
+renderIssueMessage :: ReportingMode -> FilePath -> Text -> Issue -> Text
+renderIssueMessage mode file' content issue =
+  case mode of
+    CLI ->
+      let report = addReport def $ issueMessage issue
+          diagnostic = addFile report file' (toString content)
+          doc = unAnnotate $ prettyError Nothing diagnostic
+      in renderStrict . layoutSmart defaultLayoutOptions $ doc
+    LSP ->
+      -- TODO split off into separate helper function, to generate a
+      -- diagnostic per line of the report (like in Rust).
+      let report = issueMessage issue
+      in getReportTitle report
+
+getReportTitle :: Report Text -> Text
+getReportTitle = \case
+  Err _ summary _ _ -> summary
+  Warn _ summary _ _ -> summary
 
 -- A helper function that can be used from the LSP. Splits all errors into
 -- separate issues for most flexibility and fine-grained reporting.
@@ -532,7 +549,8 @@ instance HasMainErrorPosition (ConversionError Position) where
 
 -- Helper function to transform a Megaparsec error bundle into multiple reports
 -- Extracted from the Diagnose library, and simplified for usage in Eclair.
-errReportsWithLocationsFromBundle :: Text -> P.ParseErrorBundle Text CustomParseErr -> [(Report Text, Location)]
+errReportsWithLocationsFromBundle
+  :: Text -> P.ParseErrorBundle Text CustomParseErr -> [(Report Text, Location)]
 errReportsWithLocationsFromBundle msg errBundle =
   toList (addLabelAndLocation <$> P.bundleErrors errBundle)
   where
