@@ -15,6 +15,7 @@ module Prelude
   , map
   , panic
   , groupBy
+  , modifyMVar_
   , uniqOrderPreserving
   ) where
 
@@ -25,6 +26,7 @@ import Relude hiding ( Type, Constraint, Op
 import Control.Arrow hiding (second, loop, (<+>))
 import Control.Comonad
 import Control.Category
+import Control.Concurrent.MVar (modifyMVar_)
 import Control.Monad.Writer.Strict hiding (pass)
 import Control.Monad.RWS.Strict hiding (pass)
 import Control.Monad.Except

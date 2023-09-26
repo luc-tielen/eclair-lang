@@ -1,0 +1,12 @@
+@def edge(u32, u32).
+@def reachable(string, u32).
+@def literal(u32).
+
+reachable(x, y) :-
+  edge(x, y).
+
+reachable(x, z) :-
+  edge(x, y),
+  reachable(y, z).
+
+literal("abc").

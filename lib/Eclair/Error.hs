@@ -6,6 +6,8 @@ module Eclair.Error
   , Issue(..)
   , Location(..)
   , Pos(..)
+  , posToSourcePos
+  , locationToSourceSpan
   , handleErrorsCLI
   , errorToIssues
   , renderIssueMessage
@@ -55,7 +57,7 @@ handleErrorsCLI e = do
 
       TypeErr file' spanMap errs -> do
         content <- decodeUtf8 <$> readFileBS file'
-        let errsWithPositions = getSourcePos file' content spanMap <<$>> errs
+        let errsWithPositions = getSourcePosCLI file' content spanMap <<$>> errs
             reports = map typeErrorToReport errsWithPositions
             diagnostic = foldl' addReport def reports
             diagnostic' = addFile diagnostic file' (toString content)
@@ -63,7 +65,7 @@ handleErrorsCLI e = do
 
       SemanticErr file' spanMap semanticErr -> do
         content <- decodeUtf8 <$> readFileBS file'
-        let semanticErrsWithPositions = map (getSourcePos file' content spanMap) semanticErr
+        let semanticErrsWithPositions = map (getSourcePosCLI file' content spanMap) semanticErr
             reports = map fst $ semanticErrorsToReportsWithLocations semanticErrsWithPositions
             diagnostic = foldl' addReport def reports
             diagnostic' = addFile diagnostic file' (toString content)
@@ -71,7 +73,7 @@ handleErrorsCLI e = do
 
       ConversionErr file' spanMap conversionErr -> do
         content <- decodeUtf8 <$> readFileBS file'
-        let errWithPosition = map (getSourcePos file' content spanMap) conversionErr
+        let errWithPosition = map (getSourcePosCLI file' content spanMap) conversionErr
             report = conversionErrorToReport errWithPosition
             diagnostic = addReport def report
             diagnostic' = addFile diagnostic file' (toString content)
@@ -84,6 +86,10 @@ data Pos
   , posColumn :: {-# UNPACK #-} !Word32
   }
 
+posToSourcePos :: Pos -> SourcePos
+posToSourcePos (Pos l c) =
+  SourcePos (fromIntegral l) (fromIntegral c)
+
 -- Actual location in the code (a range).
 -- Contains the file, start and end of the position.
 data Location
@@ -93,6 +99,13 @@ data Location
   , locationEnd :: {-# UNPACK #-} !Pos
   }
 
+locationToSourceSpan :: Location -> SourceSpan
+locationToSourceSpan loc =
+  SourceSpan (locationFile loc) posBegin posEnd
+  where
+    posBegin = posToSourcePos $ locationStart loc
+    posEnd = posToSourcePos $ locationEnd loc
+
 -- A helper type for referring to an issue at a location.
 data Issue
   = Issue
@@ -100,12 +113,16 @@ data Issue
   , issueLocation :: Location
   }
 
-renderIssueMessage :: FilePath -> Text -> Issue -> Text
-renderIssueMessage file' content issue =
-  let report = addReport def $ issueMessage issue
-      diagnostic = addFile report file' (toString content)
-      doc = unAnnotate $ prettyError Nothing diagnostic
-   in renderStrict . layoutSmart defaultLayoutOptions $ doc
+renderIssueMessage :: Issue -> Text
+renderIssueMessage issue =
+  -- TODO generate a diagnostic per line of the report (like in Rust).
+  let report = issueMessage issue
+  in getReportTitle report
+
+getReportTitle :: Report Text -> Text
+getReportTitle = \case
+  Err _ summary _ _ -> summary
+  Warn _ summary _ _ -> summary
 
 -- A helper function that can be used from the LSP. Splits all errors into
 -- separate issues for most flexibility and fine-grained reporting.
@@ -448,6 +465,16 @@ getSourcePos file' fileContent spanMap nodeId =
   let span' = lookupSpan spanMap nodeId
    in sourceSpanToPosition $ spanToSourceSpan file' fileContent span'
 
+-- Diagnose is 1-based, Eclair 0-based
+-- TODO get rid of this hack (and diagnose alltogether)
+getSourcePosCLI :: FilePath -> Text -> SpanMap -> NodeId -> Position
+getSourcePosCLI file' fileContent spanMap nodeId =
+  addOffset $ getSourcePos file' fileContent spanMap nodeId
+  where
+    addOffset pos =
+      Position (both (+1) $ begin pos) (both (+1) $ end pos) (file pos)
+
+
 sourceSpanToPosition :: SourceSpan -> Position
 sourceSpanToPosition sourceSpan =
   let beginPos' = sourceSpanBegin sourceSpan
@@ -458,13 +485,12 @@ sourceSpanToPosition sourceSpan =
 
 positionToLocation :: Position -> Location
 positionToLocation position =
-  let locStart = uncurry Pos (bimap addOffset addOffset $ begin position)
-      locEnd = uncurry Pos (bimap addOffset addOffset $ end position)
+  let locStart = uncurry Pos (both fromIntegral $ begin position)
+      locEnd = uncurry Pos (both fromIntegral $ end position)
    in Location (file position) locStart locEnd
-  where
-    -- Diagnose is 1-based, Eclair is 0-based.
-    addOffset :: Int -> Word32
-    addOffset x = fromIntegral (x - 1)
+
+both :: (a -> b) -> (a, a) -> (b, b)
+both f = bimap f f
 
 renderType :: Type -> Text
 renderType ty =
@@ -478,6 +504,7 @@ class HasMainErrorPosition a where
   mainErrorPosition :: a -> Position
 instance HasMainErrorPosition (NoOutputRelation Position) where
   mainErrorPosition (NoOutputRelation pos) = startOfFile $ file pos
+    where startOfFile = Position (1, 1) (1, 2)  -- Diagnose is 1-based!
 instance HasMainErrorPosition (DeadInternalRelation Position) where
   mainErrorPosition (DeadInternalRelation pos _) = pos
 instance HasMainErrorPosition (WildcardInConstraint Position) where
@@ -520,7 +547,8 @@ instance HasMainErrorPosition (ConversionError Position) where
 
 -- Helper function to transform a Megaparsec error bundle into multiple reports
 -- Extracted from the Diagnose library, and simplified for usage in Eclair.
-errReportsWithLocationsFromBundle :: Text -> P.ParseErrorBundle Text CustomParseErr -> [(Report Text, Location)]
+errReportsWithLocationsFromBundle
+  :: Text -> P.ParseErrorBundle Text CustomParseErr -> [(Report Text, Location)]
 errReportsWithLocationsFromBundle msg errBundle =
   toList (addLabelAndLocation <$> P.bundleErrors errBundle)
   where
@@ -539,8 +567,7 @@ errReportsWithLocationsFromBundle msg errBundle =
       in (report, positionToLocation source)
 
     fromSourcePos sourcePos =
-      let both f = bimap f f
-          begin' = both (fromIntegral . P.unPos) (P.sourceLine sourcePos, P.sourceColumn sourcePos)
+      let begin' = both (fromIntegral . P.unPos) (P.sourceLine sourcePos, P.sourceColumn sourcePos)
           end' = second (+ 1) begin'
        in Position begin' end' (P.sourceName sourcePos)
 
@@ -558,9 +585,6 @@ prettyError useColor =
         else unAnnotate
     useUnicode = True
     tabSpaces = 2
-
-startOfFile :: FilePath -> Position
-startOfFile = Position (1, 1) (1, 2)
 
 style :: Style
 style = reAnnotate style'

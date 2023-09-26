@@ -1,4 +1,4 @@
-@def number(u32).
+@def number(u32) output.
 
 number(123, ).
 number(456).

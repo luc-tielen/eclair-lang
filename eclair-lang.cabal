@@ -55,6 +55,8 @@ library
     Eclair.EIR.Lower.Codegen
     Eclair.EIR.Lower.Externals
     Eclair.Error
+    Eclair.JSON
+    Eclair.LLVM.Allocator.Arena
     Eclair.LLVM.Allocator.Common
     Eclair.LLVM.Allocator.Malloc
     Eclair.LLVM.Allocator.Page
@@ -79,6 +81,15 @@ library
     Eclair.LLVM.Table
     Eclair.LLVM.Template
     Eclair.LLVM.Vector
+    Eclair.LSP
+    Eclair.LSP.Handlers
+    Eclair.LSP.Handlers.Diagnostics
+    Eclair.LSP.Handlers.DocumentHighlight
+    Eclair.LSP.Handlers.Hover
+    Eclair.LSP.JSON
+    Eclair.LSP.Monad
+    Eclair.LSP.Types
+    Eclair.LSP.VFS
     Eclair.Parser
     Eclair.RA.Codegen
     Eclair.RA.IndexSelection
@@ -127,9 +138,12 @@ library
     , containers                   <1
     , dependent-sum                >=0.6   && <1
     , diagnose                     >=2.3   && <2.4
+    , directory                    >=1     && <2
     , dlist                        >=1     && <2
     , exceptions                   >=0.10  && <0.11
     , extra                        >=1     && <2
+    , ghc-prim                     <1
+    , hermes-json                  <1
     , llvm-codegen
     , megaparsec                   >=9     && <10
     , mmorph                       >=1     && <2
@@ -143,6 +157,7 @@ library
     , rock                         >=0.3   && <0.4
     , souffle-haskell              ==4.0.0
     , text                         >=2     && <3
+    , text-builder-linear          <1
     , transformers                 <1
     , vector                       >=0.12  && <0.13
 
@@ -232,176 +247,18 @@ executable eclair
     ghc-options:   -fplugin=StackTrace.Plugin
     build-depends: haskell-stack-trace-plugin ==0.1.3.0
 
-executable eclair-lsp-server
-  main-is:            Main.hs
-  other-modules:
-    Eclair.LSP
-    Eclair.LSP.Diagnostics
-    Eclair.LSP.Handlers
-    Eclair.LSP.Monad
-    Paths_eclair_lang
-
-  autogen-modules:    Paths_eclair_lang
-  hs-source-dirs:     src/lsp
-  default-extensions:
-    DataKinds
-    DeriveAnyClass
-    DeriveFoldable
-    DeriveFunctor
-    DeriveGeneric
-    DeriveTraversable
-    DerivingStrategies
-    DerivingVia
-    FlexibleContexts
-    FlexibleInstances
-    KindSignatures
-    LambdaCase
-    OverloadedStrings
-    PatternSynonyms
-    RankNTypes
-    RecursiveDo
-    ScopedTypeVariables
-    TupleSections
-    TypeFamilies
-    ViewPatterns
-
-  ghc-options:
-    -Wall -Wincomplete-patterns -fhide-source-paths
-    -fno-show-valid-hole-fits -fno-sort-valid-hole-fits -threaded
-    -rtsopts -with-rtsopts=-N -Wall
-
-  cxx-options:        -std=c++17 -D__EMBEDDED_SOUFFLE__
-  build-depends:
-    , aeson
-    , algebraic-graphs             <1
-    , base                         >=4.7   && <5
-    , bytestring                   >=0.11  && <0.12
-    , comonad                      >=5     && <6
-    , containers                   <1
-    , data-default                 >=0.7   && <0.8
-    , dependent-sum                >=0.6   && <1
-    , diagnose                     >=2.3   && <2.4
-    , directory                    >=1     && <2
-    , dlist                        >=1     && <2
-    , eclair-lang
-    , exceptions                   >=0.10  && <0.11
-    , extra                        >=1     && <2
-    , filepath                     >=1.4   && <1.5
-    , hslogger                     >=1.3   && <1.4
-    , lens                         >=5.2   && <5.3
-    , llvm-codegen
-    , lsp                          >=1.4   && <1.5
-    , lsp-types                    >=1.4   && <1.5
-    , megaparsec                   >=9     && <10
-    , mmorph                       >=1     && <2
-    , mtl                          >=2     && <3
-    , optparse-applicative         >=0.16  && <0.17
-    , parser-combinators           >=1.3   && <1.4
-    , prettyprinter                >=1.7   && <1.8
-    , prettyprinter-ansi-terminal  >=1     && <2
-    , recursion-schemes            >=5     && <6
-    , relude                       >=1.2   && <1.3
-    , rock                         >=0.3   && <0.4
-    , rope-utf16-splay             >=0.4   && <0.5
-    , souffle-haskell              ==4.0.0
-    , text                         >=2     && <3
-    , transformers                 <1
-    , vector                       >=0.12  && <0.13
-
-  mixins:             base hiding (Prelude)
-  default-language:   Haskell2010
-
-  if os(osx)
-    extra-libraries: c++
-
-  if flag(debug)
-    ghc-options:   -fplugin=StackTrace.Plugin
-    build-depends: haskell-stack-trace-plugin ==0.1.3.0
-
-test-suite eclair-lsp-test
-  type:               exitcode-stdio-1.0
-  main-is:            Main.hs
-  other-modules:      Paths_eclair_lang
-  autogen-modules:    Paths_eclair_lang
-  hs-source-dirs:     tests/lsp
-  default-extensions:
-    DataKinds
-    DeriveAnyClass
-    DeriveFoldable
-    DeriveFunctor
-    DeriveGeneric
-    DeriveTraversable
-    DerivingStrategies
-    DerivingVia
-    FlexibleContexts
-    FlexibleInstances
-    KindSignatures
-    LambdaCase
-    OverloadedStrings
-    PatternSynonyms
-    RankNTypes
-    RecursiveDo
-    ScopedTypeVariables
-    TupleSections
-    TypeFamilies
-    ViewPatterns
-
-  ghc-options:
-    -Wall -Wincomplete-patterns -fhide-source-paths
-    -fno-show-valid-hole-fits -fno-sort-valid-hole-fits
-
-  cxx-options:        -std=c++17 -D__EMBEDDED_SOUFFLE__
-  build-tool-depends: eclair-lang:eclair-lsp-server
-  build-depends:
-    , algebraic-graphs             <1
-    , base                         >=4.7   && <5
-    , bytestring                   >=0.11  && <0.12
-    , comonad                      >=5     && <6
-    , containers                   <1
-    , dependent-sum                >=0.6   && <1
-    , diagnose                     >=2.3   && <2.4
-    , dlist                        >=1     && <2
-    , eclair-lang
-    , exceptions                   >=0.10  && <0.11
-    , extra                        >=1     && <2
-    , hspec                        >=2.6.1 && <3.0.0
-    , llvm-codegen
-    , lsp                          >=1.4   && <1.5
-    , lsp-test                     >=0.14  && <0.15
-    , lsp-types                    >=1.4   && <1.5
-    , megaparsec                   >=9     && <10
-    , mmorph                       >=1     && <2
-    , mtl                          >=2     && <3
-    , optparse-applicative         >=0.16  && <0.17
-    , parser-combinators           >=1.3   && <1.4
-    , prettyprinter                >=1.7   && <1.8
-    , prettyprinter-ansi-terminal  >=1     && <2
-    , recursion-schemes            >=5     && <6
-    , relude                       >=1.2   && <1.3
-    , rock                         >=0.3   && <0.4
-    , rope-utf16-splay             >=0.4   && <0.5
-    , souffle-haskell              ==4.0.0
-    , text                         >=2     && <3
-    , transformers                 <1
-    , vector                       >=0.12  && <0.13
-
-  mixins:             base hiding (Prelude)
-  default-language:   Haskell2010
-
-  if os(osx)
-    extra-libraries: c++
-
-  if flag(debug)
-    ghc-options:   -fplugin=StackTrace.Plugin
-    build-depends: haskell-stack-trace-plugin ==0.1.3.0
-
 test-suite eclair-test
   type:               exitcode-stdio-1.0
   main-is:            test.hs
+
+  -- cabal-fmt: expand tests/eclair
   other-modules:
     Paths_eclair_lang
     Test.Eclair.ArgParserSpec
+    Test.Eclair.JSONSpec
     Test.Eclair.LLVM.HashSpec
+    Test.Eclair.LSP.HandlersSpec
+    Test.Eclair.LSP.JSONSpec
     Test.Eclair.RA.IndexSelectionSpec
 
   autogen-modules:    Paths_eclair_lang
@@ -447,6 +304,7 @@ test-suite eclair-test
     , extra                        >=1     && <2
     , filepath                     >=1     && <2
     , hedgehog                     >=1     && <2
+    , hermes-json                  <1
     , hspec                        >=2.6.1 && <3.0.0
     , hspec-hedgehog               <1
     , llvm-codegen
