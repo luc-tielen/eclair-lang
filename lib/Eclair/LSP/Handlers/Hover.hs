@@ -35,7 +35,7 @@ hoverHandler path srcPos = do
         (ast, spanMap,) <$> ExceptT (liftLSP $ typeCheck params path)
       case tcResult of
         Left errs ->
-          processErrors fileContents errs
+          processErrors errs
         Right (_, spanMap, typeInfo) ->
           processTypeInfo fileContents fileOffset spanMap typeInfo
 
@@ -52,7 +52,7 @@ hoverHandler path srcPos = do
               srcSpan = spanToSourceSpan path fileContents span'
           pure $ HoverOk srcSpan ty
 
-    processErrors fileContents errs = do
+    processErrors errs = do
       vfsVar <- lift getVfsVar
       vfs <- liftIO $ readMVar vfsVar
       issues <- traverse (liftLSP . errorToIssues (unsafeReadFromVFS vfs)) errs
@@ -60,7 +60,7 @@ hoverHandler path srcPos = do
         Nothing ->
           pure $ HoverError path srcPos "File contains errors!"
         Just issue -> do
-          let msg = renderIssueMessage LSP path fileContents issue
+          let msg = renderIssueMessage issue
           pure $ HoverError path srcPos msg
 
     findIssueAtPosition issues =

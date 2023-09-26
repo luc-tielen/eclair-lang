@@ -38,22 +38,22 @@ diagnosticsHandler path = do
   case mFileContents of
     Nothing ->
       pure $ DiagnosticsError path Nothing "File not found in VFS!"
-    Just fileContents -> do
+    Just _fileContents -> do
       errs <- liftLSP $ emitDiagnostics params path
-      diagnostics <- mconcat <$> traverse (errorToDiagnostics fileContents) errs
+      diagnostics <- mconcat <$> traverse errorToDiagnostics errs
       pure $ DiagnosticsOk diagnostics
   where
-    errorToDiagnostics :: Text -> EclairError -> LspM [Diagnostic]
-    errorToDiagnostics fileContents err = do
+    errorToDiagnostics :: EclairError -> LspM [Diagnostic]
+    errorToDiagnostics err = do
       vfsVar <- lift getVfsVar
       vfs <- liftIO $ readMVar vfsVar
       let readSourceFile = unsafeReadFromVFS vfs
           source = diagnosticSource err
       issues <- liftLSP $ errorToIssues readSourceFile err
-      traverse (toDiagnostic fileContents source) issues
+      traverse (toDiagnostic source) issues
 
-    toDiagnostic fileContents source issue = do
-      let msg = renderIssueMessage LSP path fileContents issue
+    toDiagnostic source issue = do
+      let msg = renderIssueMessage issue
           srcSpan = locationToSourceSpan $ issueLocation issue
       pure $ Diagnostic source srcSpan Error msg
 

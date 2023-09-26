@@ -6,7 +6,6 @@ module Eclair.Error
   , Issue(..)
   , Location(..)
   , Pos(..)
-  , ReportingMode(..)
   , posToSourcePos
   , locationToSourceSpan
   , handleErrorsCLI
@@ -33,10 +32,6 @@ data EclairError
   | SemanticErr FilePath SpanMap (SemanticErrors NodeId)
   | ConversionErr FilePath SpanMap (ConversionError NodeId)
 
-data ReportingMode
-  = CLI
-  | LSP
-
 -- TODO refactor using an error reporting monad?
 
 -- Handle errors when running in the CLI.
@@ -62,7 +57,7 @@ handleErrorsCLI e = do
 
       TypeErr file' spanMap errs -> do
         content <- decodeUtf8 <$> readFileBS file'
-        let errsWithPositions = getSourcePos file' content spanMap <<$>> errs
+        let errsWithPositions = getSourcePosCLI file' content spanMap <<$>> errs
             reports = map typeErrorToReport errsWithPositions
             diagnostic = foldl' addReport def reports
             diagnostic' = addFile diagnostic file' (toString content)
@@ -70,7 +65,7 @@ handleErrorsCLI e = do
 
       SemanticErr file' spanMap semanticErr -> do
         content <- decodeUtf8 <$> readFileBS file'
-        let semanticErrsWithPositions = map (getSourcePos file' content spanMap) semanticErr
+        let semanticErrsWithPositions = map (getSourcePosCLI file' content spanMap) semanticErr
             reports = map fst $ semanticErrorsToReportsWithLocations semanticErrsWithPositions
             diagnostic = foldl' addReport def reports
             diagnostic' = addFile diagnostic file' (toString content)
@@ -78,7 +73,7 @@ handleErrorsCLI e = do
 
       ConversionErr file' spanMap conversionErr -> do
         content <- decodeUtf8 <$> readFileBS file'
-        let errWithPosition = map (getSourcePos file' content spanMap) conversionErr
+        let errWithPosition = map (getSourcePosCLI file' content spanMap) conversionErr
             report = conversionErrorToReport errWithPosition
             diagnostic = addReport def report
             diagnostic' = addFile diagnostic file' (toString content)
@@ -118,19 +113,11 @@ data Issue
   , issueLocation :: Location
   }
 
-renderIssueMessage :: ReportingMode -> FilePath -> Text -> Issue -> Text
-renderIssueMessage mode file' content issue =
-  case mode of
-    CLI ->
-      let report = addReport def $ issueMessage issue
-          diagnostic = addFile report file' (toString content)
-          doc = unAnnotate $ prettyError Nothing diagnostic
-      in renderStrict . layoutSmart defaultLayoutOptions $ doc
-    LSP ->
-      -- TODO split off into separate helper function, to generate a
-      -- diagnostic per line of the report (like in Rust).
-      let report = issueMessage issue
-      in getReportTitle report
+renderIssueMessage :: Issue -> Text
+renderIssueMessage issue =
+  -- TODO generate a diagnostic per line of the report (like in Rust).
+  let report = issueMessage issue
+  in getReportTitle report
 
 getReportTitle :: Report Text -> Text
 getReportTitle = \case
@@ -478,6 +465,16 @@ getSourcePos file' fileContent spanMap nodeId =
   let span' = lookupSpan spanMap nodeId
    in sourceSpanToPosition $ spanToSourceSpan file' fileContent span'
 
+-- Diagnose is 1-based, Eclair 0-based
+-- TODO get rid of this hack (and diagnose alltogether)
+getSourcePosCLI :: FilePath -> Text -> SpanMap -> NodeId -> Position
+getSourcePosCLI file' fileContent spanMap nodeId =
+  addOffset $ getSourcePos file' fileContent spanMap nodeId
+  where
+    addOffset pos =
+      Position (both (+1) $ begin pos) (both (+1) $ end pos) (file pos)
+
+
 sourceSpanToPosition :: SourceSpan -> Position
 sourceSpanToPosition sourceSpan =
   let beginPos' = sourceSpanBegin sourceSpan
@@ -507,6 +504,7 @@ class HasMainErrorPosition a where
   mainErrorPosition :: a -> Position
 instance HasMainErrorPosition (NoOutputRelation Position) where
   mainErrorPosition (NoOutputRelation pos) = startOfFile $ file pos
+    where startOfFile = Position (1, 1) (1, 2)  -- Diagnose is 1-based!
 instance HasMainErrorPosition (DeadInternalRelation Position) where
   mainErrorPosition (DeadInternalRelation pos _) = pos
 instance HasMainErrorPosition (WildcardInConstraint Position) where
@@ -587,9 +585,6 @@ prettyError useColor =
         else unAnnotate
     useUnicode = True
     tabSpaces = 2
-
-startOfFile :: FilePath -> Position
-startOfFile = Position (0, 0) (0, 1)
 
 style :: Style
 style = reAnnotate style'
