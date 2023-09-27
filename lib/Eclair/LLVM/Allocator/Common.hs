@@ -124,7 +124,7 @@ cgAlloc prefix allocator = do
                 $ \[alloc, size] -> do
     ret =<< generateAlloc g alloc size
   freeFn <- function (Name $ prefix <> "_free")
-                [(ptr allocatorTy, "allocator"), (i32, "size")] void
+                [(ptr allocatorTy, "allocator"), (ptr i8, "memory"), (i32, "size")] void
                 $ \[alloc, memory, size] -> do
     generateFree g alloc memory size
   initFn <- function (Name $ prefix <> "_init")
