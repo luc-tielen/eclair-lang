@@ -256,6 +256,7 @@ test-suite eclair-test
     Paths_eclair_lang
     Test.Eclair.ArgParserSpec
     Test.Eclair.JSONSpec
+    Test.Eclair.LLVM.Allocator.MallocSpec
     Test.Eclair.LLVM.HashSpec
     Test.Eclair.LSP.HandlersSpec
     Test.Eclair.LSP.JSONSpec
@@ -307,6 +308,7 @@ test-suite eclair-test
     , hermes-json                  <1
     , hspec                        >=2.6.1 && <3.0.0
     , hspec-hedgehog               <1
+    , libffi                       >=0.2   && <1
     , llvm-codegen
     , megaparsec                   >=9     && <10
     , mmorph                       >=1     && <2
@@ -323,6 +325,7 @@ test-suite eclair-test
     , souffle-haskell              ==4.0.0
     , text                         >=2     && <3
     , transformers                 <1
+    , unix                         >=2.8   && <3
     , vector                       >=0.12  && <0.13
 
   mixins:             base hiding (Prelude)

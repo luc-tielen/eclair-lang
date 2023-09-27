@@ -13,7 +13,7 @@ allocator = mkBaseAllocator mkType allocFn freeFn
 
 mkType :: Text -> AllocCodegenM Type
 mkType prefix =
-  typedef (Name $ prefix <> "mallocator") Off []
+  typedef (Name $ prefix <> "_mallocator") Off []
 
 allocFn :: Operand -> AllocIRCodegenM Operand
 allocFn numBytes = do
