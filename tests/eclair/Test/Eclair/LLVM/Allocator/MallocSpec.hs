@@ -15,76 +15,126 @@ import System.Posix.DynamicLinker
 import Foreign.LibFFI
 import Test.Hspec
 import Control.Exception (bracket)
-import Foreign.Ptr (FunPtr)
+import Foreign.Ptr
+import Foreign.C
+import Foreign (Storable(peek, poke))
 
 
---     p <- callFFI malloc (retPtr retVoid) [argCSize (2^30)]
---     callFFI memset (retPtr retVoid) [argPtr p, argCInt 0, argCSize (2^30)]
---     callFFI memset (retPtr retVoid) [argPtr nullPtr, argCInt 0, argCSize 1]
+type I8 = CUChar
 
-data Alloc
-  = Alloc DL (FunPtr ()) (FunPtr ()) (FunPtr ()) (FunPtr ()) (FunPtr ()) (FunPtr ())
+data Mallocator
+
+data Bindings
+  = Bindings
+  { dynamicLib :: DL
+  , withAlloc :: (Ptr Mallocator -> IO ()) -> IO ()
+  , fnAlloc :: Ptr Mallocator -> CSize -> IO (Ptr I8)
+  , fnFree :: Ptr Mallocator -> Ptr I8 -> CSize -> IO ()
+  , fnInit :: Ptr Mallocator -> IO ()
+  , fnDestroy :: Ptr Mallocator -> IO ()
+  }
 
 spec :: Spec
-spec = fdescribe "Mallocator" $
-  aroundAll (setupAndTeardown testDir) $ do
-    parallel $ do
-      it "can be initialized and destroyed" $ \alloc -> do
-        let Alloc _ newFn deleteFn _ _ initFn destroyFn = alloc
-        mallocator <- callFFI newFn (retPtr retVoid) []
-        callFFI initFn retVoid [argPtr mallocator]
-        callFFI destroyFn retVoid [argPtr mallocator]
-        callFFI deleteFn retVoid [argPtr mallocator]
+spec = describe "Mallocator" $
+  aroundAll (setupAndTeardown testDir) $ parallel $ do
+    it "can be initialized and destroyed" $ \bindings ->
+      withAlloc bindings $ \obj -> do
+        fnInit bindings obj
+        fnDestroy bindings obj
 
-      it "can allocate memory" $ \alloc -> do
-        pending
+    it "can allocate and free memory" $ \bindings -> do
+      let numBytes = 1
+          value = 42
+      withAlloc bindings $ \obj -> do
+        fnInit bindings obj
+        memory <- fnAlloc bindings obj numBytes
+        poke memory value
+        value' <- peek memory
+        fnFree bindings obj memory numBytes
+        fnDestroy bindings obj
+        value' `shouldBe` value
 
-      it "can free memory" $ \alloc -> do
-        pending
-
-setupAndTeardown :: FilePath -> ActionWith Alloc -> IO ()
+setupAndTeardown :: FilePath -> ActionWith Bindings -> IO ()
 setupAndTeardown dir =
   bracket (setup dir) teardown
 
-setup :: FilePath -> IO Alloc
+setup :: FilePath -> IO Bindings
 setup dir = do
   createDirectoryIfMissing False dir
+  compileAllocatorCode dir
+  loadNativeCode dir
+
+teardown :: Bindings -> IO ()
+teardown (Bindings lib _ _ _ _ _) =
+  dlclose lib
+
+compileAllocatorCode :: FilePath -> IO ()
+compileAllocatorCode dir = do
   llvmIR <- runModuleBuilderT $ do
     mallocFn <- extern "malloc" [i32] (ptr i8)
     freeFn <- extern "free" [ptr i8] void
     let exts = Externals mallocFn freeFn notUsed notUsed notUsed notUsed notUsed
         cgBlueprint = flip evalStateT exts $ cgAlloc "mallocator" allocator
     Blueprint ty _ _ _ _ <- hoist intoIO cgBlueprint
-    _ <- function "mallocator_new" [] (ptr ty) $ \[] -> do
+    -- Helper test code for initializing and freeing a struct from native code:
+    _ <- function "mallocator_new" [] (ptr ty) $ \[] ->
       ret =<< call mallocFn [int32 1]
-    _ <- function "mallocator_delete" [(ptr ty, "allocator")] void $ \[alloc] -> do
+    _ <- function "mallocator_delete" [(ptr ty, "allocator")] void $ \[alloc] ->
       call freeFn [alloc]
     pass
   let llvmIRText = ppllvm llvmIR
   writeFileText (llFile dir) llvmIRText
   callProcess "clang" ["-fPIC", "-shared", "-O0", "-o", soFile dir, llFile dir]
-  lib <- dlopen (soFile testDir) [RTLD_LAZY]
+
+testDir :: FilePath
+testDir = "/tmp/eclair-mallocator"
+
+llFile, soFile :: FilePath -> FilePath
+llFile dir = dir </> "allocator.ll"
+soFile dir = dir </> "allocator.so"
+
+loadNativeCode :: FilePath -> IO Bindings
+loadNativeCode dir = do
+  lib <- dlopen (soFile dir) [RTLD_LAZY]
   newFn <- dlsym lib "mallocator_new"
   deleteFn <- dlsym lib "mallocator_delete"
   allocFn <- dlsym lib "mallocator_alloc"
   freeFn <- dlsym lib "mallocator_free"
   initFn <- dlsym lib "mallocator_init"
   destroyFn <- dlsym lib "mallocator_destroy"
-  pure $ Alloc lib newFn deleteFn allocFn freeFn initFn destroyFn
-
-teardown :: Alloc -> IO ()
-teardown (Alloc lib _ _ _ _ _ _) =
-  dlclose lib
+  pure $ Bindings
+    { dynamicLib = lib
+    , withAlloc = mkWithAlloc newFn deleteFn
+    , fnAlloc = mkAlloc allocFn
+    , fnFree = mkFree freeFn
+    , fnInit = mkInit initFn
+    , fnDestroy = mkDestroy destroyFn
+    }
+  where
+    mkAlloc fn mallocator numBytes =
+      callFFI fn (retPtr retCUChar)
+        [ argPtr mallocator
+        , argCSize $ fromIntegral numBytes
+        ]
+    mkFree fn mallocator memory numBytes =
+      callFFI fn retVoid
+        [ argPtr mallocator
+        , argPtr memory
+        , argCSize $ fromIntegral numBytes
+        ]
+    mkInit fn mallocator =
+      callFFI fn retVoid [argPtr mallocator]
+    mkDestroy fn mallocator =
+      callFFI fn retVoid [argPtr mallocator]
+    mkNew fn =
+      callFFI fn (retPtr retVoid) []
+    mkDelete fn mallocator =
+      callFFI fn retVoid [argPtr mallocator]
+    mkWithAlloc newFn deleteFn =
+      bracket (castPtr <$> mkNew newFn) (mkDelete deleteFn)
 
 notUsed :: a
 notUsed = undefined
 
-testDir :: FilePath
-testDir = "/tmp/eclair-mallocator"
-
 intoIO :: Identity a -> IO a
 intoIO = pure . runIdentity
-
-llFile, soFile :: FilePath -> FilePath
-llFile dir = dir </> "allocator.ll"
-soFile dir = dir </> "allocator.so"
