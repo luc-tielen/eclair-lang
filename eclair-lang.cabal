@@ -258,6 +258,7 @@ test-suite eclair-test
     Test.Eclair.JSONSpec
     Test.Eclair.LLVM.Allocator.MallocSpec
     Test.Eclair.LLVM.Allocator.Utils
+    Test.Eclair.LLVM.BTreeSpec
     Test.Eclair.LLVM.HashSpec
     Test.Eclair.LSP.HandlersSpec
     Test.Eclair.LSP.JSONSpec
