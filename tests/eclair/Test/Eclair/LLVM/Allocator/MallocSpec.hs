@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -Wno-deprecations -Wno-incomplete-uni-patterns #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 module Test.Eclair.LLVM.Allocator.MallocSpec
   ( module Test.Eclair.LLVM.Allocator.MallocSpec
   ) where
@@ -74,4 +74,4 @@ testDir :: FilePath
 testDir = "/tmp/eclair-mallocator"
 
 notUsed :: a
-notUsed = undefined
+notUsed = panic "Not used"
