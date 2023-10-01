@@ -71,7 +71,7 @@ loadNativeCode (toString -> pfx) dir = do
     mkAlloc fn mallocator numBytes =
       callFFI fn (retPtr retCUChar)
         [ argPtr mallocator
-        , argCSize $ fromIntegral numBytes
+        , argCUInt $ fromIntegral numBytes
         ]
     mkFree fn mallocator memory numBytes =
       callFFI fn retVoid
