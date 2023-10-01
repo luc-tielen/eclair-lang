@@ -21,6 +21,10 @@ jobs:
           docker build -f Dockerfile . -t eclair:$TIMESTAMP | tee eclair-lang-${{matrix.os}}.log
           docker run --rm eclair:$TIMESTAMP bash -c "make test" | tee -a eclair-lang-${{matrix.os}}.log
 
+      - name: Check for disabled tests
+        run: |
+          ./tests/check.sh
+
       - name: Upload logs
         if: ${{ always() }}
         uses: actions/upload-artifact@v2
