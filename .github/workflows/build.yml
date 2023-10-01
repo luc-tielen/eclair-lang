@@ -9,11 +9,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      # In this step, this action saves a list of existing images, the cache is created without them in the post run.
-      # It also restores the cache if it exists.
-      - uses: jpribyl/action-docker-layer-caching@v0.1.1
-        continue-on-error: true # Ignore the failure of a step and avoid terminating the job.
-
       - name: Build and test
         run: |
           set -eo pipefail
