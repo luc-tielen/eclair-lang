@@ -7,4 +7,5 @@ if [ "$?" == "0" ]; then
   exit 1
 fi
 
+echo "All tests are enabled!"
 exit 0
