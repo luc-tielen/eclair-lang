@@ -98,7 +98,10 @@ documentHighlightSpec = describe "Document highlight action" $ do
 
 diagnosticsSpec :: Spec
 diagnosticsSpec = describe "Diagnostics action" $ parallel $ do
-  it "reports nothing if file is OK" pending
+  it "reports nothing if file is OK" $ do
+    let file = fixture "hover.eclair"
+    DiagnosticsOk diags <- withLSP (Just file) $ diagnosticsHandler file
+    length diags `shouldBe` 0
 
   it "reports invalid syntax" $ do
     let file = fixture "invalid_syntax.eclair"
