@@ -46,12 +46,13 @@ data Bindings
   , bUpperBound :: forall a. Ptr BTree -> Ptr Value -> (Ptr Iter -> IO a) -> IO a
   , bContains :: Ptr BTree -> Ptr Value -> IO Bool
   , bIterCurrent :: Ptr Iter -> IO (Ptr Value)
+  , bIterNext :: Ptr Iter -> IO ()
   , bIterIsEqual :: Ptr Iter -> Ptr Iter -> IO Bool
   }
 
 
 spec :: Spec
-spec = describe "BTree" $ aroundAll (setupAndTeardown testDir) $ parallel $ do
+spec = fdescribe "BTree" $ aroundAll (setupAndTeardown testDir) $ parallel $ do
   it "can be initialized and destroyed" $ \bindings -> do
     withTree bindings $ \tree -> do
       bInit bindings tree
@@ -134,7 +135,25 @@ spec = describe "BTree" $ aroundAll (setupAndTeardown testDir) $ parallel $ do
         bDestroy bindings tree
 
   it "is possible to iterate over the tree" $ \bindings ->
-    pending  -- TODO + begin != end check
+    withTree bindings $ \tree -> do
+      bInit bindings tree
+
+      withValue bindings 4 $ R.void . bInsert bindings tree
+      withValue bindings 2 $ R.void . bInsert bindings tree
+      withValue bindings 5 $ R.void . bInsert bindings tree
+      withValue bindings 1 $ R.void . bInsert bindings tree
+      withValue bindings 3 $ R.void . bInsert bindings tree
+
+      withIters bindings $ \beginIter endIter -> do
+        bBegin bindings tree beginIter
+        bEnd bindings tree endIter
+        isEqual <- bIterIsEqual bindings beginIter endIter
+        isEqual `shouldBe` False
+
+      values <- treeToList bindings tree
+
+      bDestroy bindings tree
+      values `shouldBe` [1, 2, 3, 4, 5]
 
   it "should have equal begin and end iterators if tree is empty" $ \bindings ->
     withTree bindings $ \tree -> do
@@ -488,6 +507,7 @@ loadNativeCode dir = do
   funcLB <- dlsym lib "eclair_btree_lower_bound_test"
   funcUB <- dlsym lib "eclair_btree_upper_bound_test"
   funcIterCurrent <- dlsym lib "eclair_btree_iterator_current_test"
+  funcIterNext <- dlsym lib "eclair_btree_iterator_next_test"
   funcIterIsEqual <- dlsym lib "eclair_btree_iterator_is_equal_test"
   let withIter' :: forall a. (Ptr Iter -> IO a) -> IO a
       withIter' = mkWithX funcNewIter funcDeleteIter
@@ -511,6 +531,7 @@ loadNativeCode dir = do
     , bSize = mkSize funcSize
     , bContains = mkContains funcContains
     , bIterCurrent = iterCurrent
+    , bIterNext = mkIterNext funcIterNext
     , bIterIsEqual = mkIterIsEqual funcIterIsEqual
     , bLowerBound = mkBound funcLB withIter'
     , bUpperBound = mkBound funcUB withIter'
@@ -535,8 +556,10 @@ loadNativeCode dir = do
     mkNew fn = callFFI fn (retPtr retVoid) []
     mkDelete fn obj = callFFI fn retVoid [argPtr obj]
     mkWithX newFn deleteFn = bracket (castPtr <$> mkNew newFn) (mkDelete deleteFn)
-    mkIterCurrent fn iter = do
+    mkIterCurrent fn iter =
       castPtr <$> callFFI fn (retPtr retVoid) [argPtr iter]
+    mkIterNext fn iter =
+      callFFI fn retVoid [argPtr iter]
     mkIterIsEqual fn beginIter endIter = do
       result <- callFFI fn retCUChar [argPtr beginIter, argPtr endIter]
       pure $ result == 1
@@ -545,11 +568,25 @@ loadNativeCode dir = do
         callFFI fn retVoid [argPtr tree, argPtr value, argPtr iter]
         f iter
 
-withIters :: Bindings -> (Ptr Iter -> Ptr Iter -> IO ()) -> IO ()
+withIters :: Bindings -> (Ptr Iter -> Ptr Iter -> IO a) -> IO a
 withIters bindings f =
   withIter bindings $ \beginIter ->
     withIter bindings $ \endIter ->
       f beginIter endIter
+
+treeToList :: Bindings -> Ptr BTree -> IO [Value]
+treeToList bindings tree =
+  withIters bindings $ \beginIter endIter -> do
+    bBegin bindings tree beginIter
+    bEnd bindings tree endIter
+
+    whileM (isNotEqualIter beginIter endIter) $ do
+      value <- bIterCurrent bindings beginIter
+      bIterNext bindings beginIter
+      peek value
+  where
+    isNotEqualIter beginIter endIter = do
+      not <$> bIterIsEqual bindings beginIter endIter
 
 llFile, soFile :: FilePath -> FilePath
 llFile dir = dir </> "btree.ll"
@@ -560,6 +597,17 @@ testDir = "/tmp/eclair-btree"
 
 notUsed :: a
 notUsed = panic "Not used"
+
+whileM :: Monad m => m Bool -> m a -> m [a]
+whileM cond action = go
+  where
+    go = cond >>= \case
+      True -> do
+        x <- action
+        xs <- go
+        pure $ x:xs
+      False ->
+        pure []
 
 shuffle :: [a] -> IO [a]
 shuffle xs = do
