@@ -9,17 +9,17 @@ import System.Directory.Extra
 import System.Process.Extra
 import System.Posix.DynamicLinker
 import System.FilePath
+import Control.Exception
+import Control.Monad.Morph
+import System.Random
+import Data.Array.IO hiding (index)
+import Foreign.LibFFI
+import Foreign hiding (void, newArray)
 import Eclair.LLVM.BTree
 import Eclair.LLVM.Table
 import Eclair.LLVM.Externals
 import Eclair.LLVM.Codegen hiding (retVoid, nullPtr)
 import qualified LLVM.C.API as LibLLVM
-import Foreign.Ptr
-import Control.Exception
-import Foreign.LibFFI
-import Foreign hiding (void, newArray)
-import System.Random
-import Data.Array.IO hiding (index)
 import Test.Hspec
 
 
@@ -40,6 +40,7 @@ data Bindings
   , bBegin :: Ptr BTree -> Ptr Iter -> IO ()
   , bEnd :: Ptr BTree -> Ptr Iter -> IO ()
   , bInsert :: Ptr BTree -> Ptr Value -> IO Bool
+  , bMerge :: Ptr BTree -> Ptr BTree -> IO ()
   , bEmpty :: Ptr BTree -> IO Bool
   , bSize :: Ptr BTree -> IO Word64
   , bLowerBound :: forall a. Ptr BTree -> Ptr Value -> (Ptr Iter -> IO a) -> IO a
@@ -90,7 +91,24 @@ spec = fdescribe "BTree" $ aroundAll (setupAndTeardown testDir) $ parallel $ do
       empty6 `shouldBe` True
 
   it "should be possible to merge one tree into another" $ \bindings ->
-    pending -- TODO look at souffle tests
+    withTree bindings $ \tree1 -> do
+      withTree bindings $ \tree2 -> do
+        bInit bindings tree1
+        bInit bindings tree2
+
+        for_ [1..4] $ \i -> do
+          withValue bindings i $ bInsert bindings tree1
+        for_ [2, 4, 6] $ \i -> do
+          withValue bindings i $ bInsert bindings tree2
+
+        -- tree1 = "destination", tree2 = "source"
+        bMerge bindings tree1 tree2
+        list <- treeToList bindings tree1
+
+        bDestroy bindings tree1
+        bDestroy bindings tree2
+
+        list `shouldBe` [1, 2, 3, 4, 6]
 
   it "is possible to swap two trees" $ \bindings -> do
     withTree bindings $ \tree1 -> do
@@ -359,8 +377,22 @@ spec = fdescribe "BTree" $ aroundAll (setupAndTeardown testDir) $ parallel $ do
 
       bDestroy bindings tree
 
-  it "should withstand iterator stress test" $ \bindings ->
-    pending
+  it "should withstand iterator stress test" $ \bindings -> do
+    let isSorted xs = sort xs == xs
+        list = [1..1000]
+    shuffled <- shuffle list
+
+    withTree bindings $ \tree -> do
+      bInit bindings tree
+
+      for_ shuffled $ \i -> do
+        values <- treeToList bindings tree
+        -- this is the main check if iterators are working correctly:
+        isSorted values `shouldBe` True
+
+        R.void $ withValue bindings i (bInsert bindings tree)
+
+      bDestroy bindings tree
 
   it "should calculate correct lower and upper bounds of a value" $ \bindings ->
     withTree bindings $ \tree -> do
@@ -453,6 +485,14 @@ cgBTree dir meta = do
   llvmIR <- runModuleBuilderT $ do
     exts <- cgExternals
     table <- instantiate "test" meta $ runConfigT cfg $ codegen exts
+    let iterParams = IteratorParams
+          { ipIterCurrent = fnIterCurrent table
+          , ipIterNext = fnIterNext table
+          , ipIterIsEqual = fnIterIsEqual table
+          , ipTypeIter = typeIter table
+          }
+    R.void $ hoist intoIO $ instantiate "test" iterParams $
+      fnInsertRangeTemplate table
     cgHelperCode table (extMalloc exts) (extFree exts)
   let llvmIRText = ppllvm llvmIR
   writeFileText (llFile dir) llvmIRText
@@ -501,6 +541,7 @@ loadNativeCode dir = do
   funcBegin <- dlsym lib "eclair_btree_begin_test"
   funcEnd <- dlsym lib "eclair_btree_end_test"
   funcInsert <- dlsym lib "eclair_btree_insert_value_test"
+  funcMerge <- dlsym lib "eclair_btree_insert_range_test"
   funcEmpty <- dlsym lib "eclair_btree_is_empty_test"
   funcSize <- dlsym lib "eclair_btree_size_test"
   funcContains <- dlsym lib "eclair_btree_contains_test"
@@ -512,6 +553,8 @@ loadNativeCode dir = do
   let withIter' :: forall a. (Ptr Iter -> IO a) -> IO a
       withIter' = mkWithX funcNewIter funcDeleteIter
       iterCurrent = mkIterCurrent funcIterCurrent
+      begin' = mkBegin funcBegin
+      end' = mkEnd funcEnd
   pure $ Bindings
     { dynamicLib = lib
     , withTree = mkWithX funcNewTree funcDeleteTree
@@ -524,9 +567,10 @@ loadNativeCode dir = do
     , bDestroy = mkDestroy funcDestroy
     , bPurge = mkPurge funcPurge
     , bSwap = mkSwap funcSwap
-    , bBegin = mkBegin funcBegin
-    , bEnd = mkEnd funcEnd
+    , bBegin = begin'
+    , bEnd = end'
     , bInsert = mkInsert funcInsert
+    , bMerge = mkMerge funcMerge withIter' begin' end'
     , bEmpty = mkIsEmpty funcEmpty
     , bSize = mkSize funcSize
     , bContains = mkContains funcContains
@@ -546,6 +590,12 @@ loadNativeCode dir = do
     mkInsert fn tree value = do
       result <- callFFI fn retCUChar [argPtr tree, argPtr value]
       pure $ result == 1
+    mkMerge fn withIter' begin' end' tree1 tree2 = do
+      withIter' $ \beginIter ->
+        withIter' $ \endIter -> do
+          R.void $ begin' tree2 beginIter
+          R.void $ end' tree2 endIter
+          callFFI fn retVoid [argPtr tree1, argPtr beginIter, argPtr endIter]
     mkIsEmpty fn tree = do
       result <- callFFI fn retCUChar [argPtr tree]
       pure $ result == 1
@@ -556,10 +606,8 @@ loadNativeCode dir = do
     mkNew fn = callFFI fn (retPtr retVoid) []
     mkDelete fn obj = callFFI fn retVoid [argPtr obj]
     mkWithX newFn deleteFn = bracket (castPtr <$> mkNew newFn) (mkDelete deleteFn)
-    mkIterCurrent fn iter =
-      castPtr <$> callFFI fn (retPtr retVoid) [argPtr iter]
-    mkIterNext fn iter =
-      callFFI fn retVoid [argPtr iter]
+    mkIterCurrent fn iter = castPtr <$> callFFI fn (retPtr retVoid) [argPtr iter]
+    mkIterNext fn iter = callFFI fn retVoid [argPtr iter]
     mkIterIsEqual fn beginIter endIter = do
       result <- callFFI fn retCUChar [argPtr beginIter, argPtr endIter]
       pure $ result == 1
@@ -622,3 +670,6 @@ shuffle xs = do
     n = length xs
     mkArray :: Int -> [a] -> IO (IOArray Int a)
     mkArray m = newListArray (1,m)
+
+intoIO :: Identity a -> IO a
+intoIO = pure . runIdentity
