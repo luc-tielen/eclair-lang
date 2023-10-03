@@ -43,6 +43,8 @@ data Bindings
   , bMerge :: Ptr BTree -> Ptr BTree -> IO ()
   , bEmpty :: Ptr BTree -> IO Bool
   , bSize :: Ptr BTree -> IO Word64
+  , bNodeCount :: Ptr BTree -> IO Word64
+  , bDepth :: Ptr BTree -> IO Word32
   , bLowerBound :: forall a. Ptr BTree -> Ptr Value -> (Ptr Iter -> IO a) -> IO a
   , bUpperBound :: forall a. Ptr BTree -> Ptr Value -> (Ptr Iter -> IO a) -> IO a
   , bContains :: Ptr BTree -> Ptr Value -> IO Bool
@@ -53,7 +55,7 @@ data Bindings
 
 
 spec :: Spec
-spec = fdescribe "BTree" $ aroundAll (setupAndTeardown testDir) $ parallel $ do
+spec = describe "BTree" $ aroundAll (setupAndTeardown testDir) $ parallel $ do
   it "can be initialized and destroyed" $ \bindings -> do
     withTree bindings $ \tree -> do
       bInit bindings tree
@@ -256,12 +258,14 @@ spec = fdescribe "BTree" $ aroundAll (setupAndTeardown testDir) $ parallel $ do
 
   -- Tests below are taken from Souffle's test suite
 
-  it "should support basic operations on the btree" $ \bindings ->
+  fit "should support basic operations on the btree" $ \bindings ->
     withTree bindings $ \tree -> do
       bInit bindings tree
 
       -- check initial conditions
       bSize bindings tree >>= (`shouldBe` 0)
+      bNodeCount bindings tree >>= (`shouldBe` 0)
+      bDepth bindings tree >>= (`shouldBe` 0)
       withValue bindings 10 (bContains bindings tree) >>= (`shouldBe` False)
       withValue bindings 12 (bContains bindings tree) >>= (`shouldBe` False)
       withValue bindings 14 (bContains bindings tree) >>= (`shouldBe` False)
@@ -270,13 +274,17 @@ spec = fdescribe "BTree" $ aroundAll (setupAndTeardown testDir) $ parallel $ do
 
       R.void $ withValue bindings 12 (bInsert bindings tree)
       bSize bindings tree >>= (`shouldBe` 1)
+      bNodeCount bindings tree >>= (`shouldBe` 1)
+      bDepth bindings tree >>= (`shouldBe` 1)
       withValue bindings 10 (bContains bindings tree) >>= (`shouldBe` False)
-      withValue bindings 12 (bContains bindings tree) >>= (`shouldBe` True)
+      withValue bindings 12 (bContains bindings tree) >>= (`shouldBe` True) -- TODO failing
       withValue bindings 14 (bContains bindings tree) >>= (`shouldBe` False)
 
       -- add a larger element
       R.void $ withValue bindings 14 (bInsert bindings tree)
       bSize bindings tree >>= (`shouldBe` 2)
+      bNodeCount bindings tree >>= (`shouldBe` 1)
+      bDepth bindings tree >>= (`shouldBe` 1)
       withValue bindings 10 (bContains bindings tree) >>= (`shouldBe` False)
       withValue bindings 12 (bContains bindings tree) >>= (`shouldBe` True)
       withValue bindings 14 (bContains bindings tree) >>= (`shouldBe` True)
@@ -284,6 +292,8 @@ spec = fdescribe "BTree" $ aroundAll (setupAndTeardown testDir) $ parallel $ do
       -- add a smaller element
       R.void $ withValue bindings 10 (bInsert bindings tree)
       bSize bindings tree >>= (`shouldBe` 3)
+      bNodeCount bindings tree >>= (`shouldBe` 1)
+      bDepth bindings tree >>= (`shouldBe` 1)
       withValue bindings 10 (bContains bindings tree) >>= (`shouldBe` True)
       withValue bindings 12 (bContains bindings tree) >>= (`shouldBe` True)
       withValue bindings 14 (bContains bindings tree) >>= (`shouldBe` True)
@@ -306,14 +316,13 @@ spec = fdescribe "BTree" $ aroundAll (setupAndTeardown testDir) $ parallel $ do
 
       R.void $ withValue bindings 15 (bInsert bindings tree)
       bSize bindings tree >>= (`shouldBe` 5)
+      bNodeCount bindings tree >>= (`shouldBe` 3)
+      bDepth bindings tree >>= (`shouldBe` 2)
 
       R.void $ withValue bindings 16 (bInsert bindings tree)
       bSize bindings tree >>= (`shouldBe` 6)
 
       bDestroy bindings tree
-
-      -- TODO manually check this:   EXPECT_EQ(3, test_set::max_keys_per_node);
-      -- TODO check depth + number of nodes (test code only)
 
   it "should automatically remove duplicates" $ \bindings ->
     withTree bindings $ \tree -> do
@@ -496,6 +505,8 @@ cgBTree dir meta = do
     cgHelperCode table (extMalloc exts) (extFree exts)
   let llvmIRText = ppllvm llvmIR
   writeFileText (llFile dir) llvmIRText
+  -- Next line is a hack, because we can't access node types from the test:
+  appendFileText (llFile dir) helperCodeAppendix
   callProcess "clang" ["-fPIC", "-shared", "-O0", "-o", soFile dir, llFile dir]
 
 cgExternals :: ModuleBuilderT IO Externals
@@ -506,7 +517,7 @@ cgExternals = do
   pure $ Externals mallocFn freeFn memsetFn notUsed notUsed notUsed notUsed
 
 -- Helper test code for initializing and freeing a struct from native code:
-cgHelperCode :: Table -> Operand -> Operand -> ModuleBuilderT IO ()
+cgHelperCode :: Monad m => Table -> Operand -> Operand -> ModuleBuilderT m ()
 cgHelperCode table mallocFn freeFn = do
   let treeTy = typeObj table
       iterTy = typeIter table
@@ -524,6 +535,83 @@ cgHelperCode table mallocFn freeFn = do
   _ <- function "eclair_value_delete" [(ptr valueTy, "value")] void $ \[value] ->
     call freeFn [value]
   pass
+
+helperCodeAppendix :: Text
+helperCodeAppendix = unlines
+  [ "define external ccc i64 @node_count(ptr %node_0) {"
+  , "start:"
+  , "  %stack.ptr_0 = alloca i64"  -- count
+  , "  store i64 1, ptr %stack.ptr_0"
+  , "  %0 = getelementptr %node_t_test, ptr %node_0, i32 0, i32 0, i32 3"
+  , "  %1 = load i1, ptr %0" -- node type
+  , "  %2 = icmp eq i1 %1, 0" -- is leaf?
+  , "  br i1 %2, label %if_0, label %end_if_0"
+  , "if_0:"
+  , "  ret i64 1"
+  , "end_if_0:"
+  , "  %3 = getelementptr %node_t_test, ptr %node_0, i32 0, i32 0, i32 2"
+  , "  %4 = load i16, ptr %3"
+  , "  br label %for_begin_0"
+  , "for_begin_0:"
+  , "  %5 = phi i16 [0, %end_if_0], [%12, %for_body_0]"
+  , "  %6 = icmp ule i16 %5, %4"
+  , "  br i1 %6, label %for_body_0, label %for_end_0"
+  , "for_body_0:"
+  , "  %7 = load i64, ptr %stack.ptr_0" -- count
+  , "  %8 = getelementptr %inner_node_t_test, ptr %node_0, i32 0, i32 1, i16 %5" -- child ptr
+  , "  %9 = load ptr, ptr %8" -- child
+  , "  %10 = call ccc i64 @node_count(ptr %9)"
+  , "  %11 = add i64 %7, %10"
+  , "  store i64 %11, ptr %stack.ptr_0"
+  , "  %12 = add i16 1, %5"
+  , "  br label %for_begin_0"
+  , "for_end_0:"
+  , "  %13 = load i64, ptr %stack.ptr_0"
+  , "  ret i64 %13"
+  , "}"
+  , ""
+  , "define external ccc i64 @eclair_btree_node_count_test(ptr %tree_0) {"
+  , "start:"
+  , "  %0 = getelementptr %btree_t_test, ptr %tree_0, i32 0, i32 0"
+  , "  %1 = load ptr, ptr %0"
+  , "  %2 = icmp eq ptr %1, zeroinitializer"
+  , "  br i1 %2, label %null_0, label %not_null_0"
+  , "null_0:"
+  , "  ret i64 0"
+  , "not_null_0:"
+  , "  %3 = call ccc i64 @node_count(ptr %1)"
+  , "  ret i64 %3"
+  , "}"
+  , ""
+  , "define external ccc i32 @node_depth(ptr %node_0) {"
+  , "start:"
+  , "  %0 = getelementptr %node_t_test, ptr %node_0, i32 0, i32 0, i32 3"
+  , "  %1 = load i1, ptr %0" -- node type
+  , "  %2 = icmp eq i1 %1, 0" -- is leaf?
+  , "  br i1 %2, label %if_0, label %end_if_0"
+  , "if_0:"
+  , "  ret i32 1"
+  , "end_if_0:"
+  , "  %3 = getelementptr %inner_node_t_test, ptr %node_0, i32 0, i32 1, i16 0" -- child ptr
+  , "  %4 = load ptr, ptr %3" -- child
+  , "  %5 = call ccc i32 @node_depth(ptr %4)"
+  , "  %6 = add i32 %5, 1"
+  , "  ret i32 %6"
+  , "}"
+  , ""
+  , "define external ccc i32 @eclair_btree_depth_test(ptr %tree_0) {"
+  , "start:"
+  , "  %0 = getelementptr %btree_t_test, ptr %tree_0, i32 0, i32 0"
+  , "  %1 = load ptr, ptr %0"
+  , "  %2 = icmp eq ptr %1, zeroinitializer"
+  , "  br i1 %2, label %null_0, label %not_null_0"
+  , "null_0:"
+  , "  ret i32 0"
+  , "not_null_0:"
+  , "  %3 = call ccc i32 @node_depth(ptr %1)"
+  , "  ret i32 %3"
+  , "}"
+  ]
 
 loadNativeCode :: FilePath -> IO Bindings
 loadNativeCode dir = do
@@ -544,6 +632,8 @@ loadNativeCode dir = do
   funcMerge <- dlsym lib "eclair_btree_insert_range_test"
   funcEmpty <- dlsym lib "eclair_btree_is_empty_test"
   funcSize <- dlsym lib "eclair_btree_size_test"
+  funcNodeCount <- dlsym lib "eclair_btree_node_count_test"
+  funcDepth <- dlsym lib "eclair_btree_depth_test"
   funcContains <- dlsym lib "eclair_btree_contains_test"
   funcLB <- dlsym lib "eclair_btree_lower_bound_test"
   funcUB <- dlsym lib "eclair_btree_upper_bound_test"
@@ -573,6 +663,8 @@ loadNativeCode dir = do
     , bMerge = mkMerge funcMerge withIter' begin' end'
     , bEmpty = mkIsEmpty funcEmpty
     , bSize = mkSize funcSize
+    , bNodeCount = mkNodeCount funcNodeCount
+    , bDepth = mkDepth funcDepth
     , bContains = mkContains funcContains
     , bIterCurrent = iterCurrent
     , bIterNext = mkIterNext funcIterNext
@@ -600,6 +692,8 @@ loadNativeCode dir = do
       result <- callFFI fn retCUChar [argPtr tree]
       pure $ result == 1
     mkSize fn tree = fromIntegral <$> callFFI fn retCULong [argPtr tree]
+    mkNodeCount fn tree = fromIntegral <$> callFFI fn retCULong [argPtr tree]
+    mkDepth fn tree = fromIntegral <$> callFFI fn retCUInt [argPtr tree]
     mkContains fn tree value = do
       result <- callFFI fn retCUChar [argPtr tree, argPtr value]
       pure $ result == 1
