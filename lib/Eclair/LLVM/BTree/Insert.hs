@@ -85,11 +85,8 @@ mkGrowParent nodeNew insertInner = mdo
 
     assign (metaOf ->> parentOf) n newRoot
     assign (metaOf ->> parentOf) sibling newRoot
-    -- TODO: why missing in souffle code? happens in another function?
-    -- also: why is num elements of n not decremented?
-    -- assign (metaOf ->> posInParentOf) n (int16 0)
 
-    -- update (metaOf ->> numElemsOf) n (`sub` (int16 1))
+    -- assign (metaOf ->> posInParentOf) n (int16 0) -- Not needed, root already has position 0
     assign (metaOf ->> posInParentOf) sibling (int16 1)
     store root 0 newRoot
     retVoid
@@ -310,7 +307,7 @@ mkBtreeInsertValue nodeNew compareValues searchLowerBound searchUpperBound isEmp
       pos <- call searchLowerBound [val, first, last]
       idx <- pointerDiff i16 pos first >>= (`udiv` int32 (toInteger valSize))
       notLast <- pos `ne` last
-      isEqual <- (int8 0 `eq`) =<< call compareValues [pos, val]  -- Can we do a weak compare just by using pointers here?
+      isEqual <- (int8 0 `eq`) =<< call compareValues [pos, val]
       alreadyInserted <- notLast `and` isEqual
       condBr alreadyInserted noInsert continueInsert
 
@@ -332,10 +329,10 @@ mkBtreeInsertValue nodeNew compareValues searchLowerBound searchUpperBound isEmp
       distance <- pointerDiff i16 pos first >>= (`udiv` int32 (toInteger valSize))
       idxPtr <- allocate i16 distance
       notFirst <- pos `ne` first
-      valueAtPrevPos <- gep pos [int32 (-1)]
-      isEqual <- (int8 0 `eq`) =<< call compareValues [valueAtPrevPos, val]  -- Can we do a weak compare just by using pointers here?
-      alreadyInserted <- notFirst `and` isEqual
-      condBr alreadyInserted noInsert continueInsert
+      if' notFirst $ do
+        valueAtPrevPos <- gep pos [int32 (-1)]
+        alreadyInserted <- (int8 0 `eq`) =<< call compareValues [valueAtPrevPos, val]
+        condBr alreadyInserted noInsert continueInsert
 
       continueInsert <- blockNamed "leaf_continue_insert"
       nodeIsFull <- numElems `uge` numberOfKeys
