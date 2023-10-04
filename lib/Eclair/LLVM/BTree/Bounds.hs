@@ -98,12 +98,11 @@ mkBtreeLowerBound isEmptyTree iterInit iterInitEnd searchLowerBound compareValue
         retVoid
 
       isNotLast <- pos `ne` last
-      -- Can the following be done with just pointer comparisons?
-      matchesVal' <- (int8 0 `eq`) =<< call compareValues [pos, val]
-      matchFound <- isNotLast `and` matchesVal'
-      if' matchFound $ do
-        _ <- call iterInit [result, current, idx]
-        retVoid
+      if' isNotLast $ do
+        matchFound' <- (int8 0 `eq`) =<< call compareValues [pos, val]
+        if' matchFound' $ do
+          _ <- call iterInit [result, current, idx]
+          retVoid
 
       if' isNotLast $ do
         call iterInit [res, current, idx]
