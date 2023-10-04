@@ -51,11 +51,11 @@ mkBtreeFind isEmptyTree searchLowerBound compareValues iterInit iterInitEnd = do
 
       -- Can the following equality check be done using just pointers?
       foundMatch <- pos `ult` last
-      matchesVal <- (int8 0 `eq`) =<< call compareValues [pos, val]
-      foundValue <- foundMatch `and` matchesVal
-      if' foundValue $ do
-        _ <- call iterInit [result, current, idx]
-        retVoid
+      if' foundMatch $ do
+        matchesVal <- (int8 0 `eq`) =<< call compareValues [pos, val]
+        if' matchesVal $ do
+          _ <- call iterInit [result, current, idx]
+          retVoid
 
       isLeaf <- deref (metaOf ->> nodeTypeOf) current >>= (`eq` leafNodeTypeVal)
       if' isLeaf $ do
