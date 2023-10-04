@@ -523,7 +523,7 @@ cgHelperCode table mallocFn freeFn = do
       iterTy = typeIter table
       valueTy = typeValue table
   _ <- function "eclair_btree_new" [] (ptr treeTy) $ \[] ->
-    ret =<< call mallocFn [int32 1]
+    ret =<< call mallocFn [int32 16]
   _ <- function "eclair_btree_delete" [(ptr treeTy, "btree")] void $ \[btree] ->
     call freeFn [btree]
   _ <- function "eclair_iter_new" [] (ptr iterTy) $ \[] ->
@@ -534,11 +534,16 @@ cgHelperCode table mallocFn freeFn = do
     ret =<< call mallocFn [int32 4] -- Hardcoded for 1x i32
   _ <- function "eclair_value_delete" [(ptr valueTy, "value")] void $ \[value] ->
     call freeFn [value]
+  -- Next function is needed because returning i1 is not C ABI compatible
+  _ <- function "eclair_btree_contains_helper_test" [(ptr treeTy, "tree"), (ptr valueTy, "val")] i8 $ \[tree, val] -> do
+    result <- call (fnContains table) [tree, val] >>= (`zext` i8)
+    ret result
   pass
 
 helperCodeAppendix :: Text
 helperCodeAppendix = unlines
-  [ "define external ccc i64 @node_count(ptr %node_0) {"
+  [ ""
+  , "define external ccc i64 @node_count(ptr %node_0) {"
   , "start:"
   , "  %stack.ptr_0 = alloca i64"  -- count
   , "  store i64 1, ptr %stack.ptr_0"
@@ -634,7 +639,7 @@ loadNativeCode dir = do
   funcSize <- dlsym lib "eclair_btree_size_test"
   funcNodeCount <- dlsym lib "eclair_btree_node_count_test"
   funcDepth <- dlsym lib "eclair_btree_depth_test"
-  funcContains <- dlsym lib "eclair_btree_contains_test"
+  funcContains <- dlsym lib "eclair_btree_contains_helper_test"
   funcLB <- dlsym lib "eclair_btree_lower_bound_test"
   funcUB <- dlsym lib "eclair_btree_upper_bound_test"
   funcIterCurrent <- dlsym lib "eclair_btree_iterator_current_test"
