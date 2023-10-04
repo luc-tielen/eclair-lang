@@ -307,9 +307,9 @@ mkBtreeInsertValue nodeNew compareValues searchLowerBound searchUpperBound isEmp
       pos <- call searchLowerBound [val, first, last]
       idx <- pointerDiff i16 pos first >>= (`udiv` int32 (toInteger valSize))
       notLast <- pos `ne` last
-      isEqual <- (int8 0 `eq`) =<< call compareValues [pos, val]
-      alreadyInserted <- notLast `and` isEqual
-      condBr alreadyInserted noInsert continueInsert
+      if' notLast $ do
+        alreadyInserted <- (int8 0 `eq`) =<< call compareValues [pos, val]
+        condBr alreadyInserted noInsert continueInsert
 
       continueInsert <- blockNamed "inner_continue_insert"
       let iCurrent = ptrcast innerNode current
