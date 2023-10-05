@@ -34,6 +34,7 @@ mkSplit nodeNew nodeSplitPoint growParent = mdo
     ty <- deref (metaOf ->> nodeTypeOf) n
     -- Create a new sibling node and move some of the data to sibling
     sibling <- call nodeNew [ty]
+
     jPtr <- allocate i16 (int16 0)
     loopFor splitPoint' (`ult` numberOfKeys) (add (int16 1)) $ \i -> mdo
       j <- load jPtr 0
@@ -220,15 +221,21 @@ mkRebalanceOrSplit splitFn = mdo
           leftNumElems' <- deref (metaOf ->> numElemsOf) left
           leftPos <- add leftNumElems' (int16 1) >>= add i
           assign (childAt leftPos) iLeft =<< deref (childAt i) iN
-          leftChild <- deref (childAt leftPos) iLeft
-          assign (metaOf ->> parentOf) leftChild left
-          assign (metaOf ->> posInParentOf) leftChild leftPos
 
-        -- Shift child pointer to the left + update position
+        -- Update moved children
+        loopFor (int16 0) (`ult` leftSlotsOpen) (add (int16 1)) $ \i -> do
+          leftNumElems' <- deref (metaOf ->> numElemsOf) left
+          leftPos <- add leftNumElems' (int16 1) >>= add i
+          child <- deref (childAt i) iN
+          assign (metaOf ->> parentOf) child left
+          assign (metaOf ->> posInParentOf) child leftPos
+
+        -- Shift child pointer to the left
         endIdx <- sub numElemsN leftSlotsOpen >>= add (int16 1)
         loopFor (int16 0) (`ult` endIdx) (add (int16 1)) $ \i -> do
           j <- add i leftSlotsOpen
           assign (childAt i) iN =<< deref (childAt j) iN
+          -- Update position of children
           child <- deref (childAt i) iN
           assign (metaOf ->> posInParentOf) child i
 
