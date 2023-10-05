@@ -140,7 +140,7 @@ mkInsertInner rebalanceOrSplit = mdo
     numElems'' <- deref (metaOf ->> numElemsOf) n
     startIdx <- sub numElems'' (int16 1)
     pos' <- load posPtr 0
-    loopFor startIdx (`uge` pos') (`sub` int16 1) $ \i -> mdo
+    loopFor startIdx (`sge` pos') (`sub` int16 1) $ \i -> mdo
       j <- add i (int16 1)
       k <- add i (int16 2)
       assign (valueAt j) n =<< deref (valueAt i) n
@@ -149,7 +149,6 @@ mkInsertInner rebalanceOrSplit = mdo
       increment int16 (metaOf ->> posInParentOf) childK
 
     -- TODO: assert(i_n->children[pos] == predecessor);
-
     -- Insert new element
     assign (valueAt pos') n =<< load key 0
     pos'' <- add pos' (int16 1)
