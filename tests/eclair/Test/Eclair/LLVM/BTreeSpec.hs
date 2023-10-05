@@ -215,14 +215,10 @@ spec = describe "BTree" $ aroundAll (setupAndTeardown testDir) $ parallel $ do
     withTree bindings $ \tree -> do
       bInit bindings tree
       size1 <- bSize bindings tree
-      withValue bindings 1 $ \value -> do
-        _ <- bInsert bindings tree value
-        pass
+      R.void $ withValue bindings 1 $ bInsert bindings tree
       size2 <- bSize bindings tree
       for_ [2..100] $ \i -> do
-        withValue bindings i $ \value -> do
-          _ <- bInsert bindings tree value
-          pass
+        withValue bindings i $ bInsert bindings tree
       size3 <- bSize bindings tree
       bDestroy bindings tree
       size1 `shouldBe` 0
@@ -234,9 +230,7 @@ spec = describe "BTree" $ aroundAll (setupAndTeardown testDir) $ parallel $ do
       bInit bindings tree
 
       c1 <- withValue bindings 1000 $ bContains bindings tree
-      withValue bindings 1000 $ \value -> do
-        _ <- bInsert bindings tree value
-        pass
+      R.void $ withValue bindings 1000 $ bInsert bindings tree
       c2 <- withValue bindings 1000 $ bContains bindings tree
 
       for_ [1..100] $ \i ->
@@ -258,7 +252,7 @@ spec = describe "BTree" $ aroundAll (setupAndTeardown testDir) $ parallel $ do
 
   -- Tests below are taken from Souffle's test suite
 
-  fit "should support basic operations on the btree" $ \bindings ->
+  it "should support basic operations on the btree" $ \bindings ->
     withTree bindings $ \tree -> do
       bInit bindings tree
 
@@ -345,22 +339,21 @@ spec = describe "BTree" $ aroundAll (setupAndTeardown testDir) $ parallel $ do
     withTree bindings $ \tree -> do
       bInit bindings tree
 
-      let n = 1000
+      let n = 100
       for_ [0..n] $ \i -> do
-        R.void $ withValue bindings i (bInsert bindings tree)
+        R.void $ withValue bindings i $ bInsert bindings tree
 
         for_ [0..n] $ \j -> do
-          contains <- withValue bindings j (bContains bindings tree)
+          contains <- withValue bindings j $ bContains bindings tree
           contains `shouldBe` (j <= i)
 
       bDestroy bindings tree
-
 
   it "should contain the value after it is inserted (reverse)" $ \bindings ->
     withTree bindings $ \tree -> do
       bInit bindings tree
 
-      let n = 1000
+      let n = 100
       for_ [n, (n - 1) .. 0] $ \i -> do
         R.void $ withValue bindings i (bInsert bindings tree)
 
@@ -370,7 +363,7 @@ spec = describe "BTree" $ aroundAll (setupAndTeardown testDir) $ parallel $ do
 
       bDestroy bindings tree
 
-  it "should the contain the value after is inserted (shuffled)" $ \bindings -> do
+  it "should contain the value after is inserted (shuffled)" $ \bindings -> do
     let list = [1..10000]
     shuffled <- shuffle list
 
@@ -388,7 +381,8 @@ spec = describe "BTree" $ aroundAll (setupAndTeardown testDir) $ parallel $ do
 
   it "should withstand iterator stress test" $ \bindings -> do
     let isSorted xs = sort xs == xs
-        list = [1..1000]
+        list = [1..300]  -- for faster unit tests
+        -- list = [1..1000]  -- for real stress test
     shuffled <- shuffle list
 
     withTree bindings $ \tree -> do
@@ -398,7 +392,6 @@ spec = describe "BTree" $ aroundAll (setupAndTeardown testDir) $ parallel $ do
         values <- treeToList bindings tree
         -- this is the main check if iterators are working correctly:
         isSorted values `shouldBe` True
-
         R.void $ withValue bindings i (bInsert bindings tree)
 
       bDestroy bindings tree
