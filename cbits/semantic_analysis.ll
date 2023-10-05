@@ -504,7 +504,7 @@ end_if_1:
   br label %for_begin_0
 for_begin_0:
   %22 = phi i16 [%20, %end_if_1], [%37, %for_body_0]
-  %23 = icmp uge i16 %22, %21
+  %23 = icmp sge i16 %22, %21
   br i1 %23, label %for_body_0, label %for_end_0
 for_body_0:
   %24 = add i16 %22, 1
@@ -617,7 +617,7 @@ for_end_1:
 if_1:
   br label %for_begin_2
 for_begin_2:
-  %48 = phi i16 [0, %if_1], [%61, %for_body_2]
+  %48 = phi i16 [0, %if_1], [%57, %for_body_2]
   %49 = icmp ult i16 %48, %14
   br i1 %49, label %for_body_2, label %for_end_2
 for_body_2:
@@ -629,45 +629,58 @@ for_body_2:
   %55 = load ptr, ptr %54
   %56 = getelementptr %inner_node_t_0, ptr %9, i32 0, i32 1, i16 %53
   store ptr %55, ptr %56
-  %57 = getelementptr %inner_node_t_0, ptr %9, i32 0, i32 1, i16 %53
-  %58 = load ptr, ptr %57
-  %59 = getelementptr %node_t_0, ptr %58, i32 0, i32 0, i32 0
-  store ptr %9, ptr %59
-  %60 = getelementptr %node_t_0, ptr %58, i32 0, i32 0, i32 1
-  store i16 %53, ptr %60
-  %61 = add i16 1, %48
+  %57 = add i16 1, %48
   br label %for_begin_2
 for_end_2:
-  %62 = sub i16 %36, %14
-  %63 = add i16 1, %62
   br label %for_begin_3
 for_begin_3:
-  %64 = phi i16 [0, %for_end_2], [%73, %for_body_3]
-  %65 = icmp ult i16 %64, %63
-  br i1 %65, label %for_body_3, label %for_end_3
+  %58 = phi i16 [0, %for_end_2], [%68, %for_body_3]
+  %59 = icmp ult i16 %58, %14
+  br i1 %59, label %for_body_3, label %for_end_3
 for_body_3:
-  %66 = add i16 %64, %14
-  %67 = getelementptr %inner_node_t_0, ptr %node_0, i32 0, i32 1, i16 %66
-  %68 = load ptr, ptr %67
-  %69 = getelementptr %inner_node_t_0, ptr %node_0, i32 0, i32 1, i16 %64
-  store ptr %68, ptr %69
-  %70 = getelementptr %inner_node_t_0, ptr %node_0, i32 0, i32 1, i16 %64
-  %71 = load ptr, ptr %70
-  %72 = getelementptr %node_t_0, ptr %71, i32 0, i32 0, i32 1
-  store i16 %64, ptr %72
-  %73 = add i16 1, %64
+  %60 = getelementptr %node_t_0, ptr %9, i32 0, i32 0, i32 2
+  %61 = load i16, ptr %60
+  %62 = add i16 %61, 1
+  %63 = add i16 %58, %62
+  %64 = getelementptr %inner_node_t_0, ptr %node_0, i32 0, i32 1, i16 %58
+  %65 = load ptr, ptr %64
+  %66 = getelementptr %node_t_0, ptr %65, i32 0, i32 0, i32 0
+  store ptr %9, ptr %66
+  %67 = getelementptr %node_t_0, ptr %65, i32 0, i32 0, i32 1
+  store i16 %63, ptr %67
+  %68 = add i16 1, %58
   br label %for_begin_3
 for_end_3:
+  %69 = sub i16 %36, %14
+  %70 = add i16 1, %69
+  br label %for_begin_4
+for_begin_4:
+  %71 = phi i16 [0, %for_end_3], [%80, %for_body_4]
+  %72 = icmp ult i16 %71, %70
+  br i1 %72, label %for_body_4, label %for_end_4
+for_body_4:
+  %73 = add i16 %71, %14
+  %74 = getelementptr %inner_node_t_0, ptr %node_0, i32 0, i32 1, i16 %73
+  %75 = load ptr, ptr %74
+  %76 = getelementptr %inner_node_t_0, ptr %node_0, i32 0, i32 1, i16 %71
+  store ptr %75, ptr %76
+  %77 = getelementptr %inner_node_t_0, ptr %node_0, i32 0, i32 1, i16 %71
+  %78 = load ptr, ptr %77
+  %79 = getelementptr %node_t_0, ptr %78, i32 0, i32 0, i32 1
+  store i16 %71, ptr %79
+  %80 = add i16 1, %71
+  br label %for_begin_4
+for_end_4:
   br label %end_if_0
 end_if_0:
-  %74 = getelementptr %node_t_0, ptr %9, i32 0, i32 0, i32 2
-  %75 = load i16, ptr %74
-  %76 = add i16 %75, %14
-  store i16 %76, ptr %74
-  %77 = getelementptr %node_t_0, ptr %node_0, i32 0, i32 0, i32 2
-  %78 = load i16, ptr %77
-  %79 = sub i16 %78, %14
-  store i16 %79, ptr %77
+  %81 = getelementptr %node_t_0, ptr %9, i32 0, i32 0, i32 2
+  %82 = load i16, ptr %81
+  %83 = add i16 %82, %14
+  store i16 %83, ptr %81
+  %84 = getelementptr %node_t_0, ptr %node_0, i32 0, i32 0, i32 2
+  %85 = load i16, ptr %84
+  %86 = sub i16 %85, %14
+  store i16 %86, ptr %84
   ret i16 %14
 end_if_1:
   br label %split_0
@@ -717,87 +730,93 @@ inner_0:
   %21 = trunc i64 %20 to i16
   %22 = udiv i16 %21, 12
   %23 = icmp ne ptr %17, %16
+  br i1 %23, label %if_0, label %end_if_0
+if_0:
   %24 = call ccc i8 @eclair_btree_value_compare_values_0(ptr %17, ptr %val_0)
   %25 = icmp eq i8 0, %24
-  %26 = and i1 %23, %25
-  br i1 %26, label %no_insert_0, label %inner_continue_insert_0
+  br i1 %25, label %no_insert_0, label %inner_continue_insert_0
+end_if_0:
+  br label %inner_continue_insert_0
 inner_continue_insert_0:
-  %27 = getelementptr %inner_node_t_0, ptr %9, i32 0, i32 1, i16 %22
-  %28 = load ptr, ptr %27
-  store ptr %28, ptr %stack.ptr_0
+  %26 = getelementptr %inner_node_t_0, ptr %9, i32 0, i32 1, i16 %22
+  %27 = load ptr, ptr %26
+  store ptr %27, ptr %stack.ptr_0
   br label %loop_0
 leaf_0:
-  %29 = getelementptr %node_t_0, ptr %9, i32 0, i32 0, i32 2
-  %30 = load i16, ptr %29
-  %31 = getelementptr %node_t_0, ptr %9, i32 0, i32 1, i16 0
-  %32 = getelementptr %node_t_0, ptr %9, i32 0, i32 1, i16 %30
-  %33 = call ccc ptr @eclair_btree_linear_search_upper_bound_0(ptr %val_0, ptr %31, ptr %32)
-  %34 = ptrtoint ptr %33 to i64
-  %35 = ptrtoint ptr %31 to i64
-  %36 = sub i64 %34, %35
-  %37 = trunc i64 %36 to i16
-  %38 = udiv i16 %37, 12
-  store i16 %38, ptr %stack.ptr_1
-  %39 = icmp ne ptr %33, %31
-  %40 = getelementptr [3 x i32], ptr %33, i32 -1
-  %41 = call ccc i8 @eclair_btree_value_compare_values_0(ptr %40, ptr %val_0)
-  %42 = icmp eq i8 0, %41
-  %43 = and i1 %39, %42
-  br i1 %43, label %no_insert_0, label %leaf_continue_insert_0
+  %28 = getelementptr %node_t_0, ptr %9, i32 0, i32 0, i32 2
+  %29 = load i16, ptr %28
+  %30 = getelementptr %node_t_0, ptr %9, i32 0, i32 1, i16 0
+  %31 = getelementptr %node_t_0, ptr %9, i32 0, i32 1, i16 %29
+  %32 = call ccc ptr @eclair_btree_linear_search_upper_bound_0(ptr %val_0, ptr %30, ptr %31)
+  %33 = ptrtoint ptr %32 to i64
+  %34 = ptrtoint ptr %30 to i64
+  %35 = sub i64 %33, %34
+  %36 = trunc i64 %35 to i16
+  %37 = udiv i16 %36, 12
+  store i16 %37, ptr %stack.ptr_1
+  %38 = icmp ne ptr %32, %30
+  br i1 %38, label %if_1, label %end_if_1
+if_1:
+  %39 = getelementptr [3 x i32], ptr %32, i32 -1
+  %40 = call ccc i8 @eclair_btree_value_compare_values_0(ptr %39, ptr %val_0)
+  %41 = icmp eq i8 0, %40
+  br i1 %41, label %no_insert_0, label %leaf_continue_insert_0
+end_if_1:
+  br label %leaf_continue_insert_0
 leaf_continue_insert_0:
-  %44 = icmp uge i16 %30, 20
-  br i1 %44, label %split_0, label %no_split_0
+  %42 = icmp uge i16 %29, 20
+  br i1 %42, label %split_0, label %no_split_0
 split_0:
-  %45 = getelementptr %btree_t_0, ptr %tree_0, i32 0, i32 0
-  %46 = load i16, ptr %stack.ptr_1
-  %47 = call ccc i16 @eclair_btree_node_rebalance_or_split_0(ptr %9, ptr %45, i16 %46)
-  %48 = sub i16 %46, %47
-  store i16 %48, ptr %stack.ptr_1
-  %49 = getelementptr %node_t_0, ptr %9, i32 0, i32 0, i32 2
-  %50 = load i16, ptr %49
-  %51 = icmp ugt i16 %48, %50
-  br i1 %51, label %if_0, label %end_if_0
-if_0:
-  %52 = add i16 %50, 1
-  %53 = sub i16 %48, %52
-  store i16 %53, ptr %stack.ptr_1
-  %54 = getelementptr %node_t_0, ptr %9, i32 0, i32 0, i32 0
-  %55 = load ptr, ptr %54
-  %56 = getelementptr %node_t_0, ptr %9, i32 0, i32 0, i32 1
-  %57 = load i16, ptr %56
-  %58 = add i16 1, %57
-  %59 = getelementptr %inner_node_t_0, ptr %55, i32 0, i32 1, i16 %58
-  %60 = load ptr, ptr %59
-  store ptr %60, ptr %stack.ptr_0
-  br label %end_if_0
-end_if_0:
+  %43 = getelementptr %btree_t_0, ptr %tree_0, i32 0, i32 0
+  %44 = load i16, ptr %stack.ptr_1
+  %45 = call ccc i16 @eclair_btree_node_rebalance_or_split_0(ptr %9, ptr %43, i16 %44)
+  %46 = sub i16 %44, %45
+  store i16 %46, ptr %stack.ptr_1
+  %47 = getelementptr %node_t_0, ptr %9, i32 0, i32 0, i32 2
+  %48 = load i16, ptr %47
+  %49 = icmp ugt i16 %46, %48
+  br i1 %49, label %if_2, label %end_if_2
+if_2:
+  %50 = add i16 %48, 1
+  %51 = sub i16 %46, %50
+  store i16 %51, ptr %stack.ptr_1
+  %52 = getelementptr %node_t_0, ptr %9, i32 0, i32 0, i32 0
+  %53 = load ptr, ptr %52
+  %54 = getelementptr %node_t_0, ptr %9, i32 0, i32 0, i32 1
+  %55 = load i16, ptr %54
+  %56 = add i16 1, %55
+  %57 = getelementptr %inner_node_t_0, ptr %53, i32 0, i32 1, i16 %56
+  %58 = load ptr, ptr %57
+  store ptr %58, ptr %stack.ptr_0
+  br label %end_if_2
+end_if_2:
   br label %no_split_0
 no_split_0:
-  %61 = load ptr, ptr %stack.ptr_0
-  %62 = load i16, ptr %stack.ptr_1
-  %63 = getelementptr %node_t_0, ptr %61, i32 0, i32 0, i32 2
-  %64 = load i16, ptr %63
+  %59 = load ptr, ptr %stack.ptr_0
+  %60 = load i16, ptr %stack.ptr_1
+  %61 = getelementptr %node_t_0, ptr %59, i32 0, i32 0, i32 2
+  %62 = load i16, ptr %61
   br label %for_begin_0
 for_begin_0:
-  %65 = phi i16 [%64, %no_split_0], [%71, %for_body_0]
-  %66 = icmp ugt i16 %65, %62
-  br i1 %66, label %for_body_0, label %for_end_0
+  %63 = phi i16 [%62, %no_split_0], [%69, %for_body_0]
+  %64 = icmp ugt i16 %63, %60
+  br i1 %64, label %for_body_0, label %for_end_0
 for_body_0:
-  %67 = sub i16 %65, 1
-  %68 = getelementptr %node_t_0, ptr %61, i32 0, i32 1, i16 %67
-  %69 = load [3 x i32], ptr %68
-  %70 = getelementptr %node_t_0, ptr %61, i32 0, i32 1, i16 %65
-  store [3 x i32] %69, ptr %70
-  %71 = sub i16 %65, 1
+  %65 = sub i16 %63, 1
+  %66 = getelementptr %node_t_0, ptr %59, i32 0, i32 1, i16 %65
+  %67 = load [3 x i32], ptr %66
+  %68 = getelementptr %node_t_0, ptr %59, i32 0, i32 1, i16 %63
+  store [3 x i32] %67, ptr %68
+  %69 = sub i16 %63, 1
   br label %for_begin_0
 for_end_0:
-  %72 = load [3 x i32], ptr %val_0
-  %73 = getelementptr %node_t_0, ptr %61, i32 0, i32 1, i16 %62
-  store [3 x i32] %72, ptr %73
-  %74 = getelementptr %node_t_0, ptr %61, i32 0, i32 0, i32 2
-  %75 = load i16, ptr %74
-  %76 = add i16 1, %75
-  store i16 %76, ptr %74
+  %70 = load [3 x i32], ptr %val_0
+  %71 = getelementptr %node_t_0, ptr %59, i32 0, i32 1, i16 %60
+  store [3 x i32] %70, ptr %71
+  %72 = getelementptr %node_t_0, ptr %59, i32 0, i32 0, i32 2
+  %73 = load i16, ptr %72
+  %74 = add i16 1, %73
+  store i16 %74, ptr %72
   br label %inserted_new_value_0
 no_insert_0:
   ret i1 0
@@ -875,25 +894,28 @@ loop_0:
   %12 = trunc i64 %11 to i16
   %13 = udiv i16 %12, 12
   %14 = icmp ult ptr %8, %7
+  br i1 %14, label %if_1, label %end_if_2
+if_1:
   %15 = call ccc i8 @eclair_btree_value_compare_values_0(ptr %8, ptr %val_0)
   %16 = icmp eq i8 0, %15
-  %17 = and i1 %14, %16
-  br i1 %17, label %if_1, label %end_if_1
-if_1:
+  br i1 %16, label %if_2, label %end_if_1
+if_2:
   call ccc void @eclair_btree_iterator_init_0(ptr %result_0, ptr %3, i16 %13)
   ret void
 end_if_1:
-  %18 = getelementptr %node_t_0, ptr %3, i32 0, i32 0, i32 3
-  %19 = load i1, ptr %18
-  %20 = icmp eq i1 %19, 0
-  br i1 %20, label %if_2, label %end_if_2
-if_2:
+  br label %end_if_2
+end_if_2:
+  %17 = getelementptr %node_t_0, ptr %3, i32 0, i32 0, i32 3
+  %18 = load i1, ptr %17
+  %19 = icmp eq i1 %18, 0
+  br i1 %19, label %if_3, label %end_if_3
+if_3:
   call ccc void @eclair_btree_iterator_end_init_0(ptr %result_0)
   ret void
-end_if_2:
-  %21 = getelementptr %inner_node_t_0, ptr %3, i32 0, i32 1, i16 %13
-  %22 = load ptr, ptr %21
-  store ptr %22, ptr %stack.ptr_0
+end_if_3:
+  %20 = getelementptr %inner_node_t_0, ptr %3, i32 0, i32 1, i16 %13
+  %21 = load ptr, ptr %20
+  store ptr %21, ptr %stack.ptr_0
   br label %loop_0
 }
 
@@ -946,22 +968,25 @@ handle_not_last_0:
   ret void
 end_if_1:
   %24 = icmp ne ptr %8, %7
+  br i1 %24, label %if_2, label %end_if_3
+if_2:
   %25 = call ccc i8 @eclair_btree_value_compare_values_0(ptr %8, ptr %val_0)
   %26 = icmp eq i8 0, %25
-  %27 = and i1 %24, %26
-  br i1 %27, label %if_2, label %end_if_2
-if_2:
+  br i1 %26, label %if_3, label %end_if_2
+if_3:
   call ccc void @eclair_btree_iterator_init_0(ptr %result_0, ptr %3, i16 %13)
   ret void
 end_if_2:
-  br i1 %24, label %if_3, label %end_if_3
-if_3:
-  call ccc void @eclair_btree_iterator_init_0(ptr %stack.ptr_0, ptr %3, i16 %13)
   br label %end_if_3
 end_if_3:
-  %28 = getelementptr %inner_node_t_0, ptr %3, i32 0, i32 1, i16 %13
-  %29 = load ptr, ptr %28
-  store ptr %29, ptr %stack.ptr_1
+  br i1 %24, label %if_4, label %end_if_4
+if_4:
+  call ccc void @eclair_btree_iterator_init_0(ptr %stack.ptr_0, ptr %3, i16 %13)
+  br label %end_if_4
+end_if_4:
+  %27 = getelementptr %inner_node_t_0, ptr %3, i32 0, i32 1, i16 %13
+  %28 = load ptr, ptr %27
+  store ptr %28, ptr %stack.ptr_1
   br label %loop_0
 }
 
@@ -1579,7 +1604,7 @@ end_if_1:
   br label %for_begin_0
 for_begin_0:
   %22 = phi i16 [%20, %end_if_1], [%37, %for_body_0]
-  %23 = icmp uge i16 %22, %21
+  %23 = icmp sge i16 %22, %21
   br i1 %23, label %for_body_0, label %for_end_0
 for_body_0:
   %24 = add i16 %22, 1
@@ -1692,7 +1717,7 @@ for_end_1:
 if_1:
   br label %for_begin_2
 for_begin_2:
-  %48 = phi i16 [0, %if_1], [%61, %for_body_2]
+  %48 = phi i16 [0, %if_1], [%57, %for_body_2]
   %49 = icmp ult i16 %48, %14
   br i1 %49, label %for_body_2, label %for_end_2
 for_body_2:
@@ -1704,45 +1729,58 @@ for_body_2:
   %55 = load ptr, ptr %54
   %56 = getelementptr %inner_node_t_1, ptr %9, i32 0, i32 1, i16 %53
   store ptr %55, ptr %56
-  %57 = getelementptr %inner_node_t_1, ptr %9, i32 0, i32 1, i16 %53
-  %58 = load ptr, ptr %57
-  %59 = getelementptr %node_t_1, ptr %58, i32 0, i32 0, i32 0
-  store ptr %9, ptr %59
-  %60 = getelementptr %node_t_1, ptr %58, i32 0, i32 0, i32 1
-  store i16 %53, ptr %60
-  %61 = add i16 1, %48
+  %57 = add i16 1, %48
   br label %for_begin_2
 for_end_2:
-  %62 = sub i16 %36, %14
-  %63 = add i16 1, %62
   br label %for_begin_3
 for_begin_3:
-  %64 = phi i16 [0, %for_end_2], [%73, %for_body_3]
-  %65 = icmp ult i16 %64, %63
-  br i1 %65, label %for_body_3, label %for_end_3
+  %58 = phi i16 [0, %for_end_2], [%68, %for_body_3]
+  %59 = icmp ult i16 %58, %14
+  br i1 %59, label %for_body_3, label %for_end_3
 for_body_3:
-  %66 = add i16 %64, %14
-  %67 = getelementptr %inner_node_t_1, ptr %node_0, i32 0, i32 1, i16 %66
-  %68 = load ptr, ptr %67
-  %69 = getelementptr %inner_node_t_1, ptr %node_0, i32 0, i32 1, i16 %64
-  store ptr %68, ptr %69
-  %70 = getelementptr %inner_node_t_1, ptr %node_0, i32 0, i32 1, i16 %64
-  %71 = load ptr, ptr %70
-  %72 = getelementptr %node_t_1, ptr %71, i32 0, i32 0, i32 1
-  store i16 %64, ptr %72
-  %73 = add i16 1, %64
+  %60 = getelementptr %node_t_1, ptr %9, i32 0, i32 0, i32 2
+  %61 = load i16, ptr %60
+  %62 = add i16 %61, 1
+  %63 = add i16 %58, %62
+  %64 = getelementptr %inner_node_t_1, ptr %node_0, i32 0, i32 1, i16 %58
+  %65 = load ptr, ptr %64
+  %66 = getelementptr %node_t_1, ptr %65, i32 0, i32 0, i32 0
+  store ptr %9, ptr %66
+  %67 = getelementptr %node_t_1, ptr %65, i32 0, i32 0, i32 1
+  store i16 %63, ptr %67
+  %68 = add i16 1, %58
   br label %for_begin_3
 for_end_3:
+  %69 = sub i16 %36, %14
+  %70 = add i16 1, %69
+  br label %for_begin_4
+for_begin_4:
+  %71 = phi i16 [0, %for_end_3], [%80, %for_body_4]
+  %72 = icmp ult i16 %71, %70
+  br i1 %72, label %for_body_4, label %for_end_4
+for_body_4:
+  %73 = add i16 %71, %14
+  %74 = getelementptr %inner_node_t_1, ptr %node_0, i32 0, i32 1, i16 %73
+  %75 = load ptr, ptr %74
+  %76 = getelementptr %inner_node_t_1, ptr %node_0, i32 0, i32 1, i16 %71
+  store ptr %75, ptr %76
+  %77 = getelementptr %inner_node_t_1, ptr %node_0, i32 0, i32 1, i16 %71
+  %78 = load ptr, ptr %77
+  %79 = getelementptr %node_t_1, ptr %78, i32 0, i32 0, i32 1
+  store i16 %71, ptr %79
+  %80 = add i16 1, %71
+  br label %for_begin_4
+for_end_4:
   br label %end_if_0
 end_if_0:
-  %74 = getelementptr %node_t_1, ptr %9, i32 0, i32 0, i32 2
-  %75 = load i16, ptr %74
-  %76 = add i16 %75, %14
-  store i16 %76, ptr %74
-  %77 = getelementptr %node_t_1, ptr %node_0, i32 0, i32 0, i32 2
-  %78 = load i16, ptr %77
-  %79 = sub i16 %78, %14
-  store i16 %79, ptr %77
+  %81 = getelementptr %node_t_1, ptr %9, i32 0, i32 0, i32 2
+  %82 = load i16, ptr %81
+  %83 = add i16 %82, %14
+  store i16 %83, ptr %81
+  %84 = getelementptr %node_t_1, ptr %node_0, i32 0, i32 0, i32 2
+  %85 = load i16, ptr %84
+  %86 = sub i16 %85, %14
+  store i16 %86, ptr %84
   ret i16 %14
 end_if_1:
   br label %split_0
@@ -1792,87 +1830,93 @@ inner_0:
   %21 = trunc i64 %20 to i16
   %22 = udiv i16 %21, 8
   %23 = icmp ne ptr %17, %16
+  br i1 %23, label %if_0, label %end_if_0
+if_0:
   %24 = call ccc i8 @eclair_btree_value_compare_values_1(ptr %17, ptr %val_0)
   %25 = icmp eq i8 0, %24
-  %26 = and i1 %23, %25
-  br i1 %26, label %no_insert_0, label %inner_continue_insert_0
+  br i1 %25, label %no_insert_0, label %inner_continue_insert_0
+end_if_0:
+  br label %inner_continue_insert_0
 inner_continue_insert_0:
-  %27 = getelementptr %inner_node_t_1, ptr %9, i32 0, i32 1, i16 %22
-  %28 = load ptr, ptr %27
-  store ptr %28, ptr %stack.ptr_0
+  %26 = getelementptr %inner_node_t_1, ptr %9, i32 0, i32 1, i16 %22
+  %27 = load ptr, ptr %26
+  store ptr %27, ptr %stack.ptr_0
   br label %loop_0
 leaf_0:
-  %29 = getelementptr %node_t_1, ptr %9, i32 0, i32 0, i32 2
-  %30 = load i16, ptr %29
-  %31 = getelementptr %node_t_1, ptr %9, i32 0, i32 1, i16 0
-  %32 = getelementptr %node_t_1, ptr %9, i32 0, i32 1, i16 %30
-  %33 = call ccc ptr @eclair_btree_linear_search_upper_bound_1(ptr %val_0, ptr %31, ptr %32)
-  %34 = ptrtoint ptr %33 to i64
-  %35 = ptrtoint ptr %31 to i64
-  %36 = sub i64 %34, %35
-  %37 = trunc i64 %36 to i16
-  %38 = udiv i16 %37, 8
-  store i16 %38, ptr %stack.ptr_1
-  %39 = icmp ne ptr %33, %31
-  %40 = getelementptr [2 x i32], ptr %33, i32 -1
-  %41 = call ccc i8 @eclair_btree_value_compare_values_1(ptr %40, ptr %val_0)
-  %42 = icmp eq i8 0, %41
-  %43 = and i1 %39, %42
-  br i1 %43, label %no_insert_0, label %leaf_continue_insert_0
+  %28 = getelementptr %node_t_1, ptr %9, i32 0, i32 0, i32 2
+  %29 = load i16, ptr %28
+  %30 = getelementptr %node_t_1, ptr %9, i32 0, i32 1, i16 0
+  %31 = getelementptr %node_t_1, ptr %9, i32 0, i32 1, i16 %29
+  %32 = call ccc ptr @eclair_btree_linear_search_upper_bound_1(ptr %val_0, ptr %30, ptr %31)
+  %33 = ptrtoint ptr %32 to i64
+  %34 = ptrtoint ptr %30 to i64
+  %35 = sub i64 %33, %34
+  %36 = trunc i64 %35 to i16
+  %37 = udiv i16 %36, 8
+  store i16 %37, ptr %stack.ptr_1
+  %38 = icmp ne ptr %32, %30
+  br i1 %38, label %if_1, label %end_if_1
+if_1:
+  %39 = getelementptr [2 x i32], ptr %32, i32 -1
+  %40 = call ccc i8 @eclair_btree_value_compare_values_1(ptr %39, ptr %val_0)
+  %41 = icmp eq i8 0, %40
+  br i1 %41, label %no_insert_0, label %leaf_continue_insert_0
+end_if_1:
+  br label %leaf_continue_insert_0
 leaf_continue_insert_0:
-  %44 = icmp uge i16 %30, 30
-  br i1 %44, label %split_0, label %no_split_0
+  %42 = icmp uge i16 %29, 30
+  br i1 %42, label %split_0, label %no_split_0
 split_0:
-  %45 = getelementptr %btree_t_1, ptr %tree_0, i32 0, i32 0
-  %46 = load i16, ptr %stack.ptr_1
-  %47 = call ccc i16 @eclair_btree_node_rebalance_or_split_1(ptr %9, ptr %45, i16 %46)
-  %48 = sub i16 %46, %47
-  store i16 %48, ptr %stack.ptr_1
-  %49 = getelementptr %node_t_1, ptr %9, i32 0, i32 0, i32 2
-  %50 = load i16, ptr %49
-  %51 = icmp ugt i16 %48, %50
-  br i1 %51, label %if_0, label %end_if_0
-if_0:
-  %52 = add i16 %50, 1
-  %53 = sub i16 %48, %52
-  store i16 %53, ptr %stack.ptr_1
-  %54 = getelementptr %node_t_1, ptr %9, i32 0, i32 0, i32 0
-  %55 = load ptr, ptr %54
-  %56 = getelementptr %node_t_1, ptr %9, i32 0, i32 0, i32 1
-  %57 = load i16, ptr %56
-  %58 = add i16 1, %57
-  %59 = getelementptr %inner_node_t_1, ptr %55, i32 0, i32 1, i16 %58
-  %60 = load ptr, ptr %59
-  store ptr %60, ptr %stack.ptr_0
-  br label %end_if_0
-end_if_0:
+  %43 = getelementptr %btree_t_1, ptr %tree_0, i32 0, i32 0
+  %44 = load i16, ptr %stack.ptr_1
+  %45 = call ccc i16 @eclair_btree_node_rebalance_or_split_1(ptr %9, ptr %43, i16 %44)
+  %46 = sub i16 %44, %45
+  store i16 %46, ptr %stack.ptr_1
+  %47 = getelementptr %node_t_1, ptr %9, i32 0, i32 0, i32 2
+  %48 = load i16, ptr %47
+  %49 = icmp ugt i16 %46, %48
+  br i1 %49, label %if_2, label %end_if_2
+if_2:
+  %50 = add i16 %48, 1
+  %51 = sub i16 %46, %50
+  store i16 %51, ptr %stack.ptr_1
+  %52 = getelementptr %node_t_1, ptr %9, i32 0, i32 0, i32 0
+  %53 = load ptr, ptr %52
+  %54 = getelementptr %node_t_1, ptr %9, i32 0, i32 0, i32 1
+  %55 = load i16, ptr %54
+  %56 = add i16 1, %55
+  %57 = getelementptr %inner_node_t_1, ptr %53, i32 0, i32 1, i16 %56
+  %58 = load ptr, ptr %57
+  store ptr %58, ptr %stack.ptr_0
+  br label %end_if_2
+end_if_2:
   br label %no_split_0
 no_split_0:
-  %61 = load ptr, ptr %stack.ptr_0
-  %62 = load i16, ptr %stack.ptr_1
-  %63 = getelementptr %node_t_1, ptr %61, i32 0, i32 0, i32 2
-  %64 = load i16, ptr %63
+  %59 = load ptr, ptr %stack.ptr_0
+  %60 = load i16, ptr %stack.ptr_1
+  %61 = getelementptr %node_t_1, ptr %59, i32 0, i32 0, i32 2
+  %62 = load i16, ptr %61
   br label %for_begin_0
 for_begin_0:
-  %65 = phi i16 [%64, %no_split_0], [%71, %for_body_0]
-  %66 = icmp ugt i16 %65, %62
-  br i1 %66, label %for_body_0, label %for_end_0
+  %63 = phi i16 [%62, %no_split_0], [%69, %for_body_0]
+  %64 = icmp ugt i16 %63, %60
+  br i1 %64, label %for_body_0, label %for_end_0
 for_body_0:
-  %67 = sub i16 %65, 1
-  %68 = getelementptr %node_t_1, ptr %61, i32 0, i32 1, i16 %67
-  %69 = load [2 x i32], ptr %68
-  %70 = getelementptr %node_t_1, ptr %61, i32 0, i32 1, i16 %65
-  store [2 x i32] %69, ptr %70
-  %71 = sub i16 %65, 1
+  %65 = sub i16 %63, 1
+  %66 = getelementptr %node_t_1, ptr %59, i32 0, i32 1, i16 %65
+  %67 = load [2 x i32], ptr %66
+  %68 = getelementptr %node_t_1, ptr %59, i32 0, i32 1, i16 %63
+  store [2 x i32] %67, ptr %68
+  %69 = sub i16 %63, 1
   br label %for_begin_0
 for_end_0:
-  %72 = load [2 x i32], ptr %val_0
-  %73 = getelementptr %node_t_1, ptr %61, i32 0, i32 1, i16 %62
-  store [2 x i32] %72, ptr %73
-  %74 = getelementptr %node_t_1, ptr %61, i32 0, i32 0, i32 2
-  %75 = load i16, ptr %74
-  %76 = add i16 1, %75
-  store i16 %76, ptr %74
+  %70 = load [2 x i32], ptr %val_0
+  %71 = getelementptr %node_t_1, ptr %59, i32 0, i32 1, i16 %60
+  store [2 x i32] %70, ptr %71
+  %72 = getelementptr %node_t_1, ptr %59, i32 0, i32 0, i32 2
+  %73 = load i16, ptr %72
+  %74 = add i16 1, %73
+  store i16 %74, ptr %72
   br label %inserted_new_value_0
 no_insert_0:
   ret i1 0
@@ -1950,25 +1994,28 @@ loop_0:
   %12 = trunc i64 %11 to i16
   %13 = udiv i16 %12, 8
   %14 = icmp ult ptr %8, %7
+  br i1 %14, label %if_1, label %end_if_2
+if_1:
   %15 = call ccc i8 @eclair_btree_value_compare_values_1(ptr %8, ptr %val_0)
   %16 = icmp eq i8 0, %15
-  %17 = and i1 %14, %16
-  br i1 %17, label %if_1, label %end_if_1
-if_1:
+  br i1 %16, label %if_2, label %end_if_1
+if_2:
   call ccc void @eclair_btree_iterator_init_1(ptr %result_0, ptr %3, i16 %13)
   ret void
 end_if_1:
-  %18 = getelementptr %node_t_1, ptr %3, i32 0, i32 0, i32 3
-  %19 = load i1, ptr %18
-  %20 = icmp eq i1 %19, 0
-  br i1 %20, label %if_2, label %end_if_2
-if_2:
+  br label %end_if_2
+end_if_2:
+  %17 = getelementptr %node_t_1, ptr %3, i32 0, i32 0, i32 3
+  %18 = load i1, ptr %17
+  %19 = icmp eq i1 %18, 0
+  br i1 %19, label %if_3, label %end_if_3
+if_3:
   call ccc void @eclair_btree_iterator_end_init_1(ptr %result_0)
   ret void
-end_if_2:
-  %21 = getelementptr %inner_node_t_1, ptr %3, i32 0, i32 1, i16 %13
-  %22 = load ptr, ptr %21
-  store ptr %22, ptr %stack.ptr_0
+end_if_3:
+  %20 = getelementptr %inner_node_t_1, ptr %3, i32 0, i32 1, i16 %13
+  %21 = load ptr, ptr %20
+  store ptr %21, ptr %stack.ptr_0
   br label %loop_0
 }
 
@@ -2021,22 +2068,25 @@ handle_not_last_0:
   ret void
 end_if_1:
   %24 = icmp ne ptr %8, %7
+  br i1 %24, label %if_2, label %end_if_3
+if_2:
   %25 = call ccc i8 @eclair_btree_value_compare_values_1(ptr %8, ptr %val_0)
   %26 = icmp eq i8 0, %25
-  %27 = and i1 %24, %26
-  br i1 %27, label %if_2, label %end_if_2
-if_2:
+  br i1 %26, label %if_3, label %end_if_2
+if_3:
   call ccc void @eclair_btree_iterator_init_1(ptr %result_0, ptr %3, i16 %13)
   ret void
 end_if_2:
-  br i1 %24, label %if_3, label %end_if_3
-if_3:
-  call ccc void @eclair_btree_iterator_init_1(ptr %stack.ptr_0, ptr %3, i16 %13)
   br label %end_if_3
 end_if_3:
-  %28 = getelementptr %inner_node_t_1, ptr %3, i32 0, i32 1, i16 %13
-  %29 = load ptr, ptr %28
-  store ptr %29, ptr %stack.ptr_1
+  br i1 %24, label %if_4, label %end_if_4
+if_4:
+  call ccc void @eclair_btree_iterator_init_1(ptr %stack.ptr_0, ptr %3, i16 %13)
+  br label %end_if_4
+end_if_4:
+  %27 = getelementptr %inner_node_t_1, ptr %3, i32 0, i32 1, i16 %13
+  %28 = load ptr, ptr %27
+  store ptr %28, ptr %stack.ptr_1
   br label %loop_0
 }
 
@@ -2646,7 +2696,7 @@ end_if_1:
   br label %for_begin_0
 for_begin_0:
   %22 = phi i16 [%20, %end_if_1], [%37, %for_body_0]
-  %23 = icmp uge i16 %22, %21
+  %23 = icmp sge i16 %22, %21
   br i1 %23, label %for_body_0, label %for_end_0
 for_body_0:
   %24 = add i16 %22, 1
@@ -2759,7 +2809,7 @@ for_end_1:
 if_1:
   br label %for_begin_2
 for_begin_2:
-  %48 = phi i16 [0, %if_1], [%61, %for_body_2]
+  %48 = phi i16 [0, %if_1], [%57, %for_body_2]
   %49 = icmp ult i16 %48, %14
   br i1 %49, label %for_body_2, label %for_end_2
 for_body_2:
@@ -2771,45 +2821,58 @@ for_body_2:
   %55 = load ptr, ptr %54
   %56 = getelementptr %inner_node_t_2, ptr %9, i32 0, i32 1, i16 %53
   store ptr %55, ptr %56
-  %57 = getelementptr %inner_node_t_2, ptr %9, i32 0, i32 1, i16 %53
-  %58 = load ptr, ptr %57
-  %59 = getelementptr %node_t_2, ptr %58, i32 0, i32 0, i32 0
-  store ptr %9, ptr %59
-  %60 = getelementptr %node_t_2, ptr %58, i32 0, i32 0, i32 1
-  store i16 %53, ptr %60
-  %61 = add i16 1, %48
+  %57 = add i16 1, %48
   br label %for_begin_2
 for_end_2:
-  %62 = sub i16 %36, %14
-  %63 = add i16 1, %62
   br label %for_begin_3
 for_begin_3:
-  %64 = phi i16 [0, %for_end_2], [%73, %for_body_3]
-  %65 = icmp ult i16 %64, %63
-  br i1 %65, label %for_body_3, label %for_end_3
+  %58 = phi i16 [0, %for_end_2], [%68, %for_body_3]
+  %59 = icmp ult i16 %58, %14
+  br i1 %59, label %for_body_3, label %for_end_3
 for_body_3:
-  %66 = add i16 %64, %14
-  %67 = getelementptr %inner_node_t_2, ptr %node_0, i32 0, i32 1, i16 %66
-  %68 = load ptr, ptr %67
-  %69 = getelementptr %inner_node_t_2, ptr %node_0, i32 0, i32 1, i16 %64
-  store ptr %68, ptr %69
-  %70 = getelementptr %inner_node_t_2, ptr %node_0, i32 0, i32 1, i16 %64
-  %71 = load ptr, ptr %70
-  %72 = getelementptr %node_t_2, ptr %71, i32 0, i32 0, i32 1
-  store i16 %64, ptr %72
-  %73 = add i16 1, %64
+  %60 = getelementptr %node_t_2, ptr %9, i32 0, i32 0, i32 2
+  %61 = load i16, ptr %60
+  %62 = add i16 %61, 1
+  %63 = add i16 %58, %62
+  %64 = getelementptr %inner_node_t_2, ptr %node_0, i32 0, i32 1, i16 %58
+  %65 = load ptr, ptr %64
+  %66 = getelementptr %node_t_2, ptr %65, i32 0, i32 0, i32 0
+  store ptr %9, ptr %66
+  %67 = getelementptr %node_t_2, ptr %65, i32 0, i32 0, i32 1
+  store i16 %63, ptr %67
+  %68 = add i16 1, %58
   br label %for_begin_3
 for_end_3:
+  %69 = sub i16 %36, %14
+  %70 = add i16 1, %69
+  br label %for_begin_4
+for_begin_4:
+  %71 = phi i16 [0, %for_end_3], [%80, %for_body_4]
+  %72 = icmp ult i16 %71, %70
+  br i1 %72, label %for_body_4, label %for_end_4
+for_body_4:
+  %73 = add i16 %71, %14
+  %74 = getelementptr %inner_node_t_2, ptr %node_0, i32 0, i32 1, i16 %73
+  %75 = load ptr, ptr %74
+  %76 = getelementptr %inner_node_t_2, ptr %node_0, i32 0, i32 1, i16 %71
+  store ptr %75, ptr %76
+  %77 = getelementptr %inner_node_t_2, ptr %node_0, i32 0, i32 1, i16 %71
+  %78 = load ptr, ptr %77
+  %79 = getelementptr %node_t_2, ptr %78, i32 0, i32 0, i32 1
+  store i16 %71, ptr %79
+  %80 = add i16 1, %71
+  br label %for_begin_4
+for_end_4:
   br label %end_if_0
 end_if_0:
-  %74 = getelementptr %node_t_2, ptr %9, i32 0, i32 0, i32 2
-  %75 = load i16, ptr %74
-  %76 = add i16 %75, %14
-  store i16 %76, ptr %74
-  %77 = getelementptr %node_t_2, ptr %node_0, i32 0, i32 0, i32 2
-  %78 = load i16, ptr %77
-  %79 = sub i16 %78, %14
-  store i16 %79, ptr %77
+  %81 = getelementptr %node_t_2, ptr %9, i32 0, i32 0, i32 2
+  %82 = load i16, ptr %81
+  %83 = add i16 %82, %14
+  store i16 %83, ptr %81
+  %84 = getelementptr %node_t_2, ptr %node_0, i32 0, i32 0, i32 2
+  %85 = load i16, ptr %84
+  %86 = sub i16 %85, %14
+  store i16 %86, ptr %84
   ret i16 %14
 end_if_1:
   br label %split_0
@@ -2859,87 +2922,93 @@ inner_0:
   %21 = trunc i64 %20 to i16
   %22 = udiv i16 %21, 8
   %23 = icmp ne ptr %17, %16
+  br i1 %23, label %if_0, label %end_if_0
+if_0:
   %24 = call ccc i8 @eclair_btree_value_compare_values_2(ptr %17, ptr %val_0)
   %25 = icmp eq i8 0, %24
-  %26 = and i1 %23, %25
-  br i1 %26, label %no_insert_0, label %inner_continue_insert_0
+  br i1 %25, label %no_insert_0, label %inner_continue_insert_0
+end_if_0:
+  br label %inner_continue_insert_0
 inner_continue_insert_0:
-  %27 = getelementptr %inner_node_t_2, ptr %9, i32 0, i32 1, i16 %22
-  %28 = load ptr, ptr %27
-  store ptr %28, ptr %stack.ptr_0
+  %26 = getelementptr %inner_node_t_2, ptr %9, i32 0, i32 1, i16 %22
+  %27 = load ptr, ptr %26
+  store ptr %27, ptr %stack.ptr_0
   br label %loop_0
 leaf_0:
-  %29 = getelementptr %node_t_2, ptr %9, i32 0, i32 0, i32 2
-  %30 = load i16, ptr %29
-  %31 = getelementptr %node_t_2, ptr %9, i32 0, i32 1, i16 0
-  %32 = getelementptr %node_t_2, ptr %9, i32 0, i32 1, i16 %30
-  %33 = call ccc ptr @eclair_btree_linear_search_upper_bound_2(ptr %val_0, ptr %31, ptr %32)
-  %34 = ptrtoint ptr %33 to i64
-  %35 = ptrtoint ptr %31 to i64
-  %36 = sub i64 %34, %35
-  %37 = trunc i64 %36 to i16
-  %38 = udiv i16 %37, 8
-  store i16 %38, ptr %stack.ptr_1
-  %39 = icmp ne ptr %33, %31
-  %40 = getelementptr [2 x i32], ptr %33, i32 -1
-  %41 = call ccc i8 @eclair_btree_value_compare_values_2(ptr %40, ptr %val_0)
-  %42 = icmp eq i8 0, %41
-  %43 = and i1 %39, %42
-  br i1 %43, label %no_insert_0, label %leaf_continue_insert_0
+  %28 = getelementptr %node_t_2, ptr %9, i32 0, i32 0, i32 2
+  %29 = load i16, ptr %28
+  %30 = getelementptr %node_t_2, ptr %9, i32 0, i32 1, i16 0
+  %31 = getelementptr %node_t_2, ptr %9, i32 0, i32 1, i16 %29
+  %32 = call ccc ptr @eclair_btree_linear_search_upper_bound_2(ptr %val_0, ptr %30, ptr %31)
+  %33 = ptrtoint ptr %32 to i64
+  %34 = ptrtoint ptr %30 to i64
+  %35 = sub i64 %33, %34
+  %36 = trunc i64 %35 to i16
+  %37 = udiv i16 %36, 8
+  store i16 %37, ptr %stack.ptr_1
+  %38 = icmp ne ptr %32, %30
+  br i1 %38, label %if_1, label %end_if_1
+if_1:
+  %39 = getelementptr [2 x i32], ptr %32, i32 -1
+  %40 = call ccc i8 @eclair_btree_value_compare_values_2(ptr %39, ptr %val_0)
+  %41 = icmp eq i8 0, %40
+  br i1 %41, label %no_insert_0, label %leaf_continue_insert_0
+end_if_1:
+  br label %leaf_continue_insert_0
 leaf_continue_insert_0:
-  %44 = icmp uge i16 %30, 30
-  br i1 %44, label %split_0, label %no_split_0
+  %42 = icmp uge i16 %29, 30
+  br i1 %42, label %split_0, label %no_split_0
 split_0:
-  %45 = getelementptr %btree_t_2, ptr %tree_0, i32 0, i32 0
-  %46 = load i16, ptr %stack.ptr_1
-  %47 = call ccc i16 @eclair_btree_node_rebalance_or_split_2(ptr %9, ptr %45, i16 %46)
-  %48 = sub i16 %46, %47
-  store i16 %48, ptr %stack.ptr_1
-  %49 = getelementptr %node_t_2, ptr %9, i32 0, i32 0, i32 2
-  %50 = load i16, ptr %49
-  %51 = icmp ugt i16 %48, %50
-  br i1 %51, label %if_0, label %end_if_0
-if_0:
-  %52 = add i16 %50, 1
-  %53 = sub i16 %48, %52
-  store i16 %53, ptr %stack.ptr_1
-  %54 = getelementptr %node_t_2, ptr %9, i32 0, i32 0, i32 0
-  %55 = load ptr, ptr %54
-  %56 = getelementptr %node_t_2, ptr %9, i32 0, i32 0, i32 1
-  %57 = load i16, ptr %56
-  %58 = add i16 1, %57
-  %59 = getelementptr %inner_node_t_2, ptr %55, i32 0, i32 1, i16 %58
-  %60 = load ptr, ptr %59
-  store ptr %60, ptr %stack.ptr_0
-  br label %end_if_0
-end_if_0:
+  %43 = getelementptr %btree_t_2, ptr %tree_0, i32 0, i32 0
+  %44 = load i16, ptr %stack.ptr_1
+  %45 = call ccc i16 @eclair_btree_node_rebalance_or_split_2(ptr %9, ptr %43, i16 %44)
+  %46 = sub i16 %44, %45
+  store i16 %46, ptr %stack.ptr_1
+  %47 = getelementptr %node_t_2, ptr %9, i32 0, i32 0, i32 2
+  %48 = load i16, ptr %47
+  %49 = icmp ugt i16 %46, %48
+  br i1 %49, label %if_2, label %end_if_2
+if_2:
+  %50 = add i16 %48, 1
+  %51 = sub i16 %46, %50
+  store i16 %51, ptr %stack.ptr_1
+  %52 = getelementptr %node_t_2, ptr %9, i32 0, i32 0, i32 0
+  %53 = load ptr, ptr %52
+  %54 = getelementptr %node_t_2, ptr %9, i32 0, i32 0, i32 1
+  %55 = load i16, ptr %54
+  %56 = add i16 1, %55
+  %57 = getelementptr %inner_node_t_2, ptr %53, i32 0, i32 1, i16 %56
+  %58 = load ptr, ptr %57
+  store ptr %58, ptr %stack.ptr_0
+  br label %end_if_2
+end_if_2:
   br label %no_split_0
 no_split_0:
-  %61 = load ptr, ptr %stack.ptr_0
-  %62 = load i16, ptr %stack.ptr_1
-  %63 = getelementptr %node_t_2, ptr %61, i32 0, i32 0, i32 2
-  %64 = load i16, ptr %63
+  %59 = load ptr, ptr %stack.ptr_0
+  %60 = load i16, ptr %stack.ptr_1
+  %61 = getelementptr %node_t_2, ptr %59, i32 0, i32 0, i32 2
+  %62 = load i16, ptr %61
   br label %for_begin_0
 for_begin_0:
-  %65 = phi i16 [%64, %no_split_0], [%71, %for_body_0]
-  %66 = icmp ugt i16 %65, %62
-  br i1 %66, label %for_body_0, label %for_end_0
+  %63 = phi i16 [%62, %no_split_0], [%69, %for_body_0]
+  %64 = icmp ugt i16 %63, %60
+  br i1 %64, label %for_body_0, label %for_end_0
 for_body_0:
-  %67 = sub i16 %65, 1
-  %68 = getelementptr %node_t_2, ptr %61, i32 0, i32 1, i16 %67
-  %69 = load [2 x i32], ptr %68
-  %70 = getelementptr %node_t_2, ptr %61, i32 0, i32 1, i16 %65
-  store [2 x i32] %69, ptr %70
-  %71 = sub i16 %65, 1
+  %65 = sub i16 %63, 1
+  %66 = getelementptr %node_t_2, ptr %59, i32 0, i32 1, i16 %65
+  %67 = load [2 x i32], ptr %66
+  %68 = getelementptr %node_t_2, ptr %59, i32 0, i32 1, i16 %63
+  store [2 x i32] %67, ptr %68
+  %69 = sub i16 %63, 1
   br label %for_begin_0
 for_end_0:
-  %72 = load [2 x i32], ptr %val_0
-  %73 = getelementptr %node_t_2, ptr %61, i32 0, i32 1, i16 %62
-  store [2 x i32] %72, ptr %73
-  %74 = getelementptr %node_t_2, ptr %61, i32 0, i32 0, i32 2
-  %75 = load i16, ptr %74
-  %76 = add i16 1, %75
-  store i16 %76, ptr %74
+  %70 = load [2 x i32], ptr %val_0
+  %71 = getelementptr %node_t_2, ptr %59, i32 0, i32 1, i16 %60
+  store [2 x i32] %70, ptr %71
+  %72 = getelementptr %node_t_2, ptr %59, i32 0, i32 0, i32 2
+  %73 = load i16, ptr %72
+  %74 = add i16 1, %73
+  store i16 %74, ptr %72
   br label %inserted_new_value_0
 no_insert_0:
   ret i1 0
@@ -3017,25 +3086,28 @@ loop_0:
   %12 = trunc i64 %11 to i16
   %13 = udiv i16 %12, 8
   %14 = icmp ult ptr %8, %7
+  br i1 %14, label %if_1, label %end_if_2
+if_1:
   %15 = call ccc i8 @eclair_btree_value_compare_values_2(ptr %8, ptr %val_0)
   %16 = icmp eq i8 0, %15
-  %17 = and i1 %14, %16
-  br i1 %17, label %if_1, label %end_if_1
-if_1:
+  br i1 %16, label %if_2, label %end_if_1
+if_2:
   call ccc void @eclair_btree_iterator_init_2(ptr %result_0, ptr %3, i16 %13)
   ret void
 end_if_1:
-  %18 = getelementptr %node_t_2, ptr %3, i32 0, i32 0, i32 3
-  %19 = load i1, ptr %18
-  %20 = icmp eq i1 %19, 0
-  br i1 %20, label %if_2, label %end_if_2
-if_2:
+  br label %end_if_2
+end_if_2:
+  %17 = getelementptr %node_t_2, ptr %3, i32 0, i32 0, i32 3
+  %18 = load i1, ptr %17
+  %19 = icmp eq i1 %18, 0
+  br i1 %19, label %if_3, label %end_if_3
+if_3:
   call ccc void @eclair_btree_iterator_end_init_2(ptr %result_0)
   ret void
-end_if_2:
-  %21 = getelementptr %inner_node_t_2, ptr %3, i32 0, i32 1, i16 %13
-  %22 = load ptr, ptr %21
-  store ptr %22, ptr %stack.ptr_0
+end_if_3:
+  %20 = getelementptr %inner_node_t_2, ptr %3, i32 0, i32 1, i16 %13
+  %21 = load ptr, ptr %20
+  store ptr %21, ptr %stack.ptr_0
   br label %loop_0
 }
 
@@ -3088,22 +3160,25 @@ handle_not_last_0:
   ret void
 end_if_1:
   %24 = icmp ne ptr %8, %7
+  br i1 %24, label %if_2, label %end_if_3
+if_2:
   %25 = call ccc i8 @eclair_btree_value_compare_values_2(ptr %8, ptr %val_0)
   %26 = icmp eq i8 0, %25
-  %27 = and i1 %24, %26
-  br i1 %27, label %if_2, label %end_if_2
-if_2:
+  br i1 %26, label %if_3, label %end_if_2
+if_3:
   call ccc void @eclair_btree_iterator_init_2(ptr %result_0, ptr %3, i16 %13)
   ret void
 end_if_2:
-  br i1 %24, label %if_3, label %end_if_3
-if_3:
-  call ccc void @eclair_btree_iterator_init_2(ptr %stack.ptr_0, ptr %3, i16 %13)
   br label %end_if_3
 end_if_3:
-  %28 = getelementptr %inner_node_t_2, ptr %3, i32 0, i32 1, i16 %13
-  %29 = load ptr, ptr %28
-  store ptr %29, ptr %stack.ptr_1
+  br i1 %24, label %if_4, label %end_if_4
+if_4:
+  call ccc void @eclair_btree_iterator_init_2(ptr %stack.ptr_0, ptr %3, i16 %13)
+  br label %end_if_4
+end_if_4:
+  %27 = getelementptr %inner_node_t_2, ptr %3, i32 0, i32 1, i16 %13
+  %28 = load ptr, ptr %27
+  store ptr %28, ptr %stack.ptr_1
   br label %loop_0
 }
 
@@ -3737,7 +3812,7 @@ end_if_1:
   br label %for_begin_0
 for_begin_0:
   %22 = phi i16 [%20, %end_if_1], [%37, %for_body_0]
-  %23 = icmp uge i16 %22, %21
+  %23 = icmp sge i16 %22, %21
   br i1 %23, label %for_body_0, label %for_end_0
 for_body_0:
   %24 = add i16 %22, 1
@@ -3850,7 +3925,7 @@ for_end_1:
 if_1:
   br label %for_begin_2
 for_begin_2:
-  %48 = phi i16 [0, %if_1], [%61, %for_body_2]
+  %48 = phi i16 [0, %if_1], [%57, %for_body_2]
   %49 = icmp ult i16 %48, %14
   br i1 %49, label %for_body_2, label %for_end_2
 for_body_2:
@@ -3862,45 +3937,58 @@ for_body_2:
   %55 = load ptr, ptr %54
   %56 = getelementptr %inner_node_t_3, ptr %9, i32 0, i32 1, i16 %53
   store ptr %55, ptr %56
-  %57 = getelementptr %inner_node_t_3, ptr %9, i32 0, i32 1, i16 %53
-  %58 = load ptr, ptr %57
-  %59 = getelementptr %node_t_3, ptr %58, i32 0, i32 0, i32 0
-  store ptr %9, ptr %59
-  %60 = getelementptr %node_t_3, ptr %58, i32 0, i32 0, i32 1
-  store i16 %53, ptr %60
-  %61 = add i16 1, %48
+  %57 = add i16 1, %48
   br label %for_begin_2
 for_end_2:
-  %62 = sub i16 %36, %14
-  %63 = add i16 1, %62
   br label %for_begin_3
 for_begin_3:
-  %64 = phi i16 [0, %for_end_2], [%73, %for_body_3]
-  %65 = icmp ult i16 %64, %63
-  br i1 %65, label %for_body_3, label %for_end_3
+  %58 = phi i16 [0, %for_end_2], [%68, %for_body_3]
+  %59 = icmp ult i16 %58, %14
+  br i1 %59, label %for_body_3, label %for_end_3
 for_body_3:
-  %66 = add i16 %64, %14
-  %67 = getelementptr %inner_node_t_3, ptr %node_0, i32 0, i32 1, i16 %66
-  %68 = load ptr, ptr %67
-  %69 = getelementptr %inner_node_t_3, ptr %node_0, i32 0, i32 1, i16 %64
-  store ptr %68, ptr %69
-  %70 = getelementptr %inner_node_t_3, ptr %node_0, i32 0, i32 1, i16 %64
-  %71 = load ptr, ptr %70
-  %72 = getelementptr %node_t_3, ptr %71, i32 0, i32 0, i32 1
-  store i16 %64, ptr %72
-  %73 = add i16 1, %64
+  %60 = getelementptr %node_t_3, ptr %9, i32 0, i32 0, i32 2
+  %61 = load i16, ptr %60
+  %62 = add i16 %61, 1
+  %63 = add i16 %58, %62
+  %64 = getelementptr %inner_node_t_3, ptr %node_0, i32 0, i32 1, i16 %58
+  %65 = load ptr, ptr %64
+  %66 = getelementptr %node_t_3, ptr %65, i32 0, i32 0, i32 0
+  store ptr %9, ptr %66
+  %67 = getelementptr %node_t_3, ptr %65, i32 0, i32 0, i32 1
+  store i16 %63, ptr %67
+  %68 = add i16 1, %58
   br label %for_begin_3
 for_end_3:
+  %69 = sub i16 %36, %14
+  %70 = add i16 1, %69
+  br label %for_begin_4
+for_begin_4:
+  %71 = phi i16 [0, %for_end_3], [%80, %for_body_4]
+  %72 = icmp ult i16 %71, %70
+  br i1 %72, label %for_body_4, label %for_end_4
+for_body_4:
+  %73 = add i16 %71, %14
+  %74 = getelementptr %inner_node_t_3, ptr %node_0, i32 0, i32 1, i16 %73
+  %75 = load ptr, ptr %74
+  %76 = getelementptr %inner_node_t_3, ptr %node_0, i32 0, i32 1, i16 %71
+  store ptr %75, ptr %76
+  %77 = getelementptr %inner_node_t_3, ptr %node_0, i32 0, i32 1, i16 %71
+  %78 = load ptr, ptr %77
+  %79 = getelementptr %node_t_3, ptr %78, i32 0, i32 0, i32 1
+  store i16 %71, ptr %79
+  %80 = add i16 1, %71
+  br label %for_begin_4
+for_end_4:
   br label %end_if_0
 end_if_0:
-  %74 = getelementptr %node_t_3, ptr %9, i32 0, i32 0, i32 2
-  %75 = load i16, ptr %74
-  %76 = add i16 %75, %14
-  store i16 %76, ptr %74
-  %77 = getelementptr %node_t_3, ptr %node_0, i32 0, i32 0, i32 2
-  %78 = load i16, ptr %77
-  %79 = sub i16 %78, %14
-  store i16 %79, ptr %77
+  %81 = getelementptr %node_t_3, ptr %9, i32 0, i32 0, i32 2
+  %82 = load i16, ptr %81
+  %83 = add i16 %82, %14
+  store i16 %83, ptr %81
+  %84 = getelementptr %node_t_3, ptr %node_0, i32 0, i32 0, i32 2
+  %85 = load i16, ptr %84
+  %86 = sub i16 %85, %14
+  store i16 %86, ptr %84
   ret i16 %14
 end_if_1:
   br label %split_0
@@ -3950,87 +4038,93 @@ inner_0:
   %21 = trunc i64 %20 to i16
   %22 = udiv i16 %21, 16
   %23 = icmp ne ptr %17, %16
+  br i1 %23, label %if_0, label %end_if_0
+if_0:
   %24 = call ccc i8 @eclair_btree_value_compare_values_3(ptr %17, ptr %val_0)
   %25 = icmp eq i8 0, %24
-  %26 = and i1 %23, %25
-  br i1 %26, label %no_insert_0, label %inner_continue_insert_0
+  br i1 %25, label %no_insert_0, label %inner_continue_insert_0
+end_if_0:
+  br label %inner_continue_insert_0
 inner_continue_insert_0:
-  %27 = getelementptr %inner_node_t_3, ptr %9, i32 0, i32 1, i16 %22
-  %28 = load ptr, ptr %27
-  store ptr %28, ptr %stack.ptr_0
+  %26 = getelementptr %inner_node_t_3, ptr %9, i32 0, i32 1, i16 %22
+  %27 = load ptr, ptr %26
+  store ptr %27, ptr %stack.ptr_0
   br label %loop_0
 leaf_0:
-  %29 = getelementptr %node_t_3, ptr %9, i32 0, i32 0, i32 2
-  %30 = load i16, ptr %29
-  %31 = getelementptr %node_t_3, ptr %9, i32 0, i32 1, i16 0
-  %32 = getelementptr %node_t_3, ptr %9, i32 0, i32 1, i16 %30
-  %33 = call ccc ptr @eclair_btree_linear_search_upper_bound_3(ptr %val_0, ptr %31, ptr %32)
-  %34 = ptrtoint ptr %33 to i64
-  %35 = ptrtoint ptr %31 to i64
-  %36 = sub i64 %34, %35
-  %37 = trunc i64 %36 to i16
-  %38 = udiv i16 %37, 16
-  store i16 %38, ptr %stack.ptr_1
-  %39 = icmp ne ptr %33, %31
-  %40 = getelementptr [4 x i32], ptr %33, i32 -1
-  %41 = call ccc i8 @eclair_btree_value_compare_values_3(ptr %40, ptr %val_0)
-  %42 = icmp eq i8 0, %41
-  %43 = and i1 %39, %42
-  br i1 %43, label %no_insert_0, label %leaf_continue_insert_0
+  %28 = getelementptr %node_t_3, ptr %9, i32 0, i32 0, i32 2
+  %29 = load i16, ptr %28
+  %30 = getelementptr %node_t_3, ptr %9, i32 0, i32 1, i16 0
+  %31 = getelementptr %node_t_3, ptr %9, i32 0, i32 1, i16 %29
+  %32 = call ccc ptr @eclair_btree_linear_search_upper_bound_3(ptr %val_0, ptr %30, ptr %31)
+  %33 = ptrtoint ptr %32 to i64
+  %34 = ptrtoint ptr %30 to i64
+  %35 = sub i64 %33, %34
+  %36 = trunc i64 %35 to i16
+  %37 = udiv i16 %36, 16
+  store i16 %37, ptr %stack.ptr_1
+  %38 = icmp ne ptr %32, %30
+  br i1 %38, label %if_1, label %end_if_1
+if_1:
+  %39 = getelementptr [4 x i32], ptr %32, i32 -1
+  %40 = call ccc i8 @eclair_btree_value_compare_values_3(ptr %39, ptr %val_0)
+  %41 = icmp eq i8 0, %40
+  br i1 %41, label %no_insert_0, label %leaf_continue_insert_0
+end_if_1:
+  br label %leaf_continue_insert_0
 leaf_continue_insert_0:
-  %44 = icmp uge i16 %30, 15
-  br i1 %44, label %split_0, label %no_split_0
+  %42 = icmp uge i16 %29, 15
+  br i1 %42, label %split_0, label %no_split_0
 split_0:
-  %45 = getelementptr %btree_t_3, ptr %tree_0, i32 0, i32 0
-  %46 = load i16, ptr %stack.ptr_1
-  %47 = call ccc i16 @eclair_btree_node_rebalance_or_split_3(ptr %9, ptr %45, i16 %46)
-  %48 = sub i16 %46, %47
-  store i16 %48, ptr %stack.ptr_1
-  %49 = getelementptr %node_t_3, ptr %9, i32 0, i32 0, i32 2
-  %50 = load i16, ptr %49
-  %51 = icmp ugt i16 %48, %50
-  br i1 %51, label %if_0, label %end_if_0
-if_0:
-  %52 = add i16 %50, 1
-  %53 = sub i16 %48, %52
-  store i16 %53, ptr %stack.ptr_1
-  %54 = getelementptr %node_t_3, ptr %9, i32 0, i32 0, i32 0
-  %55 = load ptr, ptr %54
-  %56 = getelementptr %node_t_3, ptr %9, i32 0, i32 0, i32 1
-  %57 = load i16, ptr %56
-  %58 = add i16 1, %57
-  %59 = getelementptr %inner_node_t_3, ptr %55, i32 0, i32 1, i16 %58
-  %60 = load ptr, ptr %59
-  store ptr %60, ptr %stack.ptr_0
-  br label %end_if_0
-end_if_0:
+  %43 = getelementptr %btree_t_3, ptr %tree_0, i32 0, i32 0
+  %44 = load i16, ptr %stack.ptr_1
+  %45 = call ccc i16 @eclair_btree_node_rebalance_or_split_3(ptr %9, ptr %43, i16 %44)
+  %46 = sub i16 %44, %45
+  store i16 %46, ptr %stack.ptr_1
+  %47 = getelementptr %node_t_3, ptr %9, i32 0, i32 0, i32 2
+  %48 = load i16, ptr %47
+  %49 = icmp ugt i16 %46, %48
+  br i1 %49, label %if_2, label %end_if_2
+if_2:
+  %50 = add i16 %48, 1
+  %51 = sub i16 %46, %50
+  store i16 %51, ptr %stack.ptr_1
+  %52 = getelementptr %node_t_3, ptr %9, i32 0, i32 0, i32 0
+  %53 = load ptr, ptr %52
+  %54 = getelementptr %node_t_3, ptr %9, i32 0, i32 0, i32 1
+  %55 = load i16, ptr %54
+  %56 = add i16 1, %55
+  %57 = getelementptr %inner_node_t_3, ptr %53, i32 0, i32 1, i16 %56
+  %58 = load ptr, ptr %57
+  store ptr %58, ptr %stack.ptr_0
+  br label %end_if_2
+end_if_2:
   br label %no_split_0
 no_split_0:
-  %61 = load ptr, ptr %stack.ptr_0
-  %62 = load i16, ptr %stack.ptr_1
-  %63 = getelementptr %node_t_3, ptr %61, i32 0, i32 0, i32 2
-  %64 = load i16, ptr %63
+  %59 = load ptr, ptr %stack.ptr_0
+  %60 = load i16, ptr %stack.ptr_1
+  %61 = getelementptr %node_t_3, ptr %59, i32 0, i32 0, i32 2
+  %62 = load i16, ptr %61
   br label %for_begin_0
 for_begin_0:
-  %65 = phi i16 [%64, %no_split_0], [%71, %for_body_0]
-  %66 = icmp ugt i16 %65, %62
-  br i1 %66, label %for_body_0, label %for_end_0
+  %63 = phi i16 [%62, %no_split_0], [%69, %for_body_0]
+  %64 = icmp ugt i16 %63, %60
+  br i1 %64, label %for_body_0, label %for_end_0
 for_body_0:
-  %67 = sub i16 %65, 1
-  %68 = getelementptr %node_t_3, ptr %61, i32 0, i32 1, i16 %67
-  %69 = load [4 x i32], ptr %68
-  %70 = getelementptr %node_t_3, ptr %61, i32 0, i32 1, i16 %65
-  store [4 x i32] %69, ptr %70
-  %71 = sub i16 %65, 1
+  %65 = sub i16 %63, 1
+  %66 = getelementptr %node_t_3, ptr %59, i32 0, i32 1, i16 %65
+  %67 = load [4 x i32], ptr %66
+  %68 = getelementptr %node_t_3, ptr %59, i32 0, i32 1, i16 %63
+  store [4 x i32] %67, ptr %68
+  %69 = sub i16 %63, 1
   br label %for_begin_0
 for_end_0:
-  %72 = load [4 x i32], ptr %val_0
-  %73 = getelementptr %node_t_3, ptr %61, i32 0, i32 1, i16 %62
-  store [4 x i32] %72, ptr %73
-  %74 = getelementptr %node_t_3, ptr %61, i32 0, i32 0, i32 2
-  %75 = load i16, ptr %74
-  %76 = add i16 1, %75
-  store i16 %76, ptr %74
+  %70 = load [4 x i32], ptr %val_0
+  %71 = getelementptr %node_t_3, ptr %59, i32 0, i32 1, i16 %60
+  store [4 x i32] %70, ptr %71
+  %72 = getelementptr %node_t_3, ptr %59, i32 0, i32 0, i32 2
+  %73 = load i16, ptr %72
+  %74 = add i16 1, %73
+  store i16 %74, ptr %72
   br label %inserted_new_value_0
 no_insert_0:
   ret i1 0
@@ -4108,25 +4202,28 @@ loop_0:
   %12 = trunc i64 %11 to i16
   %13 = udiv i16 %12, 16
   %14 = icmp ult ptr %8, %7
+  br i1 %14, label %if_1, label %end_if_2
+if_1:
   %15 = call ccc i8 @eclair_btree_value_compare_values_3(ptr %8, ptr %val_0)
   %16 = icmp eq i8 0, %15
-  %17 = and i1 %14, %16
-  br i1 %17, label %if_1, label %end_if_1
-if_1:
+  br i1 %16, label %if_2, label %end_if_1
+if_2:
   call ccc void @eclair_btree_iterator_init_3(ptr %result_0, ptr %3, i16 %13)
   ret void
 end_if_1:
-  %18 = getelementptr %node_t_3, ptr %3, i32 0, i32 0, i32 3
-  %19 = load i1, ptr %18
-  %20 = icmp eq i1 %19, 0
-  br i1 %20, label %if_2, label %end_if_2
-if_2:
+  br label %end_if_2
+end_if_2:
+  %17 = getelementptr %node_t_3, ptr %3, i32 0, i32 0, i32 3
+  %18 = load i1, ptr %17
+  %19 = icmp eq i1 %18, 0
+  br i1 %19, label %if_3, label %end_if_3
+if_3:
   call ccc void @eclair_btree_iterator_end_init_3(ptr %result_0)
   ret void
-end_if_2:
-  %21 = getelementptr %inner_node_t_3, ptr %3, i32 0, i32 1, i16 %13
-  %22 = load ptr, ptr %21
-  store ptr %22, ptr %stack.ptr_0
+end_if_3:
+  %20 = getelementptr %inner_node_t_3, ptr %3, i32 0, i32 1, i16 %13
+  %21 = load ptr, ptr %20
+  store ptr %21, ptr %stack.ptr_0
   br label %loop_0
 }
 
@@ -4179,22 +4276,25 @@ handle_not_last_0:
   ret void
 end_if_1:
   %24 = icmp ne ptr %8, %7
+  br i1 %24, label %if_2, label %end_if_3
+if_2:
   %25 = call ccc i8 @eclair_btree_value_compare_values_3(ptr %8, ptr %val_0)
   %26 = icmp eq i8 0, %25
-  %27 = and i1 %24, %26
-  br i1 %27, label %if_2, label %end_if_2
-if_2:
+  br i1 %26, label %if_3, label %end_if_2
+if_3:
   call ccc void @eclair_btree_iterator_init_3(ptr %result_0, ptr %3, i16 %13)
   ret void
 end_if_2:
-  br i1 %24, label %if_3, label %end_if_3
-if_3:
-  call ccc void @eclair_btree_iterator_init_3(ptr %stack.ptr_0, ptr %3, i16 %13)
   br label %end_if_3
 end_if_3:
-  %28 = getelementptr %inner_node_t_3, ptr %3, i32 0, i32 1, i16 %13
-  %29 = load ptr, ptr %28
-  store ptr %29, ptr %stack.ptr_1
+  br i1 %24, label %if_4, label %end_if_4
+if_4:
+  call ccc void @eclair_btree_iterator_init_3(ptr %stack.ptr_0, ptr %3, i16 %13)
+  br label %end_if_4
+end_if_4:
+  %27 = getelementptr %inner_node_t_3, ptr %3, i32 0, i32 1, i16 %13
+  %28 = load ptr, ptr %27
+  store ptr %28, ptr %stack.ptr_1
   br label %loop_0
 }
 
@@ -4828,7 +4928,7 @@ end_if_1:
   br label %for_begin_0
 for_begin_0:
   %22 = phi i16 [%20, %end_if_1], [%37, %for_body_0]
-  %23 = icmp uge i16 %22, %21
+  %23 = icmp sge i16 %22, %21
   br i1 %23, label %for_body_0, label %for_end_0
 for_body_0:
   %24 = add i16 %22, 1
@@ -4941,7 +5041,7 @@ for_end_1:
 if_1:
   br label %for_begin_2
 for_begin_2:
-  %48 = phi i16 [0, %if_1], [%61, %for_body_2]
+  %48 = phi i16 [0, %if_1], [%57, %for_body_2]
   %49 = icmp ult i16 %48, %14
   br i1 %49, label %for_body_2, label %for_end_2
 for_body_2:
@@ -4953,45 +5053,58 @@ for_body_2:
   %55 = load ptr, ptr %54
   %56 = getelementptr %inner_node_t_4, ptr %9, i32 0, i32 1, i16 %53
   store ptr %55, ptr %56
-  %57 = getelementptr %inner_node_t_4, ptr %9, i32 0, i32 1, i16 %53
-  %58 = load ptr, ptr %57
-  %59 = getelementptr %node_t_4, ptr %58, i32 0, i32 0, i32 0
-  store ptr %9, ptr %59
-  %60 = getelementptr %node_t_4, ptr %58, i32 0, i32 0, i32 1
-  store i16 %53, ptr %60
-  %61 = add i16 1, %48
+  %57 = add i16 1, %48
   br label %for_begin_2
 for_end_2:
-  %62 = sub i16 %36, %14
-  %63 = add i16 1, %62
   br label %for_begin_3
 for_begin_3:
-  %64 = phi i16 [0, %for_end_2], [%73, %for_body_3]
-  %65 = icmp ult i16 %64, %63
-  br i1 %65, label %for_body_3, label %for_end_3
+  %58 = phi i16 [0, %for_end_2], [%68, %for_body_3]
+  %59 = icmp ult i16 %58, %14
+  br i1 %59, label %for_body_3, label %for_end_3
 for_body_3:
-  %66 = add i16 %64, %14
-  %67 = getelementptr %inner_node_t_4, ptr %node_0, i32 0, i32 1, i16 %66
-  %68 = load ptr, ptr %67
-  %69 = getelementptr %inner_node_t_4, ptr %node_0, i32 0, i32 1, i16 %64
-  store ptr %68, ptr %69
-  %70 = getelementptr %inner_node_t_4, ptr %node_0, i32 0, i32 1, i16 %64
-  %71 = load ptr, ptr %70
-  %72 = getelementptr %node_t_4, ptr %71, i32 0, i32 0, i32 1
-  store i16 %64, ptr %72
-  %73 = add i16 1, %64
+  %60 = getelementptr %node_t_4, ptr %9, i32 0, i32 0, i32 2
+  %61 = load i16, ptr %60
+  %62 = add i16 %61, 1
+  %63 = add i16 %58, %62
+  %64 = getelementptr %inner_node_t_4, ptr %node_0, i32 0, i32 1, i16 %58
+  %65 = load ptr, ptr %64
+  %66 = getelementptr %node_t_4, ptr %65, i32 0, i32 0, i32 0
+  store ptr %9, ptr %66
+  %67 = getelementptr %node_t_4, ptr %65, i32 0, i32 0, i32 1
+  store i16 %63, ptr %67
+  %68 = add i16 1, %58
   br label %for_begin_3
 for_end_3:
+  %69 = sub i16 %36, %14
+  %70 = add i16 1, %69
+  br label %for_begin_4
+for_begin_4:
+  %71 = phi i16 [0, %for_end_3], [%80, %for_body_4]
+  %72 = icmp ult i16 %71, %70
+  br i1 %72, label %for_body_4, label %for_end_4
+for_body_4:
+  %73 = add i16 %71, %14
+  %74 = getelementptr %inner_node_t_4, ptr %node_0, i32 0, i32 1, i16 %73
+  %75 = load ptr, ptr %74
+  %76 = getelementptr %inner_node_t_4, ptr %node_0, i32 0, i32 1, i16 %71
+  store ptr %75, ptr %76
+  %77 = getelementptr %inner_node_t_4, ptr %node_0, i32 0, i32 1, i16 %71
+  %78 = load ptr, ptr %77
+  %79 = getelementptr %node_t_4, ptr %78, i32 0, i32 0, i32 1
+  store i16 %71, ptr %79
+  %80 = add i16 1, %71
+  br label %for_begin_4
+for_end_4:
   br label %end_if_0
 end_if_0:
-  %74 = getelementptr %node_t_4, ptr %9, i32 0, i32 0, i32 2
-  %75 = load i16, ptr %74
-  %76 = add i16 %75, %14
-  store i16 %76, ptr %74
-  %77 = getelementptr %node_t_4, ptr %node_0, i32 0, i32 0, i32 2
-  %78 = load i16, ptr %77
-  %79 = sub i16 %78, %14
-  store i16 %79, ptr %77
+  %81 = getelementptr %node_t_4, ptr %9, i32 0, i32 0, i32 2
+  %82 = load i16, ptr %81
+  %83 = add i16 %82, %14
+  store i16 %83, ptr %81
+  %84 = getelementptr %node_t_4, ptr %node_0, i32 0, i32 0, i32 2
+  %85 = load i16, ptr %84
+  %86 = sub i16 %85, %14
+  store i16 %86, ptr %84
   ret i16 %14
 end_if_1:
   br label %split_0
@@ -5041,87 +5154,93 @@ inner_0:
   %21 = trunc i64 %20 to i16
   %22 = udiv i16 %21, 16
   %23 = icmp ne ptr %17, %16
+  br i1 %23, label %if_0, label %end_if_0
+if_0:
   %24 = call ccc i8 @eclair_btree_value_compare_values_4(ptr %17, ptr %val_0)
   %25 = icmp eq i8 0, %24
-  %26 = and i1 %23, %25
-  br i1 %26, label %no_insert_0, label %inner_continue_insert_0
+  br i1 %25, label %no_insert_0, label %inner_continue_insert_0
+end_if_0:
+  br label %inner_continue_insert_0
 inner_continue_insert_0:
-  %27 = getelementptr %inner_node_t_4, ptr %9, i32 0, i32 1, i16 %22
-  %28 = load ptr, ptr %27
-  store ptr %28, ptr %stack.ptr_0
+  %26 = getelementptr %inner_node_t_4, ptr %9, i32 0, i32 1, i16 %22
+  %27 = load ptr, ptr %26
+  store ptr %27, ptr %stack.ptr_0
   br label %loop_0
 leaf_0:
-  %29 = getelementptr %node_t_4, ptr %9, i32 0, i32 0, i32 2
-  %30 = load i16, ptr %29
-  %31 = getelementptr %node_t_4, ptr %9, i32 0, i32 1, i16 0
-  %32 = getelementptr %node_t_4, ptr %9, i32 0, i32 1, i16 %30
-  %33 = call ccc ptr @eclair_btree_linear_search_upper_bound_4(ptr %val_0, ptr %31, ptr %32)
-  %34 = ptrtoint ptr %33 to i64
-  %35 = ptrtoint ptr %31 to i64
-  %36 = sub i64 %34, %35
-  %37 = trunc i64 %36 to i16
-  %38 = udiv i16 %37, 16
-  store i16 %38, ptr %stack.ptr_1
-  %39 = icmp ne ptr %33, %31
-  %40 = getelementptr [4 x i32], ptr %33, i32 -1
-  %41 = call ccc i8 @eclair_btree_value_compare_values_4(ptr %40, ptr %val_0)
-  %42 = icmp eq i8 0, %41
-  %43 = and i1 %39, %42
-  br i1 %43, label %no_insert_0, label %leaf_continue_insert_0
+  %28 = getelementptr %node_t_4, ptr %9, i32 0, i32 0, i32 2
+  %29 = load i16, ptr %28
+  %30 = getelementptr %node_t_4, ptr %9, i32 0, i32 1, i16 0
+  %31 = getelementptr %node_t_4, ptr %9, i32 0, i32 1, i16 %29
+  %32 = call ccc ptr @eclair_btree_linear_search_upper_bound_4(ptr %val_0, ptr %30, ptr %31)
+  %33 = ptrtoint ptr %32 to i64
+  %34 = ptrtoint ptr %30 to i64
+  %35 = sub i64 %33, %34
+  %36 = trunc i64 %35 to i16
+  %37 = udiv i16 %36, 16
+  store i16 %37, ptr %stack.ptr_1
+  %38 = icmp ne ptr %32, %30
+  br i1 %38, label %if_1, label %end_if_1
+if_1:
+  %39 = getelementptr [4 x i32], ptr %32, i32 -1
+  %40 = call ccc i8 @eclair_btree_value_compare_values_4(ptr %39, ptr %val_0)
+  %41 = icmp eq i8 0, %40
+  br i1 %41, label %no_insert_0, label %leaf_continue_insert_0
+end_if_1:
+  br label %leaf_continue_insert_0
 leaf_continue_insert_0:
-  %44 = icmp uge i16 %30, 15
-  br i1 %44, label %split_0, label %no_split_0
+  %42 = icmp uge i16 %29, 15
+  br i1 %42, label %split_0, label %no_split_0
 split_0:
-  %45 = getelementptr %btree_t_4, ptr %tree_0, i32 0, i32 0
-  %46 = load i16, ptr %stack.ptr_1
-  %47 = call ccc i16 @eclair_btree_node_rebalance_or_split_4(ptr %9, ptr %45, i16 %46)
-  %48 = sub i16 %46, %47
-  store i16 %48, ptr %stack.ptr_1
-  %49 = getelementptr %node_t_4, ptr %9, i32 0, i32 0, i32 2
-  %50 = load i16, ptr %49
-  %51 = icmp ugt i16 %48, %50
-  br i1 %51, label %if_0, label %end_if_0
-if_0:
-  %52 = add i16 %50, 1
-  %53 = sub i16 %48, %52
-  store i16 %53, ptr %stack.ptr_1
-  %54 = getelementptr %node_t_4, ptr %9, i32 0, i32 0, i32 0
-  %55 = load ptr, ptr %54
-  %56 = getelementptr %node_t_4, ptr %9, i32 0, i32 0, i32 1
-  %57 = load i16, ptr %56
-  %58 = add i16 1, %57
-  %59 = getelementptr %inner_node_t_4, ptr %55, i32 0, i32 1, i16 %58
-  %60 = load ptr, ptr %59
-  store ptr %60, ptr %stack.ptr_0
-  br label %end_if_0
-end_if_0:
+  %43 = getelementptr %btree_t_4, ptr %tree_0, i32 0, i32 0
+  %44 = load i16, ptr %stack.ptr_1
+  %45 = call ccc i16 @eclair_btree_node_rebalance_or_split_4(ptr %9, ptr %43, i16 %44)
+  %46 = sub i16 %44, %45
+  store i16 %46, ptr %stack.ptr_1
+  %47 = getelementptr %node_t_4, ptr %9, i32 0, i32 0, i32 2
+  %48 = load i16, ptr %47
+  %49 = icmp ugt i16 %46, %48
+  br i1 %49, label %if_2, label %end_if_2
+if_2:
+  %50 = add i16 %48, 1
+  %51 = sub i16 %46, %50
+  store i16 %51, ptr %stack.ptr_1
+  %52 = getelementptr %node_t_4, ptr %9, i32 0, i32 0, i32 0
+  %53 = load ptr, ptr %52
+  %54 = getelementptr %node_t_4, ptr %9, i32 0, i32 0, i32 1
+  %55 = load i16, ptr %54
+  %56 = add i16 1, %55
+  %57 = getelementptr %inner_node_t_4, ptr %53, i32 0, i32 1, i16 %56
+  %58 = load ptr, ptr %57
+  store ptr %58, ptr %stack.ptr_0
+  br label %end_if_2
+end_if_2:
   br label %no_split_0
 no_split_0:
-  %61 = load ptr, ptr %stack.ptr_0
-  %62 = load i16, ptr %stack.ptr_1
-  %63 = getelementptr %node_t_4, ptr %61, i32 0, i32 0, i32 2
-  %64 = load i16, ptr %63
+  %59 = load ptr, ptr %stack.ptr_0
+  %60 = load i16, ptr %stack.ptr_1
+  %61 = getelementptr %node_t_4, ptr %59, i32 0, i32 0, i32 2
+  %62 = load i16, ptr %61
   br label %for_begin_0
 for_begin_0:
-  %65 = phi i16 [%64, %no_split_0], [%71, %for_body_0]
-  %66 = icmp ugt i16 %65, %62
-  br i1 %66, label %for_body_0, label %for_end_0
+  %63 = phi i16 [%62, %no_split_0], [%69, %for_body_0]
+  %64 = icmp ugt i16 %63, %60
+  br i1 %64, label %for_body_0, label %for_end_0
 for_body_0:
-  %67 = sub i16 %65, 1
-  %68 = getelementptr %node_t_4, ptr %61, i32 0, i32 1, i16 %67
-  %69 = load [4 x i32], ptr %68
-  %70 = getelementptr %node_t_4, ptr %61, i32 0, i32 1, i16 %65
-  store [4 x i32] %69, ptr %70
-  %71 = sub i16 %65, 1
+  %65 = sub i16 %63, 1
+  %66 = getelementptr %node_t_4, ptr %59, i32 0, i32 1, i16 %65
+  %67 = load [4 x i32], ptr %66
+  %68 = getelementptr %node_t_4, ptr %59, i32 0, i32 1, i16 %63
+  store [4 x i32] %67, ptr %68
+  %69 = sub i16 %63, 1
   br label %for_begin_0
 for_end_0:
-  %72 = load [4 x i32], ptr %val_0
-  %73 = getelementptr %node_t_4, ptr %61, i32 0, i32 1, i16 %62
-  store [4 x i32] %72, ptr %73
-  %74 = getelementptr %node_t_4, ptr %61, i32 0, i32 0, i32 2
-  %75 = load i16, ptr %74
-  %76 = add i16 1, %75
-  store i16 %76, ptr %74
+  %70 = load [4 x i32], ptr %val_0
+  %71 = getelementptr %node_t_4, ptr %59, i32 0, i32 1, i16 %60
+  store [4 x i32] %70, ptr %71
+  %72 = getelementptr %node_t_4, ptr %59, i32 0, i32 0, i32 2
+  %73 = load i16, ptr %72
+  %74 = add i16 1, %73
+  store i16 %74, ptr %72
   br label %inserted_new_value_0
 no_insert_0:
   ret i1 0
@@ -5199,25 +5318,28 @@ loop_0:
   %12 = trunc i64 %11 to i16
   %13 = udiv i16 %12, 16
   %14 = icmp ult ptr %8, %7
+  br i1 %14, label %if_1, label %end_if_2
+if_1:
   %15 = call ccc i8 @eclair_btree_value_compare_values_4(ptr %8, ptr %val_0)
   %16 = icmp eq i8 0, %15
-  %17 = and i1 %14, %16
-  br i1 %17, label %if_1, label %end_if_1
-if_1:
+  br i1 %16, label %if_2, label %end_if_1
+if_2:
   call ccc void @eclair_btree_iterator_init_4(ptr %result_0, ptr %3, i16 %13)
   ret void
 end_if_1:
-  %18 = getelementptr %node_t_4, ptr %3, i32 0, i32 0, i32 3
-  %19 = load i1, ptr %18
-  %20 = icmp eq i1 %19, 0
-  br i1 %20, label %if_2, label %end_if_2
-if_2:
+  br label %end_if_2
+end_if_2:
+  %17 = getelementptr %node_t_4, ptr %3, i32 0, i32 0, i32 3
+  %18 = load i1, ptr %17
+  %19 = icmp eq i1 %18, 0
+  br i1 %19, label %if_3, label %end_if_3
+if_3:
   call ccc void @eclair_btree_iterator_end_init_4(ptr %result_0)
   ret void
-end_if_2:
-  %21 = getelementptr %inner_node_t_4, ptr %3, i32 0, i32 1, i16 %13
-  %22 = load ptr, ptr %21
-  store ptr %22, ptr %stack.ptr_0
+end_if_3:
+  %20 = getelementptr %inner_node_t_4, ptr %3, i32 0, i32 1, i16 %13
+  %21 = load ptr, ptr %20
+  store ptr %21, ptr %stack.ptr_0
   br label %loop_0
 }
 
@@ -5270,22 +5392,25 @@ handle_not_last_0:
   ret void
 end_if_1:
   %24 = icmp ne ptr %8, %7
+  br i1 %24, label %if_2, label %end_if_3
+if_2:
   %25 = call ccc i8 @eclair_btree_value_compare_values_4(ptr %8, ptr %val_0)
   %26 = icmp eq i8 0, %25
-  %27 = and i1 %24, %26
-  br i1 %27, label %if_2, label %end_if_2
-if_2:
+  br i1 %26, label %if_3, label %end_if_2
+if_3:
   call ccc void @eclair_btree_iterator_init_4(ptr %result_0, ptr %3, i16 %13)
   ret void
 end_if_2:
-  br i1 %24, label %if_3, label %end_if_3
-if_3:
-  call ccc void @eclair_btree_iterator_init_4(ptr %stack.ptr_0, ptr %3, i16 %13)
   br label %end_if_3
 end_if_3:
-  %28 = getelementptr %inner_node_t_4, ptr %3, i32 0, i32 1, i16 %13
-  %29 = load ptr, ptr %28
-  store ptr %29, ptr %stack.ptr_1
+  br i1 %24, label %if_4, label %end_if_4
+if_4:
+  call ccc void @eclair_btree_iterator_init_4(ptr %stack.ptr_0, ptr %3, i16 %13)
+  br label %end_if_4
+end_if_4:
+  %27 = getelementptr %inner_node_t_4, ptr %3, i32 0, i32 1, i16 %13
+  %28 = load ptr, ptr %27
+  store ptr %28, ptr %stack.ptr_1
   br label %loop_0
 }
 
@@ -5895,7 +6020,7 @@ end_if_1:
   br label %for_begin_0
 for_begin_0:
   %22 = phi i16 [%20, %end_if_1], [%37, %for_body_0]
-  %23 = icmp uge i16 %22, %21
+  %23 = icmp sge i16 %22, %21
   br i1 %23, label %for_body_0, label %for_end_0
 for_body_0:
   %24 = add i16 %22, 1
@@ -6008,7 +6133,7 @@ for_end_1:
 if_1:
   br label %for_begin_2
 for_begin_2:
-  %48 = phi i16 [0, %if_1], [%61, %for_body_2]
+  %48 = phi i16 [0, %if_1], [%57, %for_body_2]
   %49 = icmp ult i16 %48, %14
   br i1 %49, label %for_body_2, label %for_end_2
 for_body_2:
@@ -6020,45 +6145,58 @@ for_body_2:
   %55 = load ptr, ptr %54
   %56 = getelementptr %inner_node_t_5, ptr %9, i32 0, i32 1, i16 %53
   store ptr %55, ptr %56
-  %57 = getelementptr %inner_node_t_5, ptr %9, i32 0, i32 1, i16 %53
-  %58 = load ptr, ptr %57
-  %59 = getelementptr %node_t_5, ptr %58, i32 0, i32 0, i32 0
-  store ptr %9, ptr %59
-  %60 = getelementptr %node_t_5, ptr %58, i32 0, i32 0, i32 1
-  store i16 %53, ptr %60
-  %61 = add i16 1, %48
+  %57 = add i16 1, %48
   br label %for_begin_2
 for_end_2:
-  %62 = sub i16 %36, %14
-  %63 = add i16 1, %62
   br label %for_begin_3
 for_begin_3:
-  %64 = phi i16 [0, %for_end_2], [%73, %for_body_3]
-  %65 = icmp ult i16 %64, %63
-  br i1 %65, label %for_body_3, label %for_end_3
+  %58 = phi i16 [0, %for_end_2], [%68, %for_body_3]
+  %59 = icmp ult i16 %58, %14
+  br i1 %59, label %for_body_3, label %for_end_3
 for_body_3:
-  %66 = add i16 %64, %14
-  %67 = getelementptr %inner_node_t_5, ptr %node_0, i32 0, i32 1, i16 %66
-  %68 = load ptr, ptr %67
-  %69 = getelementptr %inner_node_t_5, ptr %node_0, i32 0, i32 1, i16 %64
-  store ptr %68, ptr %69
-  %70 = getelementptr %inner_node_t_5, ptr %node_0, i32 0, i32 1, i16 %64
-  %71 = load ptr, ptr %70
-  %72 = getelementptr %node_t_5, ptr %71, i32 0, i32 0, i32 1
-  store i16 %64, ptr %72
-  %73 = add i16 1, %64
+  %60 = getelementptr %node_t_5, ptr %9, i32 0, i32 0, i32 2
+  %61 = load i16, ptr %60
+  %62 = add i16 %61, 1
+  %63 = add i16 %58, %62
+  %64 = getelementptr %inner_node_t_5, ptr %node_0, i32 0, i32 1, i16 %58
+  %65 = load ptr, ptr %64
+  %66 = getelementptr %node_t_5, ptr %65, i32 0, i32 0, i32 0
+  store ptr %9, ptr %66
+  %67 = getelementptr %node_t_5, ptr %65, i32 0, i32 0, i32 1
+  store i16 %63, ptr %67
+  %68 = add i16 1, %58
   br label %for_begin_3
 for_end_3:
+  %69 = sub i16 %36, %14
+  %70 = add i16 1, %69
+  br label %for_begin_4
+for_begin_4:
+  %71 = phi i16 [0, %for_end_3], [%80, %for_body_4]
+  %72 = icmp ult i16 %71, %70
+  br i1 %72, label %for_body_4, label %for_end_4
+for_body_4:
+  %73 = add i16 %71, %14
+  %74 = getelementptr %inner_node_t_5, ptr %node_0, i32 0, i32 1, i16 %73
+  %75 = load ptr, ptr %74
+  %76 = getelementptr %inner_node_t_5, ptr %node_0, i32 0, i32 1, i16 %71
+  store ptr %75, ptr %76
+  %77 = getelementptr %inner_node_t_5, ptr %node_0, i32 0, i32 1, i16 %71
+  %78 = load ptr, ptr %77
+  %79 = getelementptr %node_t_5, ptr %78, i32 0, i32 0, i32 1
+  store i16 %71, ptr %79
+  %80 = add i16 1, %71
+  br label %for_begin_4
+for_end_4:
   br label %end_if_0
 end_if_0:
-  %74 = getelementptr %node_t_5, ptr %9, i32 0, i32 0, i32 2
-  %75 = load i16, ptr %74
-  %76 = add i16 %75, %14
-  store i16 %76, ptr %74
-  %77 = getelementptr %node_t_5, ptr %node_0, i32 0, i32 0, i32 2
-  %78 = load i16, ptr %77
-  %79 = sub i16 %78, %14
-  store i16 %79, ptr %77
+  %81 = getelementptr %node_t_5, ptr %9, i32 0, i32 0, i32 2
+  %82 = load i16, ptr %81
+  %83 = add i16 %82, %14
+  store i16 %83, ptr %81
+  %84 = getelementptr %node_t_5, ptr %node_0, i32 0, i32 0, i32 2
+  %85 = load i16, ptr %84
+  %86 = sub i16 %85, %14
+  store i16 %86, ptr %84
   ret i16 %14
 end_if_1:
   br label %split_0
@@ -6108,87 +6246,93 @@ inner_0:
   %21 = trunc i64 %20 to i16
   %22 = udiv i16 %21, 16
   %23 = icmp ne ptr %17, %16
+  br i1 %23, label %if_0, label %end_if_0
+if_0:
   %24 = call ccc i8 @eclair_btree_value_compare_values_5(ptr %17, ptr %val_0)
   %25 = icmp eq i8 0, %24
-  %26 = and i1 %23, %25
-  br i1 %26, label %no_insert_0, label %inner_continue_insert_0
+  br i1 %25, label %no_insert_0, label %inner_continue_insert_0
+end_if_0:
+  br label %inner_continue_insert_0
 inner_continue_insert_0:
-  %27 = getelementptr %inner_node_t_5, ptr %9, i32 0, i32 1, i16 %22
-  %28 = load ptr, ptr %27
-  store ptr %28, ptr %stack.ptr_0
+  %26 = getelementptr %inner_node_t_5, ptr %9, i32 0, i32 1, i16 %22
+  %27 = load ptr, ptr %26
+  store ptr %27, ptr %stack.ptr_0
   br label %loop_0
 leaf_0:
-  %29 = getelementptr %node_t_5, ptr %9, i32 0, i32 0, i32 2
-  %30 = load i16, ptr %29
-  %31 = getelementptr %node_t_5, ptr %9, i32 0, i32 1, i16 0
-  %32 = getelementptr %node_t_5, ptr %9, i32 0, i32 1, i16 %30
-  %33 = call ccc ptr @eclair_btree_linear_search_upper_bound_5(ptr %val_0, ptr %31, ptr %32)
-  %34 = ptrtoint ptr %33 to i64
-  %35 = ptrtoint ptr %31 to i64
-  %36 = sub i64 %34, %35
-  %37 = trunc i64 %36 to i16
-  %38 = udiv i16 %37, 16
-  store i16 %38, ptr %stack.ptr_1
-  %39 = icmp ne ptr %33, %31
-  %40 = getelementptr [4 x i32], ptr %33, i32 -1
-  %41 = call ccc i8 @eclair_btree_value_compare_values_5(ptr %40, ptr %val_0)
-  %42 = icmp eq i8 0, %41
-  %43 = and i1 %39, %42
-  br i1 %43, label %no_insert_0, label %leaf_continue_insert_0
+  %28 = getelementptr %node_t_5, ptr %9, i32 0, i32 0, i32 2
+  %29 = load i16, ptr %28
+  %30 = getelementptr %node_t_5, ptr %9, i32 0, i32 1, i16 0
+  %31 = getelementptr %node_t_5, ptr %9, i32 0, i32 1, i16 %29
+  %32 = call ccc ptr @eclair_btree_linear_search_upper_bound_5(ptr %val_0, ptr %30, ptr %31)
+  %33 = ptrtoint ptr %32 to i64
+  %34 = ptrtoint ptr %30 to i64
+  %35 = sub i64 %33, %34
+  %36 = trunc i64 %35 to i16
+  %37 = udiv i16 %36, 16
+  store i16 %37, ptr %stack.ptr_1
+  %38 = icmp ne ptr %32, %30
+  br i1 %38, label %if_1, label %end_if_1
+if_1:
+  %39 = getelementptr [4 x i32], ptr %32, i32 -1
+  %40 = call ccc i8 @eclair_btree_value_compare_values_5(ptr %39, ptr %val_0)
+  %41 = icmp eq i8 0, %40
+  br i1 %41, label %no_insert_0, label %leaf_continue_insert_0
+end_if_1:
+  br label %leaf_continue_insert_0
 leaf_continue_insert_0:
-  %44 = icmp uge i16 %30, 15
-  br i1 %44, label %split_0, label %no_split_0
+  %42 = icmp uge i16 %29, 15
+  br i1 %42, label %split_0, label %no_split_0
 split_0:
-  %45 = getelementptr %btree_t_5, ptr %tree_0, i32 0, i32 0
-  %46 = load i16, ptr %stack.ptr_1
-  %47 = call ccc i16 @eclair_btree_node_rebalance_or_split_5(ptr %9, ptr %45, i16 %46)
-  %48 = sub i16 %46, %47
-  store i16 %48, ptr %stack.ptr_1
-  %49 = getelementptr %node_t_5, ptr %9, i32 0, i32 0, i32 2
-  %50 = load i16, ptr %49
-  %51 = icmp ugt i16 %48, %50
-  br i1 %51, label %if_0, label %end_if_0
-if_0:
-  %52 = add i16 %50, 1
-  %53 = sub i16 %48, %52
-  store i16 %53, ptr %stack.ptr_1
-  %54 = getelementptr %node_t_5, ptr %9, i32 0, i32 0, i32 0
-  %55 = load ptr, ptr %54
-  %56 = getelementptr %node_t_5, ptr %9, i32 0, i32 0, i32 1
-  %57 = load i16, ptr %56
-  %58 = add i16 1, %57
-  %59 = getelementptr %inner_node_t_5, ptr %55, i32 0, i32 1, i16 %58
-  %60 = load ptr, ptr %59
-  store ptr %60, ptr %stack.ptr_0
-  br label %end_if_0
-end_if_0:
+  %43 = getelementptr %btree_t_5, ptr %tree_0, i32 0, i32 0
+  %44 = load i16, ptr %stack.ptr_1
+  %45 = call ccc i16 @eclair_btree_node_rebalance_or_split_5(ptr %9, ptr %43, i16 %44)
+  %46 = sub i16 %44, %45
+  store i16 %46, ptr %stack.ptr_1
+  %47 = getelementptr %node_t_5, ptr %9, i32 0, i32 0, i32 2
+  %48 = load i16, ptr %47
+  %49 = icmp ugt i16 %46, %48
+  br i1 %49, label %if_2, label %end_if_2
+if_2:
+  %50 = add i16 %48, 1
+  %51 = sub i16 %46, %50
+  store i16 %51, ptr %stack.ptr_1
+  %52 = getelementptr %node_t_5, ptr %9, i32 0, i32 0, i32 0
+  %53 = load ptr, ptr %52
+  %54 = getelementptr %node_t_5, ptr %9, i32 0, i32 0, i32 1
+  %55 = load i16, ptr %54
+  %56 = add i16 1, %55
+  %57 = getelementptr %inner_node_t_5, ptr %53, i32 0, i32 1, i16 %56
+  %58 = load ptr, ptr %57
+  store ptr %58, ptr %stack.ptr_0
+  br label %end_if_2
+end_if_2:
   br label %no_split_0
 no_split_0:
-  %61 = load ptr, ptr %stack.ptr_0
-  %62 = load i16, ptr %stack.ptr_1
-  %63 = getelementptr %node_t_5, ptr %61, i32 0, i32 0, i32 2
-  %64 = load i16, ptr %63
+  %59 = load ptr, ptr %stack.ptr_0
+  %60 = load i16, ptr %stack.ptr_1
+  %61 = getelementptr %node_t_5, ptr %59, i32 0, i32 0, i32 2
+  %62 = load i16, ptr %61
   br label %for_begin_0
 for_begin_0:
-  %65 = phi i16 [%64, %no_split_0], [%71, %for_body_0]
-  %66 = icmp ugt i16 %65, %62
-  br i1 %66, label %for_body_0, label %for_end_0
+  %63 = phi i16 [%62, %no_split_0], [%69, %for_body_0]
+  %64 = icmp ugt i16 %63, %60
+  br i1 %64, label %for_body_0, label %for_end_0
 for_body_0:
-  %67 = sub i16 %65, 1
-  %68 = getelementptr %node_t_5, ptr %61, i32 0, i32 1, i16 %67
-  %69 = load [4 x i32], ptr %68
-  %70 = getelementptr %node_t_5, ptr %61, i32 0, i32 1, i16 %65
-  store [4 x i32] %69, ptr %70
-  %71 = sub i16 %65, 1
+  %65 = sub i16 %63, 1
+  %66 = getelementptr %node_t_5, ptr %59, i32 0, i32 1, i16 %65
+  %67 = load [4 x i32], ptr %66
+  %68 = getelementptr %node_t_5, ptr %59, i32 0, i32 1, i16 %63
+  store [4 x i32] %67, ptr %68
+  %69 = sub i16 %63, 1
   br label %for_begin_0
 for_end_0:
-  %72 = load [4 x i32], ptr %val_0
-  %73 = getelementptr %node_t_5, ptr %61, i32 0, i32 1, i16 %62
-  store [4 x i32] %72, ptr %73
-  %74 = getelementptr %node_t_5, ptr %61, i32 0, i32 0, i32 2
-  %75 = load i16, ptr %74
-  %76 = add i16 1, %75
-  store i16 %76, ptr %74
+  %70 = load [4 x i32], ptr %val_0
+  %71 = getelementptr %node_t_5, ptr %59, i32 0, i32 1, i16 %60
+  store [4 x i32] %70, ptr %71
+  %72 = getelementptr %node_t_5, ptr %59, i32 0, i32 0, i32 2
+  %73 = load i16, ptr %72
+  %74 = add i16 1, %73
+  store i16 %74, ptr %72
   br label %inserted_new_value_0
 no_insert_0:
   ret i1 0
@@ -6266,25 +6410,28 @@ loop_0:
   %12 = trunc i64 %11 to i16
   %13 = udiv i16 %12, 16
   %14 = icmp ult ptr %8, %7
+  br i1 %14, label %if_1, label %end_if_2
+if_1:
   %15 = call ccc i8 @eclair_btree_value_compare_values_5(ptr %8, ptr %val_0)
   %16 = icmp eq i8 0, %15
-  %17 = and i1 %14, %16
-  br i1 %17, label %if_1, label %end_if_1
-if_1:
+  br i1 %16, label %if_2, label %end_if_1
+if_2:
   call ccc void @eclair_btree_iterator_init_5(ptr %result_0, ptr %3, i16 %13)
   ret void
 end_if_1:
-  %18 = getelementptr %node_t_5, ptr %3, i32 0, i32 0, i32 3
-  %19 = load i1, ptr %18
-  %20 = icmp eq i1 %19, 0
-  br i1 %20, label %if_2, label %end_if_2
-if_2:
+  br label %end_if_2
+end_if_2:
+  %17 = getelementptr %node_t_5, ptr %3, i32 0, i32 0, i32 3
+  %18 = load i1, ptr %17
+  %19 = icmp eq i1 %18, 0
+  br i1 %19, label %if_3, label %end_if_3
+if_3:
   call ccc void @eclair_btree_iterator_end_init_5(ptr %result_0)
   ret void
-end_if_2:
-  %21 = getelementptr %inner_node_t_5, ptr %3, i32 0, i32 1, i16 %13
-  %22 = load ptr, ptr %21
-  store ptr %22, ptr %stack.ptr_0
+end_if_3:
+  %20 = getelementptr %inner_node_t_5, ptr %3, i32 0, i32 1, i16 %13
+  %21 = load ptr, ptr %20
+  store ptr %21, ptr %stack.ptr_0
   br label %loop_0
 }
 
@@ -6337,22 +6484,25 @@ handle_not_last_0:
   ret void
 end_if_1:
   %24 = icmp ne ptr %8, %7
+  br i1 %24, label %if_2, label %end_if_3
+if_2:
   %25 = call ccc i8 @eclair_btree_value_compare_values_5(ptr %8, ptr %val_0)
   %26 = icmp eq i8 0, %25
-  %27 = and i1 %24, %26
-  br i1 %27, label %if_2, label %end_if_2
-if_2:
+  br i1 %26, label %if_3, label %end_if_2
+if_3:
   call ccc void @eclair_btree_iterator_init_5(ptr %result_0, ptr %3, i16 %13)
   ret void
 end_if_2:
-  br i1 %24, label %if_3, label %end_if_3
-if_3:
-  call ccc void @eclair_btree_iterator_init_5(ptr %stack.ptr_0, ptr %3, i16 %13)
   br label %end_if_3
 end_if_3:
-  %28 = getelementptr %inner_node_t_5, ptr %3, i32 0, i32 1, i16 %13
-  %29 = load ptr, ptr %28
-  store ptr %29, ptr %stack.ptr_1
+  br i1 %24, label %if_4, label %end_if_4
+if_4:
+  call ccc void @eclair_btree_iterator_init_5(ptr %stack.ptr_0, ptr %3, i16 %13)
+  br label %end_if_4
+end_if_4:
+  %27 = getelementptr %inner_node_t_5, ptr %3, i32 0, i32 1, i16 %13
+  %28 = load ptr, ptr %27
+  store ptr %28, ptr %stack.ptr_1
   br label %loop_0
 }
 
@@ -6962,7 +7112,7 @@ end_if_1:
   br label %for_begin_0
 for_begin_0:
   %22 = phi i16 [%20, %end_if_1], [%37, %for_body_0]
-  %23 = icmp uge i16 %22, %21
+  %23 = icmp sge i16 %22, %21
   br i1 %23, label %for_body_0, label %for_end_0
 for_body_0:
   %24 = add i16 %22, 1
@@ -7075,7 +7225,7 @@ for_end_1:
 if_1:
   br label %for_begin_2
 for_begin_2:
-  %48 = phi i16 [0, %if_1], [%61, %for_body_2]
+  %48 = phi i16 [0, %if_1], [%57, %for_body_2]
   %49 = icmp ult i16 %48, %14
   br i1 %49, label %for_body_2, label %for_end_2
 for_body_2:
@@ -7087,45 +7237,58 @@ for_body_2:
   %55 = load ptr, ptr %54
   %56 = getelementptr %inner_node_t_6, ptr %9, i32 0, i32 1, i16 %53
   store ptr %55, ptr %56
-  %57 = getelementptr %inner_node_t_6, ptr %9, i32 0, i32 1, i16 %53
-  %58 = load ptr, ptr %57
-  %59 = getelementptr %node_t_6, ptr %58, i32 0, i32 0, i32 0
-  store ptr %9, ptr %59
-  %60 = getelementptr %node_t_6, ptr %58, i32 0, i32 0, i32 1
-  store i16 %53, ptr %60
-  %61 = add i16 1, %48
+  %57 = add i16 1, %48
   br label %for_begin_2
 for_end_2:
-  %62 = sub i16 %36, %14
-  %63 = add i16 1, %62
   br label %for_begin_3
 for_begin_3:
-  %64 = phi i16 [0, %for_end_2], [%73, %for_body_3]
-  %65 = icmp ult i16 %64, %63
-  br i1 %65, label %for_body_3, label %for_end_3
+  %58 = phi i16 [0, %for_end_2], [%68, %for_body_3]
+  %59 = icmp ult i16 %58, %14
+  br i1 %59, label %for_body_3, label %for_end_3
 for_body_3:
-  %66 = add i16 %64, %14
-  %67 = getelementptr %inner_node_t_6, ptr %node_0, i32 0, i32 1, i16 %66
-  %68 = load ptr, ptr %67
-  %69 = getelementptr %inner_node_t_6, ptr %node_0, i32 0, i32 1, i16 %64
-  store ptr %68, ptr %69
-  %70 = getelementptr %inner_node_t_6, ptr %node_0, i32 0, i32 1, i16 %64
-  %71 = load ptr, ptr %70
-  %72 = getelementptr %node_t_6, ptr %71, i32 0, i32 0, i32 1
-  store i16 %64, ptr %72
-  %73 = add i16 1, %64
+  %60 = getelementptr %node_t_6, ptr %9, i32 0, i32 0, i32 2
+  %61 = load i16, ptr %60
+  %62 = add i16 %61, 1
+  %63 = add i16 %58, %62
+  %64 = getelementptr %inner_node_t_6, ptr %node_0, i32 0, i32 1, i16 %58
+  %65 = load ptr, ptr %64
+  %66 = getelementptr %node_t_6, ptr %65, i32 0, i32 0, i32 0
+  store ptr %9, ptr %66
+  %67 = getelementptr %node_t_6, ptr %65, i32 0, i32 0, i32 1
+  store i16 %63, ptr %67
+  %68 = add i16 1, %58
   br label %for_begin_3
 for_end_3:
+  %69 = sub i16 %36, %14
+  %70 = add i16 1, %69
+  br label %for_begin_4
+for_begin_4:
+  %71 = phi i16 [0, %for_end_3], [%80, %for_body_4]
+  %72 = icmp ult i16 %71, %70
+  br i1 %72, label %for_body_4, label %for_end_4
+for_body_4:
+  %73 = add i16 %71, %14
+  %74 = getelementptr %inner_node_t_6, ptr %node_0, i32 0, i32 1, i16 %73
+  %75 = load ptr, ptr %74
+  %76 = getelementptr %inner_node_t_6, ptr %node_0, i32 0, i32 1, i16 %71
+  store ptr %75, ptr %76
+  %77 = getelementptr %inner_node_t_6, ptr %node_0, i32 0, i32 1, i16 %71
+  %78 = load ptr, ptr %77
+  %79 = getelementptr %node_t_6, ptr %78, i32 0, i32 0, i32 1
+  store i16 %71, ptr %79
+  %80 = add i16 1, %71
+  br label %for_begin_4
+for_end_4:
   br label %end_if_0
 end_if_0:
-  %74 = getelementptr %node_t_6, ptr %9, i32 0, i32 0, i32 2
-  %75 = load i16, ptr %74
-  %76 = add i16 %75, %14
-  store i16 %76, ptr %74
-  %77 = getelementptr %node_t_6, ptr %node_0, i32 0, i32 0, i32 2
-  %78 = load i16, ptr %77
-  %79 = sub i16 %78, %14
-  store i16 %79, ptr %77
+  %81 = getelementptr %node_t_6, ptr %9, i32 0, i32 0, i32 2
+  %82 = load i16, ptr %81
+  %83 = add i16 %82, %14
+  store i16 %83, ptr %81
+  %84 = getelementptr %node_t_6, ptr %node_0, i32 0, i32 0, i32 2
+  %85 = load i16, ptr %84
+  %86 = sub i16 %85, %14
+  store i16 %86, ptr %84
   ret i16 %14
 end_if_1:
   br label %split_0
@@ -7175,87 +7338,93 @@ inner_0:
   %21 = trunc i64 %20 to i16
   %22 = udiv i16 %21, 4
   %23 = icmp ne ptr %17, %16
+  br i1 %23, label %if_0, label %end_if_0
+if_0:
   %24 = call ccc i8 @eclair_btree_value_compare_values_6(ptr %17, ptr %val_0)
   %25 = icmp eq i8 0, %24
-  %26 = and i1 %23, %25
-  br i1 %26, label %no_insert_0, label %inner_continue_insert_0
+  br i1 %25, label %no_insert_0, label %inner_continue_insert_0
+end_if_0:
+  br label %inner_continue_insert_0
 inner_continue_insert_0:
-  %27 = getelementptr %inner_node_t_6, ptr %9, i32 0, i32 1, i16 %22
-  %28 = load ptr, ptr %27
-  store ptr %28, ptr %stack.ptr_0
+  %26 = getelementptr %inner_node_t_6, ptr %9, i32 0, i32 1, i16 %22
+  %27 = load ptr, ptr %26
+  store ptr %27, ptr %stack.ptr_0
   br label %loop_0
 leaf_0:
-  %29 = getelementptr %node_t_6, ptr %9, i32 0, i32 0, i32 2
-  %30 = load i16, ptr %29
-  %31 = getelementptr %node_t_6, ptr %9, i32 0, i32 1, i16 0
-  %32 = getelementptr %node_t_6, ptr %9, i32 0, i32 1, i16 %30
-  %33 = call ccc ptr @eclair_btree_linear_search_upper_bound_6(ptr %val_0, ptr %31, ptr %32)
-  %34 = ptrtoint ptr %33 to i64
-  %35 = ptrtoint ptr %31 to i64
-  %36 = sub i64 %34, %35
-  %37 = trunc i64 %36 to i16
-  %38 = udiv i16 %37, 4
-  store i16 %38, ptr %stack.ptr_1
-  %39 = icmp ne ptr %33, %31
-  %40 = getelementptr [1 x i32], ptr %33, i32 -1
-  %41 = call ccc i8 @eclair_btree_value_compare_values_6(ptr %40, ptr %val_0)
-  %42 = icmp eq i8 0, %41
-  %43 = and i1 %39, %42
-  br i1 %43, label %no_insert_0, label %leaf_continue_insert_0
+  %28 = getelementptr %node_t_6, ptr %9, i32 0, i32 0, i32 2
+  %29 = load i16, ptr %28
+  %30 = getelementptr %node_t_6, ptr %9, i32 0, i32 1, i16 0
+  %31 = getelementptr %node_t_6, ptr %9, i32 0, i32 1, i16 %29
+  %32 = call ccc ptr @eclair_btree_linear_search_upper_bound_6(ptr %val_0, ptr %30, ptr %31)
+  %33 = ptrtoint ptr %32 to i64
+  %34 = ptrtoint ptr %30 to i64
+  %35 = sub i64 %33, %34
+  %36 = trunc i64 %35 to i16
+  %37 = udiv i16 %36, 4
+  store i16 %37, ptr %stack.ptr_1
+  %38 = icmp ne ptr %32, %30
+  br i1 %38, label %if_1, label %end_if_1
+if_1:
+  %39 = getelementptr [1 x i32], ptr %32, i32 -1
+  %40 = call ccc i8 @eclair_btree_value_compare_values_6(ptr %39, ptr %val_0)
+  %41 = icmp eq i8 0, %40
+  br i1 %41, label %no_insert_0, label %leaf_continue_insert_0
+end_if_1:
+  br label %leaf_continue_insert_0
 leaf_continue_insert_0:
-  %44 = icmp uge i16 %30, 60
-  br i1 %44, label %split_0, label %no_split_0
+  %42 = icmp uge i16 %29, 60
+  br i1 %42, label %split_0, label %no_split_0
 split_0:
-  %45 = getelementptr %btree_t_6, ptr %tree_0, i32 0, i32 0
-  %46 = load i16, ptr %stack.ptr_1
-  %47 = call ccc i16 @eclair_btree_node_rebalance_or_split_6(ptr %9, ptr %45, i16 %46)
-  %48 = sub i16 %46, %47
-  store i16 %48, ptr %stack.ptr_1
-  %49 = getelementptr %node_t_6, ptr %9, i32 0, i32 0, i32 2
-  %50 = load i16, ptr %49
-  %51 = icmp ugt i16 %48, %50
-  br i1 %51, label %if_0, label %end_if_0
-if_0:
-  %52 = add i16 %50, 1
-  %53 = sub i16 %48, %52
-  store i16 %53, ptr %stack.ptr_1
-  %54 = getelementptr %node_t_6, ptr %9, i32 0, i32 0, i32 0
-  %55 = load ptr, ptr %54
-  %56 = getelementptr %node_t_6, ptr %9, i32 0, i32 0, i32 1
-  %57 = load i16, ptr %56
-  %58 = add i16 1, %57
-  %59 = getelementptr %inner_node_t_6, ptr %55, i32 0, i32 1, i16 %58
-  %60 = load ptr, ptr %59
-  store ptr %60, ptr %stack.ptr_0
-  br label %end_if_0
-end_if_0:
+  %43 = getelementptr %btree_t_6, ptr %tree_0, i32 0, i32 0
+  %44 = load i16, ptr %stack.ptr_1
+  %45 = call ccc i16 @eclair_btree_node_rebalance_or_split_6(ptr %9, ptr %43, i16 %44)
+  %46 = sub i16 %44, %45
+  store i16 %46, ptr %stack.ptr_1
+  %47 = getelementptr %node_t_6, ptr %9, i32 0, i32 0, i32 2
+  %48 = load i16, ptr %47
+  %49 = icmp ugt i16 %46, %48
+  br i1 %49, label %if_2, label %end_if_2
+if_2:
+  %50 = add i16 %48, 1
+  %51 = sub i16 %46, %50
+  store i16 %51, ptr %stack.ptr_1
+  %52 = getelementptr %node_t_6, ptr %9, i32 0, i32 0, i32 0
+  %53 = load ptr, ptr %52
+  %54 = getelementptr %node_t_6, ptr %9, i32 0, i32 0, i32 1
+  %55 = load i16, ptr %54
+  %56 = add i16 1, %55
+  %57 = getelementptr %inner_node_t_6, ptr %53, i32 0, i32 1, i16 %56
+  %58 = load ptr, ptr %57
+  store ptr %58, ptr %stack.ptr_0
+  br label %end_if_2
+end_if_2:
   br label %no_split_0
 no_split_0:
-  %61 = load ptr, ptr %stack.ptr_0
-  %62 = load i16, ptr %stack.ptr_1
-  %63 = getelementptr %node_t_6, ptr %61, i32 0, i32 0, i32 2
-  %64 = load i16, ptr %63
+  %59 = load ptr, ptr %stack.ptr_0
+  %60 = load i16, ptr %stack.ptr_1
+  %61 = getelementptr %node_t_6, ptr %59, i32 0, i32 0, i32 2
+  %62 = load i16, ptr %61
   br label %for_begin_0
 for_begin_0:
-  %65 = phi i16 [%64, %no_split_0], [%71, %for_body_0]
-  %66 = icmp ugt i16 %65, %62
-  br i1 %66, label %for_body_0, label %for_end_0
+  %63 = phi i16 [%62, %no_split_0], [%69, %for_body_0]
+  %64 = icmp ugt i16 %63, %60
+  br i1 %64, label %for_body_0, label %for_end_0
 for_body_0:
-  %67 = sub i16 %65, 1
-  %68 = getelementptr %node_t_6, ptr %61, i32 0, i32 1, i16 %67
-  %69 = load [1 x i32], ptr %68
-  %70 = getelementptr %node_t_6, ptr %61, i32 0, i32 1, i16 %65
-  store [1 x i32] %69, ptr %70
-  %71 = sub i16 %65, 1
+  %65 = sub i16 %63, 1
+  %66 = getelementptr %node_t_6, ptr %59, i32 0, i32 1, i16 %65
+  %67 = load [1 x i32], ptr %66
+  %68 = getelementptr %node_t_6, ptr %59, i32 0, i32 1, i16 %63
+  store [1 x i32] %67, ptr %68
+  %69 = sub i16 %63, 1
   br label %for_begin_0
 for_end_0:
-  %72 = load [1 x i32], ptr %val_0
-  %73 = getelementptr %node_t_6, ptr %61, i32 0, i32 1, i16 %62
-  store [1 x i32] %72, ptr %73
-  %74 = getelementptr %node_t_6, ptr %61, i32 0, i32 0, i32 2
-  %75 = load i16, ptr %74
-  %76 = add i16 1, %75
-  store i16 %76, ptr %74
+  %70 = load [1 x i32], ptr %val_0
+  %71 = getelementptr %node_t_6, ptr %59, i32 0, i32 1, i16 %60
+  store [1 x i32] %70, ptr %71
+  %72 = getelementptr %node_t_6, ptr %59, i32 0, i32 0, i32 2
+  %73 = load i16, ptr %72
+  %74 = add i16 1, %73
+  store i16 %74, ptr %72
   br label %inserted_new_value_0
 no_insert_0:
   ret i1 0
@@ -7333,25 +7502,28 @@ loop_0:
   %12 = trunc i64 %11 to i16
   %13 = udiv i16 %12, 4
   %14 = icmp ult ptr %8, %7
+  br i1 %14, label %if_1, label %end_if_2
+if_1:
   %15 = call ccc i8 @eclair_btree_value_compare_values_6(ptr %8, ptr %val_0)
   %16 = icmp eq i8 0, %15
-  %17 = and i1 %14, %16
-  br i1 %17, label %if_1, label %end_if_1
-if_1:
+  br i1 %16, label %if_2, label %end_if_1
+if_2:
   call ccc void @eclair_btree_iterator_init_6(ptr %result_0, ptr %3, i16 %13)
   ret void
 end_if_1:
-  %18 = getelementptr %node_t_6, ptr %3, i32 0, i32 0, i32 3
-  %19 = load i1, ptr %18
-  %20 = icmp eq i1 %19, 0
-  br i1 %20, label %if_2, label %end_if_2
-if_2:
+  br label %end_if_2
+end_if_2:
+  %17 = getelementptr %node_t_6, ptr %3, i32 0, i32 0, i32 3
+  %18 = load i1, ptr %17
+  %19 = icmp eq i1 %18, 0
+  br i1 %19, label %if_3, label %end_if_3
+if_3:
   call ccc void @eclair_btree_iterator_end_init_6(ptr %result_0)
   ret void
-end_if_2:
-  %21 = getelementptr %inner_node_t_6, ptr %3, i32 0, i32 1, i16 %13
-  %22 = load ptr, ptr %21
-  store ptr %22, ptr %stack.ptr_0
+end_if_3:
+  %20 = getelementptr %inner_node_t_6, ptr %3, i32 0, i32 1, i16 %13
+  %21 = load ptr, ptr %20
+  store ptr %21, ptr %stack.ptr_0
   br label %loop_0
 }
 
@@ -7404,22 +7576,25 @@ handle_not_last_0:
   ret void
 end_if_1:
   %24 = icmp ne ptr %8, %7
+  br i1 %24, label %if_2, label %end_if_3
+if_2:
   %25 = call ccc i8 @eclair_btree_value_compare_values_6(ptr %8, ptr %val_0)
   %26 = icmp eq i8 0, %25
-  %27 = and i1 %24, %26
-  br i1 %27, label %if_2, label %end_if_2
-if_2:
+  br i1 %26, label %if_3, label %end_if_2
+if_3:
   call ccc void @eclair_btree_iterator_init_6(ptr %result_0, ptr %3, i16 %13)
   ret void
 end_if_2:
-  br i1 %24, label %if_3, label %end_if_3
-if_3:
-  call ccc void @eclair_btree_iterator_init_6(ptr %stack.ptr_0, ptr %3, i16 %13)
   br label %end_if_3
 end_if_3:
-  %28 = getelementptr %inner_node_t_6, ptr %3, i32 0, i32 1, i16 %13
-  %29 = load ptr, ptr %28
-  store ptr %29, ptr %stack.ptr_1
+  br i1 %24, label %if_4, label %end_if_4
+if_4:
+  call ccc void @eclair_btree_iterator_init_6(ptr %stack.ptr_0, ptr %3, i16 %13)
+  br label %end_if_4
+end_if_4:
+  %27 = getelementptr %inner_node_t_6, ptr %3, i32 0, i32 1, i16 %13
+  %28 = load ptr, ptr %27
+  store ptr %28, ptr %stack.ptr_1
   br label %loop_0
 }
 
@@ -8037,7 +8212,7 @@ end_if_1:
   br label %for_begin_0
 for_begin_0:
   %22 = phi i16 [%20, %end_if_1], [%37, %for_body_0]
-  %23 = icmp uge i16 %22, %21
+  %23 = icmp sge i16 %22, %21
   br i1 %23, label %for_body_0, label %for_end_0
 for_body_0:
   %24 = add i16 %22, 1
@@ -8150,7 +8325,7 @@ for_end_1:
 if_1:
   br label %for_begin_2
 for_begin_2:
-  %48 = phi i16 [0, %if_1], [%61, %for_body_2]
+  %48 = phi i16 [0, %if_1], [%57, %for_body_2]
   %49 = icmp ult i16 %48, %14
   br i1 %49, label %for_body_2, label %for_end_2
 for_body_2:
@@ -8162,45 +8337,58 @@ for_body_2:
   %55 = load ptr, ptr %54
   %56 = getelementptr %inner_node_t_7, ptr %9, i32 0, i32 1, i16 %53
   store ptr %55, ptr %56
-  %57 = getelementptr %inner_node_t_7, ptr %9, i32 0, i32 1, i16 %53
-  %58 = load ptr, ptr %57
-  %59 = getelementptr %node_t_7, ptr %58, i32 0, i32 0, i32 0
-  store ptr %9, ptr %59
-  %60 = getelementptr %node_t_7, ptr %58, i32 0, i32 0, i32 1
-  store i16 %53, ptr %60
-  %61 = add i16 1, %48
+  %57 = add i16 1, %48
   br label %for_begin_2
 for_end_2:
-  %62 = sub i16 %36, %14
-  %63 = add i16 1, %62
   br label %for_begin_3
 for_begin_3:
-  %64 = phi i16 [0, %for_end_2], [%73, %for_body_3]
-  %65 = icmp ult i16 %64, %63
-  br i1 %65, label %for_body_3, label %for_end_3
+  %58 = phi i16 [0, %for_end_2], [%68, %for_body_3]
+  %59 = icmp ult i16 %58, %14
+  br i1 %59, label %for_body_3, label %for_end_3
 for_body_3:
-  %66 = add i16 %64, %14
-  %67 = getelementptr %inner_node_t_7, ptr %node_0, i32 0, i32 1, i16 %66
-  %68 = load ptr, ptr %67
-  %69 = getelementptr %inner_node_t_7, ptr %node_0, i32 0, i32 1, i16 %64
-  store ptr %68, ptr %69
-  %70 = getelementptr %inner_node_t_7, ptr %node_0, i32 0, i32 1, i16 %64
-  %71 = load ptr, ptr %70
-  %72 = getelementptr %node_t_7, ptr %71, i32 0, i32 0, i32 1
-  store i16 %64, ptr %72
-  %73 = add i16 1, %64
+  %60 = getelementptr %node_t_7, ptr %9, i32 0, i32 0, i32 2
+  %61 = load i16, ptr %60
+  %62 = add i16 %61, 1
+  %63 = add i16 %58, %62
+  %64 = getelementptr %inner_node_t_7, ptr %node_0, i32 0, i32 1, i16 %58
+  %65 = load ptr, ptr %64
+  %66 = getelementptr %node_t_7, ptr %65, i32 0, i32 0, i32 0
+  store ptr %9, ptr %66
+  %67 = getelementptr %node_t_7, ptr %65, i32 0, i32 0, i32 1
+  store i16 %63, ptr %67
+  %68 = add i16 1, %58
   br label %for_begin_3
 for_end_3:
+  %69 = sub i16 %36, %14
+  %70 = add i16 1, %69
+  br label %for_begin_4
+for_begin_4:
+  %71 = phi i16 [0, %for_end_3], [%80, %for_body_4]
+  %72 = icmp ult i16 %71, %70
+  br i1 %72, label %for_body_4, label %for_end_4
+for_body_4:
+  %73 = add i16 %71, %14
+  %74 = getelementptr %inner_node_t_7, ptr %node_0, i32 0, i32 1, i16 %73
+  %75 = load ptr, ptr %74
+  %76 = getelementptr %inner_node_t_7, ptr %node_0, i32 0, i32 1, i16 %71
+  store ptr %75, ptr %76
+  %77 = getelementptr %inner_node_t_7, ptr %node_0, i32 0, i32 1, i16 %71
+  %78 = load ptr, ptr %77
+  %79 = getelementptr %node_t_7, ptr %78, i32 0, i32 0, i32 1
+  store i16 %71, ptr %79
+  %80 = add i16 1, %71
+  br label %for_begin_4
+for_end_4:
   br label %end_if_0
 end_if_0:
-  %74 = getelementptr %node_t_7, ptr %9, i32 0, i32 0, i32 2
-  %75 = load i16, ptr %74
-  %76 = add i16 %75, %14
-  store i16 %76, ptr %74
-  %77 = getelementptr %node_t_7, ptr %node_0, i32 0, i32 0, i32 2
-  %78 = load i16, ptr %77
-  %79 = sub i16 %78, %14
-  store i16 %79, ptr %77
+  %81 = getelementptr %node_t_7, ptr %9, i32 0, i32 0, i32 2
+  %82 = load i16, ptr %81
+  %83 = add i16 %82, %14
+  store i16 %83, ptr %81
+  %84 = getelementptr %node_t_7, ptr %node_0, i32 0, i32 0, i32 2
+  %85 = load i16, ptr %84
+  %86 = sub i16 %85, %14
+  store i16 %86, ptr %84
   ret i16 %14
 end_if_1:
   br label %split_0
@@ -8250,87 +8438,93 @@ inner_0:
   %21 = trunc i64 %20 to i16
   %22 = udiv i16 %21, 8
   %23 = icmp ne ptr %17, %16
+  br i1 %23, label %if_0, label %end_if_0
+if_0:
   %24 = call ccc i8 @eclair_btree_value_compare_values_7(ptr %17, ptr %val_0)
   %25 = icmp eq i8 0, %24
-  %26 = and i1 %23, %25
-  br i1 %26, label %no_insert_0, label %inner_continue_insert_0
+  br i1 %25, label %no_insert_0, label %inner_continue_insert_0
+end_if_0:
+  br label %inner_continue_insert_0
 inner_continue_insert_0:
-  %27 = getelementptr %inner_node_t_7, ptr %9, i32 0, i32 1, i16 %22
-  %28 = load ptr, ptr %27
-  store ptr %28, ptr %stack.ptr_0
+  %26 = getelementptr %inner_node_t_7, ptr %9, i32 0, i32 1, i16 %22
+  %27 = load ptr, ptr %26
+  store ptr %27, ptr %stack.ptr_0
   br label %loop_0
 leaf_0:
-  %29 = getelementptr %node_t_7, ptr %9, i32 0, i32 0, i32 2
-  %30 = load i16, ptr %29
-  %31 = getelementptr %node_t_7, ptr %9, i32 0, i32 1, i16 0
-  %32 = getelementptr %node_t_7, ptr %9, i32 0, i32 1, i16 %30
-  %33 = call ccc ptr @eclair_btree_linear_search_upper_bound_7(ptr %val_0, ptr %31, ptr %32)
-  %34 = ptrtoint ptr %33 to i64
-  %35 = ptrtoint ptr %31 to i64
-  %36 = sub i64 %34, %35
-  %37 = trunc i64 %36 to i16
-  %38 = udiv i16 %37, 8
-  store i16 %38, ptr %stack.ptr_1
-  %39 = icmp ne ptr %33, %31
-  %40 = getelementptr [2 x i32], ptr %33, i32 -1
-  %41 = call ccc i8 @eclair_btree_value_compare_values_7(ptr %40, ptr %val_0)
-  %42 = icmp eq i8 0, %41
-  %43 = and i1 %39, %42
-  br i1 %43, label %no_insert_0, label %leaf_continue_insert_0
+  %28 = getelementptr %node_t_7, ptr %9, i32 0, i32 0, i32 2
+  %29 = load i16, ptr %28
+  %30 = getelementptr %node_t_7, ptr %9, i32 0, i32 1, i16 0
+  %31 = getelementptr %node_t_7, ptr %9, i32 0, i32 1, i16 %29
+  %32 = call ccc ptr @eclair_btree_linear_search_upper_bound_7(ptr %val_0, ptr %30, ptr %31)
+  %33 = ptrtoint ptr %32 to i64
+  %34 = ptrtoint ptr %30 to i64
+  %35 = sub i64 %33, %34
+  %36 = trunc i64 %35 to i16
+  %37 = udiv i16 %36, 8
+  store i16 %37, ptr %stack.ptr_1
+  %38 = icmp ne ptr %32, %30
+  br i1 %38, label %if_1, label %end_if_1
+if_1:
+  %39 = getelementptr [2 x i32], ptr %32, i32 -1
+  %40 = call ccc i8 @eclair_btree_value_compare_values_7(ptr %39, ptr %val_0)
+  %41 = icmp eq i8 0, %40
+  br i1 %41, label %no_insert_0, label %leaf_continue_insert_0
+end_if_1:
+  br label %leaf_continue_insert_0
 leaf_continue_insert_0:
-  %44 = icmp uge i16 %30, 30
-  br i1 %44, label %split_0, label %no_split_0
+  %42 = icmp uge i16 %29, 30
+  br i1 %42, label %split_0, label %no_split_0
 split_0:
-  %45 = getelementptr %btree_t_7, ptr %tree_0, i32 0, i32 0
-  %46 = load i16, ptr %stack.ptr_1
-  %47 = call ccc i16 @eclair_btree_node_rebalance_or_split_7(ptr %9, ptr %45, i16 %46)
-  %48 = sub i16 %46, %47
-  store i16 %48, ptr %stack.ptr_1
-  %49 = getelementptr %node_t_7, ptr %9, i32 0, i32 0, i32 2
-  %50 = load i16, ptr %49
-  %51 = icmp ugt i16 %48, %50
-  br i1 %51, label %if_0, label %end_if_0
-if_0:
-  %52 = add i16 %50, 1
-  %53 = sub i16 %48, %52
-  store i16 %53, ptr %stack.ptr_1
-  %54 = getelementptr %node_t_7, ptr %9, i32 0, i32 0, i32 0
-  %55 = load ptr, ptr %54
-  %56 = getelementptr %node_t_7, ptr %9, i32 0, i32 0, i32 1
-  %57 = load i16, ptr %56
-  %58 = add i16 1, %57
-  %59 = getelementptr %inner_node_t_7, ptr %55, i32 0, i32 1, i16 %58
-  %60 = load ptr, ptr %59
-  store ptr %60, ptr %stack.ptr_0
-  br label %end_if_0
-end_if_0:
+  %43 = getelementptr %btree_t_7, ptr %tree_0, i32 0, i32 0
+  %44 = load i16, ptr %stack.ptr_1
+  %45 = call ccc i16 @eclair_btree_node_rebalance_or_split_7(ptr %9, ptr %43, i16 %44)
+  %46 = sub i16 %44, %45
+  store i16 %46, ptr %stack.ptr_1
+  %47 = getelementptr %node_t_7, ptr %9, i32 0, i32 0, i32 2
+  %48 = load i16, ptr %47
+  %49 = icmp ugt i16 %46, %48
+  br i1 %49, label %if_2, label %end_if_2
+if_2:
+  %50 = add i16 %48, 1
+  %51 = sub i16 %46, %50
+  store i16 %51, ptr %stack.ptr_1
+  %52 = getelementptr %node_t_7, ptr %9, i32 0, i32 0, i32 0
+  %53 = load ptr, ptr %52
+  %54 = getelementptr %node_t_7, ptr %9, i32 0, i32 0, i32 1
+  %55 = load i16, ptr %54
+  %56 = add i16 1, %55
+  %57 = getelementptr %inner_node_t_7, ptr %53, i32 0, i32 1, i16 %56
+  %58 = load ptr, ptr %57
+  store ptr %58, ptr %stack.ptr_0
+  br label %end_if_2
+end_if_2:
   br label %no_split_0
 no_split_0:
-  %61 = load ptr, ptr %stack.ptr_0
-  %62 = load i16, ptr %stack.ptr_1
-  %63 = getelementptr %node_t_7, ptr %61, i32 0, i32 0, i32 2
-  %64 = load i16, ptr %63
+  %59 = load ptr, ptr %stack.ptr_0
+  %60 = load i16, ptr %stack.ptr_1
+  %61 = getelementptr %node_t_7, ptr %59, i32 0, i32 0, i32 2
+  %62 = load i16, ptr %61
   br label %for_begin_0
 for_begin_0:
-  %65 = phi i16 [%64, %no_split_0], [%71, %for_body_0]
-  %66 = icmp ugt i16 %65, %62
-  br i1 %66, label %for_body_0, label %for_end_0
+  %63 = phi i16 [%62, %no_split_0], [%69, %for_body_0]
+  %64 = icmp ugt i16 %63, %60
+  br i1 %64, label %for_body_0, label %for_end_0
 for_body_0:
-  %67 = sub i16 %65, 1
-  %68 = getelementptr %node_t_7, ptr %61, i32 0, i32 1, i16 %67
-  %69 = load [2 x i32], ptr %68
-  %70 = getelementptr %node_t_7, ptr %61, i32 0, i32 1, i16 %65
-  store [2 x i32] %69, ptr %70
-  %71 = sub i16 %65, 1
+  %65 = sub i16 %63, 1
+  %66 = getelementptr %node_t_7, ptr %59, i32 0, i32 1, i16 %65
+  %67 = load [2 x i32], ptr %66
+  %68 = getelementptr %node_t_7, ptr %59, i32 0, i32 1, i16 %63
+  store [2 x i32] %67, ptr %68
+  %69 = sub i16 %63, 1
   br label %for_begin_0
 for_end_0:
-  %72 = load [2 x i32], ptr %val_0
-  %73 = getelementptr %node_t_7, ptr %61, i32 0, i32 1, i16 %62
-  store [2 x i32] %72, ptr %73
-  %74 = getelementptr %node_t_7, ptr %61, i32 0, i32 0, i32 2
-  %75 = load i16, ptr %74
-  %76 = add i16 1, %75
-  store i16 %76, ptr %74
+  %70 = load [2 x i32], ptr %val_0
+  %71 = getelementptr %node_t_7, ptr %59, i32 0, i32 1, i16 %60
+  store [2 x i32] %70, ptr %71
+  %72 = getelementptr %node_t_7, ptr %59, i32 0, i32 0, i32 2
+  %73 = load i16, ptr %72
+  %74 = add i16 1, %73
+  store i16 %74, ptr %72
   br label %inserted_new_value_0
 no_insert_0:
   ret i1 0
@@ -8408,25 +8602,28 @@ loop_0:
   %12 = trunc i64 %11 to i16
   %13 = udiv i16 %12, 8
   %14 = icmp ult ptr %8, %7
+  br i1 %14, label %if_1, label %end_if_2
+if_1:
   %15 = call ccc i8 @eclair_btree_value_compare_values_7(ptr %8, ptr %val_0)
   %16 = icmp eq i8 0, %15
-  %17 = and i1 %14, %16
-  br i1 %17, label %if_1, label %end_if_1
-if_1:
+  br i1 %16, label %if_2, label %end_if_1
+if_2:
   call ccc void @eclair_btree_iterator_init_7(ptr %result_0, ptr %3, i16 %13)
   ret void
 end_if_1:
-  %18 = getelementptr %node_t_7, ptr %3, i32 0, i32 0, i32 3
-  %19 = load i1, ptr %18
-  %20 = icmp eq i1 %19, 0
-  br i1 %20, label %if_2, label %end_if_2
-if_2:
+  br label %end_if_2
+end_if_2:
+  %17 = getelementptr %node_t_7, ptr %3, i32 0, i32 0, i32 3
+  %18 = load i1, ptr %17
+  %19 = icmp eq i1 %18, 0
+  br i1 %19, label %if_3, label %end_if_3
+if_3:
   call ccc void @eclair_btree_iterator_end_init_7(ptr %result_0)
   ret void
-end_if_2:
-  %21 = getelementptr %inner_node_t_7, ptr %3, i32 0, i32 1, i16 %13
-  %22 = load ptr, ptr %21
-  store ptr %22, ptr %stack.ptr_0
+end_if_3:
+  %20 = getelementptr %inner_node_t_7, ptr %3, i32 0, i32 1, i16 %13
+  %21 = load ptr, ptr %20
+  store ptr %21, ptr %stack.ptr_0
   br label %loop_0
 }
 
@@ -8479,22 +8676,25 @@ handle_not_last_0:
   ret void
 end_if_1:
   %24 = icmp ne ptr %8, %7
+  br i1 %24, label %if_2, label %end_if_3
+if_2:
   %25 = call ccc i8 @eclair_btree_value_compare_values_7(ptr %8, ptr %val_0)
   %26 = icmp eq i8 0, %25
-  %27 = and i1 %24, %26
-  br i1 %27, label %if_2, label %end_if_2
-if_2:
+  br i1 %26, label %if_3, label %end_if_2
+if_3:
   call ccc void @eclair_btree_iterator_init_7(ptr %result_0, ptr %3, i16 %13)
   ret void
 end_if_2:
-  br i1 %24, label %if_3, label %end_if_3
-if_3:
-  call ccc void @eclair_btree_iterator_init_7(ptr %stack.ptr_0, ptr %3, i16 %13)
   br label %end_if_3
 end_if_3:
-  %28 = getelementptr %inner_node_t_7, ptr %3, i32 0, i32 1, i16 %13
-  %29 = load ptr, ptr %28
-  store ptr %29, ptr %stack.ptr_1
+  br i1 %24, label %if_4, label %end_if_4
+if_4:
+  call ccc void @eclair_btree_iterator_init_7(ptr %stack.ptr_0, ptr %3, i16 %13)
+  br label %end_if_4
+end_if_4:
+  %27 = getelementptr %inner_node_t_7, ptr %3, i32 0, i32 1, i16 %13
+  %28 = load ptr, ptr %27
+  store ptr %28, ptr %stack.ptr_1
   br label %loop_0
 }
 
@@ -9104,7 +9304,7 @@ end_if_1:
   br label %for_begin_0
 for_begin_0:
   %22 = phi i16 [%20, %end_if_1], [%37, %for_body_0]
-  %23 = icmp uge i16 %22, %21
+  %23 = icmp sge i16 %22, %21
   br i1 %23, label %for_body_0, label %for_end_0
 for_body_0:
   %24 = add i16 %22, 1
@@ -9217,7 +9417,7 @@ for_end_1:
 if_1:
   br label %for_begin_2
 for_begin_2:
-  %48 = phi i16 [0, %if_1], [%61, %for_body_2]
+  %48 = phi i16 [0, %if_1], [%57, %for_body_2]
   %49 = icmp ult i16 %48, %14
   br i1 %49, label %for_body_2, label %for_end_2
 for_body_2:
@@ -9229,45 +9429,58 @@ for_body_2:
   %55 = load ptr, ptr %54
   %56 = getelementptr %inner_node_t_8, ptr %9, i32 0, i32 1, i16 %53
   store ptr %55, ptr %56
-  %57 = getelementptr %inner_node_t_8, ptr %9, i32 0, i32 1, i16 %53
-  %58 = load ptr, ptr %57
-  %59 = getelementptr %node_t_8, ptr %58, i32 0, i32 0, i32 0
-  store ptr %9, ptr %59
-  %60 = getelementptr %node_t_8, ptr %58, i32 0, i32 0, i32 1
-  store i16 %53, ptr %60
-  %61 = add i16 1, %48
+  %57 = add i16 1, %48
   br label %for_begin_2
 for_end_2:
-  %62 = sub i16 %36, %14
-  %63 = add i16 1, %62
   br label %for_begin_3
 for_begin_3:
-  %64 = phi i16 [0, %for_end_2], [%73, %for_body_3]
-  %65 = icmp ult i16 %64, %63
-  br i1 %65, label %for_body_3, label %for_end_3
+  %58 = phi i16 [0, %for_end_2], [%68, %for_body_3]
+  %59 = icmp ult i16 %58, %14
+  br i1 %59, label %for_body_3, label %for_end_3
 for_body_3:
-  %66 = add i16 %64, %14
-  %67 = getelementptr %inner_node_t_8, ptr %node_0, i32 0, i32 1, i16 %66
-  %68 = load ptr, ptr %67
-  %69 = getelementptr %inner_node_t_8, ptr %node_0, i32 0, i32 1, i16 %64
-  store ptr %68, ptr %69
-  %70 = getelementptr %inner_node_t_8, ptr %node_0, i32 0, i32 1, i16 %64
-  %71 = load ptr, ptr %70
-  %72 = getelementptr %node_t_8, ptr %71, i32 0, i32 0, i32 1
-  store i16 %64, ptr %72
-  %73 = add i16 1, %64
+  %60 = getelementptr %node_t_8, ptr %9, i32 0, i32 0, i32 2
+  %61 = load i16, ptr %60
+  %62 = add i16 %61, 1
+  %63 = add i16 %58, %62
+  %64 = getelementptr %inner_node_t_8, ptr %node_0, i32 0, i32 1, i16 %58
+  %65 = load ptr, ptr %64
+  %66 = getelementptr %node_t_8, ptr %65, i32 0, i32 0, i32 0
+  store ptr %9, ptr %66
+  %67 = getelementptr %node_t_8, ptr %65, i32 0, i32 0, i32 1
+  store i16 %63, ptr %67
+  %68 = add i16 1, %58
   br label %for_begin_3
 for_end_3:
+  %69 = sub i16 %36, %14
+  %70 = add i16 1, %69
+  br label %for_begin_4
+for_begin_4:
+  %71 = phi i16 [0, %for_end_3], [%80, %for_body_4]
+  %72 = icmp ult i16 %71, %70
+  br i1 %72, label %for_body_4, label %for_end_4
+for_body_4:
+  %73 = add i16 %71, %14
+  %74 = getelementptr %inner_node_t_8, ptr %node_0, i32 0, i32 1, i16 %73
+  %75 = load ptr, ptr %74
+  %76 = getelementptr %inner_node_t_8, ptr %node_0, i32 0, i32 1, i16 %71
+  store ptr %75, ptr %76
+  %77 = getelementptr %inner_node_t_8, ptr %node_0, i32 0, i32 1, i16 %71
+  %78 = load ptr, ptr %77
+  %79 = getelementptr %node_t_8, ptr %78, i32 0, i32 0, i32 1
+  store i16 %71, ptr %79
+  %80 = add i16 1, %71
+  br label %for_begin_4
+for_end_4:
   br label %end_if_0
 end_if_0:
-  %74 = getelementptr %node_t_8, ptr %9, i32 0, i32 0, i32 2
-  %75 = load i16, ptr %74
-  %76 = add i16 %75, %14
-  store i16 %76, ptr %74
-  %77 = getelementptr %node_t_8, ptr %node_0, i32 0, i32 0, i32 2
-  %78 = load i16, ptr %77
-  %79 = sub i16 %78, %14
-  store i16 %79, ptr %77
+  %81 = getelementptr %node_t_8, ptr %9, i32 0, i32 0, i32 2
+  %82 = load i16, ptr %81
+  %83 = add i16 %82, %14
+  store i16 %83, ptr %81
+  %84 = getelementptr %node_t_8, ptr %node_0, i32 0, i32 0, i32 2
+  %85 = load i16, ptr %84
+  %86 = sub i16 %85, %14
+  store i16 %86, ptr %84
   ret i16 %14
 end_if_1:
   br label %split_0
@@ -9317,87 +9530,93 @@ inner_0:
   %21 = trunc i64 %20 to i16
   %22 = udiv i16 %21, 12
   %23 = icmp ne ptr %17, %16
+  br i1 %23, label %if_0, label %end_if_0
+if_0:
   %24 = call ccc i8 @eclair_btree_value_compare_values_8(ptr %17, ptr %val_0)
   %25 = icmp eq i8 0, %24
-  %26 = and i1 %23, %25
-  br i1 %26, label %no_insert_0, label %inner_continue_insert_0
+  br i1 %25, label %no_insert_0, label %inner_continue_insert_0
+end_if_0:
+  br label %inner_continue_insert_0
 inner_continue_insert_0:
-  %27 = getelementptr %inner_node_t_8, ptr %9, i32 0, i32 1, i16 %22
-  %28 = load ptr, ptr %27
-  store ptr %28, ptr %stack.ptr_0
+  %26 = getelementptr %inner_node_t_8, ptr %9, i32 0, i32 1, i16 %22
+  %27 = load ptr, ptr %26
+  store ptr %27, ptr %stack.ptr_0
   br label %loop_0
 leaf_0:
-  %29 = getelementptr %node_t_8, ptr %9, i32 0, i32 0, i32 2
-  %30 = load i16, ptr %29
-  %31 = getelementptr %node_t_8, ptr %9, i32 0, i32 1, i16 0
-  %32 = getelementptr %node_t_8, ptr %9, i32 0, i32 1, i16 %30
-  %33 = call ccc ptr @eclair_btree_linear_search_upper_bound_8(ptr %val_0, ptr %31, ptr %32)
-  %34 = ptrtoint ptr %33 to i64
-  %35 = ptrtoint ptr %31 to i64
-  %36 = sub i64 %34, %35
-  %37 = trunc i64 %36 to i16
-  %38 = udiv i16 %37, 12
-  store i16 %38, ptr %stack.ptr_1
-  %39 = icmp ne ptr %33, %31
-  %40 = getelementptr [3 x i32], ptr %33, i32 -1
-  %41 = call ccc i8 @eclair_btree_value_compare_values_8(ptr %40, ptr %val_0)
-  %42 = icmp eq i8 0, %41
-  %43 = and i1 %39, %42
-  br i1 %43, label %no_insert_0, label %leaf_continue_insert_0
+  %28 = getelementptr %node_t_8, ptr %9, i32 0, i32 0, i32 2
+  %29 = load i16, ptr %28
+  %30 = getelementptr %node_t_8, ptr %9, i32 0, i32 1, i16 0
+  %31 = getelementptr %node_t_8, ptr %9, i32 0, i32 1, i16 %29
+  %32 = call ccc ptr @eclair_btree_linear_search_upper_bound_8(ptr %val_0, ptr %30, ptr %31)
+  %33 = ptrtoint ptr %32 to i64
+  %34 = ptrtoint ptr %30 to i64
+  %35 = sub i64 %33, %34
+  %36 = trunc i64 %35 to i16
+  %37 = udiv i16 %36, 12
+  store i16 %37, ptr %stack.ptr_1
+  %38 = icmp ne ptr %32, %30
+  br i1 %38, label %if_1, label %end_if_1
+if_1:
+  %39 = getelementptr [3 x i32], ptr %32, i32 -1
+  %40 = call ccc i8 @eclair_btree_value_compare_values_8(ptr %39, ptr %val_0)
+  %41 = icmp eq i8 0, %40
+  br i1 %41, label %no_insert_0, label %leaf_continue_insert_0
+end_if_1:
+  br label %leaf_continue_insert_0
 leaf_continue_insert_0:
-  %44 = icmp uge i16 %30, 20
-  br i1 %44, label %split_0, label %no_split_0
+  %42 = icmp uge i16 %29, 20
+  br i1 %42, label %split_0, label %no_split_0
 split_0:
-  %45 = getelementptr %btree_t_8, ptr %tree_0, i32 0, i32 0
-  %46 = load i16, ptr %stack.ptr_1
-  %47 = call ccc i16 @eclair_btree_node_rebalance_or_split_8(ptr %9, ptr %45, i16 %46)
-  %48 = sub i16 %46, %47
-  store i16 %48, ptr %stack.ptr_1
-  %49 = getelementptr %node_t_8, ptr %9, i32 0, i32 0, i32 2
-  %50 = load i16, ptr %49
-  %51 = icmp ugt i16 %48, %50
-  br i1 %51, label %if_0, label %end_if_0
-if_0:
-  %52 = add i16 %50, 1
-  %53 = sub i16 %48, %52
-  store i16 %53, ptr %stack.ptr_1
-  %54 = getelementptr %node_t_8, ptr %9, i32 0, i32 0, i32 0
-  %55 = load ptr, ptr %54
-  %56 = getelementptr %node_t_8, ptr %9, i32 0, i32 0, i32 1
-  %57 = load i16, ptr %56
-  %58 = add i16 1, %57
-  %59 = getelementptr %inner_node_t_8, ptr %55, i32 0, i32 1, i16 %58
-  %60 = load ptr, ptr %59
-  store ptr %60, ptr %stack.ptr_0
-  br label %end_if_0
-end_if_0:
+  %43 = getelementptr %btree_t_8, ptr %tree_0, i32 0, i32 0
+  %44 = load i16, ptr %stack.ptr_1
+  %45 = call ccc i16 @eclair_btree_node_rebalance_or_split_8(ptr %9, ptr %43, i16 %44)
+  %46 = sub i16 %44, %45
+  store i16 %46, ptr %stack.ptr_1
+  %47 = getelementptr %node_t_8, ptr %9, i32 0, i32 0, i32 2
+  %48 = load i16, ptr %47
+  %49 = icmp ugt i16 %46, %48
+  br i1 %49, label %if_2, label %end_if_2
+if_2:
+  %50 = add i16 %48, 1
+  %51 = sub i16 %46, %50
+  store i16 %51, ptr %stack.ptr_1
+  %52 = getelementptr %node_t_8, ptr %9, i32 0, i32 0, i32 0
+  %53 = load ptr, ptr %52
+  %54 = getelementptr %node_t_8, ptr %9, i32 0, i32 0, i32 1
+  %55 = load i16, ptr %54
+  %56 = add i16 1, %55
+  %57 = getelementptr %inner_node_t_8, ptr %53, i32 0, i32 1, i16 %56
+  %58 = load ptr, ptr %57
+  store ptr %58, ptr %stack.ptr_0
+  br label %end_if_2
+end_if_2:
   br label %no_split_0
 no_split_0:
-  %61 = load ptr, ptr %stack.ptr_0
-  %62 = load i16, ptr %stack.ptr_1
-  %63 = getelementptr %node_t_8, ptr %61, i32 0, i32 0, i32 2
-  %64 = load i16, ptr %63
+  %59 = load ptr, ptr %stack.ptr_0
+  %60 = load i16, ptr %stack.ptr_1
+  %61 = getelementptr %node_t_8, ptr %59, i32 0, i32 0, i32 2
+  %62 = load i16, ptr %61
   br label %for_begin_0
 for_begin_0:
-  %65 = phi i16 [%64, %no_split_0], [%71, %for_body_0]
-  %66 = icmp ugt i16 %65, %62
-  br i1 %66, label %for_body_0, label %for_end_0
+  %63 = phi i16 [%62, %no_split_0], [%69, %for_body_0]
+  %64 = icmp ugt i16 %63, %60
+  br i1 %64, label %for_body_0, label %for_end_0
 for_body_0:
-  %67 = sub i16 %65, 1
-  %68 = getelementptr %node_t_8, ptr %61, i32 0, i32 1, i16 %67
-  %69 = load [3 x i32], ptr %68
-  %70 = getelementptr %node_t_8, ptr %61, i32 0, i32 1, i16 %65
-  store [3 x i32] %69, ptr %70
-  %71 = sub i16 %65, 1
+  %65 = sub i16 %63, 1
+  %66 = getelementptr %node_t_8, ptr %59, i32 0, i32 1, i16 %65
+  %67 = load [3 x i32], ptr %66
+  %68 = getelementptr %node_t_8, ptr %59, i32 0, i32 1, i16 %63
+  store [3 x i32] %67, ptr %68
+  %69 = sub i16 %63, 1
   br label %for_begin_0
 for_end_0:
-  %72 = load [3 x i32], ptr %val_0
-  %73 = getelementptr %node_t_8, ptr %61, i32 0, i32 1, i16 %62
-  store [3 x i32] %72, ptr %73
-  %74 = getelementptr %node_t_8, ptr %61, i32 0, i32 0, i32 2
-  %75 = load i16, ptr %74
-  %76 = add i16 1, %75
-  store i16 %76, ptr %74
+  %70 = load [3 x i32], ptr %val_0
+  %71 = getelementptr %node_t_8, ptr %59, i32 0, i32 1, i16 %60
+  store [3 x i32] %70, ptr %71
+  %72 = getelementptr %node_t_8, ptr %59, i32 0, i32 0, i32 2
+  %73 = load i16, ptr %72
+  %74 = add i16 1, %73
+  store i16 %74, ptr %72
   br label %inserted_new_value_0
 no_insert_0:
   ret i1 0
@@ -9475,25 +9694,28 @@ loop_0:
   %12 = trunc i64 %11 to i16
   %13 = udiv i16 %12, 12
   %14 = icmp ult ptr %8, %7
+  br i1 %14, label %if_1, label %end_if_2
+if_1:
   %15 = call ccc i8 @eclair_btree_value_compare_values_8(ptr %8, ptr %val_0)
   %16 = icmp eq i8 0, %15
-  %17 = and i1 %14, %16
-  br i1 %17, label %if_1, label %end_if_1
-if_1:
+  br i1 %16, label %if_2, label %end_if_1
+if_2:
   call ccc void @eclair_btree_iterator_init_8(ptr %result_0, ptr %3, i16 %13)
   ret void
 end_if_1:
-  %18 = getelementptr %node_t_8, ptr %3, i32 0, i32 0, i32 3
-  %19 = load i1, ptr %18
-  %20 = icmp eq i1 %19, 0
-  br i1 %20, label %if_2, label %end_if_2
-if_2:
+  br label %end_if_2
+end_if_2:
+  %17 = getelementptr %node_t_8, ptr %3, i32 0, i32 0, i32 3
+  %18 = load i1, ptr %17
+  %19 = icmp eq i1 %18, 0
+  br i1 %19, label %if_3, label %end_if_3
+if_3:
   call ccc void @eclair_btree_iterator_end_init_8(ptr %result_0)
   ret void
-end_if_2:
-  %21 = getelementptr %inner_node_t_8, ptr %3, i32 0, i32 1, i16 %13
-  %22 = load ptr, ptr %21
-  store ptr %22, ptr %stack.ptr_0
+end_if_3:
+  %20 = getelementptr %inner_node_t_8, ptr %3, i32 0, i32 1, i16 %13
+  %21 = load ptr, ptr %20
+  store ptr %21, ptr %stack.ptr_0
   br label %loop_0
 }
 
@@ -9546,22 +9768,25 @@ handle_not_last_0:
   ret void
 end_if_1:
   %24 = icmp ne ptr %8, %7
+  br i1 %24, label %if_2, label %end_if_3
+if_2:
   %25 = call ccc i8 @eclair_btree_value_compare_values_8(ptr %8, ptr %val_0)
   %26 = icmp eq i8 0, %25
-  %27 = and i1 %24, %26
-  br i1 %27, label %if_2, label %end_if_2
-if_2:
+  br i1 %26, label %if_3, label %end_if_2
+if_3:
   call ccc void @eclair_btree_iterator_init_8(ptr %result_0, ptr %3, i16 %13)
   ret void
 end_if_2:
-  br i1 %24, label %if_3, label %end_if_3
-if_3:
-  call ccc void @eclair_btree_iterator_init_8(ptr %stack.ptr_0, ptr %3, i16 %13)
   br label %end_if_3
 end_if_3:
-  %28 = getelementptr %inner_node_t_8, ptr %3, i32 0, i32 1, i16 %13
-  %29 = load ptr, ptr %28
-  store ptr %29, ptr %stack.ptr_1
+  br i1 %24, label %if_4, label %end_if_4
+if_4:
+  call ccc void @eclair_btree_iterator_init_8(ptr %stack.ptr_0, ptr %3, i16 %13)
+  br label %end_if_4
+end_if_4:
+  %27 = getelementptr %inner_node_t_8, ptr %3, i32 0, i32 1, i16 %13
+  %28 = load ptr, ptr %27
+  store ptr %28, ptr %stack.ptr_1
   br label %loop_0
 }
 
