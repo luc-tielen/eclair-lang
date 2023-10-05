@@ -34,6 +34,7 @@ mkSplit nodeNew nodeSplitPoint growParent = mdo
     ty <- deref (metaOf ->> nodeTypeOf) n
     -- Create a new sibling node and move some of the data to sibling
     sibling <- call nodeNew [ty]
+
     jPtr <- allocate i16 (int16 0)
     loopFor splitPoint' (`ult` numberOfKeys) (add (int16 1)) $ \i -> mdo
       j <- load jPtr 0
@@ -85,11 +86,8 @@ mkGrowParent nodeNew insertInner = mdo
 
     assign (metaOf ->> parentOf) n newRoot
     assign (metaOf ->> parentOf) sibling newRoot
-    -- TODO: why missing in souffle code? happens in another function?
-    -- also: why is num elements of n not decremented?
-    -- assign (metaOf ->> posInParentOf) n (int16 0)
 
-    -- update (metaOf ->> numElemsOf) n (`sub` (int16 1))
+    -- assign (metaOf ->> posInParentOf) n (int16 0) -- Not needed, root already has position 0
     assign (metaOf ->> posInParentOf) sibling (int16 1)
     store root 0 newRoot
     retVoid
@@ -143,7 +141,7 @@ mkInsertInner rebalanceOrSplit = mdo
     numElems'' <- deref (metaOf ->> numElemsOf) n
     startIdx <- sub numElems'' (int16 1)
     pos' <- load posPtr 0
-    loopFor startIdx (`uge` pos') (`sub` int16 1) $ \i -> mdo
+    loopFor startIdx (`sge` pos') (`sub` int16 1) $ \i -> mdo
       j <- add i (int16 1)
       k <- add i (int16 2)
       assign (valueAt j) n =<< deref (valueAt i) n
@@ -152,7 +150,6 @@ mkInsertInner rebalanceOrSplit = mdo
       increment int16 (metaOf ->> posInParentOf) childK
 
     -- TODO: assert(i_n->children[pos] == predecessor);
-
     -- Insert new element
     assign (valueAt pos') n =<< load key 0
     pos'' <- add pos' (int16 1)
@@ -224,15 +221,21 @@ mkRebalanceOrSplit splitFn = mdo
           leftNumElems' <- deref (metaOf ->> numElemsOf) left
           leftPos <- add leftNumElems' (int16 1) >>= add i
           assign (childAt leftPos) iLeft =<< deref (childAt i) iN
-          leftChild <- deref (childAt leftPos) iLeft
-          assign (metaOf ->> parentOf) leftChild left
-          assign (metaOf ->> posInParentOf) leftChild leftPos
 
-        -- Shift child pointer to the left + update position
+        -- Update moved children
+        loopFor (int16 0) (`ult` leftSlotsOpen) (add (int16 1)) $ \i -> do
+          leftNumElems' <- deref (metaOf ->> numElemsOf) left
+          leftPos <- add leftNumElems' (int16 1) >>= add i
+          child <- deref (childAt i) iN
+          assign (metaOf ->> parentOf) child left
+          assign (metaOf ->> posInParentOf) child leftPos
+
+        -- Shift child pointer to the left
         endIdx <- sub numElemsN leftSlotsOpen >>= add (int16 1)
         loopFor (int16 0) (`ult` endIdx) (add (int16 1)) $ \i -> do
           j <- add i leftSlotsOpen
           assign (childAt i) iN =<< deref (childAt j) iN
+          -- Update position of children
           child <- deref (childAt i) iN
           assign (metaOf ->> posInParentOf) child i
 
@@ -310,9 +313,9 @@ mkBtreeInsertValue nodeNew compareValues searchLowerBound searchUpperBound isEmp
       pos <- call searchLowerBound [val, first, last]
       idx <- pointerDiff i16 pos first >>= (`udiv` int32 (toInteger valSize))
       notLast <- pos `ne` last
-      isEqual <- (int8 0 `eq`) =<< call compareValues [pos, val]  -- Can we do a weak compare just by using pointers here?
-      alreadyInserted <- notLast `and` isEqual
-      condBr alreadyInserted noInsert continueInsert
+      if' notLast $ do
+        alreadyInserted <- (int8 0 `eq`) =<< call compareValues [pos, val]
+        condBr alreadyInserted noInsert continueInsert
 
       continueInsert <- blockNamed "inner_continue_insert"
       let iCurrent = ptrcast innerNode current
@@ -332,10 +335,10 @@ mkBtreeInsertValue nodeNew compareValues searchLowerBound searchUpperBound isEmp
       distance <- pointerDiff i16 pos first >>= (`udiv` int32 (toInteger valSize))
       idxPtr <- allocate i16 distance
       notFirst <- pos `ne` first
-      valueAtPrevPos <- gep pos [int32 (-1)]
-      isEqual <- (int8 0 `eq`) =<< call compareValues [valueAtPrevPos, val]  -- Can we do a weak compare just by using pointers here?
-      alreadyInserted <- notFirst `and` isEqual
-      condBr alreadyInserted noInsert continueInsert
+      if' notFirst $ do
+        valueAtPrevPos <- gep pos [int32 (-1)]
+        alreadyInserted <- (int8 0 `eq`) =<< call compareValues [valueAtPrevPos, val]
+        condBr alreadyInserted noInsert continueInsert
 
       continueInsert <- blockNamed "leaf_continue_insert"
       nodeIsFull <- numElems `uge` numberOfKeys
