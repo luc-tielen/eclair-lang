@@ -7,7 +7,7 @@ if [ "$?" == "0" ]; then
   exit 1
 fi
 
-grep -rE "(xit|pending)" tests/eclair/Test
+grep -rE "(\sxit|pending)" tests/eclair/Test
 if [ "$?" == "0" ]; then
   echo "Found pending tests, aborting!"
   exit 1
