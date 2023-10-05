@@ -3,7 +3,7 @@ packages: .
 source-repository-package
     type: git
     location: https://github.com/luc-tielen/llvm-codegen.git
-    tag: 42043c279797a4f57e254fcf5e60f3df56f9bf65
+    tag: 497c7c0ffad5f3e4b6f4e74550a477e75b0beb23
 
 source-repository-package
     type: git
@@ -13,7 +13,7 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/luc-tielen/souffle-haskell.git
-    tag: 51786c809e6b5db9d0da80b9821ed87654f620c7
+    tag: bcd7e3c058c9036d8495cf114520663917b7ac81
 
 source-repository-package
     type: git

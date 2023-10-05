@@ -13,10 +13,8 @@ configure: configure-stage0
 clean:
 	@cabal clean
 
-test: configure
-	@cabal run eclair-test
-	# next line is broken on CI
-	#@cabal run eclair-lsp-test
+test:
+	@DATALOG_DIR=cbits/ cabal run eclair-test
 	@lit tests/ -v
 
 cabal-file:

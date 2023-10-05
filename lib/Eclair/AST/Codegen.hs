@@ -160,7 +160,7 @@ search r terms inner = do
       modify $ \s -> s { directConstraints = directConstraints s . constraint }
 
 loop :: [CodegenM RA] -> CodegenM RA
-loop ms = local (\env -> env { envLoopContext = Just InLoop}) $ do -- TODO refactor
+loop ms = local (\env -> env { envLoopContext = Just InLoop}) $ do
   nodeId <- freshNodeId
   RA.Loop nodeId <$> sequence ms
 

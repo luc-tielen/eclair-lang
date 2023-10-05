@@ -117,7 +117,6 @@ recursiveRuleToStmts sccNames relation terms clauses =
     | i <- [0..sccClauseCount - 1]
     , let sccAtom = maybeAt i sccAtoms
           clauses' = map (maybeToDeltaClause sccAtom) clauses
-          -- clauses' = transformAt i toDeltaClause clauses
           sccAtoms' = drop (i + 1) sccAtoms
           stmt = nestedSearchAndProject newRelation terms clauses' sccAtoms'
     ]
