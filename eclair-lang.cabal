@@ -261,6 +261,7 @@ test-suite eclair-test
     Test.Eclair.LLVM.BTreeSpec
     Test.Eclair.LLVM.HashSpec
     Test.Eclair.LLVM.SymbolSpec
+    Test.Eclair.LLVM.VectorSpec
     Test.Eclair.LSP.HandlersSpec
     Test.Eclair.LSP.JSONSpec
     Test.Eclair.RA.IndexSelectionSpec
