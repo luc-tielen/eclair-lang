@@ -59,8 +59,10 @@ cgExternals = do
   pure $ Externals mallocFn freeFn notUsed notUsed notUsed notUsed notUsed
 
 -- Helper test code for initializing and freeing a struct from native code:
-cgTestCode :: Type -> Operand -> Operand -> ModuleBuilderT IO ()
-cgTestCode ty mallocFn freeFn = do
+cgTestCode :: Type -> Externals -> ModuleBuilderT IO ()
+cgTestCode ty exts = do
+  let mallocFn = extMalloc exts
+      freeFn = extFree exts
   _ <- function "mallocator_new" [] (ptr ty) $ \[] ->
     ret =<< call mallocFn [int32 1]
   _ <- function "mallocator_delete" [(ptr ty, "allocator")] void $ \[alloc] ->
