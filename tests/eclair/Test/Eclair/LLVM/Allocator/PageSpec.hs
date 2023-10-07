@@ -19,7 +19,7 @@ import Foreign.LibFFI
 data PageAllocator
 
 spec :: Spec
-spec = fdescribe "PageAllocator" $
+spec = describe "PageAllocator" $
   aroundAll (setupAndTeardown testDir) $ parallel $ do
     it "can be initialized and destroyed" $ \bindings ->
       withAlloc bindings $ \obj -> do
