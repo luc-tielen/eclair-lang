@@ -226,4 +226,3 @@ symbolOf = mkPath [int32 0]
 
 valueOf :: Path 'EntryIdx 'ValueIdx
 valueOf = mkPath [int32 1]
-
