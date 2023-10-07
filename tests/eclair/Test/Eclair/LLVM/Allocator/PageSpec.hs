@@ -52,18 +52,20 @@ teardown =
 
 cgExternals :: ModuleBuilderT IO Externals
 cgExternals = do
+  mallocFn <- extern "malloc" [i32] (ptr i8)
+  freeFn <- extern "free" [ptr i8] void
   -- mmap [hint, numBytes', prot, flags, noFd, offset]
   mmapFn <- extern "mmap" [ptr i8, i32, i32, i32, i32, i32] (ptr i8)
   -- munmap [memory, len']
   munmapFn <- extern "munmap" [ptr i8, i32] i64
-  pure $ Externals mmapFn munmapFn notUsed notUsed notUsed notUsed notUsed
+  pure $ Externals mallocFn freeFn notUsed notUsed notUsed mmapFn munmapFn 
 
 -- Helper test code for initializing and freeing a struct from native code:
 cgTestCode :: Type -> Operand -> Operand -> ModuleBuilderT IO ()
 cgTestCode ty mmapFn munmapFn = do
   _ <- function "pageallocator_new" [] (ptr ty) $ \[] ->
     ret =<< call mmapFn [nullPtr VoidType, int32 1, int32 2, int32 2, int32 32, int32 (-1), int32 0]
-  _ <- function "pageallocator_delete" [(ptr ty, "allocator"), (i64, "len")] i32 $ \[alloc, len] -> 
+  _ <- function "pageallocator_delete" [(ptr ty, "allocator"), (i64, "len")] void $ \[alloc, len] -> 
     call munmapFn [alloc, len]
   pass
 
