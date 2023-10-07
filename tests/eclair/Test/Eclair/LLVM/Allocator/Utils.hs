@@ -15,7 +15,6 @@ import Control.Exception
 import Foreign.LibFFI
 import Foreign.Ptr
 import Foreign.C
-import Data.Text (unpack)
 
 type I8 = CUChar
 
@@ -36,16 +35,13 @@ compileAllocatorCode
   -> (Type -> Operand -> Operand -> ModuleBuilderT IO ())
   -> FilePath -> IO ()
 compileAllocatorCode allocator prefix cgExts cgHelperCode dir = do
-  pure $ traceShowId "in compileAllocatorCode1"
   llvmIR <- runModuleBuilderT $ do
-    pure $ traceShowId "in compileAllocatorCode2"
     exts <- cgExts
     let cgBlueprint = flip evalStateT exts $ cgAlloc prefix allocator
     blueprint <- hoist intoIO cgBlueprint
-    pure $ traceShowId "in compileAllocatorCode3"
     cgHelperCode (bpType blueprint) (extMalloc exts) (extFree exts)
   let llvmIRText = ppllvm llvmIR
-  writeFileText (llFile dir) $ traceShowWith (\foo -> "compileAllocatorCode: " ++ toString foo) llvmIRText
+  writeFileText (llFile dir) llvmIRText
   callProcess "clang" ["-fPIC", "-shared", "-O0", "-o", soFile dir, llFile dir]
 
 intoIO :: Identity a -> IO a
@@ -57,21 +53,13 @@ soFile dir = dir </> "allocator.so"
 
 loadNativeCode :: Text -> FilePath -> IO (Bindings a)
 loadNativeCode (toString -> pfx) dir = do
-  pure $ traceShowId "loadNativeCode: Enter"
   lib <- dlopen (soFile dir) [RTLD_LAZY]
-  pure $ traceShowId "loadNativeCode: After dlopen"
   newFn <- dlsym lib (pfx <> "_new")
-  pure $ traceShowId "loadNativeCode: After _new"
   deleteFn <- dlsym lib (pfx <> "_delete")
-  pure $ traceShowId "loadNativeCode: After _delete"
   allocFn <- dlsym lib (pfx <> "_alloc")
-  pure $ traceShowId "loadNativeCode: After _alloc"
   freeFn <- dlsym lib (pfx <> "_free")
-  pure $ traceShowId "loadNativeCode: After _free"
   initFn <- dlsym lib (pfx <> "_init")
-  pure $ traceShowId "loadNativeCode: After _init"
   destroyFn <- dlsym lib (pfx <> "_destroy")
-  pure $ traceShowId "loadNativeCode: After +destroy"
   pure $ Bindings
     { dynamicLib = lib
     , withAlloc = mkWithAlloc newFn deleteFn

@@ -17,7 +17,7 @@ import Foreign (Storable(peek, poke))
 data PageAllocator
 
 spec :: Spec
-spec = describe "PageAllocator" $
+spec = fdescribe "PageAllocator" $
   aroundAll (setupAndTeardown testDir) $ parallel $ do
     it "can be initialized and destroyed" $ \bindings ->
       withAlloc bindings $ \obj -> do
@@ -52,21 +52,22 @@ teardown =
 
 cgExternals :: ModuleBuilderT IO Externals
 cgExternals = do
+  -- Need malloc and free to allocate the allocator itself
   mallocFn <- extern "malloc" [i32] (ptr i8)
   freeFn <- extern "free" [ptr i8] void
   -- mmap [hint, numBytes', prot, flags, noFd, offset]
-  mmapFn <- extern "mmap" [ptr i8, i32, i32, i32, i32, i32] (ptr i8)
+  mmapFn <- extern "mmap" [ptr void, i64, i32, i32, i32, i32] (ptr void)
   -- munmap [memory, len']
-  munmapFn <- extern "munmap" [ptr i8, i32] i64
-  pure $ Externals mallocFn freeFn notUsed notUsed notUsed mmapFn munmapFn 
+  munmapFn <- extern "munmap" [ptr void, i64] i32
+  pure $ Externals mallocFn freeFn notUsed notUsed notUsed mmapFn munmapFn
 
 -- Helper test code for initializing and freeing a struct from native code:
 cgTestCode :: Type -> Operand -> Operand -> ModuleBuilderT IO ()
-cgTestCode ty mmapFn munmapFn = do
+cgTestCode ty mallocFn freeFn = do
   _ <- function "pageallocator_new" [] (ptr ty) $ \[] ->
-    ret =<< call mmapFn [nullPtr VoidType, int32 1, int32 2, int32 2, int32 32, int32 (-1), int32 0]
-  _ <- function "pageallocator_delete" [(ptr ty, "allocator"), (i64, "len")] void $ \[alloc, len] -> 
-    call munmapFn [alloc, len]
+    ret =<< call mallocFn [int32 1]
+  _ <- function "pageallocator_delete" [(ptr ty, "allocator")] void $ \[alloc] ->
+    call freeFn [alloc]
   pass
 
 prefix :: Text
