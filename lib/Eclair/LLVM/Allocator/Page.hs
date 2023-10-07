@@ -1,6 +1,7 @@
 module Eclair.LLVM.Allocator.Page
   ( Page
   , allocator
+  , roundToNearestPageSize  -- for testing only
   ) where
 
 import Eclair.LLVM.Allocator.Common
