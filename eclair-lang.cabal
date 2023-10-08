@@ -263,6 +263,7 @@ test-suite eclair-test
     Test.Eclair.LLVM.HashMapSpec
     Test.Eclair.LLVM.HashSpec
     Test.Eclair.LLVM.SymbolSpec
+    Test.Eclair.LLVM.SymbolTableSpec
     Test.Eclair.LLVM.SymbolUtils
     Test.Eclair.LLVM.VectorSpec
     Test.Eclair.LSP.HandlersSpec

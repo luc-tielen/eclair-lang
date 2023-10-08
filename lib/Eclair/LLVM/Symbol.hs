@@ -90,8 +90,8 @@ mkSymbolIsEqual = do
     data1 <- deref dataOf symbol1
     data2 <- deref dataOf symbol2
     size1' <- zext size1 i64
-    isDataEqual <- (`eq` bit 0) =<< call memcmpFn [data1, data2, size1']
-    ret isDataEqual
+    result <- call memcmpFn [data1, data2, size1']
+    ret =<< result `eq` bit 0
 
 data Index
   = SymbolIdx
