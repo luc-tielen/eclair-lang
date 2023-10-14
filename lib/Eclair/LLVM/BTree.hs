@@ -9,6 +9,7 @@ module Eclair.LLVM.BTree
   ) where
 
 import Prelude hiding (void, swap)
+import Control.Monad.Fix
 import Control.Monad.Morph
 import Eclair.LLVM.Codegen
 import Eclair.LLVM.Table

@@ -352,9 +352,9 @@ betweenParens =
 --   In case of error, keeps parsing up to and including 'endChar'
 withRecovery :: Char -> Parser a -> Parser (Maybe a)
 withRecovery endChar p =
-  P.withRecovery handleError $ map Just p
+  P.withRecovery handleErr $ map Just p
   where
-    handleError err = do
+    handleErr err = do
       P.registerParseError err
       _ <- P.takeWhileP Nothing (/= endChar)
       _ <- P.char endChar

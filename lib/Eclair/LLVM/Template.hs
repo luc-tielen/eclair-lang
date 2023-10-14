@@ -14,6 +14,7 @@ module Eclair.LLVM.Template
   ) where
 
 
+import Control.Monad.Fix
 import Control.Monad.Morph
 import LLVM.Codegen hiding (function, typedef)
 import qualified LLVM.Codegen as CG

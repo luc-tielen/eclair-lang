@@ -7,6 +7,7 @@ module Eclair.EIR.Lower
 import Prelude hiding (void)
 import qualified Prelude
 import qualified Relude (swap)
+import Control.Monad.Fix
 import Control.Monad.Morph hiding (embed)
 import qualified Data.ByteString as BS
 import qualified Data.Map as M
