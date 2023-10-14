@@ -7,7 +7,6 @@ module Eclair.LLVM.Config
 
 import qualified LLVM.C.API as LibLLVM
 import LLVM.Codegen
-import Control.Monad.Fix
 import Control.Monad.Morph
 import Foreign.ForeignPtr
 import Foreign.Ptr
