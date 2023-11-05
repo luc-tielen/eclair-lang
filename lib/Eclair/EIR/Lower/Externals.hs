@@ -5,7 +5,6 @@ module Eclair.EIR.Lower.Externals
   ) where
 
 import Prelude hiding (void)
-import Control.Monad.Fix
 import Eclair.EIR.Lower.Codegen
 import Eclair.LLVM.Codegen as LLVM
 import Eclair.Common.Config

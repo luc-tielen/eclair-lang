@@ -8,7 +8,6 @@ module Eclair.EIR.Lower.API
   ) where
 
 import Prelude hiding (void)
-import Control.Monad.Fix
 import Control.Monad.Morph
 import Data.Traversable (for)
 import Data.Maybe (fromJust)
