@@ -29,9 +29,9 @@ RUN echo 'tzdata tzdata/Areas select Europe' | debconf-set-selections \
     && ln -s wasm-ld-$LLVM_VERSION wasm-ld \
     && cd - \
     && pip install lit==14.0.6 \
-    # install ghcup, ghc-9.4.4 and cabal-3.8.1.0
+    # install ghcup, ghc-9.6.3 and cabal-3.10.1.0
     && curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | \
-    BOOTSTRAP_HASKELL_NONINTERACTIVE=1 BOOTSTRAP_HASKELL_GHC_VERSION=9.4.4 BOOTSTRAP_HASKELL_CABAL_VERSION=3.8.1.0 \
+    BOOTSTRAP_HASKELL_NONINTERACTIVE=1 BOOTSTRAP_HASKELL_GHC_VERSION=9.6.3 BOOTSTRAP_HASKELL_CABAL_VERSION=3.10.1.0 \
     BOOTSTRAP_HASKELL_INSTALL_STACK=1 BOOTSTRAP_HASKELL_INSTALL_HLS=1 BOOTSTRAP_HASKELL_ADJUST_BASHRC=P sh \
     && source /root/.ghcup/env \
     && cabal install cabal-fmt \
