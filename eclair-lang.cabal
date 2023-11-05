@@ -273,9 +273,15 @@ test-suite eclair-test
     Test.Eclair.ArgParserSpec
     Test.Eclair.JSONSpec
     Test.Eclair.LLVM.Allocator.MallocSpec
+    Test.Eclair.LLVM.Allocator.PageSpec
     Test.Eclair.LLVM.Allocator.Utils
     Test.Eclair.LLVM.BTreeSpec
+    Test.Eclair.LLVM.HashMapSpec
     Test.Eclair.LLVM.HashSpec
+    Test.Eclair.LLVM.SymbolSpec
+    Test.Eclair.LLVM.SymbolTableSpec
+    Test.Eclair.LLVM.SymbolUtils
+    Test.Eclair.LLVM.VectorSpec
     Test.Eclair.LSP.HandlersSpec
     Test.Eclair.LSP.JSONSpec
     Test.Eclair.RA.IndexSelectionSpec

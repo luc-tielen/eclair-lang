@@ -35,6 +35,7 @@ codegen exts = do
 generateTypes :: ModuleBuilder Type
 generateTypes =
   -- For now, only up to 4GB of strings are supported.
+  -- TODO consider strings with i8 and i16 as size also
   typedef "symbol_t" On [i32, ptr i8]
 
 generateFunctions :: ModuleCodegen Symbol
@@ -89,8 +90,8 @@ mkSymbolIsEqual = do
     data1 <- deref dataOf symbol1
     data2 <- deref dataOf symbol2
     size1' <- zext size1 i64
-    isDataEqual <- (`eq` bit 0) =<< call memcmpFn [data1, data2, size1']
-    ret isDataEqual
+    result <- call memcmpFn [data1, data2, size1']
+    ret =<< result `eq` bit 0
 
 data Index
   = SymbolIdx

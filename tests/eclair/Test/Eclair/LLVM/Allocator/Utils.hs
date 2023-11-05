@@ -1,7 +1,9 @@
+{-# OPTIONS_GHC -Wno-deprecations #-}
 module Test.Eclair.LLVM.Allocator.Utils
   ( Bindings(..)
   , compileAllocatorCode
   , loadNativeCode
+  , soFile
   ) where
 
 import System.Process.Extra
@@ -31,14 +33,14 @@ compileAllocatorCode
   :: Allocator a
   -> Text
   -> ModuleBuilderT IO Externals
-  -> (Type -> Operand -> Operand -> ModuleBuilderT IO ())
+  -> (Type -> Externals -> ModuleBuilderT IO ())
   -> FilePath -> IO ()
 compileAllocatorCode allocator prefix cgExts cgHelperCode dir = do
   llvmIR <- runModuleBuilderT $ do
     exts <- cgExts
     let cgBlueprint = flip evalStateT exts $ cgAlloc prefix allocator
     blueprint <- hoist intoIO cgBlueprint
-    cgHelperCode (bpType blueprint) (extMalloc exts) (extFree exts)
+    cgHelperCode (bpType blueprint) exts
   let llvmIRText = ppllvm llvmIR
   writeFileText (llFile dir) llvmIRText
   callProcess "clang" ["-fPIC", "-shared", "-O0", "-o", soFile dir, llFile dir]

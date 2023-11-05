@@ -4,6 +4,7 @@ module Prelude
   , module Control.Monad.Writer.Strict
   , module Control.Monad.RWS.Strict
   , module Control.Monad.Except
+  , module Control.Monad.Fix
   , module Control.Category
   , module Control.Comonad
   , module Data.Functor.Foldable
@@ -30,6 +31,7 @@ import Control.Concurrent.MVar (modifyMVar_)
 import Control.Monad.Writer.Strict hiding (pass)
 import Control.Monad.RWS.Strict hiding (pass)
 import Control.Monad.Except
+import Control.Monad.Fix
 import Data.Functor.Foldable hiding (fold, unfold, refold, hoist)
 import Data.Functor.Foldable.TH
 import GHC.TypeLits (KnownSymbol, Symbol, symbolVal)
