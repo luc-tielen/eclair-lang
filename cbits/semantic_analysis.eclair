@@ -1,204 +1,91 @@
-.decl lit_number(node_id: unsigned, value: unsigned)
-
-.input lit_number
-
-.decl lit_string(node_id: unsigned, value: symbol)
-
-.input lit_string
-
-.decl variable(node_id: unsigned, var_name: symbol)
-
-.input variable
-
-.decl constraint(node_id: unsigned, op: symbol, lhs_node_id: unsigned, rhs_node_id: unsigned)
-
-.input constraint
-
-.decl binop(node_id: unsigned, op: symbol, lhs_node_id: unsigned, rhs_node_id: unsigned)
-
-.input binop
-
-.decl atom(node_id: unsigned, name: symbol)
-
-.input atom
-
-.decl atom_arg(atom_id: unsigned, atom_arg_pos: unsigned, atom_arg_id: unsigned)
-
-.input atom_arg
-
-.decl rule(rule_id: unsigned, name: symbol)
-
-.input rule
-
-.decl rule_arg(rule_id: unsigned, rule_arg_pos: unsigned, rule_arg_id: unsigned)
-
-.input rule_arg
-
-.decl rule_clause(rule_id: unsigned, rule_clause_pos: unsigned, rule_clause_id: unsigned)
-
-.input rule_clause
-
-.decl negation(negation_node_id: unsigned, inner_node_id: unsigned)
-
-.input negation
-
-.decl input_relation(relation_name: symbol)
-
-.input input_relation
-
-.decl output_relation(relation_name: symbol)
-
-.input output_relation
-
-.decl internal_relation(relation_name: symbol)
-
-.input internal_relation
-
-.decl extern_definition(node_id: unsigned, extern_name: symbol)
-
-.input extern_definition
-
-.decl declare_type(node_id: unsigned, name: symbol)
-
-.input declare_type
-
-.decl module(node_id: unsigned)
-
-.input module
-
-.decl module_declaration(module_id: unsigned, declaration_id: unsigned)
-
-.input module_declaration
-
-.decl scoped_value(scope_id: unsigned, value_id: unsigned)
-
-.input scoped_value
-
-.decl relation_atom(node_id: unsigned, name: symbol)
-
-.decl extern_atom(node_id: unsigned, name: symbol)
-
-.decl grounded_node(rule_node_id: unsigned, node_id: unsigned)
-
-.decl assign(node_id: unsigned, lhs_node_id: unsigned, rhs_node_id: unsigned)
-
-.decl inequality_op(op: symbol)
-
-.decl has_output_relation(node_id: unsigned)
-
-.decl literal_contradiction(lit_id1: unsigned, lit_id2: unsigned)
-
-.decl wildcard(node_id: unsigned)
-
-.decl rule_head_var(rule_id: unsigned, var_id: unsigned, var_name: symbol)
-
-.decl alias(rule_id: unsigned, id1: unsigned, id2: unsigned)
-
-.decl points_to(rule_id: unsigned, id1: unsigned, id2: unsigned)
-
-.decl depends_on(r1: symbol, r2: symbol)
-
-.decl transitive_depends_on(r1: symbol, r2: symbol)
-
-.decl source(r: symbol)
-
-.decl has_definitions(relation: symbol)
-
-.decl live_rule(relation: symbol)
-
-.decl dependency_cycle(relation: symbol)
-
-.decl rule_scope(rule_id: unsigned, scope_id: unsigned)
-
-.decl constrained_rule_var(rule_node_id: unsigned, var_node_id: unsigned, var_name: symbol)
-
-.decl grounded_variable(rule_id: unsigned, var_name: symbol)
-
-.output grounded_variable
-
-.decl ungrounded_variable(rule_id: unsigned, var_id: unsigned, var_name: symbol)
-
-.output ungrounded_variable
-
-.decl ungrounded_external_atom(rule_id: unsigned, atom_id: unsigned, atom_name: symbol)
-
-.output ungrounded_external_atom
-
-.decl wildcard_in_fact(fact_node_id: unsigned, fact_arg_id: unsigned, pos: unsigned)
-
-.output wildcard_in_fact
-
-.decl wildcard_in_extern(atom_node_id: unsigned, atom_arg_id: unsigned, pos: unsigned)
-
-.output wildcard_in_extern
-
-.decl wildcard_in_rule_head(rule_node_id: unsigned, rule_arg_id: unsigned, pos: unsigned)
-
-.output wildcard_in_rule_head
-
-.decl wildcard_in_constraint(constraint_node_id: unsigned, wildcard_node_id: unsigned)
-
-.output wildcard_in_constraint
-
-.decl wildcard_in_binop(binop_node_id: unsigned, wildcard_node_id: unsigned)
-
-.output wildcard_in_binop
-
-.decl unconstrained_rule_var(rule_node_id: unsigned, var_node_id: unsigned, var_name: symbol)
-
-.output unconstrained_rule_var
-
-.decl rule_with_contradiction(rule_id: unsigned)
-
-.output rule_with_contradiction
-
-.decl dead_code(node_id: unsigned)
-
-.output dead_code
-
-.decl no_output_relation(node_id: unsigned)
-
-.output no_output_relation
-
-.decl dead_internal_relation(node_id: unsigned, relation_name: symbol)
-
-.output dead_internal_relation
-
-.decl conflicting_definitions(node_id1: unsigned, node_id2: unsigned, name: symbol)
-
-.output conflicting_definitions
-
-.decl extern_used_as_fact(node_id: unsigned, extern_node_id: unsigned, name: symbol)
-
-.output extern_used_as_fact
-
-.decl extern_used_as_rule(node_id: unsigned, extern_node_id: unsigned, name: symbol)
-
-.output extern_used_as_rule
-
-.decl cyclic_negation(negation_id: unsigned)
-
-.output cyclic_negation
-
+// Input facts
+@def lit_number(node_id: u32, value: u32) input.
+@def lit_string(node_id: u32, value: string) input.
+@def variable(node_id: u32, var_name: string) input.
+@def constraint(node_id: u32, op: string, lhs_node_id: u32, rhs_node_id: u32) input.
+@def binop(node_id: u32, op: string, lhs_node_id: u32, rhs_node_id: u32) input.
+@def atom(node_id: u32, name: string) input.
+@def atom_arg(atom_id: u32, atom_arg_pos: u32, atom_arg_id: u32) input.
+@def rule(rule_id: u32, name: string) input.
+@def rule_arg(rule_id: u32, rule_arg_pos: u32, rule_arg_id: u32) input.
+@def rule_clause(rule_id: u32, rule_clause_pos: u32, rule_clause_id: u32) input.
+@def negation(negation_node_id: u32, inner_node_id: u32) input.
+@def input_relation(relation_name: string) input.
+@def output_relation(relation_name: string) input.
+@def internal_relation(relation_name: string) input.
+@def extern_definition(node_id: u32, extern_name: string) input.
+@def declare_type(node_id: u32, name: string) input.
+@def module(node_id: u32) input.
+@def module_declaration(module_id: u32, declaration_id: u32) input.
+@def scoped_value(scope_id: u32, value_id: u32) input.
+
+// Internal rules
+@def relation_atom(node_id: u32, name: string).
+@def extern_atom(node_id: u32, name: string).
+@def grounded_node(rule_node_id: u32, node_id: u32).
+@def assign(node_id: u32, lhs_node_id: u32, rhs_node_id: u32).  // TODO mark this as inline
+@def inequality_op(op: string).
+@def has_output_relation(node_id: u32).
+@def literal_contradiction(lit_id1: u32, lit_id2: u32).
+@def wildcard(node_id: u32). // TODO mark as inline
+@def rule_head_var(rule_id: u32, var_id: u32, var_name: string).
+@def alias(rule_id: u32, id1: u32, id2: u32).
+@def points_to(rule_id: u32, id1: u32, id2: u32).
+@def depends_on(r1: string, r2: string).
+@def transitive_depends_on(r1: string, r2: string).
+@def source(r: string).
+@def has_definitions(relation: string).
+@def live_rule(relation: string).
+@def dependency_cycle(relation: string).
+@def rule_scope(rule_id: u32, scope_id: u32).
+@def constrained_rule_var(rule_node_id: u32, var_node_id: u32, var_name: string).
+
+// Output facts / rules
+@def grounded_variable(rule_id: u32, var_name: string) output.
+@def ungrounded_variable(rule_id: u32, var_id: u32, var_name: string) output.
+@def ungrounded_external_atom(rule_id: u32, atom_id: u32, atom_name: string) output.
+@def wildcard_in_fact(fact_node_id: u32, fact_arg_id: u32, pos: u32) output.
+@def wildcard_in_extern(atom_node_id: u32, atom_arg_id: u32, pos: u32) output.
+@def wildcard_in_rule_head(rule_node_id: u32, rule_arg_id: u32, pos: u32) output.
+@def wildcard_in_constraint(constraint_node_id: u32, wildcard_node_id: u32) output.
+@def wildcard_in_binop(binop_node_id: u32, wildcard_node_id: u32) output.
+@def unconstrained_rule_var(rule_node_id: u32, var_node_id: u32, var_name: string) output.
+@def rule_with_contradiction(rule_id: u32) output.
+@def dead_code(node_id: u32) output.
+@def no_output_relation(node_id: u32) output.
+@def dead_internal_relation(node_id: u32, relation_name: string) output.
+@def conflicting_definitions(node_id1: u32, node_id2: u32, name: string) output.
+@def extern_used_as_fact(node_id: u32, extern_node_id: u32, name: string) output.
+@def extern_used_as_rule(node_id: u32, extern_node_id: u32, name: string) output.
+@def cyclic_negation(negation_id: u32) output.
+
+
+// An atom that is not defined externally. This is an important distinction
+// since external atoms cannot ground variables!
 relation_atom(node_id, name) :-
   declare_type(_, name),
   atom(node_id, name).
 
+// An atom that is defined externally.
 extern_atom(node_id, name) :-
   extern_definition(_, name),
   atom(node_id, name).
 
+// r1 depends on r2 if rule r1 refers to r2 in the body
 depends_on(r1, r2) :-
   rule(rule_id, r1),
   rule_clause(rule_id, _, clause_id),
   atom(clause_id, r2).
 
+// Variant for negated atoms.
 depends_on(r1, r2) :-
   rule(rule_id, r1),
   rule_clause(rule_id, _, negation_id),
   negation(negation_id, atom_id),
   atom(atom_id, r2).
 
+// Variant for extern functions.
+// TODO support inline disjunction
 depends_on(r1, r2) :-
   rule(rule_id, r1),
   rule_clause(rule_id, _, assign_id),
@@ -218,9 +105,12 @@ transitive_depends_on(r1, r3) :-
   depends_on(r1, r2),
   transitive_depends_on(r2, r3).
 
+// Rules have cyclic dependencies if a rule depends on itself (transitively)
 dependency_cycle(r) :-
   transitive_depends_on(r, r).
 
+// Negations are not allowed inside a rule if the negated atom is part of a
+// dependency cycle since this is not stratifiable.
 cyclic_negation(negation_id) :-
   dependency_cycle(r1),
   transitive_depends_on(r1, r2),
@@ -230,46 +120,58 @@ cyclic_negation(negation_id) :-
   atom(atom_id, r3),
   transitive_depends_on(r3, r1).
 
+// An input can always be a source of data.
 source(r) :-
   input_relation(r).
 
+// An internal or output relation can be a source of data if they define top level facts.
 source(r) :-
   module_declaration(_, atom_id),
   atom(atom_id, r),
-  !input_relation(r).
+  !input_relation(r).  // internal or output relation
 
+// An output rule is live if it is a direct source of data.
 live_rule(r) :-
   output_relation(r),
   source(r).
 
+// An output rule is live if there is a path from the source to this output.
 live_rule(r1) :-
   output_relation(r1),
   transitive_depends_on(r1, r2),
   source(r2).
 
+// A rule is live if it is depended on by another live rule.
 live_rule(r2) :-
   depends_on(r1, r2),
   live_rule(r1).
 
+// Dead rules are the opposite set of all the live rules.
 dead_code(node_id) :-
   rule(node_id, r),
   !live_rule(r).
 
+// Type definitions also need to be marked as dead.
 dead_code(node_id) :-
   declare_type(node_id, r),
   !live_rule(r).
 
+// Extern definitions also need to be marked as dead.
 dead_code(node_id) :-
   extern_definition(node_id, r),
   !live_rule(r).
 
+// Atoms too.
 dead_code(node_id) :-
   atom(node_id, r),
   !live_rule(r).
 
+// Rules are dead if one of the clauses is statically known to produce no results.
 dead_code(rule_id) :-
   rule_with_contradiction(rule_id).
 
+// A rule is dead if it depends on another dead rule.
+// Note that this only looks at one specific rule that contains the dead code, not the entire relation.
 dead_code(rule_id) :-
   rule_clause(rule_id, _, rule_clause_id),
   dead_code(rule_clause_id).
@@ -277,11 +179,11 @@ dead_code(rule_id) :-
 has_definitions(r) :-
   module_declaration(_, node_id),
   atom(node_id, r).
-
 has_definitions(r) :-
   module_declaration(_, node_id),
   rule(node_id, r).
 
+// We consider an internal relation to be dead if there are no top level atoms or rules.
 dead_internal_relation(decl_id, r) :-
   internal_relation(r),
   declare_type(decl_id, r),
@@ -296,6 +198,7 @@ no_output_relation(node_id) :-
   module_declaration(node_id, _),
   !has_output_relation(node_id).
 
+// Top level facts: no variables allowed
 ungrounded_variable(atom_id, var_id, var_name) :-
   module_declaration(_, atom_id),
   atom(atom_id, _),
@@ -303,11 +206,13 @@ ungrounded_variable(atom_id, var_id, var_name) :-
   variable(var_id, var_name),
   var_name != "_".
 
+// Rules: no variables allowed in rule head if not used in a rule clause
 ungrounded_variable(rule_id, var_id, var_name) :-
   rule_head_var(rule_id, var_id, var_name),
   var_name != "_",
-  !grounded_variable(rule_id, var_name).
+  !grounded_variable(rule_id, var_name).  // Only compare by variable name!
 
+// Variables used in a constraint (comparison, equality or inequality) need to be grounded.
 ungrounded_variable(rule_id, var_id, var_name) :-
   rule_clause(rule_id, _, rule_clause_id),
   constraint(rule_clause_id, _, var_id, _),
@@ -322,6 +227,7 @@ ungrounded_variable(rule_id, var_id, var_name) :-
   var_name != "_",
   !grounded_variable(rule_id, var_name).
 
+// Variables used in a binop need to be grounded.
 ungrounded_variable(rule_id, var_id, var_name) :-
   binop(_, _, var_id, _),
   variable(var_id, var_name),
@@ -336,6 +242,7 @@ ungrounded_variable(rule_id, var_id, var_name) :-
   rule_scope(rule_id, scope_id),
   !grounded_variable(rule_id, var_name).
 
+// Variables used in a negation need to be grounded.
 ungrounded_variable(rule_id, var_id, var_name) :-
   negation(negation_id, _),
   rule_clause(rule_id, _, negation_id),
@@ -343,18 +250,21 @@ ungrounded_variable(rule_id, var_id, var_name) :-
   variable(var_id, var_name),
   !grounded_node(rule_id, var_id).
 
+// External atoms used in a fact need to be grounded.
 ungrounded_external_atom(fact_id, atom_id, atom_name) :-
   module_declaration(_, fact_id),
   atom_arg(fact_id, _, atom_id),
   extern_atom(atom_id, atom_name),
   !grounded_node(fact_id, atom_id).
 
+// External atoms used in a rule head need to be grounded.
 ungrounded_external_atom(rule_id, atom_id, atom_name) :-
   rule_arg(rule_id, _, atom_id),
   atom(atom_id, atom_name),
   scoped_value(rule_id, atom_id),
   !grounded_node(rule_id, atom_id).
 
+// External atoms used in a comparison or inequality need to be grounded.
 ungrounded_external_atom(rule_id, atom_id, atom_name) :-
   rule_clause(rule_id, _, rule_clause_id),
   constraint(rule_clause_id, op, _, atom_id),
@@ -371,6 +281,7 @@ ungrounded_external_atom(rule_id, atom_id, atom_name) :-
   scoped_value(rule_id, atom_id),
   !grounded_node(rule_id, atom_id).
 
+// External atoms used in a binop need to be grounded.
 ungrounded_external_atom(rule_id, atom_id, atom_name) :-
   binop(_, _, _, atom_id),
   atom(atom_id, atom_name),
@@ -391,13 +302,9 @@ rule_scope(rule_id, negation_id) :-
   negation(negation_id, _).
 
 inequality_op("!=").
-
 inequality_op("<").
-
 inequality_op("<=").
-
 inequality_op(">").
-
 inequality_op(">=").
 
 wildcard(node_id) :-
@@ -435,12 +342,15 @@ wildcard_in_binop(binop_node_id, rhs_node_id) :-
   binop(binop_node_id, _, _, rhs_node_id),
   wildcard(rhs_node_id).
 
+// A rule variable is unconstrained if there is no other occurrence of the variable in the rule.
+// (This works because groundedness of a variable is also checked..
 unconstrained_rule_var(rule_id, var_id, var_name) :-
   rule_scope(rule_id, scope_id),
   scoped_value(scope_id, var_id),
   variable(var_id, var_name),
   !constrained_rule_var(rule_id, var_id, var_name).
 
+// This could be done much simpler using count aggregate but this is not implemented in Eclair yet.
 constrained_rule_var(rule_id, var_id1, var_name) :-
   rule_scope(rule_id, scope_id1),
   rule_scope(rule_id, scope_id2),
@@ -453,6 +363,7 @@ constrained_rule_var(rule_id, var_id1, var_name) :-
 assign(node_id, lhs_node_id, rhs_node_id) :-
   constraint(node_id, "=", lhs_node_id, rhs_node_id).
 
+// All variables with the same name in a rule are aliases of each other.
 alias(rule_id, var_id1, var_id2) :-
   scoped_value(rule_id, var_id1),
   variable(var_id1, var_name),
@@ -460,29 +371,36 @@ alias(rule_id, var_id1, var_id2) :-
   var_id1 != var_id2,
   variable(var_id2, var_name).
 
+// Two values are aliases if they are used inside an equality.
+// NOTE: Datalog supports both x = 123 and 123 = x.
+// TODO support multiple rule heads
 alias(rule_id, id1, id2) :-
   rule_clause(rule_id, _, rule_clause_id),
   assign(rule_clause_id, id1, id2).
-
 alias(rule_id, id2, id1) :-
   rule_clause(rule_id, _, rule_clause_id),
   assign(rule_clause_id, id1, id2).
 
+// Non-recursive case: what does a variable point to?
 points_to(rule_id, id1, id2) :-
   alias(rule_id, id1, id2),
   variable(id1, _).
 
+// Recursive case: a = b, b = c results in a = c
 points_to(rule_id, id1, id4) :-
   points_to(rule_id, id1, id2),
   variable(id2, var_name),
   variable(id3, var_name),
   alias(rule_id, id3, id4).
 
+// If we find two variables that point to different literal values,
+// then there is a contradiction.
 rule_with_contradiction(rule_id) :-
   points_to(rule_id, start_id, id1),
   points_to(rule_id, start_id, id2),
   literal_contradiction(id1, id2).
 
+// This is also true for simple cases like '123 = 456'.
 rule_with_contradiction(rule_id) :-
   rule_clause(rule_id, _, rule_clause_id),
   assign(rule_clause_id, id1, id2),
@@ -498,20 +416,25 @@ literal_contradiction(id1, id2) :-
   lit_string(id2, value2),
   value1 != value2.
 
+
+// Helper relation for getting all variables in head of a rule.
 rule_head_var(rule_id, var_id, var_name) :-
   rule_arg(rule_id, _, var_id),
   variable(var_id, var_name).
 
+// Helper relation for getting all grounded variables in body of a rule.
 grounded_variable(rule_id, var_name) :-
   grounded_node(rule_id, var_id),
   variable(var_id, var_name).
 
+// Variables are grounded if they are used in an atom (defined using '@def').
 grounded_node(rule_id, var_id) :-
   rule_clause(rule_id, _, rule_clause_id),
   relation_atom(rule_clause_id, _),
   atom_arg(rule_clause_id, _, var_id),
   variable(var_id, _).
 
+// All variables with same name are grounded at the same time
 grounded_node(rule_id, var_id2) :-
   scoped_value(rule_id, var_id1),
   variable(var_id1, var_name),
@@ -519,6 +442,7 @@ grounded_node(rule_id, var_id2) :-
   scoped_value(rule_id, var_id2),
   variable(var_id2, var_name).
 
+// Variables are grounded inside a negation if they are grounded in another clause.
 grounded_node(rule_id, var_id2) :-
   negation(negation_id, _),
   rule_clause(rule_id, _, negation_id),
@@ -528,6 +452,7 @@ grounded_node(rule_id, var_id2) :-
   scoped_value(negation_id, var_id2),
   variable(var_id2, var_name).
 
+// Literals are always grounded.
 grounded_node(rule_id, node_id) :-
   scoped_value(rule_id, node_id),
   lit_number(node_id, _).
@@ -536,11 +461,13 @@ grounded_node(rule_id, node_id) :-
   scoped_value(rule_id, node_id),
   lit_string(node_id, _).
 
+// A binop is grounded if both sides are grounded.
 grounded_node(rule_id, node_id) :-
   grounded_node(rule_id, lhs_node_id),
   grounded_node(rule_id, rhs_node_id),
   binop(node_id, _, lhs_node_id, rhs_node_id).
 
+// Assignment grounds one var, if the other side is already grounded.
 grounded_node(rule_id, rhs_node_id) :-
   rule_clause(rule_id, _, rule_clause_id),
   assign(rule_clause_id, lhs_node_id, rhs_node_id),

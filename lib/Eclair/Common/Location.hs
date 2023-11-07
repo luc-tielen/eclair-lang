@@ -10,16 +10,16 @@ module Eclair.Common.Location
   , spanToSourceSpan
   ) where
 
+import Eclair.Datalog
 import qualified Text.Megaparsec as P
 import qualified Data.Map as M
-import qualified Language.Souffle.Marshal as S
 import Data.Maybe (fromJust)
 
 newtype NodeId
   = NodeId
   { unNodeId :: Word32
   } deriving (Eq, Ord, Show, Generic)
-  deriving S.Marshal
+  deriving Marshal
 
 -- A source span (begin and end position)
 data Span

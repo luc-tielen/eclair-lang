@@ -27,8 +27,7 @@ module Eclair.AST.Analysis
 
 import qualified Data.List.NonEmpty as NE
 import Data.List.Extra (nubOrdOn)
-import qualified Language.Souffle.Interpreted as S
-import qualified Language.Souffle.Analysis as S
+import qualified Eclair.Datalog as DL
 import qualified Eclair.AST.IR as IR
 import qualified Data.Map as Map
 import Eclair.Common.Id
@@ -43,26 +42,26 @@ type Position = Word32
 data LitNumber
   = LitNumber NodeId Word32
   deriving stock Generic
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions LitNumber "lit_number" 'S.Input
+  deriving anyclass DL.Marshal
+  deriving DL.Fact via DL.FactOptions LitNumber 'DL.Input "lit_number"
 
 data LitString
   = LitString NodeId Text
   deriving stock Generic
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions LitString "lit_string" 'S.Input
+  deriving anyclass DL.Marshal
+  deriving DL.Fact via DL.FactOptions LitString 'DL.Input "lit_string"
 
 data Var
   = Var NodeId Id
   deriving stock Generic
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions Var "variable" 'S.Input
+  deriving anyclass DL.Marshal
+  deriving DL.Fact via DL.FactOptions Var 'DL.Input "variable"
 
 newtype Hole
   = Hole NodeId
   deriving stock Generic
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions Hole "hole" 'S.Input
+  deriving anyclass DL.Marshal
+  deriving DL.Fact via DL.FactOptions Hole 'DL.Input "hole"
 
 data Constraint
   = Constraint
@@ -72,8 +71,8 @@ data Constraint
   , constraintRhsId :: NodeId
   }
   deriving stock Generic
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions Constraint "constraint" 'S.Input
+  deriving anyclass DL.Marshal
+  deriving DL.Fact via DL.FactOptions Constraint 'DL.Input "constraint"
 
 data BinOp
   = BinOp
@@ -83,38 +82,38 @@ data BinOp
   , binOpRhsId :: NodeId
   }
   deriving stock Generic
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions BinOp "binop" 'S.Input
+  deriving anyclass DL.Marshal
+  deriving DL.Fact via DL.FactOptions BinOp 'DL.Input "binop"
 
 data Atom
   = Atom NodeId Id
   deriving stock Generic
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions Atom "atom" 'S.Input
+  deriving anyclass DL.Marshal
+  deriving DL.Fact via DL.FactOptions Atom 'DL.Input "atom"
 
 data AtomArg
   = AtomArg { atomId :: NodeId, atomArgPos :: Word32, atomArgId :: NodeId }
   deriving stock Generic
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions AtomArg "atom_arg" 'S.Input
+  deriving anyclass DL.Marshal
+  deriving DL.Fact via DL.FactOptions AtomArg 'DL.Input "atom_arg"
 
 data Rule
   = Rule NodeId Id
   deriving stock Generic
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions Rule "rule" 'S.Input
+  deriving anyclass DL.Marshal
+  deriving DL.Fact via DL.FactOptions Rule 'DL.Input "rule"
 
 data RuleArg
   = RuleArg { raRuleId :: NodeId, raArgPos :: Word32, raArgId :: NodeId }
   deriving stock Generic
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions RuleArg "rule_arg" 'S.Input
+  deriving anyclass DL.Marshal
+  deriving DL.Fact via DL.FactOptions RuleArg 'DL.Input "rule_arg"
 
 data RuleClause
   = RuleClause { rcRuleId :: NodeId, rcClausePos :: Word32, rcClauseId :: NodeId }
   deriving stock Generic
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions RuleClause "rule_clause" 'S.Input
+  deriving anyclass DL.Marshal
+  deriving DL.Fact via DL.FactOptions RuleClause 'DL.Input "rule_clause"
 
 data Negation
   = Negation
@@ -122,57 +121,57 @@ data Negation
   , negationInnerNodeId :: NodeId
   }
   deriving stock Generic
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions Negation "negation" 'S.Input
+  deriving anyclass DL.Marshal
+  deriving DL.Fact via DL.FactOptions Negation 'DL.Input "negation"
 
 -- NOTE: not storing types right now, but might be useful later?
 data DeclareType
   = DeclareType NodeId Id
   deriving stock Generic
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions DeclareType "declare_type" 'S.Input
+  deriving anyclass DL.Marshal
+  deriving DL.Fact via DL.FactOptions DeclareType 'DL.Input "declare_type"
 
 data ExternDefinition
   = ExternDefinition NodeId Id
   deriving stock Generic
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions ExternDefinition "extern_definition" 'S.Input
+  deriving anyclass DL.Marshal
+  deriving DL.Fact via DL.FactOptions ExternDefinition 'DL.Input "extern_definition"
 
 newtype InputRelation
   = InputRelation Id
   deriving stock Generic
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions InputRelation "input_relation" 'S.Input
+  deriving anyclass DL.Marshal
+  deriving DL.Fact via DL.FactOptions InputRelation 'DL.Input "input_relation"
 
 newtype OutputRelation
   = OutputRelation Id
   deriving stock Generic
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions OutputRelation "output_relation" 'S.Input
+  deriving anyclass DL.Marshal
+  deriving DL.Fact via DL.FactOptions OutputRelation 'DL.Input "output_relation"
 
 newtype InternalRelation
   = InternalRelation Id
   deriving stock Generic
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions InternalRelation "internal_relation" 'S.Input
+  deriving anyclass DL.Marshal
+  deriving DL.Fact via DL.FactOptions InternalRelation 'DL.Input "internal_relation"
 
 newtype Module
   = Module NodeId
   deriving stock Generic
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions Module "module" 'S.Input
+  deriving anyclass DL.Marshal
+  deriving DL.Fact via DL.FactOptions Module 'DL.Input "module"
 
 data ModuleDecl
   = ModuleDecl { moduleId :: NodeId, declId :: NodeId }
   deriving stock Generic
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions ModuleDecl "module_declaration" 'S.Input
+  deriving anyclass DL.Marshal
+  deriving DL.Fact via DL.FactOptions ModuleDecl 'DL.Input "module_declaration"
 
 data ScopedValue
   = ScopedValue { svScopeId :: NodeId, svNodeId :: NodeId }
   deriving stock Generic
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions ScopedValue "scoped_value" 'S.Input
+  deriving anyclass DL.Marshal
+  deriving DL.Fact via DL.FactOptions ScopedValue 'DL.Input "scoped_value"
 
 data UngroundedVar loc
   = UngroundedVar
@@ -181,8 +180,8 @@ data UngroundedVar loc
   , ungroundedVarName :: Id
   }
   deriving stock (Generic, Eq, Functor)
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions (UngroundedVar loc) "ungrounded_variable" 'S.Output
+  deriving anyclass DL.Marshal
+  deriving DL.Fact via DL.FactOptions (UngroundedVar loc) 'DL.Output "ungrounded_variable"
 
 data WildcardInFact loc
   = WildcardInFact
@@ -191,8 +190,8 @@ data WildcardInFact loc
   , wildcardFactPos :: Position
   }
   deriving stock (Generic, Eq, Functor)
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions (WildcardInFact loc) "wildcard_in_fact" 'S.Output
+  deriving anyclass DL.Marshal
+  deriving DL.Fact via DL.FactOptions (WildcardInFact loc) 'DL.Output "wildcard_in_fact"
 
 data WildcardInRuleHead loc
   = WildcardInRuleHead
@@ -201,8 +200,8 @@ data WildcardInRuleHead loc
   , wildcardRuleHeadPos :: Position
   }
   deriving stock (Generic, Eq, Functor)
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions (WildcardInRuleHead loc) "wildcard_in_rule_head" 'S.Output
+  deriving anyclass DL.Marshal
+  deriving DL.Fact via DL.FactOptions (WildcardInRuleHead loc) 'DL.Output "wildcard_in_rule_head"
 
 data WildcardInConstraint loc
   = WildcardInConstraint
@@ -210,8 +209,8 @@ data WildcardInConstraint loc
   , wildcardConstraintPos :: loc
   }
   deriving stock (Generic, Eq, Functor)
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions (WildcardInConstraint loc) "wildcard_in_constraint" 'S.Output
+  deriving anyclass DL.Marshal
+  deriving DL.Fact via DL.FactOptions (WildcardInConstraint loc) 'DL.Output "wildcard_in_constraint"
 
 data WildcardInBinOp loc
   = WildcardInBinOp
@@ -219,8 +218,8 @@ data WildcardInBinOp loc
   , wildcardBinOpPos :: loc
   }
   deriving stock (Generic, Eq, Functor)
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions (WildcardInBinOp loc) "wildcard_in_binop" 'S.Output
+  deriving anyclass DL.Marshal
+  deriving DL.Fact via DL.FactOptions (WildcardInBinOp loc) 'DL.Output "wildcard_in_binop"
 
 data WildcardInExtern loc
   = WildcardInExtern
@@ -229,8 +228,8 @@ data WildcardInExtern loc
   , wildcardExternArgPos :: Position
   }
   deriving stock (Generic, Eq, Functor)
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions (WildcardInExtern loc) "wildcard_in_extern" 'S.Output
+  deriving anyclass DL.Marshal
+  deriving DL.Fact via DL.FactOptions (WildcardInExtern loc) 'DL.Output "wildcard_in_extern"
 
 data UnconstrainedRuleVar loc
   = UnconstrainedRuleVar
@@ -239,26 +238,26 @@ data UnconstrainedRuleVar loc
   , urvVarName :: Id
   }
   deriving stock (Generic, Eq, Functor)
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions (UnconstrainedRuleVar loc) "unconstrained_rule_var" 'S.Output
+  deriving anyclass DL.Marshal
+  deriving DL.Fact via DL.FactOptions (UnconstrainedRuleVar loc) 'DL.Output "unconstrained_rule_var"
 
 newtype DeadCode
   = DeadCode { unDeadCode :: NodeId }
   deriving stock (Generic, Eq)
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions DeadCode "dead_code" 'S.Output
+  deriving anyclass DL.Marshal
+  deriving DL.Fact via DL.FactOptions DeadCode 'DL.Output "dead_code"
 
 newtype NoOutputRelation loc
   = NoOutputRelation loc
   deriving stock (Generic, Eq, Functor)
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions (NoOutputRelation loc) "no_output_relation" 'S.Output
+  deriving anyclass DL.Marshal
+  deriving DL.Fact via DL.FactOptions (NoOutputRelation loc) 'DL.Output "no_output_relation"
 
 data DeadInternalRelation loc
   = DeadInternalRelation loc Id
   deriving stock (Generic, Eq, Functor)
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions (DeadInternalRelation loc) "dead_internal_relation" 'S.Output
+  deriving anyclass DL.Marshal
+  deriving DL.Fact via DL.FactOptions (DeadInternalRelation loc) 'DL.Output "dead_internal_relation"
 
 data ConflictingDefinitions loc
   = ConflictingDefinitions
@@ -267,8 +266,8 @@ data ConflictingDefinitions loc
   , cdName :: Id
   }
   deriving stock (Generic, Eq, Functor)
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions (ConflictingDefinitions loc) "conflicting_definitions" 'S.Output
+  deriving anyclass DL.Marshal
+  deriving DL.Fact via DL.FactOptions (ConflictingDefinitions loc) 'DL.Output "conflicting_definitions"
 
 data ConflictingDefinitionGroup loc
   = ConflictingDefinitionGroup
@@ -283,8 +282,8 @@ data ExternUsedAsFact loc
   , externAsFactName :: Id
   }
   deriving stock (Generic, Eq, Functor)
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions (ExternUsedAsFact loc) "extern_used_as_fact" 'S.Output
+  deriving anyclass DL.Marshal
+  deriving DL.Fact via DL.FactOptions (ExternUsedAsFact loc) 'DL.Output "extern_used_as_fact"
 
 data ExternUsedAsRule loc
   = ExternUsedAsRule
@@ -293,19 +292,19 @@ data ExternUsedAsRule loc
   , externAsRuleName :: Id
   }
   deriving stock (Generic, Eq, Functor)
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions (ExternUsedAsRule loc) "extern_used_as_rule" 'S.Output
+  deriving anyclass DL.Marshal
+  deriving DL.Fact via DL.FactOptions (ExternUsedAsRule loc) 'DL.Output "extern_used_as_rule"
 
 newtype CyclicNegation loc
   = CyclicNegation loc
   deriving stock (Generic, Eq, Functor)
-  deriving anyclass S.Marshal
-  deriving S.Fact via S.FactOptions (CyclicNegation loc) "cyclic_negation" 'S.Output
+  deriving anyclass DL.Marshal
+  deriving DL.Fact via DL.FactOptions (CyclicNegation loc) 'DL.Output "cyclic_negation"
 
 data SemanticAnalysis
   = SemanticAnalysis
-  deriving S.Program
-  via S.ProgramOptions SemanticAnalysis "semantic_analysis"
+  deriving DL.Program
+  via DL.ProgramOptions SemanticAnalysis "semantic_analysis"
       '[ LitNumber
        , LitString
        , Var
@@ -394,29 +393,29 @@ hasSemanticErrors result =
     isNotNull :: (SemanticErrors NodeId -> [a]) -> Bool
     isNotNull f = not . null $ f errs
 
-analysis :: Word -> S.Handle SemanticAnalysis -> S.Analysis S.SouffleM IR.AST Result
-analysis numCores prog = S.mkAnalysis addFacts run getFacts
+analysis :: Word -> DL.Handle SemanticAnalysis -> DL.Analysis DL.DatalogM IR.AST Result
+analysis numCores prog = DL.mkAnalysis addFacts run getFacts
   where
-    addFacts :: IR.AST -> S.SouffleM ()
+    addFacts :: IR.AST -> DL.DatalogM ()
     addFacts ast = usingReaderT Nothing $ flip (zygo IR.getNodeIdF) ast $ \case
       IR.LitF nodeId lit -> do
         mScopeId <- ask
         for_ mScopeId $ \scopeId ->
-          S.addFact prog $ ScopedValue scopeId nodeId
+          DL.addFact prog $ ScopedValue scopeId nodeId
         case lit of
           IR.LNumber x ->
-            S.addFact prog $ LitNumber nodeId x
+            DL.addFact prog $ LitNumber nodeId x
           IR.LString x ->
-            S.addFact prog $ LitString nodeId x
+            DL.addFact prog $ LitString nodeId x
       IR.PWildcardF nodeId ->
-        S.addFact prog $ Var nodeId (Id "_")
+        DL.addFact prog $ Var nodeId (Id "_")
       IR.VarF nodeId var -> do
-        S.addFact prog $ Var nodeId var
+        DL.addFact prog $ Var nodeId var
         mScopeId <- ask
         for_ mScopeId $ \scopeId ->
-          S.addFact prog $ ScopedValue scopeId nodeId
+          DL.addFact prog $ ScopedValue scopeId nodeId
       IR.HoleF nodeId ->
-        S.addFact prog $ Hole nodeId
+        DL.addFact prog $ Hole nodeId
       IR.BinOpF nodeId arithOp (lhsId', lhsAction) (rhsId', rhsAction) -> do
         let textualOp = case arithOp of
               IR.Plus -> "+"
@@ -425,8 +424,8 @@ analysis numCores prog = S.mkAnalysis addFacts run getFacts
               IR.Divide -> "/"
         mScopeId <- ask
         for_ mScopeId $ \scopeId ->
-          S.addFact prog $ ScopedValue scopeId nodeId
-        S.addFact prog $ BinOp nodeId textualOp lhsId' rhsId'
+          DL.addFact prog $ ScopedValue scopeId nodeId
+        DL.addFact prog $ BinOp nodeId textualOp lhsId' rhsId'
         lhsAction
         rhsAction
       IR.ConstraintF nodeId constraintOp (lhsId', lhsAction) (rhsId', rhsAction) -> do
@@ -437,19 +436,19 @@ analysis numCores prog = S.mkAnalysis addFacts run getFacts
               IR.LessOrEqual -> "<="
               IR.GreaterThan -> "<"
               IR.GreaterOrEqual -> "<="
-        S.addFact prog $ Constraint nodeId textualOp lhsId' rhsId'
+        DL.addFact prog $ Constraint nodeId textualOp lhsId' rhsId'
         lhsAction
         rhsAction
       IR.NotF nodeId (innerNodeId, action) -> do
-        S.addFact prog $ Negation nodeId innerNodeId
+        DL.addFact prog $ Negation nodeId innerNodeId
         local (const $ Just nodeId) action
       IR.AtomF nodeId atom (unzip -> (argNodeIds, actions)) -> do
-        S.addFact prog $ Atom nodeId atom
+        DL.addFact prog $ Atom nodeId atom
         mScopeId <- ask
-        S.addFacts prog $ mapWithPos (AtomArg nodeId) argNodeIds
+        DL.addFacts prog $ mapWithPos (AtomArg nodeId) argNodeIds
 
         for_ mScopeId $ \scopeId ->
-          S.addFact prog $ ScopedValue scopeId nodeId
+          DL.addFact prog $ ScopedValue scopeId nodeId
 
         let maybeAddScope =
               if isJust mScopeId
@@ -459,53 +458,53 @@ analysis numCores prog = S.mkAnalysis addFacts run getFacts
       IR.RuleF nodeId rule ruleArgs ruleClauses -> do
         let (argNodeIds, argActions) = unzip ruleArgs
             (clauseNodeIds, clauseActions) = unzip ruleClauses
-        S.addFact prog $ Rule nodeId rule
-        S.addFacts prog $ mapWithPos (RuleArg nodeId) argNodeIds
-        S.addFacts prog $ mapWithPos (RuleClause nodeId) clauseNodeIds
+        DL.addFact prog $ Rule nodeId rule
+        DL.addFacts prog $ mapWithPos (RuleArg nodeId) argNodeIds
+        DL.addFacts prog $ mapWithPos (RuleClause nodeId) clauseNodeIds
         local (const $ Just nodeId) $ do
           sequence_ argActions
           sequence_ clauseActions
       IR.ExternDefinitionF nodeId name _ _ -> do
-        S.addFact prog $ ExternDefinition nodeId name
+        DL.addFact prog $ ExternDefinition nodeId name
       IR.DeclareTypeF nodeId name _ usageMode -> do
-        S.addFact prog $ DeclareType nodeId name
+        DL.addFact prog $ DeclareType nodeId name
 
         case usageMode of
           IR.Input ->
-            S.addFact prog $ InputRelation name
+            DL.addFact prog $ InputRelation name
           IR.Output ->
-            S.addFact prog $ OutputRelation name
+            DL.addFact prog $ OutputRelation name
           IR.InputOutput -> do
-            S.addFact prog $ InputRelation name
-            S.addFact prog $ OutputRelation name
+            DL.addFact prog $ InputRelation name
+            DL.addFact prog $ OutputRelation name
           IR.Internal ->
-            S.addFact prog $ InternalRelation name
+            DL.addFact prog $ InternalRelation name
       IR.ModuleF nodeId (unzip -> (declNodeIds, actions)) -> do
-        S.addFact prog $ Module nodeId
-        S.addFacts prog $ map (ModuleDecl nodeId) declNodeIds
+        DL.addFact prog $ Module nodeId
+        DL.addFacts prog $ map (ModuleDecl nodeId) declNodeIds
         sequence_ actions
 
-    run :: S.SouffleM ()
+    run :: DL.DatalogM ()
     run = do
-      S.setNumThreads prog (fromIntegral numCores)
-      S.run prog
+      DL.setNumThreads prog (fromIntegral numCores)
+      DL.run prog
 
-    getFacts :: S.SouffleM Result
+    getFacts :: DL.DatalogM Result
     getFacts = do
-      info <- SemanticInfo <$> S.getFacts prog
-      errs <- SemanticErrors <$> S.getFacts prog
-                             <*> S.getFacts prog
-                             <*> S.getFacts prog
-                             <*> S.getFacts prog
-                             <*> S.getFacts prog
-                             <*> S.getFacts prog
-                             <*> S.getFacts prog
-                             <*> S.getFacts prog
-                             <*> S.getFacts prog
-                             <*> (groupConflicts <$> S.getFacts prog)
-                             <*> S.getFacts prog
-                             <*> S.getFacts prog
-                             <*> S.getFacts prog
+      info <- SemanticInfo <$> DL.getFacts prog
+      errs <- SemanticErrors <$> DL.getFacts prog
+                             <*> DL.getFacts prog
+                             <*> DL.getFacts prog
+                             <*> DL.getFacts prog
+                             <*> DL.getFacts prog
+                             <*> DL.getFacts prog
+                             <*> DL.getFacts prog
+                             <*> DL.getFacts prog
+                             <*> DL.getFacts prog
+                             <*> (groupConflicts <$> DL.getFacts prog)
+                             <*> DL.getFacts prog
+                             <*> DL.getFacts prog
+                             <*> DL.getFacts prog
       pure $ Result info errs
 
     mapWithPos :: (Word32 -> a -> b) -> [a] -> [b]
@@ -527,9 +526,9 @@ groupConflicts conflicts =
     sameConflict = cdName &&& cdFirstLoc
 
 runAnalysis :: Word -> IR.AST -> IO Result
-runAnalysis numCores ast = S.runSouffle SemanticAnalysis $ \case
-  Nothing -> panic "Failed to load Souffle during semantic analysis!"
-  Just prog -> S.execAnalysis (analysis numCores prog) ast
+runAnalysis numCores ast = DL.runDatalog SemanticAnalysis $ \case
+  Nothing -> panic "Failed to load semantic analysis!"
+  Just prog -> DL.execAnalysis (analysis numCores prog) ast
 
 computeUsageMapping :: IR.AST -> Map Id IR.UsageMode
 computeUsageMapping ast =

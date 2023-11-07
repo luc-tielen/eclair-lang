@@ -7,6 +7,11 @@ source-repository-package
 
 source-repository-package
     type: git
+    location: https://github.com/luc-tielen/eclair-haskell.git
+    tag: 81276310413d6b371a5dbfbfdb70c5d90f1f53f9
+
+source-repository-package
+    type: git
     location: https://github.com/luc-tielen/souffle-haskell.git
     tag: e441c84f1d64890e31c92fbb278c074ae8bcaff5
 

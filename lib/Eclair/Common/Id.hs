@@ -5,18 +5,19 @@ module Eclair.Common.Id
   , startsWithId
   , stripIdPrefixes
   , startsWithIdPrefix
+  , startsWithDeltaPrefix
   , deltaPrefix
   , newPrefix
   ) where
 
+import Eclair.Datalog
 import qualified Data.Text as T
-import qualified Language.Souffle.Marshal as S
 import Prettyprinter
 
 
 newtype Id = Id { unId :: Text }
   deriving (Eq, Ord, Show, Generic)
-  deriving anyclass S.Marshal
+  deriving anyclass Marshal
 
 instance Pretty Id where
   pretty = pretty . unId
@@ -45,3 +46,7 @@ newPrefix = "new_"
 startsWithIdPrefix :: Id -> Bool
 startsWithIdPrefix (Id x) =
   any (`T.isPrefixOf` x) [deltaPrefix, newPrefix]
+
+startsWithDeltaPrefix :: Id -> Bool
+startsWithDeltaPrefix (Id x) =
+  deltaPrefix `T.isPrefixOf` x
