@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
-module Test.Eclair.LLVM.BTreeSpec
-  ( module Test.Eclair.LLVM.BTreeSpec
+module Test.Eclair.LLVM.BTree.BTreeSpec
+  ( module Test.Eclair.LLVM.BTree.BTreeSpec
   ) where
 
 import Prelude hiding (void)

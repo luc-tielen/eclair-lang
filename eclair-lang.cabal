@@ -275,7 +275,8 @@ test-suite eclair-test
     Test.Eclair.LLVM.Allocator.MallocSpec
     Test.Eclair.LLVM.Allocator.PageSpec
     Test.Eclair.LLVM.Allocator.Utils
-    Test.Eclair.LLVM.BTreeSpec
+    Test.Eclair.LLVM.BTree.BTree2Spec
+    Test.Eclair.LLVM.BTree.BTreeSpec
     Test.Eclair.LLVM.HashMapSpec
     Test.Eclair.LLVM.HashSpec
     Test.Eclair.LLVM.SymbolSpec
